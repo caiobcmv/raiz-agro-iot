@@ -32,3 +32,4 @@ dist-ssr
 database-local/raiz_agro.db-journal
 database-local/raiz_agro.db-wal
 database-local/raiz_agro.db-shm
+
