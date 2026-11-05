@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <base href="/">
+  <title>RAÍZ | Plataforma Agro Climática & IoT</title>
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2315803D'><path d='M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z'/></svg>">
+
+  <!-- Normalizador de Rotas SPA para URLs com caminhos ou barras duplicadas (ex: //dashboard ou /dashboard) -->
+  <script>
+    (function() {
+      // Se não for file://, normaliza rotas que foram digitadas sem hash
+      if (window.location.protocol !== 'file:') {
+        var p = window.location.pathname;
+        if (p && p !== '/' && !p.includes('.')) {
+          var clean = p.replace(/^\/+/, '');
+          if (clean) {
+            window.location.replace('/#/' + clean + (window.location.search || ''));
+          }
+        }
+      }
+    })();
+  </script>
+
+  <!-- Capturador de Erros de Scripts com Diagnóstico Visível na Tela -->
+  <script>
+    window.addEventListener('error', function(e) {
+      console.error('[ERRO GLOBAL CAPTURADO]', e);
+      var app = document.getElementById('app');
+      if (app && app.innerHTML.includes('Carregando módulos')) {
+        app.innerHTML = `
+          <div style="min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #183D2E; color: #FFFFFF; font-family: sans-serif; padding: 24px; text-align: center;">
+            <div style="background: rgba(239, 68, 68, 0.2); border: 2px solid #EF4444; border-radius: 12px; padding: 20px; max-width: 600px; text-align: left;">
+              <h2 style="color: #F87171; margin-top: 0;">Diagnóstico de Carregamento</h2>
+              <p style="font-size: 14px; color: #FECACA;">${e.message || 'Erro ao carregar os módulos da plataforma.'}</p>
+              <div style="font-family: monospace; font-size: 11px; background: rgba(0,0,0,0.4); padding: 8px; border-radius: 6px; margin: 12px 0;">
+                Arquivo: ${e.filename || 'desconhecido'}<br>Linha: ${e.lineno || 'N/A'}:${e.colno || 'N/A'}
+              </div>
+              <button onclick="localStorage.clear(); window.location.reload(true);" style="background: #10B981; color: white; border: none; padding: 10px 18px; border-radius: 8px; font-weight: 700; cursor: pointer;">
+                Limpar Cache e Recarregar
+              </button>
+            </div>
+          </div>
+        `;
+      }
+    });
+  </script>
+
+  <!-- Google Fonts: Space Grotesk, Plus Jakarta Sans, Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+
+  <!-- CSS do Sistema (Caminhos Absolutos a partir da raiz do servidor) -->
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <link rel="stylesheet" href="/assets/css/login.css">
+  <link rel="stylesheet" href="/assets/css/dashboard.css">
+  <link rel="stylesheet" href="/assets/css/analista.css">
+  <link rel="stylesheet" href="/assets/css/components.css">
+
+  <!-- Bibliotecas Externas com Carregamento Não-Bloqueante (defer) -->
+  <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script defer src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+  <!-- Aviso amigável caso o usuário abra diretamente como file:// -->
+  <script>
+    if (window.location.protocol === 'file:') {
+      window.addEventListener('DOMContentLoaded', () => {
+        const app = document.getElementById('app');
+        if (app) {
+          app.innerHTML = `
+            <div style="min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #183D2E; color: #FFFFFF; font-family: sans-serif; padding: 24px; text-align: center;">
+              <h1 style="font-size: 24px; margin-bottom: 12px;">⚠️ Como abrir a plataforma RAÍZ</h1>
+              <p style="font-size: 15px; color: #A7F3D0; max-width: 520px; line-height: 1.6; margin-bottom: 24px;">
+                Você abriu o arquivo HTML diretamente no navegador pelo Explorador de Arquivos (modo <code>file://</code>). Navegadores bloqueiam módulos JavaScript neste modo.
+              </p>
+              <div style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2); border-radius: 12px; padding: 20px 28px; margin-bottom: 24px; font-size: 14px; text-align: left; max-width: 500px;">
+                <strong>Passo a passo para abrir:</strong><br><br>
+                1. Dê dois cliques no arquivo <strong>INICIAR_SERVIDOR.bat</strong> na pasta do projeto.<br>
+                2. Ele abrirá automaticamente o link abaixo no seu navegador:<br>
+                <div style="text-align: center; margin-top: 14px;">
+                  <a href="http://localhost:5173/#/dashboard" style="color: #34D399; font-weight: 700; font-size: 16px; text-decoration: underline;">http://localhost:5173/#/dashboard</a>
+                </div>
+              </div>
+            </div>
+          `;
+        }
+      });
+    }
+  </script>
+</head>
+<body>
+
+  <!-- Container Principal da SPA com Splash Screen Inicial Fluida -->
+  <div id="app">
+    <div style="min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #183D2E; color: #FFFFFF; font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;">
+      <div style="width: 48px; height: 48px; border-radius: 50%; border: 3px solid rgba(255,255,255,0.18); border-top-color: #10B981; animation: raizInitSpin 0.8s linear infinite; margin-bottom: 16px;"></div>
+      <div style="font-weight: 700; font-size: 18px; letter-spacing: -0.01em;">RAÍZ • Plataforma Agro IoT</div>
+      <div style="font-size: 13px; color: #A7F3D0; margin-top: 6px; opacity: 0.9;">Carregando módulos e telemetria...</div>
+      <style>
+        @keyframes raizInitSpin { to { transform: rotate(360deg); } }
+      </style>
+    </div>
+  </div>
+
+  <!-- Failsafe: se o script modular atrasar por cache do navegador, força importação dinâmica -->
+  <script>
+    setTimeout(function() {
+      var app = document.getElementById('app');
+      if (app && app.innerHTML.includes('Carregando módulos')) {
+        console.warn('Failsafe ativado: forçando montagem dos módulos...');
+        import('/assets/js/app.js?v=20261104-fallback').catch(function(e) {
+          console.error('Erro no failsafe:', e);
+        });
+      }
+    }, 1200);
+  </script>
+
+  <!-- Ponto de Entrada da Aplicação com Cache-Busting -->
+  <script type="module" src="/assets/js/app.js?v=20261104-5"></script>
+</body>
+</html>

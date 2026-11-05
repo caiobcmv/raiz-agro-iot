@@ -1,0 +1,182 @@
+
+    <div class="content-body">
+      
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 16px;">
+        <div>
+          <h2 style="font-family: 'Space Grotesk', sans-serif; font-size: 26px; font-weight: 700;">Lotes de Frutas & Rastreabilidade</h2>
+          <p style="color: #94A3B8; font-size: 14px;">Controle de lotes colhidos, armazenamento em câmara fria e despacho para exportação.</p>
+        </div>
+
+        <button class="btn btn-primary" id="btn-novo-lote">
+          <i data-lucide="plus"></i>
+          <span>Cadastrar Lote</span>
+        </button>
+      </div>
+
+      <!-- Grid de Cartões de Lotes -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px;">
+        
+          <div class="kpi-card" style="padding: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+              <div>
+                <span class="badge badge-warning" style="font-size: 13px; font-weight: 700;">
+                  Manga
+                </span>
+                <h3 style="font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 700; color: #FFFFFF; margin-top: 6px;">
+                  Lote #1
+                </h3>
+              </div>
+              <span class="badge badge-success">
+                <span class="badge-dot"></span>Saudável
+              </span>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 8px; margin: 16px 0; font-size: 13px;">
+              <div style="display: flex; justify-content: space-between; color: #94A3B8;">
+                <span>Volume / Quantidade:</span>
+                <strong style="color: #FFFFFF;">1000 kg</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; color: #94A3B8;">
+                <span>Estágio Operacional:</span>
+                <strong style="color: #4ADE80;">Armazenado</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; color: #94A3B8;">
+                <span>Destino:</span>
+                <strong style="color: #E2E8F0; text-align: right; max-width: 180px;">Porto de Pecém - CE (Exportação Rotterdam)</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; color: #94A3B8;">
+                <span>Data da Colheita:</span>
+                <strong style="color: #E2E8F0;">2026-10-28</strong>
+              </div>
+            </div>
+
+            <div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 14px; display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 11px; color: #64748B;">Etapa: armazenamento</span>
+              <a href="#/leituras" class="btn btn-secondary btn-sm">Telemetria</a>
+            </div>
+          </div>
+        
+          <div class="kpi-card" style="padding: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+              <div>
+                <span class="badge badge-warning" style="font-size: 13px; font-weight: 700;">
+                  Manga
+                </span>
+                <h3 style="font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 700; color: #FFFFFF; margin-top: 6px;">
+                  Lote #2
+                </h3>
+              </div>
+              <span class="badge badge-success">
+                <span class="badge-dot"></span>Saudável
+              </span>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 8px; margin: 16px 0; font-size: 13px;">
+              <div style="display: flex; justify-content: space-between; color: #94A3B8;">
+                <span>Volume / Quantidade:</span>
+                <strong style="color: #FFFFFF;">3500 kg</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; color: #94A3B8;">
+                <span>Estágio Operacional:</span>
+                <strong style="color: #4ADE80;">Em produção</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; color: #94A3B8;">
+                <span>Destino:</span>
+                <strong style="color: #E2E8F0; text-align: right; max-width: 180px;">Mercado Interno (SP)</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; color: #94A3B8;">
+                <span>Data da Colheita:</span>
+                <strong style="color: #E2E8F0;">Em cultivo</strong>
+              </div>
+            </div>
+
+            <div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 14px; display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 11px; color: #64748B;">Etapa: campo</span>
+              <a href="#/leituras" class="btn btn-secondary btn-sm">Telemetria</a>
+            </div>
+          </div>
+        
+          <div class="kpi-card" style="padding: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+              <div>
+                <span class="badge badge-success" style="font-size: 13px; font-weight: 700;">
+                  Melão
+                </span>
+                <h3 style="font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 700; color: #FFFFFF; margin-top: 6px;">
+                  Lote #3
+                </h3>
+              </div>
+              <span class="badge badge-warning">
+                <span class="badge-dot"></span>Atenção
+              </span>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 8px; margin: 16px 0; font-size: 13px;">
+              <div style="display: flex; justify-content: space-between; color: #94A3B8;">
+                <span>Volume / Quantidade:</span>
+                <strong style="color: #FFFFFF;">2200 kg</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; color: #94A3B8;">
+                <span>Estágio Operacional:</span>
+                <strong style="color: #4ADE80;">Em transporte</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; color: #94A3B8;">
+                <span>Destino:</span>
+                <strong style="color: #E2E8F0; text-align: right; max-width: 180px;">Porto de Suape - PE</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; color: #94A3B8;">
+                <span>Data da Colheita:</span>
+                <strong style="color: #E2E8F0;">2026-10-31</strong>
+              </div>
+            </div>
+
+            <div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 14px; display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 11px; color: #64748B;">Etapa: transporte</span>
+              <a href="#/leituras" class="btn btn-secondary btn-sm">Telemetria</a>
+            </div>
+          </div>
+        
+          <div class="kpi-card" style="padding: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+              <div>
+                <span class="badge badge-info" style="font-size: 13px; font-weight: 700;">
+                  Uva
+                </span>
+                <h3 style="font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 700; color: #FFFFFF; margin-top: 6px;">
+                  Lote #4
+                </h3>
+              </div>
+              <span class="badge badge-success">
+                <span class="badge-dot"></span>Saudável
+              </span>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 8px; margin: 16px 0; font-size: 13px;">
+              <div style="display: flex; justify-content: space-between; color: #94A3B8;">
+                <span>Volume / Quantidade:</span>
+                <strong style="color: #FFFFFF;">1500 caixa</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; color: #94A3B8;">
+                <span>Estágio Operacional:</span>
+                <strong style="color: #4ADE80;">Armazenado</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; color: #94A3B8;">
+                <span>Destino:</span>
+                <strong style="color: #E2E8F0; text-align: right; max-width: 180px;">Porto de Salvador - BA</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; color: #94A3B8;">
+                <span>Data da Colheita:</span>
+                <strong style="color: #E2E8F0;">2026-10-29</strong>
+              </div>
+            </div>
+
+            <div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 14px; display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 11px; color: #64748B;">Etapa: armazenamento</span>
+              <a href="#/leituras" class="btn btn-secondary btn-sm">Telemetria</a>
+            </div>
+          </div>
+        
+      </div>
+
+    </div>
+  

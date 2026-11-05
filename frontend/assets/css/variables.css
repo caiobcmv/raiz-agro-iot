@@ -1,0 +1,66 @@
+:root {
+  /* Apple Design System & Brand Palette */
+  --bg-dark-green: #183D2E;
+  --bg-dark-surface: #133326;
+  --bg-dark-card: #1f4a39;
+  --bg-dark-card-hover: #265945;
+  --bg-dark-border: rgba(255, 255, 255, 0.12);
+  
+  --primary-green: #15803D;
+  --primary-green-hover: #16a34a;
+  --primary-green-light: rgba(22, 163, 74, 0.15);
+  --apple-green: #34C759;
+  --apple-blue: #007AFF;
+  --apple-teal: #30B0C7;
+  --apple-orange: #FF9500;
+  --apple-red: #FF3B30;
+  
+  --text-white: #FFFFFF;
+  --text-muted: #8E8E93;
+  --text-light-green: #A7F3D0;
+  --text-dark-green: #173A31;
+  --text-dark: #1C1C1E;
+  
+  /* Inputs e Cards Claros Apple Glass */
+  --input-bg: rgba(248, 250, 252, 0.85);
+  --input-border: rgba(0, 0, 0, 0.08);
+  --input-border-focus: #15803D;
+  --input-placeholder: #8E8E93;
+  
+  /* Status & Badges */
+  --badge-success-bg: #ECFDF5;
+  --badge-success-text: #047857;
+  --badge-warning-bg: #FFFBEB;
+  --badge-warning-text: #B45309;
+  --badge-danger-bg: #FEF2F2;
+  --badge-danger-text: #B91C1C;
+  --badge-info-bg: #EFF6FF;
+  --badge-info-text: #1D4ED8;
+  
+  /* Tipografia Apple */
+  --font-heading: 'Space Grotesk', -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+  --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Plus Jakarta Sans", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, monospace;
+  
+  /* Transições Apple com Spring Physics */
+  --ease-apple-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --ease-apple-smooth: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-apple-standard: cubic-bezier(0.16, 1, 0.3, 1);
+  --transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+  --transition-fast: all 0.18s cubic-bezier(0.25, 1, 0.5, 1);
+
+  /* Sombras & Profundidade Apple */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.08);
+  --apple-card-shadow: 0 1px 3px rgba(0, 0, 0, 0.02), 0 8px 24px rgba(0, 0, 0, 0.04);
+  --apple-card-hover-shadow: 0 8px 30px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
+
+  /* Bordas Arredondadas Suaves (Apple Continuous Curvature) */
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+}

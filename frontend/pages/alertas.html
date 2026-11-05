@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Central de Alertas & Incidentes | RAIZ Agro IoT</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2315803D'><path d='M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/design-system.css">
+  <link rel="stylesheet" href="/assets/css/components.css">
+  <link rel="stylesheet" href="/assets/css/layout.css">
+  <link rel="stylesheet" href="/assets/css/analista.css">
+  
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="apple-theme ">
+  
+    <div class="app-container">
+      
+    <aside class="sidebar">
+      <!-- Logo RAIZ com imagem nítida sobre fundo escuro -->
+      <div class="sidebar-brand-container">
+        <a href="/pages/dashboard.html" style="display: block; text-decoration: none;">
+          <img src="assets/images/logo-raiz.png" width="105" height="105" alt="RAIZ" style="object-fit: contain; display: block; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.15));">
+        </a>
+      </div>
+
+      <!-- Menu Principal Dinâmico -->
+      <nav class="sidebar-nav-container">
+        <a href="/pages/dashboard.html" class="sidebar-menu-item">
+          <i data-lucide="layout-grid"></i>
+          <span>Visão geral</span>
+        </a>
+
+        
+        <a href="/pages/sensores.html" class="sidebar-menu-item ">
+          <i data-lucide="radio"></i>
+          <span>Sensores</span>
+        </a>
+
+        <a href="/pages/rede-esp32.html" class="sidebar-menu-item ">
+          <i data-lucide="share-2"></i>
+          <span>Rede ESP32</span>
+        </a>
+        
+
+        <a href="/pages/leituras.html" class="sidebar-menu-item ">
+          <i data-lucide="file-text"></i>
+          <span>Histórico Safra</span>
+        </a>
+
+        <a href="/pages/alertas.html" class="sidebar-menu-item ">
+          <i data-lucide="alert-triangle"></i>
+          <span>Alertas</span>
+        </a>
+
+        <a href="/pages/configuracoes.html" class="sidebar-menu-item ">
+          <i data-lucide="settings"></i>
+          <span>Configurações</span>
+        </a>
+      </nav>
+
+      <!-- Bottom Profile & Connectivity (Figma: Vale das Uvas / Petrolina - Setor 04) -->
+      <div class="sidebar-bottom-profile">
+        <div class="bottom-profile-card">
+          <div class="profile-avatar-vu">VU</div>
+          <div class="profile-info-text">
+            <div class="farm-name">Vale das Uvas</div>
+            <div class="farm-sub">Petrolina - Setor 04</div>
+          </div>
+          <button id="logout-btn" style="margin-left: auto; color: #94A3B8; background: none; border: none; cursor: pointer; padding: 4px;" title="Sair do Sistema">
+            <i data-lucide="log-out" style="width: 18px; height: 18px;"></i>
+          </button>
+        </div>
+
+        <div class="gateway-status-pill">
+          <span style="display: flex; align-items: center; gap: 6px; color: #1E293B; font-weight: 600; font-size: 11px;">
+            <span style="width: 7px; height: 7px; border-radius: 50%; background: #10B981; box-shadow: 0 0 6px rgba(16,185,129,0.7);"></span>
+            LoRa Gateway
+          </span>
+          <span style="color: #64748B; font-size: 11px; font-weight: 500;">Conectado</span>
+        </div>
+      </div>
+    </aside>
+  
+      <div class="main-content-wrapper">
+        <header class="topbar-header">
+          <div class="header-title-wrap">
+            <h2>Central de Alertas & Incidentes</h2>
+            <p>Plataforma de Inteligência Agro IoT & Logística de Exportação • Conectado ao Banco Local (raiz_agro.db)</p>
+          </div>
+          <div class="header-right-controls">
+            <div class="date-selector-btn">
+              <i data-lucide="calendar" style="width: 15px; height: 15px; color: #71807A;"></i>
+              <span>22 de setembro de 2026</span>
+            </div>
+            <a href="/pages/alertas.html" class="header-bell-btn" title="Ver Alertas Ativos">
+              <i data-lucide="bell" style="width: 18px; height: 18px; color: #71807A;"></i>
+              <span class="header-bell-badge" data-kpi="alertas-count">2</span>
+            </a>
+            <div class="user-profile-header-pill">
+              <div class="avatar-initials-pill" style="background:#DCFCE7; border:1.5px solid #86EFAC; color:#15803D;">LF</div>
+              <div class="profile-name-role">
+                <span class="profile-name">Luiz Felipe</span>
+                <span class="profile-role">Analista IoT & Telemetria</span>
+              </div>
+            </div>
+          </div>
+        </header>
+        <main class="page-body">
+          <div id="view-container">
+    <div class="dashboard-canvas apple-animate-in">
+      <!-- Sub-barra Técnica do Analista -->
+      <div class="analista-subbar">
+        <div class="analista-subbar-info">
+          <span class="analista-dot-pulse"></span>
+          <span>Monitoramento Ativo • Sensor DHT11 ESP32-C3 & Solo Simulado (ThingSpeak #3500785)</span>
+          <span style="color: #64748B; font-size: 11px; font-weight: 400;">Sincronizado há 2 min</span>
+        </div>
+        <div class="analista-subbar-actions">
+          <button class="btn-analista-sync" id="btn-reconhecer-todos-analista">
+            <i data-lucide="check" style="width: 14px; height: 14px;"></i>
+            <span>Reconhecer Todos</span>
+          </button>
+          <button class="btn-analista-export" id="btn-export-log-analista">
+            <i data-lucide="download" style="width: 14px; height: 14px;"></i>
+            <span>Exportar Log (CSV)</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 4 KPIs Técnicos do Analista -->
+      <div class="kpi-grid-4col">
+        <!-- KPI 1: Alertas Ativos Hoje -->
+        <div class="kpi-analista-card">
+          <div class="kpi-top-row">
+            <span class="kpi-label">ALERTAS ATIVOS HOJE</span>
+            <span class="kpi-badge yellow">Atenção Imediata</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 14px; margin: 4px 0;">
+            <div style="position: relative; width: 50px; height: 50px;">
+              <svg viewBox="0 0 36 36" style="width: 100%; height: 100%; transform: rotate(-90deg);">
+                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#FEE2E2" stroke-width="4"/>
+                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#EF4444" stroke-width="4" stroke-dasharray="33, 100"/>
+              </svg>
+              <div class="donut-center-wrap">
+                <span style="font-size: 16px; font-weight: 800; color: #0F172A;">3</span>
+              </div>
+            </div>
+            <div style="font-size: 11px; color: #64748B;">
+              <div>Severidade Crítica: <strong style="color: #B91C1C;">1 lote</strong></div>
+              <div>Médio + Baixo: <strong>2 lotes</strong></div>
+            </div>
+          </div>
+          <div class="kpi-bottom-row">
+            <span>MTTR Médio: <strong>15 min</strong></span>
+            <span style="color: #059669; font-weight: 600;">0 Reincidências</span>
+          </div>
+        </div>
+
+        <!-- KPI 2: Hardware de Campo -->
+        <div class="kpi-analista-card">
+          <div class="kpi-top-row">
+            <span class="kpi-label">HARDWARE DE CAMPO</span>
+            <span class="kpi-badge green">Ativo — Bancada</span>
+          </div>
+          <div class="kpi-value-row">
+            <span class="kpi-big-num" style="font-size: 22px;">DHT11 ESP32-C3</span>
+          </div>
+          <div style="font-size: 11px; color: #64748B; margin-top: 2px;">
+            Canal ThingSpeak #3500785
+          </div>
+          <div class="kpi-bottom-row">
+            <span style="font-family: monospace; color: #0284C7;">#3500785</span>
+            <span style="color: #64748B;">1 Leitura / h</span>
+          </div>
+        </div>
+
+        <!-- KPI 3: Desvio de Conservação -->
+        <div class="kpi-analista-card">
+          <div class="kpi-top-row">
+            <span class="kpi-label">DESVIO DE CONSERVAÇÃO</span>
+            <span class="kpi-badge red">Manga — Exportação</span>
+          </div>
+          <div class="kpi-value-row">
+            <span class="kpi-big-num" style="color: #EF4444;">+1.8°C Acima</span>
+          </div>
+          <div style="font-size: 11px; color: #64748B; margin-top: 2px;">
+            Tmax 13.0°C (UC Davis / Embrapa)
+          </div>
+          <div class="kpi-bottom-row">
+            <span>Tmax 13.0°C</span>
+            <span style="color: #B91C1C; font-weight: 700;">Atual: 14.8°C</span>
+          </div>
+        </div>
+
+        <!-- KPI 4: Valor em Risco -->
+        <div class="kpi-analista-card">
+          <div class="kpi-top-row">
+            <span class="kpi-label">VALOR EM RISCO</span>
+            <span class="kpi-badge red">Risco Crítico</span>
+          </div>
+          <div class="kpi-value-row">
+            <span class="kpi-big-num" style="color: #B91C1C;">30% Perda Prevista</span>
+          </div>
+          <div style="font-size: 11px; color: #64748B; margin-top: 2px;">
+            Lote 1.000 kg (Manga)
+          </div>
+          <div class="kpi-bottom-row">
+            <span>Lote 1.000 kg</span>
+            <span style="color: #059669; font-weight: 600;">Mitigável Imediato</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Seção do Meio (2 Colunas): Triagem (65%) + Painel Técnico (35%) -->
+      <div style="display: grid; grid-template-columns: 1.8fr 1fr; gap: 20px; margin-bottom: 20px;">
+        <!-- Coluna Esquerda: Triagem de Incidentes em Aberto -->
+        <div class="analista-chart-box" style="margin-bottom: 0;">
+          <div class="chart-header-row">
+            <div>
+              <h3 style="font-size: 16px; font-weight: 700; color: #0F172A; display: flex; align-items: center; gap: 8px;">
+                <i data-lucide="alert-octagon" style="width: 18px; height: 18px; color: #EF4444;"></i>
+                Triagem de Incidentes em Aberto
+              </h3>
+              <p style="font-size: 12px; color: #64748B; margin-top: 2px;">
+                Triagem de eventos reativos e preditivos conforme regras de cortes e parâmetros de conservação
+              </p>
+            </div>
+
+            <div class="map-filter-tabs">
+              <button class="map-tab-btn active" data-incident-filter="todos">Todos (3)</button>
+              <button class="map-tab-btn" data-incident-filter="critico">Crítico (1)</button>
+              <button class="map-tab-btn" data-incident-filter="medio">Médio (1)</button>
+              <button class="map-tab-btn" data-incident-filter="baixo">Baixo (1)</button>
+            </div>
+          </div>
+
+          <!-- Card de Incidente 1 (CRÍTICO + PREDITIVO) -->
+          <div class="incident-analista-card critico" data-severity="critico">
+            <div class="incident-top-meta">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="background: #FEE2E2; color: #B91C1C; font-weight: 800; font-size: 10px; padding: 2px 8px; border-radius: 4px;">
+                  CRÍTICO + PREDITIVO
+                </span>
+                <span style="font-size: 11px; color: #64748B;">ALT-2026-001 • Há 14 min</span>
+              </div>
+              <span style="font-size: 11px; font-weight: 700; color: #B91C1C;">
+                PROBABILIDADE DE RISCO: 84% • Perda: 30%
+              </span>
+            </div>
+
+            <h4 style="font-size: 14px; font-weight: 700; color: #0F172A; margin: 6px 0;">
+              Desvio térmico no lote de Manga (DHT11 Bancada)
+            </h4>
+            <p style="font-size: 12px; color: #475569; line-height: 1.5;">
+              Projeção de <strong>14.8°C</strong> ultrapassa teto de conservação (Tmax 13.0°C, Embrapa/UC Davis).
+            </p>
+
+            <div class="incident-action-box">
+              <i data-lucide="shield-alert" style="width: 15px; height: 15px; color: #B91C1C; flex-shrink: 0; margin-top: 1px;"></i>
+              <div>
+                <strong>Ação Recomendada oficial:</strong> Intervenção logística e operacional imediata no lote.
+              </div>
+            </div>
+
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 10px; flex-wrap: wrap; gap: 8px;">
+              <div style="display: flex; gap: 8px;">
+                <button class="incident-btn-primary btn-intervir-analista">
+                  Intervir Imediatamente
+                </button>
+                <button class="incident-btn-secondary btn-silenciar-analista">
+                  Silenciar 1h
+                </button>
+              </div>
+              <div style="font-size: 11px; color: #64748B;">
+                Cultura: <strong>Manga</strong> • Destino: <strong>Exportação</strong> • Lote: 1.000 kg | <span style="color: #B91C1C; font-weight: 700;">STATUS: EM ABERTO</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card de Incidente 2 (MÉDIO - REATIVO) -->
+          <div class="incident-analista-card medio" data-severity="medio">
+            <div class="incident-top-meta">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="background: #FEF3C7; color: #B45309; font-weight: 800; font-size: 10px; padding: 2px 8px; border-radius: 4px;">
+                  MÉDIO — REATIVO
+                </span>
+                <span style="font-size: 11px; color: #64748B;">ALT-2026-002 • Há 48 min</span>
+              </div>
+              <span style="font-size: 11px; font-weight: 700; color: #D97706;">
+                PROBABILIDADE DE RISCO: 62% • Perda: 10%
+              </span>
+            </div>
+
+            <h4 style="font-size: 14px; font-weight: 700; color: #0F172A; margin: 6px 0;">
+              Déficit de umidade relativa no lote de Uva
+            </h4>
+            <p style="font-size: 12px; color: #475569; line-height: 1.5;">
+              Sensor da câmara de Uva registrou <strong>87.5% UR</strong> vs. limiar seguro de 90.0% a 95.0% (Embrapa Semiárido).
+            </p>
+
+            <div class="incident-action-box">
+              <i data-lucide="droplet" style="width: 15px; height: 15px; color: #D97706; flex-shrink: 0; margin-top: 1px;"></i>
+              <div>
+                <strong>Ação Recomendada oficial:</strong> Ajuste preventivo do ambiente e verificação dos sistemas de refrigeração.
+              </div>
+            </div>
+
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 10px; flex-wrap: wrap; gap: 8px;">
+              <div style="display: flex; gap: 8px;">
+                <button class="incident-btn-secondary btn-ajustar-param-analista">
+                  Ajustar Parâmetro
+                </button>
+                <button class="incident-btn-secondary btn-silenciar-analista">
+                  Silenciar 1h
+                </button>
+              </div>
+              <div style="font-size: 11px; color: #64748B;">
+                Cultura: <strong>Uva Vitória</strong> • Destino: <strong>Mercado Interno</strong> • Faixa: 90% a 95% UR | <span style="color: #D97706; font-weight: 700;">STATUS: EM ABERTO</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card de Incidente 3 (BAIXO - PREDITIVO) -->
+          <div class="incident-analista-card baixo" data-severity="baixo">
+            <div class="incident-top-meta">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="background: #ECFDF5; color: #047857; font-weight: 800; font-size: 10px; padding: 2px 8px; border-radius: 4px;">
+                  BAIXO — PREDITIVO
+                </span>
+                <span style="font-size: 11px; color: #64748B;">ALT-2026-003 • Há 2h</span>
+              </div>
+              <span style="font-size: 11px; font-weight: 700; color: #059669;">
+                PROBABILIDADE DE RISCO: 42% • Perda: 2%
+              </span>
+            </div>
+
+            <h4 style="font-size: 14px; font-weight: 700; color: #0F172A; margin: 6px 0;">
+              Oscilação em Melão (12.3°C vs. Tmax 12.0°C)
+            </h4>
+            <p style="font-size: 12px; color: #475569; line-height: 1.5;">
+              Projeção matemática indica leve tendência na antecâmara. Risco dentro da margem de tolerância.
+            </p>
+
+            <div class="incident-action-box">
+              <i data-lucide="info" style="width: 15px; height: 15px; color: #059669; flex-shrink: 0; margin-top: 1px;"></i>
+              <div>
+                <strong>Ação Recomendada oficial:</strong> Observação passiva e acompanhamento da evolução do lote.
+              </div>
+            </div>
+
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 10px; flex-wrap: wrap; gap: 8px;">
+              <button class="incident-btn-secondary btn-acompanhar-analista">
+                Acompanhar Lote
+              </button>
+              <div style="font-size: 11px; color: #64748B;">
+                Cultura: <strong>Melão Amarelo</strong> • Destino: <strong>Exportação</strong> • Faixa: 10.0°C a 12.0°C | <span style="color: #059669; font-weight: 700;">STATUS: EM ABERTO</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Coluna Direita (35%): Painéis Técnicos e Rota Portuária -->
+        <div style="display: flex; flex-direction: column; gap: 14px;">
+          <!-- Card 1: Severidade & Distribuição (Donut) -->
+          <div class="analista-chart-box" style="margin-bottom: 0;">
+            <div class="chart-header-row" style="margin-bottom: 10px;">
+              <div>
+                <h4 style="font-size: 13px; font-weight: 700; color: #0F172A;">Severidade & Distribuição</h4>
+                <p style="font-size: 10px; color: #64748B;">Distribuição atual de incidentes e frações de perda cadastradas</p>
+              </div>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 16px;">
+              <div style="position: relative; width: 75px; height: 75px; flex-shrink: 0;">
+                <svg viewBox="0 0 36 36" style="width: 100%; height: 100%; transform: rotate(-90deg);">
+                  <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#10B981" stroke-width="4.5" stroke-dasharray="34, 100" stroke-dashoffset="-66"/>
+                  <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#F59E0B" stroke-width="4.5" stroke-dasharray="33, 100" stroke-dashoffset="-33"/>
+                  <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#EF4444" stroke-width="4.5" stroke-dasharray="33, 100"/>
+                </svg>
+                <div class="donut-center-wrap">
+                  <div style="font-size: 13px; font-weight: 800; color: #0F172A;">3</div>
+                  <div style="font-size: 7px; color: #64748B; font-weight: 700;">Alertas</div>
+                </div>
+              </div>
+
+              <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; font-size: 10px;">
+                <div style="display: flex; justify-content: space-between;">
+                  <span style="color: #B91C1C; font-weight: 600;">• Crítico: 1 (33%)</span>
+                  <span style="color: #64748B;">Perda Risco: <strong>30%</strong></span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                  <span style="color: #D97706; font-weight: 600;">• Médio: 1 (33%)</span>
+                  <span style="color: #64748B;">Perda Risco: <strong>10%</strong></span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                  <span style="color: #059669; font-weight: 600;">• Baixo: 1 (34%)</span>
+                  <span style="color: #64748B;">Perda Risco: <strong>2%</strong></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 2: Limiares de Conservação -->
+          <div class="analista-chart-box" style="margin-bottom: 0;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <h4 style="font-size: 13px; font-weight: 700; color: #0F172A;">Limiares de Conservação</h4>
+              <span style="font-family: monospace; font-size: 9px; background: #F1F5F9; color: #475569; padding: 1px 6px; border-radius: 4px;">config_parametro</span>
+            </div>
+            <p style="font-size: 10px; color: #64748B; margin-bottom: 8px;">
+              Parâmetros biológicos validados segundo referências UC Davis / Embrapa
+            </p>
+
+            <div style="display: flex; flex-direction: column; gap: 6px; font-size: 11px;">
+              <div style="display: flex; justify-content: space-between; padding: 4px 8px; background: #F8FAFC; border-radius: 6px;">
+                <span style="font-weight: 600; color: #0F172A;">MG Manga (Exportação)</span>
+                <span style="color: #0284C7; font-weight: 600;">10.0°C a 13.0°C | UR: 90% a 95%</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; padding: 4px 8px; background: #F8FAFC; border-radius: 6px;">
+                <span style="font-weight: 600; color: #0F172A;">UV Uva (Câmara Frigorífica)</span>
+                <span style="color: #0284C7; font-weight: 600;">-0.5°C a 2.0°C | UR: 90% a 95%</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; padding: 4px 8px; background: #F8FAFC; border-radius: 6px;">
+                <span style="font-weight: 600; color: #0F172A;">ML Melão (Antecâmara Packing)</span>
+                <span style="color: #0284C7; font-weight: 600;">10.0°C a 12.0°C | UR: 85% a 90%</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 3: Regras Preditivas -->
+          <div class="analista-chart-box" style="margin-bottom: 0;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <h4 style="font-size: 13px; font-weight: 700; color: #0F172A;">Regras Preditivas</h4>
+              <span style="font-size: 9px; color: #0284C7; font-weight: 600;">cortes alerta preditivo</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 4px; font-size: 11px;">
+              <div style="display: flex; justify-content: space-between; color: #B91C1C;">
+                <span>• Crítico (0.80 — 1.00)</span>
+                <strong style="color: #0F172A;">Intervenção imediata</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; color: #D97706;">
+                <span>• Médio (0.50 — 0.79)</span>
+                <strong style="color: #0F172A;">Ajuste preventivo</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; color: #059669;">
+                <span>• Baixo (0.30 — 0.49)</span>
+                <strong style="color: #0F172A;">Observação passiva</strong>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 4: Rota Portuária de Escoamento -->
+          <div class="analista-chart-box" style="margin-bottom: 0;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <h4 style="font-size: 13px; font-weight: 700; color: #0F172A;">Rota Portuária de Escoamento</h4>
+              <span style="background: #EFF6FF; color: #1D4ED8; font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 4px;">Exportação</span>
+            </div>
+            <p style="font-size: 10px; color: #64748B; margin-bottom: 8px;">
+              Porto homologado para escoamento do lote sob alerta térmico
+            </p>
+
+            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 8px 10px; font-size: 11px;">
+              <div style="font-weight: 700; color: #047857; display: flex; align-items: center; justify-content: space-between;">
+                <span>Porto de Pecém (CE)</span>
+                <span style="font-size: 9px; background: #ECFDF5; color: #047857; padding: 1px 6px; border-radius: 4px;">Rota Selecionada</span>
+              </div>
+              <div style="font-size: 10px; color: #64748B; margin-top: 4px;">
+                Origem: <strong>Petrolina / PE</strong> • Distância: <strong>~780 km</strong><br>
+                Carga: <strong>1.000 kg Manga</strong> • Tempo estimado: <strong>14h 30min</strong>
+              </div>
+              <div style="font-size: 9px; color: #94A3B8; margin-top: 4px;">
+                Alternativas homologadas: Suape/PE • Salvador/BA • Natal/RN
+              </div>
+            </div>
+
+            <button class="incident-btn-secondary" id="btn-atualizar-despacho" style="width: 100%; margin-top: 8px; font-size: 11px; padding: 6px;">
+              <i data-lucide="truck" style="width: 12px; height: 12px;"></i>
+              Atualizar Despacho Portuário
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Seção Inferior: Curva Térmica & Projeção 24h -->
+      <div class="analista-chart-box">
+        <div class="chart-header-row">
+          <div>
+            <h3 style="font-size: 16px; font-weight: 700; color: #0F172A; display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="trending-up" style="width: 18px; height: 18px; color: #EF4444;"></i>
+              Curva Térmica & Projeção 24h
+            </h3>
+            <p style="font-size: 12px; color: #64748B; margin-top: 2px;">
+              Sensor Físico DHT11 ESP32-C3 vs. Projeção de Machine Learning para Lote Manga
+            </p>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 16px; font-size: 11px;">
+            <span style="display: flex; align-items: center; gap: 6px;">
+              <span style="width: 12px; height: 12px; background: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 2px;"></span>
+              Faixa Segura (10°C — 13°C)
+            </span>
+            <span style="display: flex; align-items: center; gap: 6px;">
+              <span style="width: 10px; height: 10px; border-radius: 50%; background: #10B981;"></span>
+              Histórico Real (DHT11)
+            </span>
+            <span style="display: flex; align-items: center; gap: 6px; color: #EF4444; font-weight: 600;">
+              <span style="width: 16px; height: 2px; border-top: 2px dashed #EF4444; display: inline-block;"></span>
+              Projeção (14.8°C)
+            </span>
+          </div>
+        </div>
+
+        <!-- Gráfico SVG com Faixa de Segurança e Reta de Projeção ML -->
+        <div style="position: relative; width: 100%; height: 220px; background: #FAFDFB; border: 1px solid #E2E8F0; border-radius: 12px; overflow: hidden; padding: 10px;">
+          <svg viewBox="0 0 800 200" style="width: 100%; height: 100%;" preserveAspectRatio="xMidYMid meet">
+            <!-- Faixa Segura de 10°C a 13°C (Área Verde Clara) -->
+            <rect x="0" y="70" width="800" height="70" fill="#ECFDF5" opacity="0.7"/>
+
+            <!-- Linha Limite Tmax Permitido (13.0°C) -->
+            <line x1="0" y1="70" x2="800" y2="70" stroke="#10B981" stroke-width="1.5" stroke-dasharray="4,4"/>
+            <text x="60" y="64" fill="#047857" font-size="10" font-weight="700">Tmax Permitido: 13.0°C (UC Davis / Embrapa)</text>
+
+            <!-- Linha Limite Tmin Permitido (10.0°C) -->
+            <line x1="0" y1="140" x2="800" y2="140" stroke="#10B981" stroke-width="1.5" stroke-dasharray="4,4"/>
+            <text x="60" y="152" fill="#047857" font-size="10" font-weight="700">Tmin Permitido: 10.0°C</text>
+
+            <!-- Curva Real Histórica (DHT11) até 14:00 -->
+            <path d="M 0,145 C 150,140 300,130 450,110 C 500,100 550,75 580,60" fill="none" stroke="#10B981" stroke-width="3"/>
+
+            <!-- Curva de Projeção ML (Vermelha Tracejada de 14:00 até 14.8°C) -->
+            <path d="M 580,60 C 610,48 640,42 680,40" fill="none" stroke="#EF4444" stroke-width="3" stroke-dasharray="5,4"/>
+
+            <!-- Ponto Atual em 14:00 (14.8°C) com Alerta -->
+            <circle cx="580" cy="60" r="6" fill="#EF4444" stroke="#FFFFFF" stroke-width="2"/>
+            <rect x="548" y="24" width="64" height="22" rx="4" fill="#0F172A"/>
+            <text x="580" y="38" fill="#FFFFFF" font-size="10" font-weight="800" text-anchor="middle">+1.8°C</text>
+          </svg>
+
+          <!-- Rótulos de Tempo no Eixo X -->
+          <div style="display: flex; justify-content: space-between; font-size: 10px; color: #94A3B8; margin-top: 4px; padding: 0 10px;">
+            <span>00:00</span>
+            <span>04:00</span>
+            <span>08:00</span>
+            <span>12:00</span>
+            <span style="color: #047857; font-weight: 700;">14:00 (Agora)</span>
+            <span style="color: #EF4444; font-weight: 700;">+4h Projeção</span>
+            <span style="color: #B91C1C; font-weight: 700;">+8h Projeção</span>
+          </div>
+        </div>
+
+        <!-- 3 KPIs no Rodapé da Projeção -->
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 14px;">
+          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 10px 14px;">
+            <div style="font-size: 10px; color: #64748B;">Hardware Fonte</div>
+            <div style="font-size: 13px; font-weight: 700; color: #0F172A; margin-top: 2px;">Bancada DHT11 ESP32-C3</div>
+          </div>
+
+          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 10px 14px;">
+            <div style="font-size: 10px; color: #64748B;">Frequência Amostral</div>
+            <div style="font-size: 13px; font-weight: 700; color: #0284C7; margin-top: 2px;">1 Leitura / Hora (ThingSpeak)</div>
+          </div>
+
+          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 10px 14px;">
+            <div style="font-size: 10px; color: #64748B;">Índice Preditivo</div>
+            <div style="font-size: 13px; font-weight: 700; color: #B91C1C; margin-top: 2px;">0.84 Nível Crítico (0.80 — 1.00)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+        </main>
+      </div>
+    </div>
+  
+  <div id="modal-root"></div>
+  <div id="toast-container" class="toast-container"></div>
+  <script type="module">
+    import { setupAlertasEvents } from '/assets/js/views/alertas.js?v=20261105-live';
+    if (typeof setupAlertasEvents === 'function') {
+      try { setupAlertasEvents(); } catch (err) { console.warn('Erro evento:', err); }
+    }
+    if (window.lucide) window.lucide.createIcons();
+  </script>
+</body>
+</html>

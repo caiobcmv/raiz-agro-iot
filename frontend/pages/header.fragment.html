@@ -1,0 +1,38 @@
+
+    <header class="topbar-header">
+      <div class="header-title-wrap">
+        <h2>Visão Geral do Sistema</h2>
+        <p>Gerencie preferências da fazenda, parâmetros de sensores, notificações e acessos.</p>
+      </div>
+
+      <div class="header-right-controls">
+        <!-- Toggle Resumido vs Detalhado (só no dashboard da Gestora) -->
+        
+
+        <!-- Seletor de Data -->
+        <div class="date-selector-btn" id="header-date-selector">
+          <i data-lucide="calendar" style="width: 15px; height: 15px; color: #71807A;"></i>
+          <span>22 de setembro de 2026</span>
+          <i data-lucide="chevron-down" style="width: 13px; height: 13px; color: #71807A;"></i>
+        </div>
+
+        <!-- Notificações com Badge Laranja (#F5A623) -->
+        <a href="#/alertas" class="header-bell-btn" title="Ver Alertas Ativos">
+          <i data-lucide="bell" style="width: 18px; height: 18px; color: #71807A;"></i>
+          <span class="header-bell-badge">2</span>
+        </a>
+
+        <!-- Perfil Header: Alternável entre Maria Clara (Gestora) e Luiz Felipe (Analista) -->
+        <div class="user-profile-header-pill" id="user-profile-header-pill" title="Clique para alternar perfil de usuário">
+          <div class="avatar-initials-pill" style="background:#E0F2FE; border:1.5px solid #0284C7; color:#0369A1;">
+            LF
+          </div>
+          <div class="profile-name-role">
+            <span class="profile-name">Luiz Felipe</span>
+            <span class="profile-role">Analista</span>
+          </div>
+          <i data-lucide="chevron-down" style="width: 14px; height: 14px; color: #71807A; margin-left: 4px;"></i>
+        </div>
+      </div>
+    </header>
+  

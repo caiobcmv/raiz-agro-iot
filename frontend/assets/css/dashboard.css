@@ -1,0 +1,599 @@
+/* =====================================================================
+   DASHBOARD FIGMA - APPLE DESIGN SYSTEM COM SIDEBAR VERDE ESCURA (#183D2E)
+   ===================================================================== */
+
+.dashboard-layout {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+  background: #F8FAFC;
+  position: relative;
+  font-family: var(--font-body);
+  color: var(--text-dark);
+}
+
+/* Sidebar Fiel ao Figma */
+.sidebar {
+  width: 296px;
+  min-width: 296px;
+  background-color: #183D2E;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  border-right: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.sidebar-brand-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px 24px;
+}
+
+.sidebar-brand-title {
+  font-family: var(--font-heading);
+  font-size: 26px;
+  font-weight: 800;
+  color: #FFFFFF;
+  letter-spacing: 2px;
+  margin-top: 8px;
+}
+
+.sidebar-nav-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 24px;
+  flex: 1;
+}
+
+.sidebar-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  border-radius: 14px;
+  font-family: 'Plus Jakarta Sans', var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  color: #FFFFFF;
+  text-decoration: none;
+  transition: all 0.25s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.sidebar-menu-item:hover {
+  background: rgba(255, 255, 255, 0.09);
+  transform: translateX(2px);
+}
+
+.sidebar-menu-item.active {
+  background: #FFFFFF;
+  color: #183D2E;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  transform: translateX(0);
+}
+
+.sidebar-menu-item.active i,
+.sidebar-menu-item.active svg {
+  color: #183D2E;
+  stroke: #183D2E;
+}
+
+.sidebar-bottom-profile {
+  padding: 20px 24px 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bottom-profile-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.profile-avatar-vu {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, #10B981 0%, #0F766E 100%);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #FFFFFF;
+  font-weight: 700;
+  font-size: 13px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+
+.profile-info-text .farm-name {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: #FFFFFF;
+}
+
+.profile-info-text .farm-sub {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 10px;
+  color: #A7F3D0;
+}
+
+.gateway-status-pill {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #FFFFFF;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 6px 14px;
+  border-radius: 9999px;
+  font-size: 11px;
+  color: #1E293B;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+/* Header Superior Apple Glass */
+.topbar-header {
+  height: 87px;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid rgba(230, 236, 232, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 36px;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  transition: background 0.3s ease;
+}
+
+.header-title-wrap h2 {
+  font-size: 24px;
+  font-weight: 700;
+  color: #173A31;
+  letter-spacing: -0.6px;
+  line-height: 1.2;
+}
+
+.header-title-wrap p {
+  font-size: 12px;
+  color: #71807A;
+  margin-top: 2px;
+}
+
+.header-right-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* =====================================================================
+   APPLE-STYLE IOS TOGGLE SWITCH
+   ===================================================================== */
+.view-mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: #FFFFFF;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  padding: 6px 14px 6px 8px;
+  border-radius: 9999px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.02);
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.25s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.view-mode-toggle:hover {
+  background: #FAFAFA;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06), 0 6px 18px rgba(0, 0, 0, 0.04);
+}
+
+.view-mode-toggle:active .toggle-switch-thumb {
+  width: 24px;
+}
+
+.toggle-switch-track {
+  width: 44px;
+  height: 26px;
+  background: #E9E9EA;
+  border-radius: 9999px;
+  position: relative;
+  transition: background-color 0.35s cubic-bezier(0.25, 1, 0.5, 1);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.view-mode-toggle.detalhado .toggle-switch-track {
+  background: #183D2E;
+}
+
+.toggle-switch-thumb {
+  width: 22px;
+  height: 22px;
+  background: #FFFFFF;
+  border-radius: 9999px;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15), 0 1px 2px rgba(0, 0, 0, 0.1);
+  transition: transform 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275), width 0.2s ease;
+}
+
+.view-mode-toggle.detalhado .toggle-switch-thumb {
+  transform: translateX(18px);
+}
+
+.toggle-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #173A31;
+  letter-spacing: -0.2px;
+  min-width: 68px;
+  transition: color 0.2s ease;
+}
+
+.date-selector-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #FFFFFF;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  padding: 8px 14px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #173A31;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  transition: all 0.2s ease;
+}
+
+.date-selector-btn:hover {
+  background: #F8FAFC;
+}
+
+.user-profile-header-pill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-left: 1px solid rgba(0, 0, 0, 0.07);
+  padding-left: 16px;
+  cursor: pointer;
+}
+
+.avatar-initials-mc {
+  width: 34px;
+  height: 34px;
+  background: #D1FAE5;
+  border: 1px solid #6EE7B7;
+  border-radius: 50%;
+  color: #176B4D;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* Área de Conteúdo do Dashboard */
+.dashboard-canvas {
+  padding: 28px 36px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 1560px;
+  animation: appleFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* =====================================================================
+   CARDS APPLE - SUAVES, ELEVADOS, COM BORDAS MICRO-FINAS
+   ===================================================================== */
+.figma-card {
+  background: #FFFFFF;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 18px;
+  box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.02), 0px 10px 24px rgba(0, 0, 0, 0.03);
+  padding: 24px;
+  position: relative;
+  transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+  display: flex;
+  flex-direction: column;
+}
+
+.figma-card:hover {
+  box-shadow: 0px 4px 14px rgba(0, 0, 0, 0.03), 0px 14px 32px rgba(0, 0, 0, 0.05);
+  transform: translateY(-1.5px);
+}
+
+.card-top-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.card-header-label {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #94A3B8;
+}
+
+.card-status-pill {
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s ease;
+}
+
+.pill-green { background: #ECFDF5; border: 1px solid #A7F3D0; color: #047857; }
+.pill-blue  { background: #EFF6FF; border: 1px solid #BFDBFE; color: #1D4ED8; }
+.pill-amber { background: #FFFBEB; border: 1px solid #FDE68A; color: #B45309; }
+
+/* Grid de Top Cards (3 Colunas) */
+.top-kpi-3col {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 24px;
+}
+
+/* Linhas de Progresso e Métricas Internas */
+.metric-progress-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.metric-labels-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+}
+
+.progress-track-bg {
+  width: 100%;
+  height: 6px;
+  background: #F1F5F9;
+  border-radius: 9999px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-fill-bar {
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* Seção do Meio: Gauge Semicircular + Mapa Aéreo Satélite */
+.middle-split-row {
+  display: grid;
+  grid-template-columns: 460px 1fr;
+  gap: 24px;
+  align-items: stretch;
+}
+
+/* Semi-círculo Gauge SVG Centralizado e Perfeito */
+.gauge-semicircle-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  margin: 12px auto 6px;
+  width: 100%;
+  max-width: 280px;
+}
+
+.gauge-svg-container {
+  position: relative;
+  width: 260px;
+  height: 135px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.gauge-pct-number {
+  position: absolute;
+  top: 66px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 38px;
+  font-weight: 800;
+  color: #0F172A;
+  letter-spacing: -0.5px;
+  line-height: 1;
+}
+
+.gauge-caption {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: #64748B;
+  text-align: center;
+  margin-top: 4px;
+  margin-bottom: 12px;
+}
+
+/* =====================================================================
+   MAPA SATÉLITE DA PROPRIEDADE - ALTA DEFINIÇÃO & PROPORÇÃO LIMPA
+   ===================================================================== */
+.satellite-map-container {
+  width: 100%;
+  border-radius: 14px;
+  overflow: hidden;
+  position: relative;
+  background: #FFFFFF;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+}
+
+.satellite-bg-img {
+  width: 100%;
+  height: auto;
+  max-height: 420px;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+  border-radius: 14px;
+  transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.satellite-map-container:hover .satellite-bg-img {
+  transform: scale(1.015);
+}
+
+/* =====================================================================
+   SEÇÃO INFERIOR: 4 GRÁFICOS FLUIDOS DE TELEMETRIA
+   ===================================================================== */
+.telemetry-4charts-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.charts-4col-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  align-items: stretch;
+}
+
+.mini-chart-card {
+  background: #FFFFFF;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 14px;
+  padding: 18px 16px 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.02);
+  transition: all 0.25s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.mini-chart-card:hover {
+  background: #FFFFFF;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
+  transform: translateY(-2px);
+}
+
+.mini-chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.mini-chart-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.mini-chart-pill {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 9999px;
+}
+
+.chart-canvas-wrap {
+  height: 100px;
+  width: 100%;
+  position: relative;
+  display: block;
+}
+
+.chart-canvas-wrap canvas {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.chart-time-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #94A3B8;
+  margin-top: 4px;
+  padding: 0 2px;
+}
+
+/* MODO DETALHADO */
+.detailed-kpi-4col {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+
+.detailed-middle-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: stretch;
+}
+
+/* Responsividade */
+@media (max-width: 1300px) {
+  .top-kpi-3col, .charts-4col-grid, .detailed-kpi-4col {
+    grid-template-columns: 1fr 1fr;
+  }
+  .middle-split-row {
+    grid-template-columns: 1fr;
+  }
+  .detailed-middle-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 860px) {
+  .sidebar { display: none; }
+  .top-kpi-3col, .charts-4col-grid, .detailed-kpi-4col, .detailed-middle-grid {
+    grid-template-columns: 1fr;
+  }
+  .dashboard-canvas { padding: 16px; }
+}
+
+/* === Utilitários globais para novas telas === */
+
+/* Ponto pulsante */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .5; transform: scale(1.3); }
+}
+
+/* Apple card genérico (reutilizado nas novas telas) */
+.apple-card {
+  background: #FFFFFF;
+  border: 1px solid rgba(0,0,0,0.07);
+  border-radius: 18px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+  transition: box-shadow 0.25s cubic-bezier(0.25,1,0.5,1);
+}
+
+.apple-card:hover {
+  box-shadow: 0 6px 24px rgba(0,0,0,0.08);
+}
+
+/* Scrollbar suave no canvas */
+.dashboard-canvas {
+  min-height: calc(100vh - 72px);
+}
+

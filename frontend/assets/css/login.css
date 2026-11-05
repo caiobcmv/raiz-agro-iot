@@ -1,0 +1,509 @@
+/* =====================================================================
+   TELA DE LOGIN - PIXEL PERFECT COM O FIGMA (Raiz Agro IoT)
+   ===================================================================== */
+
+.login-viewport {
+  width: 100vw;
+  min-height: 100vh;
+  background-color: #193D2E;
+  display: flex;
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* Painel Esquerdo com Imagem do Campo e Curva Orgânica em Alta Resolução */
+.login-hero-section {
+  position: relative;
+  width: 54%;
+  min-height: 100vh;
+  background-color: #193D2E;
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-start;
+  flex-shrink: 0;
+  overflow: hidden;
+  z-index: 2;
+}
+
+.login-hero-img-wrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+}
+
+.login-hero-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: left center;
+  display: block;
+  image-rendering: -webkit-optimize-contrast;
+}
+
+/* Painel Direito - Formulário */
+.login-form-section {
+  flex: 1;
+  min-height: 100vh;
+  background-color: #193D2E;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 40px 60px;
+  position: relative;
+  z-index: 3;
+}
+
+/* Container do Formulário de acordo com Figma (width: 554px) */
+.login-form-container {
+  width: 100%;
+  max-width: 554px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  animation: fadeIn 0.4s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Cabeçalho do Formulário */
+.login-welcoming {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-style: normal;
+  font-weight: 500;
+  font-size: 20px;
+  line-height: 20px;
+  color: #FFFFFF;
+}
+
+.login-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-style: normal;
+  font-weight: 700;
+  font-size: 48px;
+  line-height: 1.1;
+  letter-spacing: -0.75px;
+  color: #FFFFFF;
+  margin-top: 6px;
+  margin-bottom: 8px;
+}
+
+/* Grupos de Inputs */
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+}
+
+.login-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.login-label {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-style: normal;
+  font-weight: 600;
+  font-size: 12px;
+  line-height: 16px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #FFFFFF;
+}
+
+.login-input-wrapper {
+  position: relative;
+  width: 100%;
+  height: 53px;
+  display: flex;
+  align-items: center;
+}
+
+.login-input-icon {
+  position: absolute;
+  left: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #274D3F;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.login-input-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.login-input {
+  box-sizing: border-box;
+  width: 100%;
+  height: 53px;
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  padding: 10px 48px 10px 44px;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 20px;
+  color: #274D3F;
+  transition: all 0.2s ease;
+  box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.login-input::placeholder {
+  color: #8da49a;
+}
+
+.login-input:focus {
+  border-color: #15803D;
+  background: #FFFFFF;
+  box-shadow: 0 0 0 3px rgba(21, 128, 61, 0.25);
+}
+
+.login-toggle-password {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #274D3F;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  transition: color 0.15s ease;
+  background: none;
+  border: none;
+}
+
+.login-toggle-password:hover {
+  color: #15803D;
+}
+
+.login-toggle-password svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Opções: Lembrar desta conta e Esqueci a senha */
+.login-options-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+  width: 100%;
+}
+
+.login-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-style: normal;
+  font-weight: 500;
+  font-size: 12px;
+  line-height: 16px;
+  color: #FFFFFF;
+}
+
+.login-checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  background: #16A34A;
+  border: 1px solid #16A34A;
+  display: grid;
+  place-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin: 0;
+}
+
+.login-checkbox:not(:checked) {
+  background: transparent;
+  border: 1.5px solid rgba(255, 255, 255, 0.6);
+}
+
+.login-checkbox:checked::before {
+  content: "";
+  width: 10px;
+  height: 6px;
+  border-left: 2px solid #FFFFFF;
+  border-bottom: 2px solid #FFFFFF;
+  transform: rotate(-45deg) translate(1px, -1px);
+}
+
+.login-forgot-link {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-style: normal;
+  font-weight: 600;
+  font-size: 12px;
+  line-height: 16px;
+  color: #FFFFFF;
+  transition: opacity 0.2s;
+  cursor: pointer;
+}
+
+.login-forgot-link:hover {
+  text-decoration: underline;
+  opacity: 0.85;
+}
+
+/* Botão ENTRAR */
+.login-submit-btn {
+  width: 100%;
+  height: 53px;
+  background: #15803D;
+  border-radius: 12px;
+  border: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-style: normal;
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 20px;
+  text-align: center;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #FFFFFF;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(21, 128, 61, 0.3);
+  margin-top: 6px;
+}
+
+.login-submit-btn:hover {
+  background: #16A34A;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(22, 163, 74, 0.4);
+}
+
+.login-submit-btn:active {
+  transform: translateY(0);
+}
+
+.login-submit-btn.loading {
+  pointer-events: none;
+  opacity: 0.85;
+}
+
+/* Rodapé: Acesso via MFA */
+.login-mfa-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: 'Inter', sans-serif;
+  font-style: normal;
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 16px;
+  letter-spacing: -0.3px;
+  color: #FFFFFF;
+  margin-top: 12px;
+  text-align: center;
+  user-select: none;
+}
+
+.login-mfa-badge svg {
+  width: 16px;
+  height: 16px;
+  color: #4ade80;
+}
+
+/* Aviso de Demonstração / Credenciais de Teste */
+.login-demo-helper {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.login-demo-helper strong {
+  color: #4ade80;
+}
+
+.login-demo-helper-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 11px;
+  color: #FFFFFF;
+  margin-top: 4px;
+  cursor: pointer;
+  align-self: flex-start;
+  transition: background 0.15s;
+}
+
+.login-demo-helper-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Modal 2FA (MFA) */
+.mfa-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(10, 25, 19, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.mfa-modal-card {
+  background: #143527;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 480px;
+  padding: 32px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+  text-align: center;
+  animation: modalScale 0.25s ease-out;
+}
+
+@keyframes modalScale {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.mfa-modal-icon {
+  width: 56px;
+  height: 56px;
+  background: rgba(22, 163, 74, 0.2);
+  color: #4ade80;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+}
+
+.mfa-modal-icon svg {
+  width: 28px;
+  height: 28px;
+}
+
+.mfa-modal-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: #FFFFFF;
+  margin-bottom: 8px;
+}
+
+.mfa-modal-subtitle {
+  font-size: 14px;
+  color: #94A3B8;
+  line-height: 1.5;
+  margin-bottom: 24px;
+}
+
+.mfa-modal-subtitle strong {
+  color: #e2e8f0;
+}
+
+/* 6-Digit Code Inputs */
+.mfa-inputs-group {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.mfa-digit-input {
+  width: 48px;
+  height: 56px;
+  background: #F8FAFC;
+  border: 2px solid #E2E8F0;
+  border-radius: 10px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  text-align: center;
+  color: #193D2E;
+  transition: all 0.2s;
+}
+
+.mfa-digit-input:focus {
+  border-color: #16A34A;
+  background: #FFFFFF;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.3);
+}
+
+.mfa-resend-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  color: #94A3B8;
+  margin-bottom: 24px;
+}
+
+.mfa-resend-btn {
+  color: #4ade80;
+  font-weight: 600;
+  cursor: pointer;
+  background: none;
+  border: none;
+}
+
+.mfa-resend-btn:disabled {
+  color: #64748b;
+  cursor: not-allowed;
+}
+
+/* Responsividade */
+  @media (max-width: 860px) {
+    .login-hero-section {
+      display: none;
+    }
+
+    .login-form-section {
+      width: 100%;
+      padding: 30px 24px;
+    }
+  }

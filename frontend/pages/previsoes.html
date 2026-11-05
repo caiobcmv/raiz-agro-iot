@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Modelos de IA & Mercado | RAIZ Agro IoT</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2315803D'><path d='M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/design-system.css">
+  <link rel="stylesheet" href="/assets/css/components.css">
+  <link rel="stylesheet" href="/assets/css/layout.css">
+  <link rel="stylesheet" href="/assets/css/analista.css">
+  
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="apple-theme ">
+  
+    <div class="app-container">
+      
+    <aside class="sidebar">
+      <!-- Logo RAIZ com imagem nítida sobre fundo escuro -->
+      <div class="sidebar-brand-container">
+        <a href="/pages/dashboard.html" style="display: block; text-decoration: none;">
+          <img src="assets/images/logo-raiz.png" width="105" height="105" alt="RAIZ" style="object-fit: contain; display: block; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.15));">
+        </a>
+      </div>
+
+      <!-- Menu Principal Dinâmico -->
+      <nav class="sidebar-nav-container">
+        <a href="/pages/dashboard.html" class="sidebar-menu-item">
+          <i data-lucide="layout-grid"></i>
+          <span>Visão geral</span>
+        </a>
+
+        
+        <a href="/pages/sensores.html" class="sidebar-menu-item ">
+          <i data-lucide="radio"></i>
+          <span>Sensores</span>
+        </a>
+
+        <a href="/pages/rede-esp32.html" class="sidebar-menu-item ">
+          <i data-lucide="share-2"></i>
+          <span>Rede ESP32</span>
+        </a>
+        
+
+        <a href="/pages/leituras.html" class="sidebar-menu-item ">
+          <i data-lucide="file-text"></i>
+          <span>Histórico Safra</span>
+        </a>
+
+        <a href="/pages/alertas.html" class="sidebar-menu-item ">
+          <i data-lucide="alert-triangle"></i>
+          <span>Alertas</span>
+        </a>
+
+        <a href="/pages/configuracoes.html" class="sidebar-menu-item ">
+          <i data-lucide="settings"></i>
+          <span>Configurações</span>
+        </a>
+      </nav>
+
+      <!-- Bottom Profile & Connectivity (Figma: Vale das Uvas / Petrolina - Setor 04) -->
+      <div class="sidebar-bottom-profile">
+        <div class="bottom-profile-card">
+          <div class="profile-avatar-vu">VU</div>
+          <div class="profile-info-text">
+            <div class="farm-name">Vale das Uvas</div>
+            <div class="farm-sub">Petrolina - Setor 04</div>
+          </div>
+          <button id="logout-btn" style="margin-left: auto; color: #94A3B8; background: none; border: none; cursor: pointer; padding: 4px;" title="Sair do Sistema">
+            <i data-lucide="log-out" style="width: 18px; height: 18px;"></i>
+          </button>
+        </div>
+
+        <div class="gateway-status-pill">
+          <span style="display: flex; align-items: center; gap: 6px; color: #1E293B; font-weight: 600; font-size: 11px;">
+            <span style="width: 7px; height: 7px; border-radius: 50%; background: #10B981; box-shadow: 0 0 6px rgba(16,185,129,0.7);"></span>
+            LoRa Gateway
+          </span>
+          <span style="color: #64748B; font-size: 11px; font-weight: 500;">Conectado</span>
+        </div>
+      </div>
+    </aside>
+  
+      <div class="main-content-wrapper">
+        <header class="topbar-header">
+          <div class="header-title-wrap">
+            <h2>Modelos de IA & Mercado</h2>
+            <p>Plataforma de Inteligência Agro IoT & Logística de Exportação • Conectado ao Banco Local (raiz_agro.db)</p>
+          </div>
+          <div class="header-right-controls">
+            <div class="date-selector-btn">
+              <i data-lucide="calendar" style="width: 15px; height: 15px; color: #71807A;"></i>
+              <span>22 de setembro de 2026</span>
+            </div>
+            <a href="/pages/alertas.html" class="header-bell-btn" title="Ver Alertas Ativos">
+              <i data-lucide="bell" style="width: 18px; height: 18px; color: #71807A;"></i>
+              <span class="header-bell-badge" data-kpi="alertas-count">2</span>
+            </a>
+            <div class="user-profile-header-pill">
+              <div class="avatar-initials-pill" style="background:#DCFCE7; border:1.5px solid #86EFAC; color:#15803D;">LF</div>
+              <div class="profile-name-role">
+                <span class="profile-name">Luiz Felipe</span>
+                <span class="profile-role">Analista IoT & Telemetria</span>
+              </div>
+            </div>
+          </div>
+        </header>
+        <main class="page-body">
+          <div id="view-container">
+    <div class="content-body">
+      
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 16px;">
+        <div>
+          <h2 style="font-family: 'Space Grotesk', sans-serif; font-size: 26px; font-weight: 700;">Inteligência Preditiva & Mercado</h2>
+          <p style="color: #94A3B8; font-size: 14px;">Estimativa de vida útil (shelf-life), cálculo de quebra financeira por temperatura e cotações de mercado.</p>
+        </div>
+
+        <span class="badge badge-info" style="font-size: 14px; padding: 8px 16px;">
+          <i data-lucide="sparkles"></i> Modelos Machine Learning Ativos
+        </span>
+      </div>
+
+      <!-- Cards de Modelos de IA -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-top">
+            <span class="kpi-title">Shelf-Life Estimado (Manga)</span>
+            <div class="kpi-icon-wrap green"><i data-lucide="clock"></i></div>
+          </div>
+          <div class="kpi-value">21 <span style="font-size: 16px; color: #94A3B8;">dias restantes</span></div>
+          <div class="kpi-footer">
+            <span style="color: #4ADE80;">Câmara fria mantida a 11.4°C</span>
+          </div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-top">
+            <span class="kpi-title">Risco Financeiro Médio</span>
+            <div class="kpi-icon-wrap blue"><i data-lucide="dollar-sign"></i></div>
+          </div>
+          <div class="kpi-value">2.4% <span style="font-size: 16px; color: #94A3B8;">perda estimada</span></div>
+          <div class="kpi-footer">
+            <span style="color: #38BDF8;">Risco Baixo (&lt; 5% benchmark)</span>
+          </div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-top">
+            <span class="kpi-title">Cotação Manga Tommy (CEAGESP)</span>
+            <div class="kpi-icon-wrap amber"><i data-lucide="trending-up"></i></div>
+          </div>
+          <div class="kpi-value">R$ 5,80 <span style="font-size: 16px; color: #94A3B8;">/ kg</span></div>
+          <div class="kpi-footer">
+            <span style="color: #FBBF24;">+4.2% nesta semana</span>
+          </div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-top">
+            <span class="kpi-title">Cotação Uva Vitória</span>
+            <div class="kpi-icon-wrap green"><i data-lucide="bar-chart"></i></div>
+          </div>
+          <div class="kpi-value">R$ 11,20 <span style="font-size: 16px; color: #94A3B8;">/ kg</span></div>
+          <div class="kpi-footer">
+            <span style="color: #4ADE80;">Alta demanda Europa</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recomendações Automáticas do Sistema -->
+      <div class="chart-card" style="margin-bottom: 28px;">
+        <div class="card-header-row">
+          <div>
+            <h3 class="card-title">Recomendações Agronômicas & Logísticas</h3>
+            <p class="card-subtitle">Sugestões geradas por algoritmos preditivos baseados na correlação clima x fisiologia pós-colheita</p>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 14px;">
+          <div style="background: rgba(255,255,255,0.03); border-left: 4px solid #4ADE80; border-radius: 8px; padding: 16px 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <strong style="color: #FFFFFF; font-size: 15px;">Ajuste do Setpoint Reefer na Rota Petrolina-Suape</strong>
+              <span class="badge badge-success">Prioridade Alta</span>
+            </div>
+            <p style="color: #CBD5E1; font-size: 13px;">
+              Devido à onda térmica de 34°C prevista para o sertão pernambucano, recomenda-se diminuir o setpoint do container para 10.8°C antes da saída da carreta para compensar a dissipação solar na lataria.
+            </p>
+          </div>
+
+          <div style="background: rgba(255,255,255,0.03); border-left: 4px solid #38BDF8; border-radius: 8px; padding: 16px 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <strong style="color: #FFFFFF; font-size: 15px;">Janela Ótima de Colheita de Uva (Talhão 04)</strong>
+              <span class="badge badge-info">Oportunidade</span>
+            </div>
+            <p style="color: #CBD5E1; font-size: 13px;">
+              A previsão de umidade do ar nos próximos 3 dias indica índice favorável de sólidos solúveis (Brix &gt; 17°). Recomenda-se colheita matutina até as 10h para evitar quebra térmica precoce.
+            </p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+        </main>
+      </div>
+    </div>
+  
+  <div id="modal-root"></div>
+  <div id="toast-container" class="toast-container"></div>
+  <script type="module">
+    import { setupPrevisoesEvents } from '/assets/js/views/previsoes.js?v=20261105-live';
+    if (typeof setupPrevisoesEvents === 'function') {
+      try { setupPrevisoesEvents(); } catch (err) { console.warn('Erro evento:', err); }
+    }
+    if (window.lucide) window.lucide.createIcons();
+  </script>
+</body>
+</html>

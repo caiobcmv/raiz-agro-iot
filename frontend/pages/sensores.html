@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sensores & Telemetria | RAIZ Agro IoT</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2315803D'><path d='M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/design-system.css">
+  <link rel="stylesheet" href="/assets/css/components.css">
+  <link rel="stylesheet" href="/assets/css/layout.css">
+  <link rel="stylesheet" href="/assets/css/analista.css">
+  
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="apple-theme ">
+  
+    <div class="app-container">
+      
+    <aside class="sidebar">
+      <!-- Logo RAIZ com imagem nítida sobre fundo escuro -->
+      <div class="sidebar-brand-container">
+        <a href="/pages/dashboard.html" style="display: block; text-decoration: none;">
+          <img src="assets/images/logo-raiz.png" width="105" height="105" alt="RAIZ" style="object-fit: contain; display: block; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.15));">
+        </a>
+      </div>
+
+      <!-- Menu Principal Dinâmico -->
+      <nav class="sidebar-nav-container">
+        <a href="/pages/dashboard.html" class="sidebar-menu-item">
+          <i data-lucide="layout-grid"></i>
+          <span>Visão geral</span>
+        </a>
+
+        
+        <a href="/pages/sensores.html" class="sidebar-menu-item ">
+          <i data-lucide="radio"></i>
+          <span>Sensores</span>
+        </a>
+
+        <a href="/pages/rede-esp32.html" class="sidebar-menu-item ">
+          <i data-lucide="share-2"></i>
+          <span>Rede ESP32</span>
+        </a>
+        
+
+        <a href="/pages/leituras.html" class="sidebar-menu-item ">
+          <i data-lucide="file-text"></i>
+          <span>Histórico Safra</span>
+        </a>
+
+        <a href="/pages/alertas.html" class="sidebar-menu-item ">
+          <i data-lucide="alert-triangle"></i>
+          <span>Alertas</span>
+        </a>
+
+        <a href="/pages/configuracoes.html" class="sidebar-menu-item ">
+          <i data-lucide="settings"></i>
+          <span>Configurações</span>
+        </a>
+      </nav>
+
+      <!-- Bottom Profile & Connectivity (Figma: Vale das Uvas / Petrolina - Setor 04) -->
+      <div class="sidebar-bottom-profile">
+        <div class="bottom-profile-card">
+          <div class="profile-avatar-vu">VU</div>
+          <div class="profile-info-text">
+            <div class="farm-name">Vale das Uvas</div>
+            <div class="farm-sub">Petrolina - Setor 04</div>
+          </div>
+          <button id="logout-btn" style="margin-left: auto; color: #94A3B8; background: none; border: none; cursor: pointer; padding: 4px;" title="Sair do Sistema">
+            <i data-lucide="log-out" style="width: 18px; height: 18px;"></i>
+          </button>
+        </div>
+
+        <div class="gateway-status-pill">
+          <span style="display: flex; align-items: center; gap: 6px; color: #1E293B; font-weight: 600; font-size: 11px;">
+            <span style="width: 7px; height: 7px; border-radius: 50%; background: #10B981; box-shadow: 0 0 6px rgba(16,185,129,0.7);"></span>
+            LoRa Gateway
+          </span>
+          <span style="color: #64748B; font-size: 11px; font-weight: 500;">Conectado</span>
+        </div>
+      </div>
+    </aside>
+  
+      <div class="main-content-wrapper">
+        <header class="topbar-header">
+          <div class="header-title-wrap">
+            <h2>Sensores & Telemetria</h2>
+            <p>Plataforma de Inteligência Agro IoT & Logística de Exportação • Conectado ao Banco Local (raiz_agro.db)</p>
+          </div>
+          <div class="header-right-controls">
+            <div class="date-selector-btn">
+              <i data-lucide="calendar" style="width: 15px; height: 15px; color: #71807A;"></i>
+              <span>22 de setembro de 2026</span>
+            </div>
+            <a href="/pages/alertas.html" class="header-bell-btn" title="Ver Alertas Ativos">
+              <i data-lucide="bell" style="width: 18px; height: 18px; color: #71807A;"></i>
+              <span class="header-bell-badge" data-kpi="alertas-count">2</span>
+            </a>
+            <div class="user-profile-header-pill">
+              <div class="avatar-initials-pill" style="background:#DCFCE7; border:1.5px solid #86EFAC; color:#15803D;">LF</div>
+              <div class="profile-name-role">
+                <span class="profile-name">Luiz Felipe</span>
+                <span class="profile-role">Analista IoT & Telemetria</span>
+              </div>
+            </div>
+          </div>
+        </header>
+        <main class="page-body">
+          <div id="view-container">
+    <div class="dashboard-canvas apple-animate-in">
+      <!-- 4 KPIs Técnicos do Parque de Sensores -->
+      <div class="kpi-grid-4col">
+        <!-- KPI 1 -->
+        <div class="kpi-analista-card">
+          <div class="kpi-top-row">
+            <span class="kpi-label">SENSORES ATIVOS (SENSOR)</span>
+            <span style="color: #0284C7;"><i data-lucide="radio" style="width: 15px; height: 15px;"></i></span>
+          </div>
+          <div class="kpi-value-row">
+            <span class="kpi-big-num">24/26</span>
+            <span class="kpi-sub-num" style="color: #059669; font-weight: 600;">status = 'ativo'</span>
+          </div>
+          <div class="kpi-bottom-row">
+            <span>• 12 Ar • 12 Solo</span>
+            <span style="color: #64748B;">2 inativos</span>
+          </div>
+        </div>
+
+        <!-- KPI 2 -->
+        <div class="kpi-analista-card">
+          <div class="kpi-top-row">
+            <span class="kpi-label">UMIDADE (LEITURA_CLIMATICA)</span>
+            <span class="kpi-badge green">VWC</span>
+          </div>
+          <div class="kpi-value-row">
+            <span class="kpi-big-num">46,8%</span>
+            <span class="kpi-sub-num">umidade_solo méd.</span>
+          </div>
+          <div class="kpi-bottom-row">
+            <span style="color: #047857; font-weight: 600;">Solo: 46.8%</span>
+            <span>Ar: 61.2% (umidade)</span>
+          </div>
+        </div>
+
+        <!-- KPI 3 -->
+        <div class="kpi-analista-card">
+          <div class="kpi-top-row">
+            <span class="kpi-label">TEMPERATURA (AR & SOLO)</span>
+            <span style="color: #0284C7;"><i data-lucide="thermometer" style="width: 15px; height: 15px;"></i></span>
+          </div>
+          <div class="kpi-value-row">
+            <span class="kpi-big-num">+27,4°C</span>
+            <span class="kpi-sub-num">temperatura (ar)</span>
+          </div>
+          <div class="kpi-bottom-row">
+            <span>Temperatura solo: <strong>24.1°C</strong></span>
+            <span style="color: #0284C7; font-weight: 600;">Delta: 3.3°C</span>
+          </div>
+        </div>
+
+        <!-- KPI 4 -->
+        <div class="kpi-analista-card">
+          <div class="kpi-top-row">
+            <span class="kpi-label">INGESTÃO & REJEIÇÃO</span>
+            <span class="kpi-badge green">API 200</span>
+          </div>
+          <div class="kpi-value-row">
+            <span class="kpi-big-num" style="color: #059669;">99,8%</span>
+            <span class="kpi-sub-num">taxa sucesso</span>
+          </div>
+          <div class="kpi-bottom-row">
+            <span>ThingSpeak API: <strong>3 rejeições</strong></span>
+            <span style="color: #D97706; font-weight: 600;">2 alertas ativos</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Gráfico de Correlação Multidimensional: Leitura Climática -->
+      <div class="analista-chart-box">
+        <div class="chart-header-row">
+          <div>
+            <h3 style="font-size: 16px; font-weight: 700; color: #0F172A; display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="activity" style="width: 18px; height: 18px; color: #10B981;"></i>
+              Correlação Multidimensional: Leitura Climática
+            </h3>
+            <p style="font-size: 12px; color: #64748B; margin-top: 2px;">
+              Série temporal de leitura_climatica: temperatura vs umidade e temperatura_solo vs umidade_solo
+            </p>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <select id="select-correlacao-lote" style="background: #F8FAFC; border: 1px solid #CBD5E1; border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 600; color: #1E293B;">
+              <option value="lote1">Lote 1 — Uva Niágara (Channel 246901)</option>
+              <option value="lote2">Lote 2 — Uva Crimson (Channel 246902)</option>
+              <option value="lote3">Lote 3 — Uva Thompson (Channel 246903)</option>
+            </select>
+            <span style="background: #F1F5F9; color: #475569; font-size: 11px; font-weight: 600; padding: 6px 10px; border-radius: 6px;">24h (ThingSpeak)</span>
+          </div>
+        </div>
+
+        <!-- Legenda do Gráfico -->
+        <div style="display: flex; align-items: center; gap: 18px; margin-bottom: 14px; font-size: 11px; color: #64748B; flex-wrap: wrap;">
+          <span style="display: flex; align-items: center; gap: 6px;">
+            <span style="width: 10px; height: 10px; border-radius: 50%; background: #0D9488;"></span>
+            umidade_solo (%)
+          </span>
+          <span style="display: flex; align-items: center; gap: 6px;">
+            <span style="width: 10px; height: 10px; border-radius: 50%; background: #0284C7;"></span>
+            temperatura (°C — Ar)
+          </span>
+          <span style="display: flex; align-items: center; gap: 6px;">
+            <span style="width: 10px; height: 10px; border-radius: 50%; background: #94A3B8;"></span>
+            umidade (%)
+          </span>
+          <span style="display: flex; align-items: center; gap: 6px; color: #D97706; margin-left: auto;">
+            <span style="width: 18px; height: 2px; background: #D97706; display: inline-block; border-top: 2px dashed #D97706;"></span>
+            Limiar Alerta Preditivo (risco &gt; 0.70)
+          </span>
+        </div>
+
+        <!-- Canvas Gráfico SVG de Dupla Curva com Curvas Bézier Suaves -->
+        <div style="position: relative; width: 100%; height: 240px; background: #FAFDFB; border: 1px solid #E2E8F0; border-radius: 12px; overflow: hidden; padding: 10px;">
+          <svg viewBox="0 0 800 220" style="width: 100%; height: 100%;" preserveAspectRatio="xMidYMid meet">
+            <defs>
+              <linearGradient id="grad-umidade-solo" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#10B981" stop-opacity="0.35"/>
+                <stop offset="100%" stop-color="#10B981" stop-opacity="0.02"/>
+              </linearGradient>
+              <linearGradient id="grad-temp-ar" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#0284C7" stop-opacity="0.25"/>
+                <stop offset="100%" stop-color="#0284C7" stop-opacity="0.0"/>
+              </linearGradient>
+            </defs>
+
+            <!-- Linhas de Grade e Limiares -->
+            <line x1="0" y1="50" x2="800" y2="50" stroke="#E2E8F0" stroke-width="1" stroke-dasharray="3,3"/>
+            <line x1="0" y1="110" x2="800" y2="110" stroke="#E2E8F0" stroke-width="1" stroke-dasharray="3,3"/>
+            <line x1="0" y1="170" x2="800" y2="170" stroke="#E2E8F0" stroke-width="1" stroke-dasharray="3,3"/>
+
+            <!-- Linha Capacidade de Campo (52%) -->
+            <line x1="0" y1="75" x2="800" y2="75" stroke="#10B981" stroke-width="1.5" stroke-dasharray="4,4"/>
+            <text x="630" y="70" fill="#047857" font-size="10" font-weight="600">Capacidade de Campo (52%)</text>
+
+            <!-- Curva Umidade do Solo (FDR) com Área Sombreada -->
+            <path d="M 0,130 C 120,135 240,120 360,110 C 480,100 520,115 640,115 C 720,115 760,120 800,122 L 800,210 L 0,210 Z" fill="url(#grad-umidade-solo)"/>
+            <path d="M 0,130 C 120,135 240,120 360,110 C 480,100 520,115 640,115 C 720,115 760,120 800,122" fill="none" stroke="#0D9488" stroke-width="3"/>
+
+            <!-- Curva Temperatura do Ar (Pico Solar às 13:00) -->
+            <path d="M 0,165 C 100,160 200,150 300,130 C 420,100 480,45 520,60 C 560,75 600,150 700,160 C 750,165 780,168 800,170" fill="none" stroke="#0284C7" stroke-width="3"/>
+
+            <!-- Ponto de Pico Temperatura -->
+            <circle cx="510" cy="58" r="5" fill="#0284C7" stroke="#FFFFFF" stroke-width="2"/>
+            <text x="520" y="54" fill="#0369A1" font-size="10" font-weight="700">Pico 31.5°C às 13:00</text>
+
+            <!-- Ponto Médio Umidade Solo -->
+            <circle cx="360" cy="110" r="4" fill="#0D9488" stroke="#FFFFFF" stroke-width="2"/>
+
+            <!-- Linha Ponto de Murcha Permanente (16%) -->
+            <line x1="0" y1="185" x2="800" y2="185" stroke="#EF4444" stroke-width="1" stroke-dasharray="3,3"/>
+            <text x="640" y="195" fill="#DC2626" font-size="9" font-weight="600">Ponto de Murcha Permanente (16%)</text>
+          </svg>
+
+          <!-- Rótulos de Tempo no Eixo X -->
+          <div style="display: flex; justify-content: space-between; font-size: 10px; color: #94A3B8; margin-top: 4px; padding: 0 10px;">
+            <span>00:00</span>
+            <span>04:00</span>
+            <span>08:00</span>
+            <span style="color: #0284C7; font-weight: 600;">12:00 (Pico Irradiação)</span>
+            <span>16:00</span>
+            <span>20:00</span>
+            <span style="color: #047857; font-weight: 700;">Agora (19:38)</span>
+          </div>
+        </div>
+
+        <!-- 3 Cards de Resumo no Rodapé do Gráfico -->
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 14px;">
+          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 10px 14px; display: flex; align-items: center; gap: 10px;">
+            <i data-lucide="thermometer" style="width: 18px; height: 18px; color: #0284C7;"></i>
+            <div>
+              <div style="font-size: 14px; font-weight: 700; color: #0F172A;">24.1°C / 27.4°C</div>
+              <div style="font-size: 10px; color: #64748B;">temperatura: solo / ar</div>
+            </div>
+          </div>
+
+          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 10px 14px; display: flex; align-items: center; gap: 10px;">
+            <i data-lucide="droplet" style="width: 18px; height: 18px; color: #10B981;"></i>
+            <div>
+              <div style="font-size: 14px; font-weight: 700; color: #0F172A;">46.8% / 61.2%</div>
+              <div style="font-size: 10px; color: #64748B;">umidade: solo / ar</div>
+            </div>
+          </div>
+
+          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 10px 14px; display: flex; align-items: center; gap: 10px;">
+            <i data-lucide="check-circle-2" style="width: 18px; height: 18px; color: #059669;"></i>
+            <div>
+              <div style="font-size: 14px; font-weight: 700; color: #059669;">entry_id #14.892</div>
+              <div style="font-size: 10px; color: #64748B;">ThingSpeak feed verificado</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabela Inventário de Sensores (Tabela sensor & lote) -->
+      <div class="analista-chart-box">
+        <div class="chart-header-row">
+          <div>
+            <h3 style="font-size: 16px; font-weight: 700; color: #0F172A; display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="layers" style="width: 18px; height: 18px; color: #10B981;"></i>
+              Inventário de Sensores (Tabela sensor & lote)
+            </h3>
+            <p style="font-size: 12px; color: #64748B; margin-top: 2px;">
+              Relação de nós cadastrados, canais ThingSpeak e últimas medições em <code style="background: #F1F5F9; padding: 1px 4px; border-radius: 4px;">leitura_climatica</code>
+            </p>
+          </div>
+          <span style="background: #F1F5F9; color: #334155; font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 6px;">
+            26 sensores cadastrados
+          </span>
+        </div>
+
+        <!-- Barra de Busca -->
+        <div style="margin-bottom: 14px;">
+          <input type="text" id="input-busca-sensores" placeholder="Filtrar por sensor nome, lote, ambiente (ar / solo) ou status..." style="width: 100%; background: #F8FAFC; border: 1px solid #CBD5E1; border-radius: 8px; padding: 8px 14px; font-size: 12px; outline: none;">
+        </div>
+
+        <!-- Tabela Estilizada -->
+        <div style="overflow-x: auto;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
+            <thead>
+              <tr style="border-bottom: 2px solid #E2E8F0; color: #64748B; font-size: 11px; text-transform: uppercase;">
+                <th style="padding: 10px 12px;">ID / NOME (sensor)</th>
+                <th style="padding: 10px 12px;">TIPO / AMBIENTE</th>
+                <th style="padding: 10px 12px;">LOTE / FRUTA</th>
+                <th style="padding: 10px 12px;">CHANNEL THINGSPEAK</th>
+                <th style="padding: 10px 12px;">ÚLTIMA LEITURA (LEITURA_CLIMATICA)</th>
+                <th style="padding: 10px 12px; text-align: center;">STATUS</th>
+              </tr>
+            </thead>
+            <tbody id="tabela-sensores-body">
+              <!-- Item 1 -->
+              <tr style="border-bottom: 1px solid #F1F5F9; transition: background 0.15s;" class="tr-sensor-item">
+                <td style="padding: 12px;">
+                  <div style="font-weight: 700; color: #0F172A;">SNS-SL-001</div>
+                  <div style="font-size: 10px; color: #64748B;">id_sensor: 1 • Sonda FDR Solo A1</div>
+                </td>
+                <td style="padding: 12px;">
+                  <span style="background: #ECFDF5; color: #047857; padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 11px;">FDR Capacitivo • solo</span>
+                </td>
+                <td style="padding: 12px;">
+                  <div style="font-weight: 600; color: #0F172A;">Lote 1 (Talhão A1)</div>
+                  <div style="font-size: 10px; color: #64748B;">Uva Niágara</div>
+                </td>
+                <td style="padding: 12px;">
+                  <div style="font-weight: 700; color: #0284C7; font-family: monospace;">Ch 248901</div>
+                  <div style="font-size: 10px; color: #64748B;">entry_id #14.892</div>
+                </td>
+                <td style="padding: 12px;">
+                  <div style="font-weight: 700; color: #059669;">46.2% solo • 24.5°C solo</div>
+                  <div style="font-size: 10px; color: #64748B;">25.1°C ar • 55% umid.</div>
+                </td>
+                <td style="padding: 12px; text-align: center;">
+                  <span style="background: #ECFDF5; color: #047857; padding: 3px 10px; border-radius: 9999px; font-weight: 700; font-size: 10px;">ativo</span>
+                </td>
+              </tr>
+
+              <!-- Item 2 -->
+              <tr style="border-bottom: 1px solid #F1F5F9; transition: background 0.15s;" class="tr-sensor-item">
+                <td style="padding: 12px;">
+                  <div style="font-weight: 700; color: #0F172A;">SNS-AR-002</div>
+                  <div style="font-size: 10px; color: #64748B;">id_sensor: 2 • Estação Microclima A1</div>
+                </td>
+                <td style="padding: 12px;">
+                  <span style="background: #EFF6FF; color: #1D4ED8; padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 11px;">DHT22/DHT11 • ar</span>
+                </td>
+                <td style="padding: 12px;">
+                  <div style="font-weight: 600; color: #0F172A;">Lote 1 (Talhão A1)</div>
+                  <div style="font-size: 10px; color: #64748B;">Uva Niágara</div>
+                </td>
+                <td style="padding: 12px;">
+                  <div style="font-weight: 700; color: #0284C7; font-family: monospace;">Ch 248901</div>
+                  <div style="font-size: 10px; color: #64748B;">entry_id #14.892</div>
+                </td>
+                <td style="padding: 12px;">
+                  <div style="font-weight: 700; color: #0284C7;">28.1°C ar • 59.4% umid.</div>
+                  <div style="font-size: 10px; color: #64748B;">Temp_solo recalculada</div>
+                </td>
+                <td style="padding: 12px; text-align: center;">
+                  <span style="background: #ECFDF5; color: #047857; padding: 3px 10px; border-radius: 9999px; font-weight: 700; font-size: 10px;">ativo</span>
+                </td>
+              </tr>
+
+              <!-- Item 3 -->
+              <tr style="border-bottom: 1px solid #F1F5F9; transition: background 0.15s;" class="tr-sensor-item">
+                <td style="padding: 12px;">
+                  <div style="font-weight: 700; color: #0F172A;">SNS-SL-003</div>
+                  <div style="font-size: 10px; color: #64748B;">id_sensor: 3 • Sonda FDR Solo A2</div>
+                </td>
+                <td style="padding: 12px;">
+                  <span style="background: #ECFDF5; color: #047857; padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 11px;">FDR Analítico • solo</span>
+                </td>
+                <td style="padding: 12px;">
+                  <div style="font-weight: 600; color: #0F172A;">Lote 2 (Talhão A2)</div>
+                  <div style="font-size: 10px; color: #64748B;">Uva Crimson</div>
+                </td>
+                <td style="padding: 12px;">
+                  <div style="font-weight: 700; color: #0284C7; font-family: monospace;">Ch 248902</div>
+                  <div style="font-size: 10px; color: #64748B;">entry_id #14.302</div>
+                </td>
+                <td style="padding: 12px;">
+                  <div style="font-weight: 700; color: #059669;">37.8% solo • 25.8°C solo</div>
+                  <div style="font-size: 10px; color: #64748B;">31.5°C ar • 55% umid.</div>
+                </td>
+                <td style="padding: 12px; text-align: center;">
+                  <span style="background: #ECFDF5; color: #047857; padding: 3px 10px; border-radius: 9999px; font-weight: 700; font-size: 10px;">ativo</span>
+                </td>
+              </tr>
+
+              <!-- Item 4 -->
+              <tr style="border-bottom: 1px solid #F1F5F9; transition: background 0.15s;" class="tr-sensor-item">
+                <td style="padding: 12px;">
+                  <div style="font-weight: 700; color: #0F172A;">SNS-SL-025</div>
+                  <div style="font-size: 10px; color: #64748B;">id_sensor: 25 • Sonda Bancada Teste</div>
+                </td>
+                <td style="padding: 12px;">
+                  <span style="background: #FEF3C7; color: #B45309; padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 11px;">FDR Calibração • solo</span>
+                </td>
+                <td style="padding: 12px;">
+                  <div style="font-weight: 600; color: #0F172A;">Lote 3 (Talhão B1)</div>
+                  <div style="font-size: 10px; color: #64748B;">Thompson Seedless</div>
+                </td>
+                <td style="padding: 12px;">
+                  <div style="font-weight: 700; color: #64748B; font-family: monospace;">Ch 248903</div>
+                  <div style="font-size: 10px; color: #64748B;">entry_id #11.234</div>
+                </td>
+                <td style="padding: 12px;">
+                  <div style="font-weight: 600; color: #64748B;">--/--</div>
+                  <div style="font-size: 10px; color: #D97706;">Sinal pausado para calibração</div>
+                </td>
+                <td style="padding: 12px; text-align: center;">
+                  <span style="background: #F1F5F9; color: #64748B; padding: 3px 10px; border-radius: 9999px; font-weight: 700; font-size: 10px;">inativo</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Paginação -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; font-size: 11px; color: #64748B;">
+          <span>Exibindo 1-4 de 24 sensores</span>
+          <div style="display: flex; gap: 4px;">
+            <button class="map-tab-btn" id="btn-pag-ant">Anterior</button>
+            <button class="map-tab-btn active">1</button>
+            <button class="map-tab-btn">2</button>
+            <button class="map-tab-btn" id="btn-pag-prox">Próximo</button>
+          </div>
+        </div>
+      </div>
+
+      < !--Grid Inferior(2 Colunas): Alertas Preditivos & Auditoria-- >
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+    <!-- Card Esquerda: Alertas Preditivos por Sensor -->
+    <div class="analista-chart-box">
+      <div class="chart-header-row">
+        <div>
+          <h4 style="font-size: 14px; font-weight: 700; color: #0F172A; display: flex; align-items: center; gap: 8px;">
+            <i data-lucide="pie-chart" style="width: 16px; height: 16px; color: #10B981;"></i>
+            Alertas Preditivos por Sensor
+          </h4>
+          <p style="font-size: 11px; color: #64748B; margin-top: 2px;">
+            Classificação probabilística de estresses hídrico e patológico
+          </p>
+        </div>
+        <span style="font-family: monospace; font-size: 10px; background: #F1F5F9; color: #475569; padding: 2px 6px; border-radius: 4px;">alertas_preditivos</span>
+      </div>
+
+          <div style="display: flex; align-items: center; gap: 24px; margin: 16px 0;">
+            <!-- Donut SVG 92% Risco Baixo -->
+            <div style="position: relative; width: 120px; height: 120px; flex-shrink: 0;">
+              <svg viewBox="0 0 36 36" style="width: 100%; height: 100%; transform: rotate(-90deg);">
+                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#F1F5F9" stroke-width="3.8"/>
+                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#10B981" stroke-width="3.8" stroke-dasharray="92, 100"/>
+              </svg>
+              <div class="donut-center-wrap">
+                <div class="donut-center-val">92%</div>
+                <div class="donut-center-sub">Risco Baixo (&lt; 0.35)</div>
+              </div>
+            </div>
+
+            <!-- Lista de Severidade -->
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px;">
+                <span style="display: flex; align-items: center; gap: 6px;">
+                  <span style="width: 8px; height: 8px; border-radius: 50%; background: #10B981;"></span>
+                  Severidade 'baixa' (prob &lt; 0.35)
+                </span>
+                <strong>22 sensores</strong>
+              </div>
+
+              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px;">
+                <span style="display: flex; align-items: center; gap: 6px;">
+                  <span style="width: 8px; height: 8px; border-radius: 50%; background: #0284C7;"></span>
+                  Severidade 'moderada' (0.35 - 0.70)
+                </span>
+                <strong>2 sensores</strong>
+              </div>
+
+              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px;">
+                <span style="display: flex; align-items: center; gap: 6px;">
+                  <span style="width: 8px; height: 8px; border-radius: 50%; background: #EF4444;"></span>
+                  Severidade 'alta' (prob &gt; 0.70)
+                </span>
+                <strong>0 sensores</strong>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card de Corte Predição Ativo -->
+          <div style="background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 8px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; font-size: 11px;">
+            <div>
+              <span style="font-weight: 700; color: #1D4ED8; display: flex; align-items: center; gap: 4px;">
+                <i data-lucide="alert-triangle" style="width: 13px; height: 13px;"></i>
+                Corte Predição Ativo
+              </span>
+              <div style="color: #475569; font-size: 10px; margin-top: 2px;">Sensor #4 • prob_risco = 0.58 • Lote 2</div>
+            </div>
+            <span style="background: #DBEAFE; color: #1D4ED8; font-weight: 700; padding: 2px 8px; border-radius: 4px;">Moderada</span>
+          </div>
+        </div>
+
+        <!-- Card Direita: Auditoria & Leituras Rejeitadas -->
+        <div class="analista-chart-box">
+          <div class="chart-header-row">
+            <div>
+              <h4 style="font-size: 14px; font-weight: 700; color: #0F172A; display: flex; align-items: center; gap: 8px;">
+                <i data-lucide="clipboard-x" style="width: 16px; height: 16px; color: #EF4444;"></i>
+                Auditoria & Leituras Rejeitadas
+              </h4>
+              <p style="font-size: 11px; color: #64748B; margin-top: 2px;">
+                Descartes por inconsistência física ou falha de canal ThingSpeak
+              </p>
+            </div>
+            <span style="font-family: monospace; font-size: 10px; background: #F1F5F9; color: #475569; padding: 2px 6px; border-radius: 4px;">leitura_rejeitada</span>
+          </div>
+
+          <!-- Item Rejeitado 1 -->
+          <div style="border-top: 1px solid #F1F5F9; padding: 10px 0;">
+            <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 2px;">
+              <span style="font-weight: 700; color: #B91C1C; font-family: monospace;">temperatura_bruta &gt; 60°C</span>
+              <span style="color: #94A3B8;">Hoje 15:12</span>
+            </div>
+            <div style="font-size: 11px; color: #475569;">
+              Motivo: Outlier do sensor térmico (78.4°C)
+            </div>
+            <div style="font-size: 10px; color: #64748B; margin-top: 2px;">
+              Sensor #02 • Ar • Ch 248901
+            </div>
+          </div>
+
+    <!-- Item Rejeitado 2 -->
+    <div style="border-top: 1px solid #F1F5F9; padding: 10px 0;">
+      <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 2px;">
+        <span style="font-weight: 700; color: #B91C1C; font-family: monospace;">umidade_bruta &lt; 0%</span>
+        <span style="color: #94A3B8;">Ontem 22:45</span>
+      </div>
+      <div style="font-size: 11px; color: #475569;">
+        Motivo: Leitura analógica corrompida (-4.2%)
+      </div>
+      <div style="font-size: 10px; color: #64748B; margin-top: 2px;">
+        Sensor #14 • Solo • Ch 248905
+      </div>
+    </div>
+
+    <!-- Botão Ação Final -->
+    <button class="incident-btn-primary" id="btn-log-ingestao" style="width: 100%; margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 14px;">
+      <span>Log de Ingestão ThingSpeak</span>
+      <i data-lucide="arrow-right" style="width: 14px; height: 14px;"></i>
+    </button>
+  </div>
+      </div >
+    </div >
+  </div>
+        </main>
+      </div>
+    </div>
+  
+  <div id="modal-root"></div>
+  <div id="toast-container" class="toast-container"></div>
+  <script type="module">
+    import { setupSensoresEvents } from '/assets/js/views/sensores.js?v=20261105-live';
+    if (typeof setupSensoresEvents === 'function') {
+      try { setupSensoresEvents(); } catch (err) { console.warn('Erro evento:', err); }
+    }
+    if (window.lucide) window.lucide.createIcons();
+  </script>
+</body>
+</html>

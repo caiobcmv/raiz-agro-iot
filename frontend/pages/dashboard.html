@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Visão Geral do Sistema | RAIZ Agro IoT</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2315803D'><path d='M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/design-system.css">
+  <link rel="stylesheet" href="/assets/css/components.css">
+  <link rel="stylesheet" href="/assets/css/layout.css">
+  <link rel="stylesheet" href="/assets/css/analista.css">
+  
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="apple-theme ">
+  
+    <div class="app-container">
+      
+    <aside class="sidebar">
+      <!-- Logo RAIZ com imagem nítida sobre fundo escuro -->
+      <div class="sidebar-brand-container">
+        <a href="/pages/dashboard.html" style="display: block; text-decoration: none;">
+          <img src="assets/images/logo-raiz.png" width="105" height="105" alt="RAIZ" style="object-fit: contain; display: block; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.15));">
+        </a>
+      </div>
+
+      <!-- Menu Principal Dinâmico -->
+      <nav class="sidebar-nav-container">
+        <a href="/pages/dashboard.html" class="sidebar-menu-item active">
+          <i data-lucide="layout-grid"></i>
+          <span>Visão geral</span>
+        </a>
+
+        
+        <a href="/pages/sensores.html" class="sidebar-menu-item ">
+          <i data-lucide="radio"></i>
+          <span>Sensores</span>
+        </a>
+
+        <a href="/pages/rede-esp32.html" class="sidebar-menu-item ">
+          <i data-lucide="share-2"></i>
+          <span>Rede ESP32</span>
+        </a>
+        
+
+        <a href="/pages/leituras.html" class="sidebar-menu-item ">
+          <i data-lucide="file-text"></i>
+          <span>Histórico Safra</span>
+        </a>
+
+        <a href="/pages/alertas.html" class="sidebar-menu-item ">
+          <i data-lucide="alert-triangle"></i>
+          <span>Alertas</span>
+        </a>
+
+        <a href="/pages/configuracoes.html" class="sidebar-menu-item ">
+          <i data-lucide="settings"></i>
+          <span>Configurações</span>
+        </a>
+      </nav>
+
+      <!-- Bottom Profile & Connectivity (Figma: Vale das Uvas / Petrolina - Setor 04) -->
+      <div class="sidebar-bottom-profile">
+        <div class="bottom-profile-card">
+          <div class="profile-avatar-vu">VU</div>
+          <div class="profile-info-text">
+            <div class="farm-name">Vale das Uvas</div>
+            <div class="farm-sub">Petrolina - Setor 04</div>
+          </div>
+          <button id="logout-btn" style="margin-left: auto; color: #94A3B8; background: none; border: none; cursor: pointer; padding: 4px;" title="Sair do Sistema">
+            <i data-lucide="log-out" style="width: 18px; height: 18px;"></i>
+          </button>
+        </div>
+
+        <div class="gateway-status-pill">
+          <span style="display: flex; align-items: center; gap: 6px; color: #1E293B; font-weight: 600; font-size: 11px;">
+            <span style="width: 7px; height: 7px; border-radius: 50%; background: #10B981; box-shadow: 0 0 6px rgba(16,185,129,0.7);"></span>
+            LoRa Gateway
+          </span>
+          <span style="color: #64748B; font-size: 11px; font-weight: 500;">Conectado</span>
+        </div>
+      </div>
+    </aside>
+  
+      <div class="main-content-wrapper">
+        <header class="topbar-header">
+          <div class="header-title-wrap">
+            <h2>Visão Geral do Sistema</h2>
+            <p>Plataforma de Inteligência Agro IoT & Logística de Exportação • Conectado ao Banco Local (raiz_agro.db)</p>
+          </div>
+          <div class="header-right-controls">
+            <div class="date-selector-btn">
+              <i data-lucide="calendar" style="width: 15px; height: 15px; color: #71807A;"></i>
+              <span>22 de setembro de 2026</span>
+            </div>
+            <a href="/pages/alertas.html" class="header-bell-btn" title="Ver Alertas Ativos">
+              <i data-lucide="bell" style="width: 18px; height: 18px; color: #71807A;"></i>
+              <span class="header-bell-badge" data-kpi="alertas-count">2</span>
+            </a>
+            <div class="user-profile-header-pill">
+              <div class="avatar-initials-pill" style="background:#DCFCE7; border:1.5px solid #86EFAC; color:#15803D;">LF</div>
+              <div class="profile-name-role">
+                <span class="profile-name">Luiz Felipe</span>
+                <span class="profile-role">Analista IoT & Telemetria</span>
+              </div>
+            </div>
+          </div>
+        </header>
+        <main class="page-body">
+          <div id="view-container">
+    <div class="dashboard-canvas apple-animate-in">
+      <!-- Sub-barra Técnica do Analista -->
+      <div class="analista-subbar">
+        <div class="analista-subbar-info">
+          <span class="analista-dot-pulse"></span>
+          <span>GATEWAY PETROLINA-04 • US915 CONCENTRADOR ATIVO</span>
+          <span class="analista-badge-tech">ESP-MESH v4.2.1-prod</span>
+        </div>
+        <div class="analista-subbar-actions">
+          
+          <button class="btn-analista-sync" id="btn-sync-thingspeak">
+            <i data-lucide="refresh-cw" style="width: 14px; height: 14px;"></i>
+            <span>Sincronizar Ingestão ThingSpeak</span>
+          </button>
+          <button class="btn-analista-export" id="btn-export-telemetria">
+            <i data-lucide="download" style="width: 14px; height: 14px;"></i>
+            <span>Exportar Telemetria</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 4 KPIs do Analista -->
+      <div class="kpi-grid-4col">
+        <!-- KPI 1: SAÚDE DA REDE MESH -->
+        <div class="kpi-analista-card">
+          <div class="kpi-top-row">
+            <span class="kpi-label">SAÚDE DA REDE MESH</span>
+            <span class="kpi-badge green">EXCELENTE</span>
+          </div>
+          <div class="kpi-value-row">
+            <span class="kpi-big-num">96%</span>
+            <span class="kpi-sub-num">24 de 25 nós operacionais</span>
+          </div>
+          <div class="kpi-bottom-row">
+            <span>Latência média: <strong>124 ms</strong></span>
+            <span style="color: #059669; font-weight: 600; display: flex; align-items: center; gap: 4px;">
+              <i data-lucide="check-circle-2" style="width: 13px; height: 13px;"></i> Mesh OK
+            </span>
+          </div>
+        </div>
+
+        <!-- KPI 2: SENSORES & SONDAS -->
+        <div class="kpi-analista-card">
+          <div class="kpi-top-row">
+            <span class="kpi-label">SENSORES & SONDAS</span>
+            <span style="color: #0284C7;"><i data-lucide="cpu" style="width: 16px; height: 16px;"></i></span>
+          </div>
+          <div class="kpi-value-row">
+            <span class="kpi-big-num">24</span>
+            <span class="kpi-sub-num">unidades ativas</span>
+          </div>
+          <div class="kpi-bottom-row" style="gap: 6px;">
+            <span style="background: #ECFDF5; color: #047857; padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 10px;">16 Solo (FDR)</span>
+            <span style="background: #EFF6FF; color: #1D4ED8; padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 10px;">8 Microclima (Ar)</span>
+          </div>
+        </div>
+
+        <!-- KPI 3: MÉDIA CLIMÁTICA & SOLO -->
+        <div class="kpi-analista-card">
+          <div class="kpi-top-row">
+            <span class="kpi-label">MÉDIA CLIMÁTICA & SOLO</span>
+            <span class="kpi-badge green">FAIXA ADEQUADA</span>
+          </div>
+          <div class="kpi-value-row" style="gap: 16px;">
+            <div>
+              <span class="kpi-big-num">27.4°C</span>
+              <div style="font-size: 10px; color: #64748B;">Temp. Ar [Teto 32°C]</div>
+            </div>
+            <div>
+              <span class="kpi-big-num" style="color: #0284C7;">46.2%</span>
+              <div style="font-size: 10px; color: #64748B;">Umidade Solo VWC</div>
+            </div>
+          </div>
+          <div class="kpi-bottom-row">
+            <span style="color: #059669; font-weight: 500;">Equilíbrio hídrico e térmico sustentado</span>
+          </div>
+        </div>
+
+        <!-- KPI 4: ALERTAS DO SISTEMA -->
+        <div class="kpi-analista-card">
+          <div class="kpi-top-row">
+            <span class="kpi-label">ALERTAS DO SISTEMA</span>
+            <span class="kpi-badge yellow">ATENÇÃO LEVE</span>
+          </div>
+          <div class="kpi-value-row">
+            <span class="kpi-big-num" style="color: #D97706;">2</span>
+            <span class="kpi-sub-num">Necessitam revisão em campo</span>
+          </div>
+          <div class="kpi-bottom-row">
+            <span>1 Nível Alto • 1 Nível Médio</span>
+            <a href="/pages/alertas.html" style="color: #0284C7; font-weight: 600; text-decoration: none;">Ver central &rarr;</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Seção Principal: Topologia de Sensores no Campo -->
+      <div class="analista-map-card">
+        <div class="map-header-row">
+          <div>
+            <h3 style="font-size: 16px; font-weight: 700; color: #0F172A; display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="map" style="width: 18px; height: 18px; color: #10B981;"></i>
+              Topologia de Sensores no Campo
+            </h3>
+            <p style="font-size: 12px; color: #64748B; margin-top: 2px;">
+              Visualização da área de cobertura georreferenciada e dispersão dos nós
+            </p>
+          </div>
+
+          <!-- Filtros de Topologia -->
+          <div class="map-filter-tabs">
+            <button class="map-tab-btn active" data-filter="todos">Todos (24)</button>
+            <button class="map-tab-btn" data-filter="solo">Solo / FDR (16)</button>
+            <button class="map-tab-btn" data-filter="ar">Microclima / Ar (8)</button>
+            <button class="map-tab-btn" data-filter="alerta">Em Alerta (2)</button>
+          </div>
+        </div>
+
+        <!-- Viewport Aérea com Nós Posicionados conforme Figma -->
+        <div class="map-view-viewport" id="analista-map-viewport">
+          <img src="assets/images/aerial-talhoes.jpg" alt="Mapa Agrícola Vale do São Francisco" class="map-view-bg">
+
+          <!-- Rosa dos Ventos (Norte) -->
+          <div style="position: absolute; top: 16px; right: 16px; width: 36px; height: 36px; background: rgba(255,255,255,0.92); border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.15); font-weight: 800; font-size: 10px; color: #0F172A; z-index: 20;">
+            <i data-lucide="navigation" style="width: 14px; height: 14px; color: #0284C7; transform: rotate(45deg);"></i>
+            <span>N</span>
+          </div>
+
+          <!-- Controles de Zoom -->
+          <div style="position: absolute; bottom: 16px; right: 16px; display: flex; flex-direction: column; background: rgba(255,255,255,0.92); border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 20;">
+            <button style="border: none; background: transparent; padding: 6px 10px; cursor: pointer; font-size: 14px; font-weight: 700; border-bottom: 1px solid #E2E8F0;" id="zoom-in-btn">+</button>
+            <button style="border: none; background: transparent; padding: 6px 10px; cursor: pointer; font-size: 14px; font-weight: 700;" id="zoom-out-btn">&minus;</button>
+          </div>
+
+          <!-- Gateway Central ESP32 com Pulso Radar -->
+          <div class="gateway-center-marker" style="top: 42%; left: 58%;" title="Gateway Central ESP32 - US915 Concentrador Ativo" data-node="gateway">
+            <div class="gateway-pulse-ring"></div>
+            <i data-lucide="radio" style="width: 22px; height: 22px;"></i>
+          </div>
+
+          <!-- Pinos de Sensores Interativos -->
+          <div class="sensor-pin-marker green" style="top: 36%; left: 44%;" data-node="03" data-tipo="solo" title="Nó 03: Sonda FDR Solo • 48% VWC">
+            03
+          </div>
+
+          <div class="sensor-pin-marker red" style="top: 46%; left: 43%;" data-node="19" data-tipo="alerta" title="Nó 19: Alerta Térmico • 62.4°C (Outlier)">
+            19
+          </div>
+
+          <div class="sensor-pin-marker green" style="top: 48%; left: 48%;" data-node="01" data-tipo="solo" title="Nó 01: Sonda Solo A1 • 46.2% VWC">
+            01
+          </div>
+
+          <div class="sensor-pin-marker blue" style="top: 38%; left: 72%;" data-node="04" data-tipo="ar" title="Nó 04: Estação Ar • 27.8°C / 61% UR">
+            04
+          </div>
+
+          <div class="sensor-pin-marker blue" style="top: 45%; left: 74%;" data-node="08" data-tipo="ar" title="Nó 08: Microclima Dossel • 26.5°C">
+            08
+          </div>
+
+          <div class="sensor-pin-marker blue" style="top: 50%; left: 70%;" data-node="07" data-tipo="ar" title="Nó 07: Estação Perimetral • 27.1°C">
+            07
+          </div>
+
+          <!-- Pill de Área no Canto Inferior Esquerdo -->
+          <div style="position: absolute; bottom: 16px; left: 16px; background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); padding: 8px 14px; border-radius: 10px; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 20;">
+            <div style="width: 28px; height: 28px; border-radius: 8px; background: #ECFDF5; display: flex; align-items: center; justify-content: center; color: #047857;">
+              <i data-lucide="map-pin" style="width: 16px; height: 16px;"></i>
+            </div>
+            <div>
+              <div style="font-size: 11px; font-weight: 700; color: #0F172A;">Área de cultivo</div>
+              <div style="font-size: 10px; color: #64748B;">Vale do São Francisco — PE (45.0 ha)</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Legenda Inferior do Mapa -->
+        <div class="map-legend-row">
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <span style="display: flex; align-items: center; gap: 6px;">
+              <span style="width: 8px; height: 8px; border-radius: 50%; background: #10B981;"></span>
+              Sensores Ativos (22)
+            </span>
+            <span style="display: flex; align-items: center; gap: 6px;">
+              <span style="width: 8px; height: 8px; border-radius: 50%; background: #EF4444;"></span>
+              Atenção / Limiar (2)
+            </span>
+            <span style="display: flex; align-items: center; gap: 6px; color: #94A3B8;">
+              <i data-lucide="radio" style="width: 12px; height: 12px;"></i>
+              ThingSpeak: 5 min (BW 125 kHz / US915)
+            </span>
+          </div>
+
+          <a href="/pages/sensores.html" style="color: #0284C7; font-weight: 600; text-decoration: none; display: flex; align-items: center; gap: 4px;">
+            Ver telemetria detalhada &rarr;
+          </a>
+        </div>
+      </div>
+
+      <!-- Grid Inferior (2 Cards): Auditoria de Ingestão & Modelos Preditivos -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <!-- Card Esquerda: Auditoria de Ingestão & Leituras Rejeitadas -->
+        <div class="kpi-analista-card" style="min-height: auto; padding: 20px;">
+          <div class="kpi-top-row">
+            <div>
+              <h4 style="font-size: 14px; font-weight: 700; color: #0F172A; display: flex; align-items: center; gap: 8px;">
+                <i data-lucide="shield-alert" style="width: 16px; height: 16px; color: #F59E0B;"></i>
+                Auditoria de Ingestão & Leituras Rejeitadas
+              </h4>
+              <p style="font-size: 11px; color: #64748B; margin-top: 2px;">
+                Filtragem de ruídos físicos da tabela <code style="background: #F1F5F9; padding: 1px 4px; border-radius: 4px;">leitura_rejeitada</code>
+              </p>
+            </div>
+            <span class="kpi-badge yellow">2 Descartadas Hoje</span>
+          </div>
+
+          <!-- Item 1 Rejeitado -->
+          <div style="border-top: 1px solid #F1F5F9; padding: 12px 0; margin-top: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <span style="font-size: 12px; font-weight: 700; color: #0F172A;">Sonda Solo #SNS-SL-04</span>
+              <span style="font-size: 10px; background: #ECFDF5; color: #065F46; padding: 2px 6px; border-radius: 4px; font-weight: 600;">Talhão A1 • Uva Vitória</span>
+            </div>
+            <div style="font-size: 11px; color: #B91C1C; margin-bottom: 8px;">
+              Motivo: Outlier térmico (temperatura_bruta = 62.4°C acima do limite físico)
+            </div>
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+              <button class="incident-btn-secondary btn-recalibrar" style="font-size: 11px; padding: 4px 10px;" data-sensor="SNS-SL-04">
+                Recalibrar Offset
+              </button>
+              <div style="flex: 1; text-align: right;">
+                <span style="font-size: 10px; color: #64748B;">Confiabilidade pós-descarte: <strong>98.4%</strong></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Item 2 Rejeitado -->
+          <div style="border-top: 1px solid #F1F5F9; padding: 12px 0;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <span style="font-size: 12px; font-weight: 700; color: #0F172A;">Sonda FDR #SNS-SL-07</span>
+              <span style="font-size: 10px; background: #EFF6FF; color: #1D4ED8; padding: 2px 6px; border-radius: 4px; font-weight: 600;">Talhão C2 • Manga Palmer</span>
+            </div>
+            <div style="font-size: 11px; color: #D97706; margin-bottom: 8px;">
+              Motivo: Leitura analógica corrompida (umidade_bruta &lt; 0% VWC)
+            </div>
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+              <button class="incident-btn-secondary btn-ver-log" style="font-size: 11px; padding: 4px 10px;" data-sensor="SNS-SL-07">
+                Ver Log ThingSpeak
+              </button>
+              <div style="flex: 1; text-align: right;">
+                <span style="font-size: 10px; color: #64748B;">Progresso reteste: <strong>65% (46h/72h)</strong></span>
+              </div>
+            </div>
+          </div>
+
+          <div style="border-top: 1px solid #F1F5F9; padding-top: 10px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #64748B;">
+            <span>Última sincronização ThingSpeak às 15:42</span>
+            <a href="/pages/sensores.html" style="color: #0284C7; font-weight: 600; text-decoration: none;">Histórico completo &rarr;</a>
+          </div>
+        </div>
+
+        <!-- Card Direita: Modelos Preditivos & Limiares de Alerta -->
+        <div class="kpi-analista-card" style="min-height: auto; padding: 20px;">
+          <div class="kpi-top-row">
+            <div>
+              <h4 style="font-size: 14px; font-weight: 700; color: #0F172A; display: flex; align-items: center; gap: 8px;">
+                <i data-lucide="sliders" style="width: 16px; height: 16px; color: #10B981;"></i>
+                Modelos Preditivos & Limiares de Alerta
+              </h4>
+              <p style="font-size: 11px; color: #64748B; margin-top: 2px;">
+                Regras automatizadas de estabilidade e provisão agronômica
+              </p>
+            </div>
+          </div>
+
+          <!-- Risco de Déficit Hídrico -->
+          <div style="background: #FEF3C7; border: 1px solid #FDE68A; border-radius: 10px; padding: 12px; margin: 10px 0;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <span style="font-size: 12px; font-weight: 700; color: #92400E; display: flex; align-items: center; gap: 6px;">
+                <span style="width: 7px; height: 7px; border-radius: 50%; background: #D97706;"></span>
+                Risco de Déficit Hídrico Severo
+              </span>
+              <span style="font-size: 10px; font-weight: 700; background: #FDE68A; color: #92400E; padding: 2px 6px; border-radius: 4px;">CORTE PREDITIVO: ALTO</span>
+            </div>
+            <p style="font-size: 11px; color: #78350F; line-height: 1.4; margin-bottom: 6px;">
+              Probabilidade projetada em 84% para as próximas 12 horas no Talhão A1 com base na evapotranspiração Penman-Monteith.
+            </p>
+            <div style="font-size: 11px; font-weight: 600; color: #92400E; display: flex; align-items: center; gap: 4px;">
+              <i data-lucide="lightbulb" style="width: 13px; height: 13px;"></i>
+              Ação recomendada: Antecipar irrigação matinal em 40 min.
+            </div>
+          </div>
+
+          <!-- Configurações de Transmissão -->
+          <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: #F8FAFC; border-radius: 8px; border: 1px solid #E2E8F0;">
+              <div>
+                <div style="font-size: 12px; font-weight: 600; color: #0F172A;">Frequência de Ingestão ThingSpeak</div>
+                <div style="font-size: 10px; color: #64748B;">Balanço de energia solar vs transmissão de pacotes</div>
+              </div>
+              <button class="incident-btn-secondary" id="btn-freq-ingestao" style="font-size: 11px; padding: 4px 8px;">
+                A cada 5 min (US915)
+              </button>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: #F8FAFC; border-radius: 8px; border: 1px solid #E2E8F0;">
+              <div>
+                <div style="font-size: 12px; font-weight: 600; color: #0F172A;">Filtro de Ruído & Auto-calibração FDR</div>
+                <div style="font-size: 10px; color: #64748B;">Compensação térmica e salinidade em ciclo de 7 dias</div>
+              </div>
+              <label style="position: relative; display: inline-block; width: 40px; height: 22px;">
+                <input type="checkbox" id="check-filtro-ruido" checked style="opacity: 0; width: 0; height: 0;">
+                <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #10B981; transition: .3s; border-radius: 34px;">
+                  <span style="position: absolute; content: ''; height: 16px; width: 16px; left: 20px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%;"></span>
+                </span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Banner de Sucesso Inferior -->
+          <div style="background: #183D2E; color: #FFFFFF; border-radius: 8px; padding: 10px 14px; margin-top: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 11px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="check" style="width: 14px; height: 14px; color: #34D399;"></i>
+              <div>
+                <strong>Transição Concluída com Sucesso</strong>
+                <div style="font-size: 10px; color: #A7F3D0;">Integridade de dados 100% sincronizada com canais ThingSpeak.</div>
+              </div>
+            </div>
+            <button style="background: none; border: none; color: #A7F3D0; cursor: pointer; font-size: 14px;" onclick="this.parentElement.remove()">✕</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+        </main>
+      </div>
+    </div>
+  
+  <div id="modal-root"></div>
+  <div id="toast-container" class="toast-container"></div>
+  <script type="module">
+    import { setupDashboardEvents } from '/assets/js/views/dashboard.js?v=20261105-live';
+    if (typeof setupDashboardEvents === 'function') {
+      try { setupDashboardEvents(); } catch (err) { console.warn('Erro evento:', err); }
+    }
+    if (window.lucide) window.lucide.createIcons();
+  </script>
+</body>
+</html>

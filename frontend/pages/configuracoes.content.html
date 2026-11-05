@@ -1,0 +1,408 @@
+
+  <div class="dashboard-canvas" style="padding: 28px 36px 48px; overflow-y: auto;">
+
+    <!-- 2-col topo: Informações + Padrões de Qualidade -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:20px;">
+
+      <!-- Informações & Cadastro da Propriedade -->
+      <div class="apple-card" style="padding:24px 26px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:18px;">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div style="width:36px;height:36px; background:#F0FDF4; border-radius:10px; display:flex;align-items:center;justify-content:center;">
+              <i data-lucide="map-pin" style="width:16px;height:16px;color:#059669;"></i>
+            </div>
+            <div>
+              <div style="font-size:14px; font-weight:700; color:#0F172A;">Informações & Cadastro da Propriedade</div>
+              <div style="font-size:11px; color:#94A3B8; margin-top:1px;">Dados cadastrais de infraestrutura física e territorial</div>
+            </div>
+          </div>
+          <div style="background:#F1F5F9; color:#64748B; font-size:10px; font-weight:700; padding:4px 10px; border-radius:6px; white-space:nowrap;">ID: POLO-SUL-04</div>
+        </div>
+
+        <!-- Nome da Fazenda -->
+        <div style="margin-bottom:14px;">
+          <label style="display:block; font-size:11px; font-weight:600; color:#475569; margin-bottom:5px;">Nome da Fazenda</label>
+          <input id="cfg-farm-name" value="Fazenda RaizTech - Polo Sul" style="width:100%; padding:10px 12px; border:1px solid #E2E8F0; border-radius:9px; font-size:13px; color:#0F172A; outline:none; background:#F8FAFC; box-sizing:border-box; transition:border .2s;" onfocus="this.style.borderColor='#059669'" onblur="this.style.borderColor='#E2E8F0'">
+        </div>
+
+        <!-- Localização -->
+        <div style="margin-bottom:14px;">
+          <label style="display:block; font-size:11px; font-weight:600; color:#475569; margin-bottom:5px;">Localização & Coordenadas Geográficas</label>
+          <div style="display:flex; gap:10px; align-items:flex-start; flex-wrap:wrap;">
+            <input id="cfg-farm-coords" value="-21.177502,  -47.616331" style="flex:1; min-width:140px; padding:10px 12px; border:1px solid #E2E8F0; border-radius:9px; font-size:12px; color:#0F172A; outline:none; background:#F8FAFC; box-sizing:border-box;" onfocus="this.style.borderColor='#059669'" onblur="this.style.borderColor='#E2E8F0'">
+            <div style="display:flex; flex-direction:column; gap:5px; min-width:160px;">
+              <div style="background:#F0FDF4; border-radius:8px; padding:5px 10px; font-size:10px; font-weight:700; color:#065F46;">Petrolina – Setor 04 (Submédio São Francisco)</div>
+              <button id="btn-gps-sync" style="padding:6px 10px; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:7px; font-size:11px; color:#0284C7; cursor:pointer; display:flex; align-items:center; gap:5px; font-weight:600;">
+                <i data-lucide="map-pin" style="width:11px;height:11px;"></i> Sincronizar GPS
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Área + Talhões Ativos -->
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px;">
+          <div>
+            <label style="display:block; font-size:11px; font-weight:600; color:#475569; margin-bottom:5px;">Área Monitorada</label>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <input id="cfg-farm-area" value="1.250" style="flex:1; padding:10px 12px; border:1px solid #E2E8F0; border-radius:9px; font-size:13px; color:#0F172A; outline:none; background:#F8FAFC; box-sizing:border-box;" onfocus="this.style.borderColor='#059669'" onblur="this.style.borderColor='#E2E8F0'">
+              <span style="font-size:12px; color:#64748B; white-space:nowrap;">ha</span>
+            </div>
+          </div>
+          <div>
+            <label style="display:block; font-size:11px; font-weight:600; color:#475569; margin-bottom:5px;">Talhões Ativos</label>
+            <input value="8 talhões ativos (Monitoramento total)" readonly style="width:100%; padding:10px 12px; border:1px solid #E2E8F0; border-radius:9px; font-size:12px; color:#475569; outline:none; background:#F8FAFC; box-sizing:border-box; cursor:default;">
+          </div>
+        </div>
+
+        <!-- Culturas Ativas -->
+        <div style="margin-bottom:14px;">
+          <label style="display:block; font-size:11px; font-weight:600; color:#475569; margin-bottom:7px;">Culturas Ativas em Produção</label>
+          <div id="culturas-tags-container" style="display:flex; flex-wrap:wrap; gap:7px; align-items:center;">
+            
+              <div class="culture-tag" data-index="0" style="background:#183D2E; color:#fff; font-size:11px; font-weight:600; padding:5px 10px; border-radius:7px; display:flex; align-items:center; gap:6px;">
+                Uva de Mesa <span class="btn-remove-culture" data-index="0" style="cursor:pointer; opacity:.7; margin-left:2px; font-size:12px;">✕</span>
+              </div>
+            
+              <div class="culture-tag" data-index="1" style="background:#183D2E; color:#fff; font-size:11px; font-weight:600; padding:5px 10px; border-radius:7px; display:flex; align-items:center; gap:6px;">
+                Morango <span class="btn-remove-culture" data-index="1" style="cursor:pointer; opacity:.7; margin-left:2px; font-size:12px;">✕</span>
+              </div>
+            
+              <div class="culture-tag" data-index="2" style="background:#183D2E; color:#fff; font-size:11px; font-weight:600; padding:5px 10px; border-radius:7px; display:flex; align-items:center; gap:6px;">
+                Manga <span class="btn-remove-culture" data-index="2" style="cursor:pointer; opacity:.7; margin-left:2px; font-size:12px;">✕</span>
+              </div>
+            
+            <button id="btn-add-cultura" style="padding:5px 12px; background:#F8FAFC; border:1.5px dashed #CBD5E1; border-radius:7px; font-size:11px; color:#059669; cursor:pointer; font-weight:600;">+ Adicionar cultura</button>
+          </div>
+        </div>
+
+        <!-- Tipo de Solo -->
+        <div>
+          <label style="display:block; font-size:11px; font-weight:600; color:#475569; margin-bottom:5px;">Tipo de Solo / Caracterização Terroir</label>
+          <select id="cfg-tipo-solo" style="width:100%; padding:10px 12px; border:1px solid #E2E8F0; border-radius:9px; font-size:12px; color:#0F172A; outline:none; background:#F8FAFC; box-sizing:border-box; cursor:pointer;" onfocus="this.style.borderColor='#059669'" onblur="this.style.borderColor='#E2E8F0'">
+            <option>Latossolo Vermelho Eutrófico (Textura Média a Argilosa)</option>
+            <option>Argissolo Vermelho-Amarelo</option>
+            <option>Neossolo Quartzarênico</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Padrões de Qualidade & Brix de Embarque -->
+      <div class="apple-card" style="padding:24px 26px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:18px;">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div style="width:36px;height:36px; background:#FFF7ED; border-radius:10px; display:flex;align-items:center;justify-content:center;">
+              <i data-lucide="award" style="width:16px;height:16px;color:#F59E0B;"></i>
+            </div>
+            <div>
+              <div style="font-size:14px; font-weight:700; color:#0F172A;">Padrões de Qualidade & Brix de Embarque</div>
+              <div style="font-size:11px; color:#94A3B8; margin-top:1px;">Controle estrito de maturação para liberação de colheita e packing</div>
+            </div>
+          </div>
+          <button id="btn-nova-variedade" style="padding:6px 14px; background:#059669; color:#fff; border:none; border-radius:8px; font-size:11px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:4px;">
+            <i data-lucide="plus" style="width:12px;height:12px;"></i> Nova variedade
+          </button>
+        </div>
+
+        <!-- Variedades table -->
+        <div id="variedades-table-container" style="display:flex; flex-direction:column; gap:2px;">
+          <!-- Header -->
+          <div style="display:grid; grid-template-columns:2fr 1.1fr 1fr auto; gap:10px; padding:8px 12px; background:#F8FAFC; border-radius:8px; margin-bottom:4px;">
+            <div style="font-size:9px; font-weight:700; color:#94A3B8; text-transform:uppercase; letter-spacing:.5px;">Variedade / Mercado-alvo</div><div style="font-size:9px; font-weight:700; color:#94A3B8; text-transform:uppercase; letter-spacing:.5px;">Mínimo Brix</div><div style="font-size:9px; font-weight:700; color:#94A3B8; text-transform:uppercase; letter-spacing:.5px;">Calibre</div><div style="font-size:9px; font-weight:700; color:#94A3B8; text-transform:uppercase; letter-spacing:.5px;"></div>
+          </div>
+
+          <div id="variedades-rows-list">
+            
+              <div class="variedade-row" data-index="0" style="display:grid; grid-template-columns:2fr 1.1fr 1fr auto; gap:10px; padding:10px 12px; border-radius:8px; align-items:center; border-bottom:1px solid #F8FAFC;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <div style="width:8px;height:8px;border-radius:50%;background:#059669;flex-shrink:0;"></div>
+                  <div>
+                    <div style="font-size:12px; font-weight:700; color:#0F172A;">Uva Vitória (Seedless)</div>
+                    <div style="font-size:10px; color:#94A3B8;">Mercado alvo: União Europeia / UK</div>
+                  </div>
+                </div>
+                <div style="background:#FEF9C3; color:#92400E; font-size:11px; font-weight:700; padding:4px 9px; border-radius:6px; text-align:center;">≥18,0° Brix</div>
+                <div style="font-size:11px; color:#475569;">Calibre: ≥22mm</div>
+                <button class="btn-edit-variedade" data-index="0" style="width:28px;height:28px; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:7px; cursor:pointer; display:flex;align-items:center;justify-content:center;">
+                  <i data-lucide="pencil" style="width:12px;height:12px;color:#64748B;"></i>
+                </button>
+              </div>
+            
+              <div class="variedade-row" data-index="1" style="display:grid; grid-template-columns:2fr 1.1fr 1fr auto; gap:10px; padding:10px 12px; border-radius:8px; align-items:center; border-bottom:1px solid #F8FAFC;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <div style="width:8px;height:8px;border-radius:50%;background:#DC2626;flex-shrink:0;"></div>
+                  <div>
+                    <div style="font-size:12px; font-weight:700; color:#0F172A;">Uva Crimson</div>
+                    <div style="font-size:10px; color:#94A3B8;">Mercado alvo: América do Norte (USDA)</div>
+                  </div>
+                </div>
+                <div style="background:#FEF9C3; color:#92400E; font-size:11px; font-weight:700; padding:4px 9px; border-radius:6px; text-align:center;">≥17,5° Brix</div>
+                <div style="font-size:11px; color:#475569;">Calibre: 19mm</div>
+                <button class="btn-edit-variedade" data-index="1" style="width:28px;height:28px; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:7px; cursor:pointer; display:flex;align-items:center;justify-content:center;">
+                  <i data-lucide="pencil" style="width:12px;height:12px;color:#64748B;"></i>
+                </button>
+              </div>
+            
+              <div class="variedade-row" data-index="2" style="display:grid; grid-template-columns:2fr 1.1fr 1fr auto; gap:10px; padding:10px 12px; border-radius:8px; align-items:center; border-bottom:1px solid #F8FAFC;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <div style="width:8px;height:8px;border-radius:50%;background:#F59E0B;flex-shrink:0;"></div>
+                  <div>
+                    <div style="font-size:12px; font-weight:700; color:#0F172A;">Uva Thompson</div>
+                    <div style="font-size:10px; color:#94A3B8;">Mercado alvo: Ásia (China / Coreia do Sul)</div>
+                  </div>
+                </div>
+                <div style="background:#FEF9C3; color:#92400E; font-size:11px; font-weight:700; padding:4px 9px; border-radius:6px; text-align:center;">≥17,0° Brix</div>
+                <div style="font-size:11px; color:#475569;">Calibre: ≥18mm</div>
+                <button class="btn-edit-variedade" data-index="2" style="width:28px;height:28px; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:7px; cursor:pointer; display:flex;align-items:center;justify-content:center;">
+                  <i data-lucide="pencil" style="width:12px;height:12px;color:#64748B;"></i>
+                </button>
+              </div>
+            
+              <div class="variedade-row" data-index="3" style="display:grid; grid-template-columns:2fr 1.1fr 1fr auto; gap:10px; padding:10px 12px; border-radius:8px; align-items:center; border-bottom:1px solid #F8FAFC;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <div style="width:8px;height:8px;border-radius:50%;background:#A78BFA;flex-shrink:0;"></div>
+                  <div>
+                    <div style="font-size:12px; font-weight:700; color:#0F172A;">Manga Palmer</div>
+                    <div style="font-size:10px; color:#94A3B8;">Mercado alvo: Spot Europa (Roterdã)</div>
+                  </div>
+                </div>
+                <div style="background:#FEF9C3; color:#92400E; font-size:11px; font-weight:700; padding:4px 9px; border-radius:6px; text-align:center;">≥13,0° Brix</div>
+                <div style="font-size:11px; color:#475569;">Calibre: ≥350g</div>
+                <button class="btn-edit-variedade" data-index="3" style="width:28px;height:28px; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:7px; cursor:pointer; display:flex;align-items:center;justify-content:center;">
+                  <i data-lucide="pencil" style="width:12px;height:12px;color:#64748B;"></i>
+                </button>
+              </div>
+            
+              <div class="variedade-row" data-index="4" style="display:grid; grid-template-columns:2fr 1.1fr 1fr auto; gap:10px; padding:10px 12px; border-radius:8px; align-items:center; border-bottom:1px solid #F8FAFC;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <div style="width:8px;height:8px;border-radius:50%;background:#A78BFA;flex-shrink:0;"></div>
+                  <div>
+                    <div style="font-size:12px; font-weight:700; color:#0F172A;">Manga Tommy</div>
+                    <div style="font-size:10px; color:#94A3B8;">Mercado alvo: Mercado Nacional</div>
+                  </div>
+                </div>
+                <div style="background:#FEF9C3; color:#92400E; font-size:11px; font-weight:700; padding:4px 9px; border-radius:6px; text-align:center;">≥12,5° Brix</div>
+                <div style="font-size:11px; color:#475569;">Calibre: ≥400g</div>
+                <button class="btn-edit-variedade" data-index="4" style="width:28px;height:28px; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:7px; cursor:pointer; display:flex;align-items:center;justify-content:center;">
+                  <i data-lucide="pencil" style="width:12px;height:12px;color:#64748B;"></i>
+                </button>
+              </div>
+            
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2-col bottom: Cadeia Fria + Regras de Disparo -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:24px;">
+
+      <!-- Cadeia Fria & Trânsito Logístico -->
+      <div class="apple-card" style="padding:24px 26px;">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:18px;">
+          <div style="width:36px;height:36px; background:#EFF6FF; border-radius:10px; display:flex;align-items:center;justify-content:center;">
+            <i data-lucide="snowflake" style="width:16px;height:16px;color:#0284C7;"></i>
+          </div>
+          <div>
+            <div style="font-size:14px; font-weight:700; color:#0F172A;">Cadeia Fria & Trânsito Logístico (REEFER)</div>
+            <div style="font-size:11px; color:#94A3B8; margin-top:1px;">Controle térmico de baú, umidade do engaço e monitoramento até o porto</div>
+          </div>
+        </div>
+
+        <!-- Temp slider -->
+        <div style="margin-bottom:18px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <label style="font-size:11px; font-weight:600; color:#475569;">Temperatura Alvo do Baú Frigorífico</label>
+            <div style="background:#EFF6FF; color:#0284C7; font-size:11px; font-weight:700; padding:3px 9px; border-radius:6px;">0,5°C a 2,0°C (Pico máx: 3,0°C)</div>
+          </div>
+          <div style="position:relative; height:28px; border-radius:10px; overflow:hidden; background:linear-gradient(90deg, #BFDBFE 0%, #10B981 25%, #10B981 55%, #FEF9C3 75%, #FEE2E2 100%); margin-bottom:6px;">
+            <div style="position:absolute; left:30%; top:0; bottom:0; width:2px; background:#0F172A; border-radius:9999px;"></div>
+            <div style="position:absolute; left:55%; top:0; bottom:0; width:2px; background:#F59E0B; border-radius:9999px;"></div>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:9px; color:#94A3B8;">
+            <span>-4,0°C (Congelamento)</span>
+            <span style="color:#059669; font-weight:700;">0,5°C (Setpoint)</span>
+            <span style="color:#F59E0B; font-weight:700;">2,0°C (Limite)</span>
+            <span>+5,0°C (Risco/Dano)</span>
+          </div>
+        </div>
+
+        <!-- UR -->
+        <div style="margin-bottom:16px;">
+          <label style="display:block; font-size:11px; font-weight:600; color:#475569; margin-bottom:5px;">Umidade Relativa (UR) — Preservação do engaço verde</label>
+          <input id="cfg-ur-reefer" value="90% a 95%" style="width:100%; padding:10px 12px; border:1px solid #E2E8F0; border-radius:9px; font-size:13px; color:#0F172A; outline:none; background:#F8FAFC; box-sizing:border-box;" onfocus="this.style.borderColor='#059669'" onblur="this.style.borderColor='#E2E8F0'">
+        </div>
+
+        <!-- Portos -->
+        <div style="margin-bottom:16px;">
+          <label style="display:block; font-size:11px; font-weight:600; color:#475569; margin-bottom:8px;">Portos e Destinos Padrão de Exportação</label>
+          <div id="portos-options-container">
+            
+              <div class="porto-option-card selected" data-porto="porto-pecem" style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:#F0FDF4; border:1px solid #BBF7D0; border-radius:9px; margin-bottom:6px; cursor:pointer; transition:all .2s;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <div class="porto-radio-dot" style="width:14px;height:14px; border-radius:50%; border:2px solid #059669; display:flex;align-items:center;justify-content:center;">
+                    <div style="width:6px;height:6px;border-radius:50%;background:#059669;"></div>
+                  </div>
+                  <div>
+                    <div style="font-size:12px; font-weight:700; color:#0F172A;">Porto de Pecém / CE</div>
+                    <div style="font-size:10px; color:#94A3B8;">Frete rodoviário estimado: 14h 20m</div>
+                  </div>
+                </div>
+                <div class="porto-badge" style="background:#059669; color:#fff; font-size:10px; font-weight:700; padding:3px 9px; border-radius:6px;">Rota Padrão</div>
+              </div>
+            
+              <div class="porto-option-card " data-porto="porto-suape" style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:9px; margin-bottom:6px; cursor:pointer; transition:all .2s;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <div class="porto-radio-dot" style="width:14px;height:14px; border-radius:50%; border:2px solid #CBD5E1; display:flex;align-items:center;justify-content:center;">
+                    
+                  </div>
+                  <div>
+                    <div style="font-size:12px; font-weight:700; color:#0F172A;">Porto de Suape / PE</div>
+                    <div style="font-size:10px; color:#94A3B8;">Frete rodoviário estimado: 13h 45m</div>
+                  </div>
+                </div>
+                <div class="porto-badge" style="background:#F1F5F9; color:#64748B; font-size:10px; font-weight:700; padding:3px 9px; border-radius:6px;">Alternativo</div>
+              </div>
+            
+              <div class="porto-option-card " data-porto="porto-salvador" style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:9px; margin-bottom:6px; cursor:pointer; transition:all .2s;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <div class="porto-radio-dot" style="width:14px;height:14px; border-radius:50%; border:2px solid #CBD5E1; display:flex;align-items:center;justify-content:center;">
+                    
+                  </div>
+                  <div>
+                    <div style="font-size:12px; font-weight:700; color:#0F172A;">Porto de Salvador / BA</div>
+                    <div style="font-size:10px; color:#94A3B8;">Frete rodoviário estimado: 9h 12m</div>
+                  </div>
+                </div>
+                <div class="porto-badge" style="background:#F1F5F9; color:#64748B; font-size:10px; font-weight:700; padding:3px 9px; border-radius:6px;">Alternativo</div>
+              </div>
+            
+          </div>
+        </div>
+
+        <!-- Toggle alarme financeiro -->
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:#FFFBEB; border:1px solid #FEF3C7; border-radius:9px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <i data-lucide="dollar-sign" style="width:14px;height:14px;color:#F59E0B;"></i>
+            <div>
+              <div style="font-size:11px; font-weight:700; color:#92400E;">Alarme Financeiro de Valor em Risco (CARGO-SLA)</div>
+              <div style="font-size:10px; color:#94A3B8;">Disparar alertas para cargas > R$ 30.000 com temperatura fora da faixa por > 20 min</div>
+            </div>
+          </div>
+          <div id="toggle-alarme-financeiro" class="toggle-track active" style="width:40px;height:22px;background:#059669;border-radius:11px;position:relative;cursor:pointer;transition:background .25s;flex-shrink:0;">
+            <div class="toggle-knob" style="position:absolute;left:20px;top:2px;width:18px;height:18px;background:#fff;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,.2);transition:left .25s;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Regras de Disparo & Canais de Notificação -->
+      <div class="apple-card" style="padding:24px 26px;">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:18px;">
+          <div style="width:36px;height:36px; background:#FEF2F2; border-radius:10px; display:flex;align-items:center;justify-content:center;">
+            <i data-lucide="bell" style="width:16px;height:16px;color:#DC2626;"></i>
+          </div>
+          <div>
+            <div style="font-size:14px; font-weight:700; color:#0F172A;">Regras de Disparo & Canais de Notificação</div>
+            <div style="font-size:11px; color:#94A3B8; margin-top:1px;">Matriz de acionamento para eventos críticos e operacionais</div>
+          </div>
+        </div>
+
+        <!-- Alerta Crítico P1 -->
+        <div style="background:#FEF2F2; border:1px solid #FEE2E2; border-radius:10px; padding:14px 16px; margin-bottom:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <div style="font-size:12px; font-weight:800; color:#DC2626;">Alerta Crítico (P1)</div>
+            <div style="font-size:10px; color:#94A3B8;">Murcha &lt;40% | Baú &gt;3,0°C</div>
+          </div>
+          <div style="display:flex; gap:20px; flex-wrap:wrap;">
+            
+              <label class="custom-checkbox-label" style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:12px; font-weight:600; color:#0F172A;">
+                <input type="checkbox" id="notif-p1-push" checked style="accent-color:#DC2626; width:15px; height:15px; cursor:pointer;">
+                Push App
+              </label>
+            
+              <label class="custom-checkbox-label" style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:12px; font-weight:600; color:#0F172A;">
+                <input type="checkbox" id="notif-p1-whatsapp" checked style="accent-color:#DC2626; width:15px; height:15px; cursor:pointer;">
+                WhatsApp
+              </label>
+            
+              <label class="custom-checkbox-label" style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:12px; font-weight:600; color:#0F172A;">
+                <input type="checkbox" id="notif-p1-sms" checked style="accent-color:#DC2626; width:15px; height:15px; cursor:pointer;">
+                SMS Urgent
+              </label>
+            
+          </div>
+        </div>
+
+        <!-- Alerta Moderado P2 -->
+        <div style="background:#FFFBEB; border:1px solid #FEF3C7; border-radius:10px; padding:14px 16px; margin-bottom:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <div style="font-size:12px; font-weight:800; color:#F59E0B;">Alerta Moderado (P2)</div>
+            <div style="font-size:10px; color:#94A3B8;">Umidade ar &lt;30% | Vento &gt;35km/h</div>
+          </div>
+          <div style="display:flex; gap:20px; flex-wrap:wrap;">
+            
+              <label class="custom-checkbox-label" style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:12px; font-weight:600; color:#0F172A;">
+                <input type="checkbox" id="notif-p2-push" checked style="accent-color:#F59E0B; width:15px; height:15px; cursor:pointer;">
+                Push App
+              </label>
+            
+              <label class="custom-checkbox-label" style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:12px; font-weight:600; color:#0F172A;">
+                <input type="checkbox" id="notif-p2-whatsapp"  style="accent-color:#F59E0B; width:15px; height:15px; cursor:pointer;">
+                WhatsApp
+              </label>
+            
+              <label class="custom-checkbox-label" style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:12px; font-weight:600; color:#0F172A;">
+                <input type="checkbox" id="notif-p2-email" checked style="accent-color:#F59E0B; width:15px; height:15px; cursor:pointer;">
+                E-mail Diário
+              </label>
+            
+          </div>
+        </div>
+
+        <!-- Relatório Matinal -->
+        <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:14px 16px; margin-bottom:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <div style="font-size:12px; font-weight:700; color:#0F172A;">Relatório Matinal Executivo</div>
+            <div style="font-size:10px; font-weight:600; color:#94A3B8;">PDF · CSV</div>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            <div>
+              <label style="display:block; font-size:10px; font-weight:600; color:#94A3B8; margin-bottom:4px; text-transform:uppercase; letter-spacing:.5px;">Horário do Envio</label>
+              <input id="cfg-horario-matinal" value="06:30 AM" style="width:100%; padding:8px 10px; border:1px solid #E2E8F0; border-radius:8px; font-size:13px; font-weight:700; color:#0F172A; outline:none; background:#fff; box-sizing:border-box;">
+            </div>
+            <div>
+              <label style="display:block; font-size:10px; font-weight:600; color:#94A3B8; margin-bottom:4px; text-transform:uppercase; letter-spacing:.5px;">E-mails CC</label>
+              <input id="cfg-email-cc" value="gerencia@raizagro.agr.br, agronomo@raiz..." style="width:100%; padding:8px 10px; border:1px solid #E2E8F0; border-radius:8px; font-size:11px; color:#475569; outline:none; background:#fff; box-sizing:border-box;">
+            </div>
+          </div>
+        </div>
+
+        <!-- Preferências de Moeda -->
+        <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:14px 16px;">
+          <div style="display:flex; align-items:center; gap:7px; margin-bottom:10px;">
+            <i data-lucide="dollar-sign" style="width:14px;height:14px;color:#64748B;"></i>
+            <div style="font-size:12px; font-weight:700; color:#0F172A;">Preferências de Moeda</div>
+          </div>
+          <div style="font-size:10px; color:#94A3B8; margin-bottom:8px;">Moeda utilizada nos valores financeiros do sistema.</div>
+          <div id="currency-selector-btns" style="display:flex; gap:8px;">
+            <button class="currency-btn active" data-cur="BRL" style="padding:7px 16px; background:#183D2E; color:#fff; border:none; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer;">Real brasileiro (R$)</button>
+            <button class="currency-btn" data-cur="USD" style="padding:7px 14px; background:#F8FAFC; color:#475569; border:1px solid #E2E8F0; border-radius:8px; font-size:12px; cursor:pointer;">USD ($)</button>
+            <button class="currency-btn" data-cur="EUR" style="padding:7px 14px; background:#F8FAFC; color:#475569; border:1px solid #E2E8F0; border-radius:8px; font-size:12px; cursor:pointer;">EUR (€)</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer actions -->
+    <div style="display:flex; justify-content:space-between; align-items:center; padding-top:4px;">
+      <button id="btn-restaurar-padroes" style="padding:11px 20px; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; font-size:13px; font-weight:600; color:#475569; cursor:pointer; display:flex; align-items:center; gap:7px; transition:all .2s;" onmouseover="this.style.background='#F1F5F9'" onmouseout="this.style.background='#F8FAFC'">
+        <i data-lucide="rotate-ccw" style="width:14px;height:14px;"></i> Restaurar padrões
+      </button>
+      <div style="display:flex; align-items:center; gap:12px;">
+        <div style="font-size:10px; color:#94A3B8;">ⓘ As alterações aplicadas a raiz de campo entrarão em vigor no próximo ciclo de sincronização (em até 5 minutos).</div>
+        <button id="btn-salvar-configuracoes" style="padding:11px 24px; background:#059669; color:#fff; border:none; border-radius:10px; font-size:13px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:7px; transition:opacity .2s; box-shadow:0 4px 14px rgba(5,150,105,.3);" onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
+          <i data-lucide="check" style="width:14px;height:14px;"></i> Salvar alterações
+        </button>
+      </div>
+    </div>
+
+  </div>
+  

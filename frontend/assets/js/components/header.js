@@ -1,0 +1,81 @@
+/**
+ * COMPONENTE TOPBAR HEADER - FIEL AO FIGMA
+ * Suporta dinamicamente perfis Analista (Luiz Felipe) e Gestora (Maria Clara)
+ */
+
+import { auth } from '../auth.js';
+
+const PAGE_META_GESTOR = {
+  '#/dashboard':     { h2: 'Visão Geral do Sistema',          sub: 'Monitoramento em tempo real dos talhões, culturas e condições agrometeorológicas.' },
+  '#/leituras':      { h2: 'Histórico Safra',                 sub: 'Registro histórico de colheitas, rendimento por talhão e correlação com dados agroclimáticos.' },
+  '#/alertas':       { h2: 'Central de Alertas & Incidentes <span style="display:inline-block;width:7px;height:7px;background:#10B981;border-radius:2px;margin-left:6px;vertical-align:middle;"></span>', sub: 'Monitoramento em tempo real de desvios térmicos em contêineres reefer, estresse hídrico no campo e gatilhos automatizados.' },
+  '#/configuracoes': { h2: 'Configurações do Sistema',        sub: 'Gerencie dados da propriedade, padrões de qualidade, cadeia fria e notificações.' },
+};
+
+const PAGE_META_ANALISTA = {
+  '#/dashboard':     { h2: 'Visão Geral do Sistema',          sub: 'Gerencie preferências da fazenda, parâmetros de sensores, notificações e acessos.' },
+  '#/sensores':      { h2: 'Sensores & Telemetria de Campo <span class="badge-header-inline">ThingSpeak IoT Sync a cada 5m • Tabela leitura_climatica</span>', sub: 'Série temporal de leitura_climatica, correlação física e auditoria de hardware.' },
+  '#/rede-esp32':    { h2: 'Rede ESP32 & Topologia',          sub: 'Distribuição espacial dos nós LoRaWAN, enlaces de radiofrequência e telemetria US915.' },
+  '#/leituras':      { h2: 'Histórico Safra & Correlação',    sub: 'Registro histórico de colheitas, rendimento por talhão e correlação com dados agroclimáticos.' },
+  '#/alertas':       { h2: 'Central de Alertas & Incidentes', sub: 'Monitoramento em tempo real de desvios térmicos, estresse hídrico e gatilhos automatizados.' },
+  '#/configuracoes': { h2: 'Configurações do Sistema',        sub: 'Gerencie dados da propriedade, parâmetros de sensores, regras preditivas e limites biológicos.' },
+};
+
+export function renderHeader(title) {
+  const hash = window.location.hash || '#/dashboard';
+  const isAnalista = auth.getActiveProfile() === 'analista';
+  const profile = auth.getProfileData();
+
+  const metaDict = isAnalista ? PAGE_META_ANALISTA : PAGE_META_GESTOR;
+  const meta = metaDict[hash] || { h2: title || 'Visão Geral do Sistema', sub: 'Gerencie preferências da fazenda, parâmetros de sensores, notificações e acessos.' };
+
+  const isDashboard = hash === '#/dashboard';
+  const isResumido = localStorage.getItem('DASHBOARD_MODE') !== 'detalhado';
+  const dataFormatada = '22 de setembro de 2026';
+
+  return `
+    <header class="topbar-header">
+      <div class="header-title-wrap">
+        <h2>${meta.h2}</h2>
+        <p>${meta.sub}</p>
+      </div>
+
+      <div class="header-right-controls">
+        <!-- Toggle Resumido vs Detalhado (só no dashboard da Gestora) -->
+        ${isDashboard && !isAnalista ? `
+        <div class="view-mode-toggle ${!isResumido ? 'detalhado' : ''}" id="toggle-dashboard-mode" title="Alternar entre modo Resumido e Detalhado">
+          <div class="toggle-switch-track">
+            <div class="toggle-switch-thumb"></div>
+          </div>
+          <span class="toggle-label" id="toggle-label-text">${isResumido ? 'Resumido' : 'Detalhado'}</span>
+        </div>
+        ` : ''}
+
+        <!-- Seletor de Data -->
+        <div class="date-selector-btn" id="header-date-selector">
+          <i data-lucide="calendar" style="width: 15px; height: 15px; color: #71807A;"></i>
+          <span>${dataFormatada}</span>
+          <i data-lucide="chevron-down" style="width: 13px; height: 13px; color: #71807A;"></i>
+        </div>
+
+        <!-- Notificações com Badge Laranja (#F5A623) -->
+        <a href="#/alertas" class="header-bell-btn" title="Ver Alertas Ativos">
+          <i data-lucide="bell" style="width: 18px; height: 18px; color: #71807A;"></i>
+          <span class="header-bell-badge">2</span>
+        </a>
+
+        <!-- Perfil Header: Alternável entre Maria Clara (Gestora) e Luiz Felipe (Analista) -->
+        <div class="user-profile-header-pill" id="user-profile-header-pill" title="Clique para alternar perfil de usuário">
+          <div class="avatar-initials-pill" style="background:${profile.avatarBg}; border:1.5px solid ${profile.avatarBorder}; color:${profile.avatarColor};">
+            ${profile.iniciais}
+          </div>
+          <div class="profile-name-role">
+            <span class="profile-name">${profile.nome}</span>
+            <span class="profile-role">${profile.cargo}</span>
+          </div>
+          <i data-lucide="chevron-down" style="width: 14px; height: 14px; color: #71807A; margin-left: 4px;"></i>
+        </div>
+      </div>
+    </header>
+  `;
+}

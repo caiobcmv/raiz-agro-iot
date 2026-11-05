@@ -1,0 +1,34 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Node / Dependências
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor & OS
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Ambientes locais
+.env
+.env.local
+
+# Banco de dados local gerado em runtime
+database-local/raiz_agro.db-journal
+database-local/raiz_agro.db-wal
+database-local/raiz_agro.db-shm

@@ -1,0 +1,605 @@
+/**
+ * VIEW: HISTÓRICO SAFRA & CORRELAÇÃO - FIEL AO FIGMA
+ * Suporta perfil Analista (Histórico Safra & Correlação com sub-barra, FDR e Brix)
+ * e perfil Gestora (Rendimento Executivo e Talhões).
+ */
+
+import { auth } from '../auth.js';
+import { toast } from '../components/toast.js';
+import { Modal } from '../components/modal.js';
+
+export async function renderLeituras() {
+  const isAnalista = auth.getActiveProfile() === 'analista';
+  if (isAnalista) {
+    return renderAnalistaSafra();
+  }
+  return renderGestorSafra();
+}
+
+  /**
+   * 1. TELA DO ANALISTA: HISTÓRICO SAFRA & CORRELAÇÃO (IMAGEM 4 FIGMA)
+   */
+  function renderAnalistaSafra() {
+    return `
+    <div class="dashboard-canvas apple-animate-in">
+      <!-- Sub-barra Técnica do Analista -->
+      <div class="analista-subbar">
+        <div class="analista-subbar-info">
+          <span class="analista-dot-pulse"></span>
+          <span>Safra 2025/2026 Ativa • Petrolina (45.0 ha) • Variedades: Uva Vitória, Crimson, Thompson • 4 Talhões Homologados</span>
+          <span style="color: #64748B; font-size: 11px; font-weight: 400;">Sincronizado há 2 min</span>
+        </div>
+        <div class="analista-subbar-actions">
+          <button class="btn-analista-sync" id="btn-sync-safra">
+            <i data-lucide="refresh-cw" style="width: 14px; height: 14px;"></i>
+            <span>Sincronizar ThingSpeak</span>
+          </button>
+          <button class="btn-analista-export" id="btn-export-safra">
+            <i data-lucide="download" style="width: 14px; height: 14px;"></i>
+            <span>Exportar Relatório (CSV/PDF)</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 4 KPIs do Histórico Safra Analista -->
+      <div class="kpi-grid-4col">
+        <!-- KPI 1 -->
+        <div class="kpi-analista-card">
+          <div class="kpi-top-row">
+            <span class="kpi-label">PRODUÇÃO TOTAL DA SAFRA</span>
+            <span class="kpi-badge green">META ATINGIDA</span>
+          </div>
+          <div class="kpi-value-row">
+            <span class="kpi-big-num">1.480 ton</span>
+          </div>
+          <div style="font-size: 11px; color: #64748B; margin-top: 2px;">
+            Meta: 1.380 ton <span style="color: #059669; font-weight: 600;">(+7.2%)</span>
+          </div>
+          <div class="kpi-bottom-row">
+            <span style="color: #059669; font-weight: 600;">+6.8% vs ciclo anterior</span>
+            <span>32.9 ton/ha médio</span>
+          </div>
+        </div>
+
+        <!-- KPI 2 -->
+        <div class="kpi-analista-card">
+          <div class="kpi-top-row">
+            <span class="kpi-label">EFICIÊNCIA HÍDRICA (FDR)</span>
+            <span class="kpi-badge blue">OTIMIZADO</span>
+          </div>
+          <div class="kpi-value-row">
+            <span class="kpi-big-num" style="color: #0284C7;">4,1 m³/ton</span>
+          </div>
+          <div style="font-size: 11px; color: #64748B; margin-top: 2px;">
+            Lâmina: 140 m³/ha vs Penman-Monteith
+          </div>
+          <div class="kpi-bottom-row">
+            <span>Umidade solo (FDR): <strong>58% VWC</strong></span>
+            <span style="color: #059669; font-weight: 600;">Manejo Sustentável</span>
+          </div>
+        </div>
+
+        <!-- KPI 3 -->
+        <div class="kpi-analista-card">
+          <div class="kpi-top-row">
+            <span class="kpi-label">GRAU BRIX MÉDIO & CALIBRE</span>
+            <span class="kpi-badge green">EXPORTAÇÃO A+</span>
+          </div>
+          <div class="kpi-value-row">
+            <span class="kpi-big-num" style="color: #059669;">18,2° Brix</span>
+          </div>
+          <div style="font-size: 11px; color: #64748B; margin-top: 2px;">
+            Padrão Exportação (&ge; 17.5°)
+          </div>
+          <div class="kpi-bottom-row">
+            <span>Calibre médio: <strong>22mm</strong></span>
+            <span style="color: #047857; font-weight: 600;">100% Padrão Comercial</span>
+          </div>
+        </div>
+
+        <!-- KPI 4 -->
+        <div class="kpi-analista-card">
+          <div class="kpi-top-row">
+            <span class="kpi-label">AUDITORIA DE DADOS & SONDAS</span>
+            <span class="kpi-badge yellow">99.8% ÍNTEGRO</span>
+          </div>
+          <div class="kpi-value-row">
+            <span class="kpi-big-num" style="color: #D97706;">99.8%</span>
+          </div>
+          <div style="font-size: 11px; color: #64748B; margin-top: 2px;">
+            Taxa de Integridade Homologada
+          </div>
+          <div class="kpi-bottom-row">
+            <span>24 Sondas homologadas</span>
+            <span style="color: #64748B;">2 descartes validados hoje</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Comparativo de Rendimento & Eficiência Hídrica entre Safras -->
+      <div class="analista-chart-box">
+        <div class="chart-header-row">
+          <div>
+            <h3 style="font-size: 16px; font-weight: 700; color: #0F172A; display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="bar-chart-3" style="width: 18px; height: 18px; color: #10B981;"></i>
+              Comparativo de Rendimento & Eficiência Hídrica entre Safras
+            </h3>
+            <p style="font-size: 12px; color: #64748B; margin-top: 2px;">
+              Evolução Multiciclo (2023 — 2026) • Otimização hídrica no Vale do São Francisco
+            </p>
+          </div>
+
+          <div class="map-filter-tabs">
+            <button class="map-tab-btn active" data-safra-filter="todos">Todos os Talhões</button>
+            <button class="map-tab-btn" data-safra-filter="vitoria">Uva Vitória</button>
+            <button class="map-tab-btn" data-safra-filter="thompson">Thompson</button>
+            <button class="map-tab-btn" data-safra-filter="crimson">Crimson</button>
+          </div>
+        </div>
+
+        <!-- Legenda de Barras -->
+        <div style="display: flex; align-items: center; gap: 18px; margin-bottom: 16px; font-size: 11px;">
+          <span style="display: flex; align-items: center; gap: 6px;">
+            <span style="width: 10px; height: 10px; border-radius: 2px; background: #10B981;"></span>
+            Produtividade (ton/ha)
+          </span>
+          <span style="display: flex; align-items: center; gap: 6px;">
+            <span style="width: 10px; height: 10px; border-radius: 2px; background: #0284C7;"></span>
+            Consumo Água (m³/ha)
+          </span>
+        </div>
+
+        <!-- Barras Horizontais Comparativas -->
+        <div style="display: flex; flex-direction: column; gap: 18px;">
+          <!-- Safra 2023/2024 -->
+          <div>
+            <div style="display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px;">
+              <span>Safra 2023/2024</span>
+              <span style="font-size: 11px; color: #64748B;">28,4 ton/ha • 182 m³/ha</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <div style="height: 18px; background: #F1F5F9; border-radius: 6px; overflow: hidden; display: flex;">
+                <div style="width: 68%; background: #10B981; border-radius: 6px; display: flex; align-items: center; padding-left: 8px; font-size: 10px; font-weight: 700; color: #FFFFFF;">
+                  28,4 ton/ha
+                </div>
+              </div>
+              <div style="height: 18px; background: #F1F5F9; border-radius: 6px; overflow: hidden; display: flex;">
+                <div style="width: 82%; background: #0284C7; border-radius: 6px; display: flex; align-items: center; padding-left: 8px; font-size: 10px; font-weight: 700; color: #FFFFFF;">
+                  182 m³/ha
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Safra 2024/2025 -->
+          <div>
+            <div style="display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px;">
+              <span>Safra 2024/2025</span>
+              <span style="font-size: 11px; color: #64748B;">30,5 ton/ha • 168 m³/ha</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <div style="height: 18px; background: #F1F5F9; border-radius: 6px; overflow: hidden; display: flex;">
+                <div style="width: 76%; background: #10B981; border-radius: 6px; display: flex; align-items: center; padding-left: 8px; font-size: 10px; font-weight: 700; color: #FFFFFF;">
+                  30,5 ton/ha
+                </div>
+              </div>
+              <div style="height: 18px; background: #F1F5F9; border-radius: 6px; overflow: hidden; display: flex;">
+                <div style="width: 74%; background: #0284C7; border-radius: 6px; display: flex; align-items: center; padding-left: 8px; font-size: 10px; font-weight: 700; color: #FFFFFF;">
+                  168 m³/ha
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Safra 2025/2026 (Atual) [CICLO ATIVO] -->
+          <div style="background: #FAFDFB; border: 1.5px solid #10B981; border-radius: 10px; padding: 12px;">
+            <div style="display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; color: #047857; margin-bottom: 6px;">
+              <span style="display: flex; align-items: center; gap: 6px;">
+                Safra 2025/2026 (Atual)
+                <span style="background: #183D2E; color: #FFFFFF; font-size: 9px; padding: 2px 6px; border-radius: 4px;">CICLO ATIVO</span>
+              </span>
+              <span>34,2 ton/ha • 140 m³/ha</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <div style="height: 22px; background: #ECFDF5; border-radius: 6px; overflow: hidden; display: flex;">
+                <div style="width: 88%; background: #059669; border-radius: 6px; display: flex; align-items: center; justify-content: space-between; padding: 0 10px; font-size: 11px; font-weight: 700; color: #FFFFFF;">
+                  <span>&uarr; Produtividade</span>
+                  <span>34,2 ton/ha (+12.1%)</span>
+                </div>
+              </div>
+              <div style="height: 22px; background: #EFF6FF; border-radius: 6px; overflow: hidden; display: flex;">
+                <div style="width: 62%; background: #0284C7; border-radius: 6px; display: flex; align-items: center; justify-content: space-between; padding: 0 10px; font-size: 11px; font-weight: 700; color: #FFFFFF;">
+                  <span>&darr; Consumo Reduzido</span>
+                  <span>140 m³/ha (-16.7%)</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3 Mini Cards no Rodapé do Rendimento -->
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 18px;">
+          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px;">
+            <div style="font-size: 10px; color: #64748B; font-weight: 700; text-transform: uppercase;">EFICIÊNCIA INSUMO</div>
+            <div style="font-size: 18px; font-weight: 800; color: #047857; margin-top: 2px;">+19.8%</div>
+            <div style="font-size: 10px; color: #64748B;">Produtividade x Adubo</div>
+          </div>
+
+          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px;">
+            <div style="font-size: 10px; color: #64748B; font-weight: 700; text-transform: uppercase;">ÁGUA POUPADA</div>
+            <div style="font-size: 18px; font-weight: 800; color: #0284C7; margin-top: 2px;">42 m³/ha</div>
+            <div style="font-size: 10px; color: #64748B;">Divisor LoRa FDR</div>
+          </div>
+
+          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px;">
+            <div style="font-size: 10px; color: #64748B; font-weight: 700; text-transform: uppercase;">ÍNDICE FISIOLÓGICO</div>
+            <div style="font-size: 18px; font-weight: 800; color: #0F172A; margin-top: 2px;">94,2 / 100</div>
+            <div style="font-size: 10px; color: #059669; font-weight: 600;">Qualidade Superior</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Correlação Fenológica: Umidade de Solo (VWC) vs. Acúmulo de Brix -->
+      <div class="analista-chart-box">
+        <div class="chart-header-row">
+          <div>
+            <h3 style="font-size: 16px; font-weight: 700; color: #0F172A; display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="line-chart" style="width: 18px; height: 18px; color: #10B981;"></i>
+              Correlação Fenológica: Umidade de Solo (VWC) vs. Acúmulo de Brix
+            </h3>
+            <p style="font-size: 12px; color: #64748B; margin-top: 2px;">
+              Curva contínua de monitoramento com sondas capacitivas FDR ao longo do ciclo de maturação
+            </p>
+          </div>
+          <span style="background: #ECFDF5; color: #047857; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 6px;">
+            Rede FDR 30/60 Ativa
+          </span>
+        </div>
+
+        <!-- Legenda -->
+        <div style="display: flex; align-items: center; gap: 18px; margin-bottom: 14px; font-size: 11px;">
+          <span style="display: flex; align-items: center; gap: 6px;">
+            <span style="width: 10px; height: 10px; border-radius: 50%; background: #10B981;"></span>
+            Curva Brix (°Bx)
+          </span>
+          <span style="display: flex; align-items: center; gap: 6px;">
+            <span style="width: 10px; height: 10px; border-radius: 50%; background: #0284C7;"></span>
+            Umidade FDR 30cm (% VWC)
+          </span>
+        </div>
+
+        <!-- Gráfico SVG com Curva de Maturação e Concentração de Brix -->
+        <div style="position: relative; width: 100%; height: 210px; background: #FAFDFB; border: 1px solid #E2E8F0; border-radius: 12px; overflow: hidden; padding: 10px;">
+          <svg viewBox="0 0 800 180" style="width: 100%; height: 100%;" preserveAspectRatio="xMidYMid meet">
+            <!-- Linhas de Estágios Fenológicos -->
+            <line x1="200" y1="0" x2="200" y2="180" stroke="#E2E8F0" stroke-width="1" stroke-dasharray="2,2"/>
+            <line x1="400" y1="0" x2="400" y2="180" stroke="#E2E8F0" stroke-width="1" stroke-dasharray="2,2"/>
+            <line x1="600" y1="0" x2="600" y2="180" stroke="#E2E8F0" stroke-width="1" stroke-dasharray="2,2"/>
+
+            <!-- Curva Umidade FDR 30cm (Descendente suave para forçar concentração de açúcares) -->
+            <path d="M 0,60 C 180,65 360,95 540,120 C 660,135 740,140 800,140" fill="none" stroke="#0284C7" stroke-width="2.8"/>
+
+            <!-- Curva Acúmulo de Brix (Ascendente até atingir 18.2° Brix) -->
+            <path d="M 0,160 C 180,150 360,120 540,80 C 660,50 740,42 800,40" fill="none" stroke="#10B981" stroke-width="3"/>
+
+            <!-- Ponto Final de Colheita (18.2° Brix) -->
+            <circle cx="780" cy="40" r="5" fill="#10B981" stroke="#FFFFFF" stroke-width="2"/>
+            <text x="690" y="32" fill="#047857" font-size="11" font-weight="800">18.2° Brix (Ideal)</text>
+          </svg>
+
+          <!-- Rótulos Fenológicos no Eixo X -->
+          <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B; margin-top: 4px; padding: 0 10px;">
+            <span>Início Maturação (Semana 7)</span>
+            <span>Enveraison / Pinta (Semana 9)</span>
+            <span>Acúmulo Máximo (Semana 11)</span>
+            <span style="color: #047857; font-weight: 700;">Colheita Homologada (Semana 13)</span>
+          </div>
+        </div>
+
+        <!-- 3 KPIs da Correlação -->
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 14px;">
+          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 10px 14px;">
+            <div style="font-size: 10px; color: #64748B; font-weight: 700;">FAIXA DE MATURAÇÃO</div>
+            <div style="font-size: 16px; font-weight: 800; color: #0284C7;">28% — 32% VWC</div>
+            <div style="font-size: 10px; color: #64748B;">Ideal mantido no ciclo</div>
+          </div>
+
+          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 10px 14px;">
+            <div style="font-size: 10px; color: #64748B; font-weight: 700;">ACÚMULO DE SÓLIDOS</div>
+            <div style="font-size: 16px; font-weight: 800; color: #059669;">+14% Brix</div>
+            <div style="font-size: 10px; color: #64748B;">Sem desidratar engaço</div>
+          </div>
+
+          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 10px 14px;">
+            <div style="font-size: 10px; color: #64748B; font-weight: 700;">RISCO MÍLDIO</div>
+            <div style="font-size: 16px; font-weight: 800; color: #0F172A;">0% Baixo Risco</div>
+            <div style="font-size: 10px; color: #64748B;">Sensor sem molhamento</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Seção Inferior: Destino da Produção (Donut) & Desempenho por Talhão & Lote -->
+      <div style="display: grid; grid-template-columns: 1fr 1.6fr; gap: 20px;">
+        <!-- Card Esquerda: Destino da Produção & Conformidade -->
+        <div class="analista-chart-box">
+          <div class="chart-header-row">
+            <div>
+              <h4 style="font-size: 15px; font-weight: 700; color: #0F172A;">
+                Destino da Produção & Conformidade
+              </h4>
+              <p style="font-size: 11px; color: #64748B; margin-top: 2px;">
+                Classificação comercial (Tabela lote_classificacao)
+              </p>
+            </div>
+            <span style="font-size: 10px; color: #64748B; font-weight: 600;">Volume Total</span>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 20px; margin: 16px 0;">
+            <!-- Donut 65% Exportação -->
+            <div style="position: relative; width: 120px; height: 120px; flex-shrink: 0;">
+              <svg viewBox="0 0 36 36" style="width: 100%; height: 100%; transform: rotate(-90deg);">
+                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#F1F5F9" stroke-width="3.8"/>
+                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#0284C7" stroke-width="3.8" stroke-dasharray="25, 100" stroke-dashoffset="-65"/>
+                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#10B981" stroke-width="3.8" stroke-dasharray="65, 100"/>
+              </svg>
+              <div class="donut-center-wrap">
+                <div class="donut-center-val">65%</div>
+                <div class="donut-center-sub">EXPORTAÇÃO</div>
+              </div>
+            </div>
+
+            <!-- Legenda -->
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 8px; font-size: 11px;">
+              <div style="display: flex; justify-content: space-between;">
+                <span style="display: flex; align-items: center; gap: 6px;">
+                  <span style="width: 8px; height: 8px; border-radius: 50%; background: #10B981;"></span>
+                  Exportação (Europa/EUA)
+                </span>
+                <strong>65% (962 ton)</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between;">
+                <span style="display: flex; align-items: center; gap: 6px;">
+                  <span style="width: 8px; height: 8px; border-radius: 50%; background: #0284C7;"></span>
+                  Mercado Interno
+                </span>
+                <strong>25% (370 ton)</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between;">
+                <span style="display: flex; align-items: center; gap: 6px;">
+                  <span style="width: 8px; height: 8px; border-radius: 50%; background: #94A3B8;"></span>
+                  Processamento / Sucos
+                </span>
+                <strong>10% (148 ton)</strong>
+              </div>
+            </div>
+          </div>
+
+          <!-- Selo GlobalG.A.P. -->
+          <div style="background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 8px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="shield-check" style="width: 18px; height: 18px; color: #16A34A;"></i>
+              <div>
+                <div style="font-size: 12px; font-weight: 700; color: #14532D;">GlobalG.A.P. Compliance</div>
+                <div style="font-size: 10px; color: #15803D;">Auditado via telemetria contínua US915</div>
+              </div>
+            </div>
+            <span style="background: #16A34A; color: #FFFFFF; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 4px;">100% OK</span>
+          </div>
+        </div>
+
+        <!-- Card Direita: Desempenho por Talhão & Lote -->
+        <div class="analista-chart-box">
+          <div class="chart-header-row">
+            <div>
+              <h4 style="font-size: 15px; font-weight: 700; color: #0F172A;">
+                Desempenho por Talhão & Lote
+              </h4>
+              <p style="font-size: 11px; color: #64748B; margin-top: 2px;">
+                Métricas aferidas por lote auditado
+              </p>
+            </div>
+            <span style="background: #F1F5F9; color: #334155; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 6px;">
+              4 Lotes
+            </span>
+          </div>
+
+          <!-- Lista de 4 Lotes -->
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <!-- Lote A1 -->
+            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between;">
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <span style="background: #ECFDF5; color: #047857; font-weight: 800; font-size: 11px; padding: 4px 8px; border-radius: 6px;">A1</span>
+                <div>
+                  <div style="font-weight: 700; font-size: 12px; color: #0F172A;">Talhão A1 • Uva Vitória</div>
+                  <div style="font-size: 10px; color: #64748B;">12.5 ha • Lâmina 3.9 m³/ton • FDR 30/60</div>
+                </div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 14px;">
+                <span style="background: #ECFDF5; color: #047857; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 4px;">18.2° Bx</span>
+                <div style="text-align: right;">
+                  <div style="font-weight: 700; font-size: 12px; color: #0F172A;">36,8 ton/ha</div>
+                  <div style="font-size: 10px; color: #059669; font-weight: 600;">Concluído</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Lote A2 -->
+            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between;">
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <span style="background: #ECFDF5; color: #047857; font-weight: 800; font-size: 11px; padding: 4px 8px; border-radius: 6px;">A2</span>
+                <div>
+                  <div style="font-weight: 700; font-size: 12px; color: #0F172A;">Talhão A2 • Uva Crimson</div>
+                  <div style="font-size: 10px; color: #64748B;">10.0 ha • Lâmina 4.1 m³/ton • FDR 30/60</div>
+                </div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 14px;">
+                <span style="background: #ECFDF5; color: #047857; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 4px;">18.5° Bx</span>
+                <div style="text-align: right;">
+                  <div style="font-weight: 700; font-size: 12px; color: #0F172A;">34,5 ton/ha</div>
+                  <div style="font-size: 10px; color: #059669; font-weight: 600;">Concluído</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Lote B1 -->
+            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between;">
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <span style="background: #EFF6FF; color: #1D4ED8; font-weight: 800; font-size: 11px; padding: 4px 8px; border-radius: 6px;">B1</span>
+                <div>
+                  <div style="font-weight: 700; font-size: 12px; color: #0F172A;">Talhão B1 • Uva Thompson</div>
+                  <div style="font-size: 10px; color: #64748B;">14.0 ha • Lâmina 4.4 m³/ton • FDR 30/60</div>
+                </div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 14px;">
+                <span style="background: #EFF6FF; color: #1D4ED8; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 4px;">17.8° Bx</span>
+                <div style="text-align: right;">
+                  <div style="font-weight: 700; font-size: 12px; color: #0F172A;">31,2 ton/ha</div>
+                  <div style="font-size: 10px; color: #D97706; font-weight: 600;">Em Colheita</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Lote B2 -->
+            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between;">
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <span style="background: #F1F5F9; color: #475569; font-weight: 800; font-size: 11px; padding: 4px 8px; border-radius: 6px;">B2</span>
+                <div>
+                  <div style="font-weight: 700; font-size: 12px; color: #0F172A;">Talhão B2 • Uva Autumn Crisp</div>
+                  <div style="font-size: 10px; color: #64748B;">8.5 ha • Lâmina 4.0 m³/ton • FDR 30/60</div>
+                </div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 14px;">
+                <span style="background: #ECFDF5; color: #047857; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 4px;">18.0° Bx</span>
+                <div style="text-align: right;">
+                  <div style="font-weight: 700; font-size: 12px; color: #0F172A;">35,0 ton/ha</div>
+                  <div style="font-size: 10px; color: #64748B; font-weight: 600;">Em Produção</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Botão Relatório Detalhado -->
+          <button class="incident-btn-primary" id="btn-export-lotes-analista" style="width: 100%; margin-top: 12px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 14px;">
+            <i data-lucide="file-text" style="width: 14px; height: 14px;"></i>
+            <span>Exportar Relatório Detalhado de Lotes</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+  }
+
+    /**
+     * 2. TELA DA GESTORA: HISTÓRICO SAFRA EXECUTIVO
+     */
+    function renderGestorSafra() {
+      return `
+    <div class="dashboard-canvas apple-animate-in">
+      <!-- 4 KPI Cards Gestora -->
+      <div style="display:grid; grid-template-columns: repeat(4,1fr); gap:18px; margin-bottom:24px;">
+        <!-- Produção Total -->
+        <div class="kpi-analista-card">
+          <div style="font-size:10px; font-weight:700; text-transform:uppercase; color:#64748B; margin-bottom:4px;">PRODUÇÃO TOTAL</div>
+          <div style="font-size:32px; font-weight:800; color:#0F172A; line-height:1;">1.480 <span style="font-size:16px; color:#475569;">ton</span></div>
+          <div class="kpi-bottom-row">
+            <span style="font-size:11px; font-weight:600; color:#059669;">+12% vs ciclo anterior</span>
+            <span style="font-size:10px; color:#94A3B8;">1.480 / 1.680 ton</span>
+          </div>
+        </div>
+
+        <!-- Produtividade Média -->
+        <div class="kpi-analista-card">
+          <div style="font-size:10px; font-weight:700; text-transform:uppercase; color:#64748B; margin-bottom:4px;">PRODUTIVIDADE MÉDIA</div>
+          <div style="font-size:32px; font-weight:800; color:#0F172A; line-height:1;">34,2 <span style="font-size:16px; color:#475569;">ton/ha</span></div>
+          <div class="kpi-bottom-row">
+            <span style="font-size:11px; font-weight:600; color:#059669;">+2,2 ton/ha acima da meta</span>
+            <span style="font-size:10px; color:#94A3B8;">Meta: 32,0</span>
+          </div>
+        </div>
+
+            <!-- Eficiência Hídrica -->
+            <div class="kpi-analista-card">
+              <div style="font-size:10px; font-weight:700; text-transform:uppercase; color:#64748B; margin-bottom:4px;">EFICIÊNCIA HÍDRICA</div>
+              <div style="font-size:32px; font-weight:800; color:#0284C7; line-height:1;">4,1 <span style="font-size:16px; color:#475569;">m³/ton</span></div>
+              <div class="kpi-bottom-row">
+                <span style="font-size:11px; font-weight:600; color:#0284C7;">Consumo Otimizado (-8.4%)</span>
+                <span style="font-size:10px; color:#94A3B8;">42 m³/ha poupados</span>
+              </div>
+            </div>
+
+                  <!-- Grau Brix Médio -->
+                  <div class="kpi-analista-card">
+                    <div style="font-size:10px; font-weight:700; text-transform:uppercase; color:#64748B; margin-bottom:4px;">GRAU BRIX MÉDIO</div>
+                    <div style="font-size:32px; font-weight:800; color:#059669; line-height:1;">18,2° <span style="font-size:16px; color:#475569;">Brix</span></div>
+                    <div class="kpi-bottom-row">
+                      <span style="font-size:11px; font-weight:600; color:#059669;">Padrão Exportação A+</span>
+                      <span style="font-size:10px; color:#94A3B8;">Ideal: &ge; 17.5°</span>
+                    </div>
+                  </div>
+                </div>
+
+      <!-- Comparativo Visual Gestora -->
+      <div class="analista-chart-box">
+        <h3 style="font-size: 16px; font-weight: 700; color: #0F172A; margin-bottom: 12px;">Comparativo Visual de Rendimento entre Safras</h3>
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <div>
+            <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
+              <span>Safra 2023/2024</span>
+              <span>28,4 ton/ha • 182 m³/ha</span>
+            </div>
+            <div style="height:16px; background:#10B981; border-radius:4px; width:70%;"></div>
+          </div>
+          <div>
+            <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
+              <span>Safra 2024/2025</span>
+              <span>30,5 ton/ha • 168 m³/ha</span>
+            </div>
+            <div style="height:16px; background:#10B981; border-radius:4px; width:78%;"></div>
+          </div>
+          <div style="background:#FAFDFB; border:1px solid #10B981; padding:8px; border-radius:6px;">
+            <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px; font-weight:700; color:#047857;">
+              <span>Safra 2025/2026 (Atual) [CICLO ATIVO]</span>
+              <span>34,2 ton/ha • 140 m³/ha</span>
+            </div>
+            <div style="height:20px; background:#059669; border-radius:4px; width:90%; color:#fff; font-size:10px; display:flex; align-items:center; padding-left:8px;">+12.1% Produtividade</div>
+          </div>
+        </div>
+      </div>
+              </div>
+              `;
+}
+
+              export function setupLeiturasEvents() {
+  const btnSync = document.getElementById('btn-sync-safra');
+              if (btnSync) {
+                btnSync.addEventListener('click', () => {
+                  toast.info('Sincronização Safra', 'Consultando dados de colheita dos talhões homologados...');
+                  setTimeout(() => {
+                    toast.success('Safra Sincronizada', 'Métricas consolidadas com canais LoRaWAN US915.');
+                  }, 800);
+                });
+  }
+
+              const btnExport = document.getElementById('btn-export-safra');
+              if (btnExport) {
+                btnExport.addEventListener('click', () => {
+                  toast.success('Download Concluído', 'Relatório executivo da safra 2025/2026 gerado com sucesso.');
+                });
+  }
+
+              const btnLotes = document.getElementById('btn-export-lotes-analista');
+              if (btnLotes) {
+                btnLotes.addEventListener('click', () => {
+                  toast.success('Exportação de Lotes', 'Planilha detalhada de lotes (A1, A2, B1, B2) exportada.');
+                });
+  }
+
+  // Filtros de Talhão
+  document.querySelectorAll('[data-safra-filter]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                  document.querySelectorAll('[data-safra-filter]').forEach(b => b.classList.remove('active'));
+                  e.currentTarget.classList.add('active');
+                  toast.info('Filtro de Safra', `Exibindo indicadores para: ${e.currentTarget.innerText}`);
+                });
+  });
+}

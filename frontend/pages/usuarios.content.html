@@ -1,0 +1,77 @@
+
+    <div class="content-body">
+      
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 16px;">
+        <div>
+          <h2 style="font-family: 'Space Grotesk', sans-serif; font-size: 26px; font-weight: 700;">Controle de Usuários & Acessos (RBAC)</h2>
+          <p style="color: #94A3B8; font-size: 14px;">Gerenciamento de credenciais, perfis de permissão e autenticação em dois fatores.</p>
+        </div>
+
+        <button class="btn btn-primary" id="btn-novo-usuario">
+          <i data-lucide="user-plus"></i>
+          <span>Novo Usuário</span>
+        </button>
+      </div>
+
+      <div class="table-container">
+        <div class="table-toolbar">
+          <h3 class="card-title">Usuários Cadastrados</h3>
+          <span style="font-size: 13px; color: #94A3B8;">Total: <strong>3</strong></span>
+        </div>
+
+        <div style="overflow-x: auto;">
+          <table class="custom-table">
+            <thead>
+              <tr>
+                <th>Nome Completo</th>
+                <th>E-mail</th>
+                <th>Perfil de Acesso</th>
+                <th>MFA / 2FA</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td><strong>Carlos Gestor Agro</strong></td>
+                  <td>gestao@frutas.agro.br</td>
+                  <td><span class="badge badge-info">Produtor/Exportador</span></td>
+                  <td><span class="badge badge-success"><span class="badge-dot"></span>Habilitado (E-mail)</span></td>
+                  <td>
+                    <span class="badge badge-success">
+                      <span class="badge-dot"></span>ativo
+                    </span>
+                  </td>
+                </tr>
+              
+                <tr>
+                  <td><strong>Ana Paula Analista</strong></td>
+                  <td>ana.dados@agro.br</td>
+                  <td><span class="badge badge-info">Analista de Dados</span></td>
+                  <td><span class="badge badge-success"><span class="badge-dot"></span>Habilitado (E-mail)</span></td>
+                  <td>
+                    <span class="badge badge-success">
+                      <span class="badge-dot"></span>ativo
+                    </span>
+                  </td>
+                </tr>
+              
+                <tr>
+                  <td><strong>Marcos Administrador</strong></td>
+                  <td>admin@frutas.agro.br</td>
+                  <td><span class="badge badge-info">Administrador</span></td>
+                  <td><span class="badge badge-success"><span class="badge-dot"></span>Habilitado (E-mail)</span></td>
+                  <td>
+                    <span class="badge badge-success">
+                      <span class="badge-dot"></span>ativo
+                    </span>
+                  </td>
+                </tr>
+              
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  

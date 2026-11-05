@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Logística de Exportação | RAIZ Agro IoT</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2315803D'><path d='M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/design-system.css">
+  <link rel="stylesheet" href="/assets/css/components.css">
+  <link rel="stylesheet" href="/assets/css/layout.css">
+  <link rel="stylesheet" href="/assets/css/analista.css">
+  
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="apple-theme ">
+  
+    <div class="app-container">
+      
+    <aside class="sidebar">
+      <!-- Logo RAIZ com imagem nítida sobre fundo escuro -->
+      <div class="sidebar-brand-container">
+        <a href="/pages/dashboard.html" style="display: block; text-decoration: none;">
+          <img src="assets/images/logo-raiz.png" width="105" height="105" alt="RAIZ" style="object-fit: contain; display: block; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.15));">
+        </a>
+      </div>
+
+      <!-- Menu Principal Dinâmico -->
+      <nav class="sidebar-nav-container">
+        <a href="/pages/dashboard.html" class="sidebar-menu-item">
+          <i data-lucide="layout-grid"></i>
+          <span>Visão geral</span>
+        </a>
+
+        
+        <a href="/pages/sensores.html" class="sidebar-menu-item ">
+          <i data-lucide="radio"></i>
+          <span>Sensores</span>
+        </a>
+
+        <a href="/pages/rede-esp32.html" class="sidebar-menu-item ">
+          <i data-lucide="share-2"></i>
+          <span>Rede ESP32</span>
+        </a>
+        
+
+        <a href="/pages/leituras.html" class="sidebar-menu-item ">
+          <i data-lucide="file-text"></i>
+          <span>Histórico Safra</span>
+        </a>
+
+        <a href="/pages/alertas.html" class="sidebar-menu-item ">
+          <i data-lucide="alert-triangle"></i>
+          <span>Alertas</span>
+        </a>
+
+        <a href="/pages/configuracoes.html" class="sidebar-menu-item ">
+          <i data-lucide="settings"></i>
+          <span>Configurações</span>
+        </a>
+      </nav>
+
+      <!-- Bottom Profile & Connectivity (Figma: Vale das Uvas / Petrolina - Setor 04) -->
+      <div class="sidebar-bottom-profile">
+        <div class="bottom-profile-card">
+          <div class="profile-avatar-vu">VU</div>
+          <div class="profile-info-text">
+            <div class="farm-name">Vale das Uvas</div>
+            <div class="farm-sub">Petrolina - Setor 04</div>
+          </div>
+          <button id="logout-btn" style="margin-left: auto; color: #94A3B8; background: none; border: none; cursor: pointer; padding: 4px;" title="Sair do Sistema">
+            <i data-lucide="log-out" style="width: 18px; height: 18px;"></i>
+          </button>
+        </div>
+
+        <div class="gateway-status-pill">
+          <span style="display: flex; align-items: center; gap: 6px; color: #1E293B; font-weight: 600; font-size: 11px;">
+            <span style="width: 7px; height: 7px; border-radius: 50%; background: #10B981; box-shadow: 0 0 6px rgba(16,185,129,0.7);"></span>
+            LoRa Gateway
+          </span>
+          <span style="color: #64748B; font-size: 11px; font-weight: 500;">Conectado</span>
+        </div>
+      </div>
+    </aside>
+  
+      <div class="main-content-wrapper">
+        <header class="topbar-header">
+          <div class="header-title-wrap">
+            <h2>Logística de Exportação</h2>
+            <p>Plataforma de Inteligência Agro IoT & Logística de Exportação • Conectado ao Banco Local (raiz_agro.db)</p>
+          </div>
+          <div class="header-right-controls">
+            <div class="date-selector-btn">
+              <i data-lucide="calendar" style="width: 15px; height: 15px; color: #71807A;"></i>
+              <span>22 de setembro de 2026</span>
+            </div>
+            <a href="/pages/alertas.html" class="header-bell-btn" title="Ver Alertas Ativos">
+              <i data-lucide="bell" style="width: 18px; height: 18px; color: #71807A;"></i>
+              <span class="header-bell-badge" data-kpi="alertas-count">2</span>
+            </a>
+            <div class="user-profile-header-pill">
+              <div class="avatar-initials-pill" style="background:#DCFCE7; border:1.5px solid #86EFAC; color:#15803D;">LF</div>
+              <div class="profile-name-role">
+                <span class="profile-name">Luiz Felipe</span>
+                <span class="profile-role">Analista IoT & Telemetria</span>
+              </div>
+            </div>
+          </div>
+        </header>
+        <main class="page-body">
+          <div id="view-container">
+    <div class="content-body">
+      
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 16px;">
+        <div>
+          <h2 style="font-family: 'Space Grotesk', sans-serif; font-size: 26px; font-weight: 700;">Cadeia do Frio & Rotas de Exportação</h2>
+          <p style="color: #94A3B8; font-size: 14px;">Rastreamento de carretas frigoríficas em rota do Vale do São Francisco aos Portos (Pecém, Suape, Salvador, Natal).</p>
+        </div>
+
+        <span class="badge badge-success" style="font-size: 14px; padding: 8px 16px;">
+          <span class="badge-dot"></span>2 Viagens em Monitoramento
+        </span>
+      </div>
+
+      <!-- Mapa Interativo Leaflet -->
+      <div class="map-card-wrapper" style="margin-bottom: 28px;">
+        <div id="logistics-map"></div>
+      </div>
+
+      <!-- Lista de Cargas em Trânsito -->
+      <div class="table-container">
+        <div class="table-toolbar">
+          <h3 class="card-title">Manifestos de Transporte Refrigerado</h3>
+          <span style="font-size: 13px; color: #94A3B8;">Tempo real</span>
+        </div>
+
+        <div style="overflow-x: auto;">
+          <table class="custom-table">
+            <thead>
+              <tr>
+                <th>Carga / Lote</th>
+                <th>Origem</th>
+                <th>Destino (Porto)</th>
+                <th>Distância</th>
+                <th>Temp. Reefer</th>
+                <th>Risco Financeiro Estimado</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>
+                    <div style="font-weight: 700; color: #FFFFFF;">Viagem #101</div>
+                    <div style="font-size: 12px; color: #94A3B8;">Lote #3 • 2200 kg</div>
+                  </td>
+                  <td>Fazenda Vale Frutas (Petrolina - PE)</td>
+                  <td>
+                    <strong style="color: #38BDF8;">Porto de Suape (PE)</strong>
+                  </td>
+                  <td>742 km</td>
+                  <td>
+                    <span style="font-weight: 700; color: #4ADE80; font-size: 15px;">
+                      11.8°C
+                    </span>
+                  </td>
+                  <td>
+                    <div style="font-weight: 600; color: #FBBF24;">R$ 1.450,00</div>
+                    <div style="font-size: 11px; color: #94A3B8;">Probab: 12% (baixo)</div>
+                  </td>
+                  <td>
+                    <span class="badge badge-info">
+                      <span class="badge-dot"></span>Em trânsito
+                    </span>
+                  </td>
+                </tr>
+              
+                <tr>
+                  <td>
+                    <div style="font-weight: 700; color: #FFFFFF;">Viagem #102</div>
+                    <div style="font-size: 12px; color: #94A3B8;">Lote #1 • 1000 kg</div>
+                  </td>
+                  <td>Packing House Central (Juazeiro - BA)</td>
+                  <td>
+                    <strong style="color: #38BDF8;">Porto de Pecém (CE)</strong>
+                  </td>
+                  <td>810 km</td>
+                  <td>
+                    <span style="font-weight: 700; color: #4ADE80; font-size: 15px;">
+                      11.2°C
+                    </span>
+                  </td>
+                  <td>
+                    <div style="font-weight: 600; color: #FBBF24;">R$ 820,00</div>
+                    <div style="font-size: 11px; color: #94A3B8;">Probab: 8% (baixo)</div>
+                  </td>
+                  <td>
+                    <span class="badge badge-warning">
+                      <span class="badge-dot"></span>Programada
+                    </span>
+                  </td>
+                </tr>
+              
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+        </main>
+      </div>
+    </div>
+  
+  <div id="modal-root"></div>
+  <div id="toast-container" class="toast-container"></div>
+  <script type="module">
+    import { setupViagensEvents } from '/assets/js/views/viagens.js?v=20261105-live';
+    if (typeof setupViagensEvents === 'function') {
+      try { setupViagensEvents(); } catch (err) { console.warn('Erro evento:', err); }
+    }
+    if (window.lucide) window.lucide.createIcons();
+  </script>
+</body>
+</html>
