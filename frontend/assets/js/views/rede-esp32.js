@@ -118,63 +118,37 @@ export async function renderRedeEsp32() {
             </div>
           </div>
 
-          <!-- Mapa Escuro de Topologia com Enlaces Radiais SVG -->
-          <div style="position: relative; width: 100%; height: 350px; background: #0B192C; border-radius: 12px; overflow: hidden; border: 1px solid #1E293B;">
-            <!-- Fundo de Mapa Geográfico Estilizado (Cartografia Noturna) -->
-            <svg viewBox="0 0 700 350" style="width: 100%; height: 100%;" preserveAspectRatio="none">
-              <defs>
-                <!-- Grade Geométrica de Fundo -->
-                <pattern id="grid-pattern" width="40" height="40" patternUnits="userSpaceOnUse">
-                  <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1E293B" stroke-width="0.8"/>
-                </pattern>
-                <!-- Gradiente de Alcance LoRa -->
-                <radialGradient id="lora-coverage" cx="50%" cy="50%" r="50%">
-                  <stop offset="0%" stop-color="#10B981" stop-opacity="0.25"/>
-                  <stop offset="60%" stop-color="#10B981" stop-opacity="0.08"/>
-                  <stop offset="100%" stop-color="#10B981" stop-opacity="0"/>
-                </radialGradient>
-              </defs>
+          <!-- Mapa de Topologia com Imagem de Fundo e Enlaces Radiais SVG -->
+          <div style="position: relative; width: 100%; height: 450px; border-radius: 12px; overflow: hidden; border: 1px solid #CBD5E1;">
+            <!-- Imagem de Fundo da Topologia Espacial (Petrolina / Juazeiro) -->
+            <img src="assets/images/topologia-espacial-lora.png" alt="Topologia Espacial dos Nós LoRaWAN - Petrolina &amp; Juazeiro"
+              style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1;">
 
-              <rect width="100%" height="100%" fill="#0F172A"/>
-              <rect width="100%" height="100%" fill="url(#grid-pattern)"/>
-
-              <!-- Círculos de Alcance do Gateway -->
-              <circle cx="350" cy="175" r="140" fill="url(#lora-coverage)"/>
-              <circle cx="350" cy="175" r="90" fill="none" stroke="#10B981" stroke-width="1" stroke-dasharray="4,4" opacity="0.4"/>
-              <circle cx="350" cy="175" r="140" fill="none" stroke="#10B981" stroke-width="1" stroke-dasharray="4,4" opacity="0.3"/>
+            <!-- SVG com Enlaces Radiais Transparente por cima da imagem -->
+            <svg viewBox="0 0 700 350" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none;" preserveAspectRatio="none">
+              <!-- Círculos de Alcance do Gateway com traços destacados -->
+              <circle cx="350" cy="175" r="90" fill="none" stroke="rgba(2, 132, 199, 0.45)" stroke-width="1.4" stroke-dasharray="4,4" />
+              <circle cx="350" cy="175" r="140" fill="none" stroke="rgba(2, 132, 199, 0.35)" stroke-width="1.4" stroke-dasharray="4,4" />
 
               <!-- Linhas de Enlace de Radiofrequência do Gateway aos Nós -->
               <!-- Link N-01 -->
-              <line x1="350" y1="175" x2="240" y2="150" stroke="#10B981" stroke-width="1.8" stroke-dasharray="3,3" opacity="0.8"/>
+              <line x1="350" y1="175" x2="240" y2="150" stroke="#10B981" stroke-width="2" stroke-dasharray="3,3" opacity="0.9"/>
               <!-- Link N-02 -->
-              <line x1="350" y1="175" x2="490" y2="120" stroke="#0284C7" stroke-width="1.8" stroke-dasharray="3,3" opacity="0.8"/>
+              <line x1="350" y1="175" x2="490" y2="120" stroke="#38BDF8" stroke-width="2" stroke-dasharray="3,3" opacity="0.9"/>
               <!-- Link N-03 (Atenção) -->
-              <line x1="350" y1="175" x2="520" y2="210" stroke="#F59E0B" stroke-width="1.8" stroke-dasharray="3,3" opacity="0.8"/>
+              <line x1="350" y1="175" x2="520" y2="210" stroke="#FBBF24" stroke-width="2" stroke-dasharray="3,3" opacity="0.9"/>
               <!-- Link N-04 -->
-              <line x1="350" y1="175" x2="260" y2="240" stroke="#0284C7" stroke-width="1.8" stroke-dasharray="3,3" opacity="0.8"/>
+              <line x1="350" y1="175" x2="260" y2="240" stroke="#38BDF8" stroke-width="2" stroke-dasharray="3,3" opacity="0.9"/>
               <!-- Link N-05 (Rejeição) -->
-              <line x1="350" y1="175" x2="160" y2="200" stroke="#EF4444" stroke-width="1.8" stroke-dasharray="3,3" opacity="0.8"/>
+              <line x1="350" y1="175" x2="160" y2="200" stroke="#F87171" stroke-width="2" stroke-dasharray="3,3" opacity="0.9"/>
             </svg>
-
-            <!-- Talhões Identificados no Mapa -->
-            <div style="position: absolute; top: 18px; left: 18px; display: flex; flex-direction: column; gap: 4px;">
-              <span style="font-size: 10px; background: rgba(15, 23, 42, 0.85); color: #38BDF8; padding: 2px 8px; border-radius: 4px; border: 1px solid rgba(56, 189, 248, 0.3);">
-                • Talhão A1: Uva Vitória (12.4 ha)
-              </span>
-              <span style="font-size: 10px; background: rgba(15, 23, 42, 0.85); color: #34D399; padding: 2px 8px; border-radius: 4px; border: 1px solid rgba(52, 211, 153, 0.3);">
-                • Talhão B2: Uva Thompson (18.1 ha)
-              </span>
-              <span style="font-size: 10px; background: rgba(15, 23, 42, 0.85); color: #A78BFA; padding: 2px 8px; border-radius: 4px; border: 1px solid rgba(167, 139, 250, 0.3);">
-                • Talhão C1/C2: Manga (14.5 ha)
-              </span>
-            </div>
 
             <!-- Gateway Central Marker -->
             <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; z-index: 15; cursor: pointer;" id="topo-gateway-marker" title="Gateway Central Petrolina-04">
-              <div style="width: 44px; height: 44px; border-radius: 50%; background: #10B981; border: 3px solid #FFFFFF; display: flex; align-items: center; justify-content: center; color: #FFFFFF; box-shadow: 0 0 20px rgba(16, 185, 129, 0.8);">
+              <div style="width: 44px; height: 44px; border-radius: 50%; background: #10B981; border: 3px solid #FFFFFF; display: flex; align-items: center; justify-content: center; color: #FFFFFF; box-shadow: 0 0 20px rgba(16, 185, 129, 0.9);">
                 <i data-lucide="radio" style="width: 20px; height: 20px;"></i>
               </div>
-              <span style="font-size: 9px; font-weight: 800; color: #FFFFFF; background: #0F172A; padding: 2px 6px; border-radius: 4px; margin-top: 4px; border: 1px solid #334155;">
+              <span style="font-size: 9px; font-weight: 800; color: #FFFFFF; background: #0F172A; padding: 2px 6px; border-radius: 4px; margin-top: 4px; border: 1px solid #334155; box-shadow: 0 2px 6px rgba(0,0,0,0.4);">
                 GATEWAY PETROLINA-04
               </span>
             </div>
@@ -182,7 +156,7 @@ export async function renderRedeEsp32() {
             <!-- Nós Espalhados com Rótulos -->
             <!-- N-01 • Solo -->
             <div style="position: absolute; top: 40%; left: 32%; z-index: 10; cursor: pointer;" class="topo-node-item" data-node="N-01" title="N-01 • Solo (-74 dBm)">
-              <div style="background: rgba(15, 23, 42, 0.9); border: 1.5px solid #10B981; color: #FFFFFF; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; display: flex; align-items: center; gap: 4px;">
+              <div style="background: rgba(15, 23, 42, 0.92); border: 1.5px solid #10B981; color: #FFFFFF; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; display: flex; align-items: center; gap: 4px; box-shadow: 0 2px 6px rgba(0,0,0,0.4);">
                 <span style="width: 6px; height: 6px; border-radius: 50%; background: #10B981;"></span>
                 N-01 • Solo
               </div>
@@ -190,7 +164,7 @@ export async function renderRedeEsp32() {
 
             <!-- N-02 • Ar -->
             <div style="position: absolute; top: 32%; left: 68%; z-index: 10; cursor: pointer;" class="topo-node-item" data-node="N-02" title="N-02 • Ar (-79 dBm)">
-              <div style="background: rgba(15, 23, 42, 0.9); border: 1.5px solid #0284C7; color: #FFFFFF; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; display: flex; align-items: center; gap: 4px;">
+              <div style="background: rgba(15, 23, 42, 0.92); border: 1.5px solid #0284C7; color: #FFFFFF; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; display: flex; align-items: center; gap: 4px; box-shadow: 0 2px 6px rgba(0,0,0,0.4);">
                 <span style="width: 6px; height: 6px; border-radius: 50%; background: #0284C7;"></span>
                 N-02 • Ar
               </div>
@@ -198,7 +172,7 @@ export async function renderRedeEsp32() {
 
             <!-- N-03 • Atenção -->
             <div style="position: absolute; top: 58%; left: 72%; z-index: 10; cursor: pointer;" class="topo-node-item" data-node="N-03" title="N-03 • Atenção (-89 dBm)">
-              <div style="background: rgba(15, 23, 42, 0.9); border: 1.5px solid #F59E0B; color: #FFFFFF; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; display: flex; align-items: center; gap: 4px;">
+              <div style="background: rgba(15, 23, 42, 0.92); border: 1.5px solid #F59E0B; color: #FFFFFF; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; display: flex; align-items: center; gap: 4px; box-shadow: 0 2px 6px rgba(0,0,0,0.4);">
                 <span style="width: 6px; height: 6px; border-radius: 50%; background: #F59E0B;"></span>
                 N-03 • Atenção
               </div>
@@ -206,7 +180,7 @@ export async function renderRedeEsp32() {
 
             <!-- N-04 • Solo -->
             <div style="position: absolute; top: 66%; left: 35%; z-index: 10; cursor: pointer;" class="topo-node-item" data-node="N-04" title="N-04 • Solo (-72 dBm)">
-              <div style="background: rgba(15, 23, 42, 0.9); border: 1.5px solid #0284C7; color: #FFFFFF; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; display: flex; align-items: center; gap: 4px;">
+              <div style="background: rgba(15, 23, 42, 0.92); border: 1.5px solid #0284C7; color: #FFFFFF; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; display: flex; align-items: center; gap: 4px; box-shadow: 0 2px 6px rgba(0,0,0,0.4);">
                 <span style="width: 6px; height: 6px; border-radius: 50%; background: #0284C7;"></span>
                 N-04 • Solo
               </div>
@@ -214,7 +188,7 @@ export async function renderRedeEsp32() {
 
             <!-- N-05 • Rejeição -->
             <div style="position: absolute; top: 55%; left: 20%; z-index: 10; cursor: pointer;" class="topo-node-item" data-node="N-05" title="N-05 • Rejeição (-95 dBm)">
-              <div style="background: rgba(15, 23, 42, 0.9); border: 1.5px solid #EF4444; color: #FFFFFF; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; display: flex; align-items: center; gap: 4px;">
+              <div style="background: rgba(15, 23, 42, 0.92); border: 1.5px solid #EF4444; color: #FFFFFF; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; display: flex; align-items: center; gap: 4px; box-shadow: 0 2px 6px rgba(0,0,0,0.4);">
                 <span style="width: 6px; height: 6px; border-radius: 50%; background: #EF4444;"></span>
                 N-05 • Rejeição
               </div>

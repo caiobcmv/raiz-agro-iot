@@ -164,7 +164,7 @@ function renderAnalistaDashboard() {
 
         <!-- Viewport Aérea com Nós Posicionados conforme Figma -->
         <div class="map-view-viewport" id="analista-map-viewport">
-          <img src="assets/images/aerial-talhoes.jpg" alt="Mapa Agrícola Vale do São Francisco" class="map-view-bg">
+          <img src="assets/images/topologia-sensores-campo.jpg" alt="Topologia de Sensores no Campo - Vale do São Francisco" class="map-view-bg">
 
           <!-- Rosa dos Ventos (Norte) -->
           <div style="position: absolute; top: 16px; right: 16px; width: 36px; height: 36px; background: rgba(255,255,255,0.92); border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.15); font-weight: 800; font-size: 10px; color: #0F172A; z-index: 20;">

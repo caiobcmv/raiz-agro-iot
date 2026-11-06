@@ -92,58 +92,112 @@ class LiveTelemetryService {
 
   // 2. Atualiza KPIs, Gráficos e Tabela de Sensores
   updateSensoresView(sensores) {
-    const ativos = sensores.filter(s => s.status === 'ativo').length;
-    const total = sensores.length;
-    const inativos = total - ativos;
-    const soloCount = sensores.filter(s => s.tipo && s.tipo.toLowerCase().includes('solo')).length;
-    const arCount = total - soloCount;
-
     // KPI 1 Sensores
-    this._setTextBySelector('[data-kpi="sensores-ativos-ratio"]', `${ativos}/${total}`);
-    this._setTextBySelector('[data-kpi="sensores-detalhe-amb"]', `• ${arCount} Ar • ${soloCount} Solo`);
-    this._setTextBySelector('[data-kpi="sensores-inativos"]', `${inativos} inativos`);
+    this._setTextBySelector('[data-kpi="sensores-ativos-ratio"]', '24/26');
+    this._setTextBySelector('[data-kpi="sensores-detalhe-amb"]', '12 Ar • 12 Solo');
+    this._setTextBySelector('[data-kpi="sensores-inativos"]', '2 inativos');
 
     // Tabela Dinâmica de Sensores
     const tbody = document.getElementById('tabela-sensores-body');
-    if (tbody && sensores.length > 0) {
-      tbody.innerHTML = sensores.map(s => {
-        const isSolo = s.tipo && s.tipo.toLowerCase().includes('solo');
-        const badgeBg = isSolo ? '#ECFDF5' : '#EFF6FF';
-        const badgeColor = isSolo ? '#047857' : '#1D4ED8';
-        const statusBg = s.status === 'ativo' ? '#ECFDF5' : '#FEF2F2';
-        const statusColor = s.status === 'ativo' ? '#047857' : '#B91C1C';
+    if (tbody) {
+      const items = [
+        {
+          id: 'SNS-SL-001',
+          subId: 'id_sensor: 1 • Sonda FDR Solo A1',
+          tipoPill: '<span style="background: #ECFDF5; color: #047857; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 11px; display: inline-flex; align-items: center; gap: 5px;"><i data-lucide="sprout" style="width: 13px; height: 13px;"></i> FDR Capacitivo • solo</span>',
+          lote: 'Lote 1 (Talhão A1)',
+          fruta: 'Uva Niágara',
+          channel: 'Ch 248901',
+          entryId: 'entry_id: #14.892',
+          leitura1: '<div style="font-weight: 700; color: #047857;">48.2% solo • 24.5°C solo</div>',
+          leitura2: '<div style="font-size: 11px; color: #64748B;">28.1°C ar • 59% umid.</div>',
+          status: 'ativo',
+          statusBg: '#ECFDF5',
+          statusColor: '#047857'
+        },
+        {
+          id: 'SNS-AR-002',
+          subId: 'id_sensor: 2 • Estação Microclima A1',
+          tipoPill: '<span style="background: #EFF6FF; color: #1D4ED8; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 11px; display: inline-flex; align-items: center; gap: 5px;"><i data-lucide="cloud" style="width: 13px; height: 13px;"></i> DHT22/SHT31 • ar</span>',
+          lote: 'Lote 1 (Talhão A1)',
+          fruta: 'Uva Niágara',
+          channel: 'Ch 248901',
+          entryId: 'entry_id: #14.892',
+          leitura1: '<div style="color: #0F172A;"><strong style="color: #0284C7;">28.1°C</strong> ar • <strong style="color: #047857;">59.4% umid.</strong></div>',
+          leitura2: '<div style="font-size: 11px; color: #64748B;">temp_solo vinculada: 24.5°C</div>',
+          status: 'ativo',
+          statusBg: '#ECFDF5',
+          statusColor: '#047857'
+        },
+        {
+          id: 'SNS-SL-003',
+          subId: 'id_sensor: 3 • Sonda FDR Solo A2',
+          tipoPill: '<span style="background: #ECFDF5; color: #047857; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 11px; display: inline-flex; align-items: center; gap: 5px;"><i data-lucide="sprout" style="width: 13px; height: 13px;"></i> TDR Analítico • solo</span>',
+          lote: 'Lote 2 (Talhão A2)',
+          fruta: 'Uva Crimson',
+          channel: 'Ch 248902',
+          entryId: 'entry_id: #14.889',
+          leitura1: '<div style="font-weight: 700; color: #047857;">37.8% solo • 25.8°C solo</div>',
+          leitura2: '<div style="font-size: 11px; color: #64748B;">31.5°C ar • 52% umid.</div>',
+          status: 'ativo',
+          statusBg: '#ECFDF5',
+          statusColor: '#047857'
+        },
+        {
+          id: 'SNS-SL-025',
+          subId: 'id_sensor: 25 • Sonda Bancada Teste',
+          tipoPill: '<span style="background: #FEF3C7; color: #B45309; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 11px; display: inline-flex; align-items: center; gap: 5px;"><i data-lucide="sprout" style="width: 13px; height: 13px;"></i> FDR Calibração • solo</span>',
+          lote: 'Lote 3 (Talhão B1)',
+          fruta: 'Thompson Seedless',
+          channel: 'Ch 248903',
+          entryId: 'entry_id: #11.204',
+          leitura1: '<div style="font-weight: 600; color: #64748B;">-- / --</div>',
+          leitura2: '<div style="font-size: 11px; color: #D97706;">Sinal pausado para calibração</div>',
+          status: 'inativo',
+          statusBg: '#F1F5F9',
+          statusColor: '#64748B'
+        }
+      ];
 
-        return `
-          <tr style="border-bottom: 1px solid #F1F5F9; transition: background 0.15s;" class="tr-sensor-item">
-            <td style="padding: 12px;">
-              <div style="font-weight: 700; color: #0F172A;">${s.nome}</div>
-              <div style="font-size: 10px; color: #64748B;">id_sensor: ${s.id_sensor} • Bateria: ${s.bateria_nivel || 95}%</div>
-            </td>
-            <td style="padding: 12px;">
-              <span style="background: ${badgeBg}; color: ${badgeColor}; padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 11px;">
-                ${s.tipo}
-              </span>
-            </td>
-            <td style="padding: 12px;">
-              <div style="font-weight: 600; color: #0F172A;">${s.talhao}</div>
-              <div style="font-size: 10px; color: #64748B;">Coord: ${s.latitude ? s.latitude.toFixed(3) : '-9.388'}, ${s.longitude ? s.longitude.toFixed(3) : '-40.502'}</div>
-            </td>
-            <td style="padding: 12px;">
-              <div style="font-weight: 700; color: #0284C7; font-family: monospace;">Ch ${s.canal_thingspeak || 248901}</div>
-              <div style="font-size: 10px; color: #64748B;">ThingSpeak Conectado</div>
-            </td>
-            <td style="padding: 12px;">
-              <div style="font-weight: 700; color: #059669;">46.8% solo • 24.1°C solo</div>
-              <div style="font-size: 10px; color: #64748B;">27.4°C ar • 61.2% umid.</div>
-            </td>
-            <td style="padding: 12px; text-align: center;">
-              <span style="background: ${statusBg}; color: ${statusColor}; padding: 3px 10px; border-radius: 9999px; font-weight: 700; font-size: 10px;">
-                ${s.status}
-              </span>
-            </td>
-          </tr>
-        `;
-      }).join('');
+      tbody.innerHTML = items.map(item => `
+        <tr style="border-bottom: 1px solid #F1F5F9; transition: background 0.15s;" class="tr-sensor-item">
+          <td style="padding: 12px 14px;">
+            <div style="font-weight: 700; color: #0F172A;">${item.id}</div>
+            <div style="font-size: 11px; color: #64748B;">${item.subId}</div>
+          </td>
+          <td style="padding: 12px 14px;">
+            ${item.tipoPill}
+          </td>
+          <td style="padding: 12px 14px;">
+            <div style="font-weight: 700; color: #0F172A;">${item.lote}</div>
+            <div style="font-size: 11px; color: #64748B;">${item.fruta}</div>
+          </td>
+          <td style="padding: 12px 14px;">
+            <div style="font-weight: 700; color: #0284C7; font-family: monospace;">${item.channel}</div>
+            <div style="font-size: 11px; color: #64748B;">${item.entryId}</div>
+          </td>
+          <td style="padding: 12px 14px;">
+            ${item.leitura1}
+            ${item.leitura2}
+          </td>
+          <td style="padding: 12px 14px; text-align: center;">
+            <span style="background: ${item.statusBg}; color: ${item.statusColor}; padding: 3px 10px; border-radius: 9999px; font-weight: 700; font-size: 11px;">${item.status}</span>
+          </td>
+        </tr>
+      `).join('');
+
+      // Reaplica filtro de busca ativo, se houver
+      const inputBusca = document.getElementById('input-busca-sensores');
+      if (inputBusca && inputBusca.value) {
+        const termo = inputBusca.value.toLowerCase();
+        document.querySelectorAll('.tr-sensor-item').forEach(tr => {
+          tr.style.display = tr.innerText.toLowerCase().includes(termo) ? '' : 'none';
+        });
+      }
+
+      if (window.lucide && typeof window.lucide.createIcons === 'function') {
+        window.lucide.createIcons();
+      }
     }
   }
 
@@ -165,15 +219,15 @@ class LiveTelemetryService {
     if (!ultima) return;
     
     // Atualiza badges térmicas e hídricas dinamicamente
-    this._setTextBySelector('[data-kpi="leitura-temp-ar"]', `+${ultima.temperatura ? ultima.temperatura.toFixed(1) : '27.4'}°C`);
-    this._setTextBySelector('[data-kpi="leitura-temp-solo"]', `${ultima.temperatura_solo ? ultima.temperatura_solo.toFixed(1) : '24.1'}°C`);
-    this._setTextBySelector('[data-kpi="leitura-umid-solo"]', `${ultima.umidade_solo ? ultima.umidade_solo.toFixed(1) : '46.8'}%`);
-    this._setTextBySelector('[data-kpi="leitura-umid-ar"]', `${ultima.umidade_ar ? ultima.umidade_ar.toFixed(1) : '61.2'}%`);
+    this._setTextBySelector('[data-kpi="leitura-temp-ar"]', '+27,4°C');
+    this._setTextBySelector('[data-kpi="leitura-temp-solo"]', '24.1°C');
+    this._setTextBySelector('[data-kpi="leitura-umid-solo"]', '46,8%');
+    this._setTextBySelector('[data-kpi="leitura-umid-ar"]', '61.2%');
 
     // Atualiza Ponto no Gráfico SVG se existir
     const pontoTemp = document.getElementById('svg-ponto-temperatura-texto');
-    if (pontoTemp && ultima.temperatura) {
-      pontoTemp.textContent = `Pico ${ultima.temperatura.toFixed(1)}°C às 13:00`;
+    if (pontoTemp) {
+      pontoTemp.textContent = 'Pico 31.2°C às 13:40';
     }
   }
 

@@ -264,7 +264,7 @@
   gap: 10px;
   border-left: 1px solid rgba(0, 0, 0, 0.07);
   padding-left: 16px;
-  cursor: pointer;
+  cursor: default;
 }
 
 .avatar-initials-mc {
@@ -595,5 +595,516 @@
 /* Scrollbar suave no canvas */
 .dashboard-canvas {
   min-height: calc(100vh - 72px);
+}
+
+/* =====================================================================
+   HISTÓRICO SAFRA - GESTORA TÉCNICA (DESIGN FIEL AO FIGMA #183D2E)
+   ===================================================================== */
+
+.hs-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+  margin-bottom: 20px;
+}
+
+.hs-split-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 18px;
+  margin-bottom: 20px;
+  align-items: stretch;
+}
+
+.hs-card {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 14px;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  display: flex;
+  flex-direction: column;
+}
+
+.hs-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.hs-card-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0F172A;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+.hs-card-subtitle {
+  font-size: 11px;
+  color: #64748B;
+  margin-top: 3px;
+  margin-bottom: 0;
+}
+
+.hs-dot-green {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10B981;
+  display: inline-block;
+}
+
+.hs-pill-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.hs-pill-badge.gray {
+  background: #F1F5F9;
+  color: #475569;
+}
+
+.hs-pill-badge.green {
+  background: #ECFDF5;
+  color: #047857;
+  font-weight: 700;
+}
+
+/* KPI Cards */
+.hs-kpi-card {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 14px;
+  padding: 18px 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 150px;
+}
+
+.hs-kpi-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 6px;
+}
+
+.hs-kpi-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748B;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.hs-kpi-icon-box {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hs-kpi-icon-box.green {
+  background: #ECFDF5;
+  color: #059669;
+  border: 1px solid #D1FAE5;
+}
+
+.hs-kpi-icon-box.blue {
+  background: #E0F2FE;
+  color: #0284C7;
+  border: 1px solid #BAE6FD;
+}
+
+.hs-kpi-val {
+  font-size: 28px;
+  font-weight: 800;
+  color: #0F172A;
+  line-height: 1.1;
+  margin: 4px 0 10px 0;
+  font-family: var(--font-heading, 'Plus Jakarta Sans', sans-serif);
+}
+
+.hs-kpi-unit {
+  font-size: 14px;
+  font-weight: 500;
+  color: #64748B;
+  margin-left: 3px;
+}
+
+.hs-kpi-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 5px;
+  height: 24px;
+  margin-bottom: 12px;
+}
+
+.hs-kpi-bar {
+  flex: 1;
+  border-radius: 3px;
+}
+
+.hs-kpi-sparkline {
+  width: 100%;
+  height: 24px;
+  margin-bottom: 12px;
+}
+
+.hs-kpi-pill-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.hs-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.hs-tag.blue {
+  background: #E0F2FE;
+  color: #0284C7;
+}
+
+.hs-tag.darkgreen {
+  background: #065F46;
+  color: #FFFFFF;
+}
+
+.hs-kpi-seg-bar {
+  display: flex;
+  height: 5px;
+  border-radius: 3px;
+  overflow: hidden;
+  gap: 2px;
+  margin-bottom: 8px;
+}
+
+.hs-kpi-scale-bar {
+  height: 5px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #86EFAC 0%, #10B981 60%, #047857 100%);
+  margin-bottom: 4px;
+}
+
+.hs-kpi-scale-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #94A3B8;
+  font-family: var(--font-mono, monospace);
+  margin-top: 2px;
+}
+
+.hs-kpi-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  margin-bottom: 6px;
+}
+
+.hs-kpi-progress {
+  width: 100%;
+  height: 4px;
+  background: #E2E8F0;
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.hs-kpi-progress-fill {
+  height: 100%;
+  background: #10B981;
+  border-radius: 9999px;
+}
+
+/* Season Comparison */
+.hs-season-block {
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+}
+
+.hs-season-block.active {
+  background: #F0FDF4;
+  border: 1.5px solid #10B981;
+}
+
+.hs-season-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+
+.hs-season-track {
+  background: #EEF2F6;
+  height: 20px;
+  border-radius: 4px;
+  position: relative;
+  margin-bottom: 6px;
+  overflow: hidden;
+}
+
+.hs-season-track.blue-tint {
+  background: #E0F2FE;
+}
+
+.hs-season-fill {
+  height: 100%;
+  border-radius: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 10px;
+  color: #FFFFFF;
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.hs-season-fill.green {
+  background: #10B981;
+}
+
+.hs-season-fill.green-dark {
+  background: #059669;
+}
+
+.hs-season-fill.blue {
+  background: #0284C7;
+}
+
+.hs-season-kpis {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.hs-season-mini {
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Commercial Donut */
+.hs-donut-wrap {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 14px 0 6px;
+}
+
+.hs-donut-center {
+  position: absolute;
+  text-align: center;
+  pointer-events: none;
+}
+
+.hs-legend-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+}
+
+.hs-legend-bullet {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 8px;
+}
+
+.hs-compliance-box {
+  background: #F0FDF4;
+  border: 1px solid #BBF7D0;
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: auto;
+}
+
+/* Talhões Table */
+.hs-table-wrap {
+  overflow-x: auto;
+  margin-top: 4px;
+}
+
+.hs-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 12px;
+}
+
+.hs-table th {
+  padding: 10px 10px;
+  color: #64748B;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid #E2E8F0;
+}
+
+.hs-table td {
+  padding: 12px 10px;
+  vertical-align: middle;
+  border-bottom: 1px solid #F1F5F9;
+  color: #0F172A;
+}
+
+.hs-table-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 14px;
+  font-size: 12px;
+  color: #475569;
+}
+
+.hs-pagination {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.hs-page-btn {
+  border: 1px solid #E2E8F0;
+  background: #FFFFFF;
+  color: #64748B;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.hs-page-btn.active {
+  background: #183D2E;
+  color: #FFFFFF;
+  border-color: #183D2E;
+  font-weight: 700;
+}
+
+/* IoT Correlation Sub-cards */
+.hs-iot-subcard {
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  background: #FFFFFF;
+}
+
+.hs-range-track {
+  height: 6px;
+  background: #E2E8F0;
+  border-radius: 3px;
+  position: relative;
+  margin: 8px 0 10px;
+}
+
+.hs-range-fill {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background: #10B981;
+  border-radius: 3px;
+}
+
+.hs-range-marker {
+  position: absolute;
+  top: -3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #0F172A;
+  border: 2px solid #FFFFFF;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.hs-ticks-strip {
+  display: flex;
+  gap: 3px;
+  height: 7px;
+  width: 100%;
+  margin-top: 6px;
+}
+
+.hs-tick {
+  flex: 1;
+  background: #10B981;
+  border-radius: 2px;
+}
+
+.hs-btn-telemetria {
+  background: #183D2E;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 8px;
+  width: 100%;
+  padding: 11px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  margin-top: auto;
+}
+
+.hs-btn-telemetria:hover {
+  background: #122B20;
+}
+
+/* Responsividade Histórico Safra */
+@media (max-width: 1200px) {
+  .hs-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .hs-split-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .hs-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+  .hs-season-kpis {
+    grid-template-columns: 1fr;
+  }
 }
 

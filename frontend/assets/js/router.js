@@ -187,74 +187,11 @@ export class Router {
         if (dateSelectorBtn) {
           dateSelectorBtn.style.cursor = 'pointer';
           dateSelectorBtn.addEventListener('click', () => {
-            toast.info('Ciclo Safra 2026', 'Data base de operação: 22 de setembro de 2026 (Semana 38).');
-          });
-        }
-
-        // Interatividade no Perfil do Header (Alternador entre Luiz Felipe e Maria Clara)
-        const profilePill = document.getElementById('user-profile-header-pill');
-        if (profilePill) {
-          profilePill.addEventListener('click', () => {
-            const activeProfile = auth.getActiveProfile();
-            const isAnalista = activeProfile === 'analista';
-
-            Modal.open('Alternar Perfil de Acesso — RAIZ Agro', `
-              <div style="font-size: 13px; color: #475569; margin-bottom: 16px;">
-                Selecione o perfil desejado para alternar entre as visões do sistema:
-              </div>
-
-              <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px;">
-                <!-- Opção 1: Analista (Luiz Felipe) -->
-                <div id="btn-select-analista" style="padding: 14px 16px; border: 2px solid ${isAnalista ? '#0284C7' : '#E2E8F0'}; background: ${isAnalista ? '#F0F9FF' : '#FFFFFF'}; border-radius: 12px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; transition: all 0.2s;">
-                  <div style="display: flex; align-items: center; gap: 12px;">
-                    <div style="width: 42px; height: 42px; border-radius: 50%; background: #E0F2FE; border: 2px solid #0284C7; color: #0369A1; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px;">LF</div>
-                    <div>
-                      <div style="font-weight: 700; font-size: 14px; color: #0F172A;">Luiz Felipe</div>
-                      <div style="font-size: 11px; color: #0284C7; font-weight: 600;">Analista de Telemetria &amp; IoT LoRaWAN</div>
-                      <div style="font-size: 10px; color: #64748B;">Acesso aos 6 menus técnicos: MESH, ThingSpeak, Topologia ESP32 e Modelos ML</div>
-                    </div>
-                  </div>
-                  ${isAnalista ? '<span style="background: #0284C7; color: #FFFFFF; font-size: 10px; font-weight: 700; padding: 4px 8px; border-radius: 6px;">ATIVO</span>' : '<span style="background: #E2E8F0; color: #334155; font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 6px;">Selecionar</span>'}
-                </div>
-
-                <!-- Opção 2: Gestora (Maria Clara) -->
-                <div id="btn-select-gestor" style="padding: 14px 16px; border: 2px solid ${!isAnalista ? '#10B981' : '#E2E8F0'}; background: ${!isAnalista ? '#F0FDF4' : '#FFFFFF'}; border-radius: 12px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; transition: all 0.2s;">
-                  <div style="display: flex; align-items: center; gap: 12px;">
-                    <div style="width: 42px; height: 42px; border-radius: 50%; background: #D1FAE5; border: 2px solid #10B981; color: #065F46; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px;">MC</div>
-                    <div>
-                      <div style="font-weight: 700; font-size: 14px; color: #0F172A;">Maria Clara Souza</div>
-                      <div style="font-size: 11px; color: #059669; font-weight: 600;">Gestora de Operações Agrícolas</div>
-                      <div style="font-size: 10px; color: #64748B;">Visão executiva da safra, talhões com satélite Sentinel-2, irrigação e reefer</div>
-                    </div>
-                  </div>
-                  ${!isAnalista ? '<span style="background: #10B981; color: #FFFFFF; font-size: 10px; font-weight: 700; padding: 4px 8px; border-radius: 6px;">ATIVO</span>' : '<span style="background: #E2E8F0; color: #334155; font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 6px;">Selecionar</span>'}
-                </div>
-              </div>
-            `, () => {
-              auth.logout();
-            }, 'Sair da Conta');
-
-            // Listeners dentro do Modal
-            setTimeout(() => {
-              const optAnalista = document.getElementById('btn-select-analista');
-              const optGestor = document.getElementById('btn-select-gestor');
-
-              if (optAnalista) {
-                optAnalista.addEventListener('click', () => {
-                  auth.setActiveProfile('analista');
-                  Modal.close();
-                  toast.success('Perfil Ativado', 'Bem-vindo(a), Luiz Felipe (Analista IoT & Telemetria).');
-                });
-              }
-
-              if (optGestor) {
-                optGestor.addEventListener('click', () => {
-                  auth.setActiveProfile('gestor');
-                  Modal.close();
-                  toast.success('Perfil Ativado', 'Bem-vindo(a), Maria Clara (Gestora de Operações).');
-                });
-              }
-            }, 100);
+            if (window.location.hash === '#/leituras' && auth.getActiveProfile() !== 'analista') {
+              toast.info('Ciclo Safra 2025/2026', 'Ciclo agrícola ativo: colheita e rendimento consolidado.');
+            } else {
+              toast.info('Ciclo Safra 2026', 'Data base de operação: 22 de setembro de 2026 (Semana 38).');
+            }
           });
         }
 

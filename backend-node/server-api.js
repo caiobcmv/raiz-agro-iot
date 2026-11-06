@@ -67,14 +67,27 @@ function router(req, res) {
     req.on('end', () => {
       let data = {};
       try { data = JSON.parse(body); } catch(e) {}
-      const isAnalista = (data.email && data.email.includes('analista')) || (data.perfil === 'analista');
-      const email = isAnalista ? 'luiz.felipe@raizagro.agr.br' : 'maria.clara@raizagro.agr.br';
+      const email = (data.email || '').trim().toLowerCase();
+
+      // Comparação exata de e-mail (sem includes): apenas os 2 e-mails autorizados
+      if (email !== 'maria.clara@raizagro.agr.br' && email !== 'luiz.felipe@raizagro.agr.br') {
+        return sendJson(res, 401, {
+          detail: 'Credenciais inválidas. E-mail não autorizado.'
+        });
+      }
+
+      const isAnalista = email === 'luiz.felipe@raizagro.agr.br';
       const user = db.prepare('SELECT u.*, p.nome as perfil FROM usuario u JOIN perfil p ON u.id_perfil = p.id_perfil WHERE u.email = ?').get(email);
       return sendJson(res, 200, {
         access_token: 'jwt_local_token_' + (isAnalista ? 'analista' : 'gestor'),
         token_type: 'bearer',
-        user: user,
-        perfil: user ? user.perfil : (isAnalista ? 'Analista IoT & Telemetria' : 'Gestora de Operações')
+        user: {
+          id_usuario: user ? user.id_usuario : (isAnalista ? 2 : 1),
+          nome: user ? user.nome : (isAnalista ? 'Luiz Felipe' : 'Maria Clara'),
+          email: email,
+          perfil: isAnalista ? 'Analista IoT & Telemetria' : 'Gestora de Operações'
+        },
+        perfil: isAnalista ? 'analista' : 'gestor'
       });
     });
     return;

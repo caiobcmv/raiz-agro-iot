@@ -14,7 +14,7 @@ const PAGE_META_GESTOR = {
 
 const PAGE_META_ANALISTA = {
   '#/dashboard':     { h2: 'Visão Geral do Sistema',          sub: 'Gerencie preferências da fazenda, parâmetros de sensores, notificações e acessos.' },
-  '#/sensores':      { h2: 'Sensores & Telemetria de Campo <span class="badge-header-inline">ThingSpeak IoT Sync a cada 5m • Tabela leitura_climatica</span>', sub: 'Série temporal de leitura_climatica, correlação física e auditoria de hardware.' },
+  '#/sensores':      { h2: 'Sensores & Telemetria de Campo <span class="badge-header-inline">ThingSpeak IoT: Sync a cada 5m • Tabela leitura_climatica</span>', sub: '' },
   '#/rede-esp32':    { h2: 'Rede ESP32 & Topologia',          sub: 'Distribuição espacial dos nós LoRaWAN, enlaces de radiofrequência e telemetria US915.' },
   '#/leituras':      { h2: 'Histórico Safra & Correlação',    sub: 'Registro histórico de colheitas, rendimento por talhão e correlação com dados agroclimáticos.' },
   '#/alertas':       { h2: 'Central de Alertas & Incidentes', sub: 'Monitoramento em tempo real de desvios térmicos, estresse hídrico e gatilhos automatizados.' },
@@ -31,13 +31,14 @@ export function renderHeader(title) {
 
   const isDashboard = hash === '#/dashboard';
   const isResumido = localStorage.getItem('DASHBOARD_MODE') !== 'detalhado';
-  const dataFormatada = '22 de setembro de 2026';
+  const isLeiturasGestor = !isAnalista && hash === '#/leituras';
+  const dataFormatada = isLeiturasGestor ? 'Safra 2025/2026' : '22 de setembro de 2026';
 
   return `
     <header class="topbar-header">
       <div class="header-title-wrap">
         <h2>${meta.h2}</h2>
-        <p>${meta.sub}</p>
+        ${meta.sub ? `<p>${meta.sub}</p>` : ''}
       </div>
 
       <div class="header-right-controls">
@@ -64,8 +65,8 @@ export function renderHeader(title) {
           <span class="header-bell-badge">2</span>
         </a>
 
-        <!-- Perfil Header: Alternável entre Maria Clara (Gestora) e Luiz Felipe (Analista) -->
-        <div class="user-profile-header-pill" id="user-profile-header-pill" title="Clique para alternar perfil de usuário">
+        <!-- Perfil Header -->
+        <div class="user-profile-header-pill" id="user-profile-header-pill" style="cursor: default;">
           <div class="avatar-initials-pill" style="background:${profile.avatarBg}; border:1.5px solid ${profile.avatarBorder}; color:${profile.avatarColor};">
             ${profile.iniciais}
           </div>
@@ -73,7 +74,6 @@ export function renderHeader(title) {
             <span class="profile-name">${profile.nome}</span>
             <span class="profile-role">${profile.cargo}</span>
           </div>
-          <i data-lucide="chevron-down" style="width: 14px; height: 14px; color: #71807A; margin-left: 4px;"></i>
         </div>
       </div>
     </header>

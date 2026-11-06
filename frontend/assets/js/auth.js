@@ -1,8 +1,9 @@
 /**
- * GERENCIAMENTO DE ESTADO DE AUTENTICAÇÃO E SESSÃO MULTI-PERFIL
- * Suporta:
- * 1. Perfil Analista: Luiz Felipe (IoT, ESP32, Topologia, Telemetria LoRa, ML Preditivo)
- * 2. Perfil Gestora: Maria Clara (Visão Executiva, Talhões, Cadeia Fria, Produtividade)
+ * GERENCIAMENTO DE ESTADO DE AUTENTICAÇÃO E SESSÃO
+ * O perfil é estritamente definido pela conta autenticada:
+ * - maria.clara@raizagro.agr.br: Gestora de Operações (perfil 'gestor')
+ * - luiz.felipe@raizagro.agr.br: Analista IoT & Telemetria (perfil 'analista')
+ * A troca de perfil só é permitida mediante logout e novo login.
  */
 
 import { api } from './api.js';
@@ -10,8 +11,8 @@ import { toast } from './components/toast.js';
 
 class AuthState {
   constructor() {
-    this.activeProfile = this.loadActiveProfile();
     this.user = this.loadUser();
+    this.activeProfile = this.loadActiveProfile();
   }
 
   loadUser() {
@@ -19,78 +20,42 @@ class AuthState {
       const data = localStorage.getItem('user_data');
       if (data && data !== 'undefined' && data !== 'null') {
         const parsed = JSON.parse(data);
-        if (parsed && typeof parsed === 'object') return parsed;
+        if (parsed && typeof parsed === 'object' && parsed.email) {
+          return parsed;
+        }
       }
     } catch (e) {
-      console.warn('Recuperando sessão padrão...');
+      console.warn('Erro ao carregar usuário da sessão:', e);
     }
-
-    // Usuário padrão inicial caso ainda não haja sessão salva
-    const isAnalista = this.getActiveProfile() === 'analista';
-    const defaultUser = isAnalista ? {
-      id_usuario: 2,
-      nome: 'Luiz Felipe',
-      email: 'luiz.felipe@raizagro.agr.br',
-      perfil: 'Analista IoT & Telemetria'
-    } : {
-      id_usuario: 1,
-      nome: 'Maria Clara',
-      email: 'maria.clara@raizagro.agr.br',
-      perfil: 'Gestora de Operações'
-    };
-
-    try {
-      localStorage.setItem('user_data', JSON.stringify(defaultUser));
-      if (!localStorage.getItem('access_token')) {
-        localStorage.setItem('access_token', 'demo_token_' + (isAnalista ? 'analista' : 'gestor'));
-      }
-    } catch (e) { }
-
-    return defaultUser;
+    return null;
   }
 
   loadActiveProfile() {
-    // Garante que o usuário abra no novo perfil Analista solicitado
-    if (!localStorage.getItem('PERFIL_ANALISTA_V2')) {
-      localStorage.setItem('ACTIVE_PROFILE', 'analista');
-      localStorage.setItem('PERFIL_ANALISTA_V2', 'true');
-      return 'analista';
+    if (this.user) {
+      if (this.user.email === 'luiz.felipe@raizagro.agr.br') return 'analista';
+      if (this.user.email === 'maria.clara@raizagro.agr.br') return 'gestor';
     }
-    return localStorage.getItem('ACTIVE_PROFILE') || 'analista';
+    const stored = localStorage.getItem('ACTIVE_PROFILE');
+    if (stored === 'analista' || stored === 'gestor') {
+      return stored;
+    }
+    return null;
   }
 
   getActiveProfile() {
-    return this.activeProfile || 'analista';
+    if (this.user) {
+      if (this.user.email === 'luiz.felipe@raizagro.agr.br') return 'analista';
+      if (this.user.email === 'maria.clara@raizagro.agr.br') return 'gestor';
+    }
+    const stored = localStorage.getItem('ACTIVE_PROFILE');
+    if (stored === 'analista' || stored === 'gestor') return stored;
+    return 'gestor';
   }
 
   setActiveProfile(profile) {
-    this.activeProfile = profile === 'gestor' ? 'gestor' : 'analista';
+    this.activeProfile = profile === 'analista' ? 'analista' : 'gestor';
     localStorage.setItem('ACTIVE_PROFILE', this.activeProfile);
-
-    // Atualiza dados do usuário correspondente
-    if (this.activeProfile === 'analista') {
-      this.setUser({
-        id_usuario: 2,
-        nome: 'Luiz Felipe',
-        email: 'luiz.felipe@raizagro.agr.br',
-        perfil: 'Analista IoT & Telemetria'
-      });
-    } else {
-      this.setUser({
-        id_usuario: 1,
-        nome: 'Maria Clara',
-        email: 'maria.clara@raizagro.agr.br',
-        perfil: 'Gestora de Operações'
-      });
-    }
-
     window.dispatchEvent(new CustomEvent('profile-changed', { detail: { profile: this.activeProfile } }));
-  }
-
-  toggleProfile() {
-    const next = this.getActiveProfile() === 'analista' ? 'gestor' : 'analista';
-    this.setActiveProfile(next);
-    return next;
   }
 
   getProfileData() {
@@ -117,7 +82,7 @@ class AuthState {
         id: 'gestor',
         nome: 'Maria Clara',
         sobrenome: 'Souza',
-        cargo: 'Gestora',
+        cargo: 'Gestora Técnica',
         tituloCompleto: 'Gestora de Operações',
         iniciais: 'MC',
         email: 'maria.clara@raizagro.agr.br',
@@ -136,27 +101,37 @@ class AuthState {
     if (!this.user) {
       this.user = this.loadUser();
     }
-    return !!this.user;
+    const token = api.getToken() || localStorage.getItem('access_token');
+    return Boolean(this.user && token);
   }
 
   getUser() {
-    return this.user || {
-      nome: this.getProfileData().nome,
-      email: this.getProfileData().email,
-      perfil: this.getProfileData().tituloCompleto
-    };
+    return this.user;
   }
 
   setUser(userData) {
     this.user = userData;
-    localStorage.setItem('user_data', JSON.stringify(userData));
+    if (userData) {
+      localStorage.setItem('user_data', JSON.stringify(userData));
+      if (userData.email === 'luiz.felipe@raizagro.agr.br') {
+        this.setActiveProfile('analista');
+      } else if (userData.email === 'maria.clara@raizagro.agr.br') {
+        this.setActiveProfile('gestor');
+      }
+    } else {
+      localStorage.removeItem('user_data');
+    }
   }
 
   logout() {
     api.clearTokens();
     this.user = null;
+    this.activeProfile = null;
     localStorage.removeItem('user_data');
     localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('ACTIVE_PROFILE');
+    localStorage.removeItem('pending_login_email');
     toast.info('Sessão encerrada', 'Você saiu com segurança do sistema.');
     window.location.hash = '#/login';
   }

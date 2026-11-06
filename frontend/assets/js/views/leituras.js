@@ -490,116 +490,608 @@ export async function renderLeituras() {
   }
 
     /**
-     * 2. TELA DA GESTORA: HISTÓRICO SAFRA EXECUTIVO
+     * 2. TELA DA GESTORA: HISTÓRICO SAFRA EXECUTIVO (FIEL AO DESIGN DE REFERÊNCIA)
      */
     function renderGestorSafra() {
       return `
     <div class="dashboard-canvas apple-animate-in">
-      <!-- 4 KPI Cards Gestora -->
-      <div style="display:grid; grid-template-columns: repeat(4,1fr); gap:18px; margin-bottom:24px;">
-        <!-- Produção Total -->
-        <div class="kpi-analista-card">
-          <div style="font-size:10px; font-weight:700; text-transform:uppercase; color:#64748B; margin-bottom:4px;">PRODUÇÃO TOTAL</div>
-          <div style="font-size:32px; font-weight:800; color:#0F172A; line-height:1;">1.480 <span style="font-size:16px; color:#475569;">ton</span></div>
-          <div class="kpi-bottom-row">
-            <span style="font-size:11px; font-weight:600; color:#059669;">+12% vs ciclo anterior</span>
-            <span style="font-size:10px; color:#94A3B8;">1.480 / 1.680 ton</span>
+
+      <!-- LINHA 1: 4 KPIS -->
+      <div class="hs-kpi-grid">
+        <!-- KPI 1: PRODUÇÃO TOTAL -->
+        <div class="hs-kpi-card">
+          <div class="hs-kpi-top">
+            <span class="hs-kpi-label">PRODUÇÃO TOTAL</span>
+            <div class="hs-kpi-icon-box green">
+              <i data-lucide="archive" style="width: 16px; height: 16px;"></i>
+            </div>
+          </div>
+          <div class="hs-kpi-val">
+            1.480 <span class="hs-kpi-unit">ton</span>
+          </div>
+          <!-- Mini barras crescentes -->
+          <div class="hs-kpi-bars">
+            <div class="hs-kpi-bar" style="height: 8px; background: #A7F3D0;"></div>
+            <div class="hs-kpi-bar" style="height: 11px; background: #6EE7B7;"></div>
+            <div class="hs-kpi-bar" style="height: 14px; background: #34D399;"></div>
+            <div class="hs-kpi-bar" style="height: 17px; background: #10B981;"></div>
+            <div class="hs-kpi-bar" style="height: 20px; background: #059669;"></div>
+            <div class="hs-kpi-bar" style="height: 24px; background: #047857;"></div>
+          </div>
+          <!-- Rodapé -->
+          <div>
+            <div class="hs-kpi-footer">
+              <span style="color: #059669; font-weight: 700;">↑ +12% vs ciclo anterior</span>
+              <span class="hs-kpi-meta" style="font-family: var(--font-mono, monospace); font-size: 11px; color: #64748B;">1.480 / 1.600 ton</span>
+            </div>
+            <div class="hs-kpi-progress">
+              <div class="hs-kpi-progress-fill" style="width: 92.5%;"></div>
+            </div>
           </div>
         </div>
 
-        <!-- Produtividade Média -->
-        <div class="kpi-analista-card">
-          <div style="font-size:10px; font-weight:700; text-transform:uppercase; color:#64748B; margin-bottom:4px;">PRODUTIVIDADE MÉDIA</div>
-          <div style="font-size:32px; font-weight:800; color:#0F172A; line-height:1;">34,2 <span style="font-size:16px; color:#475569;">ton/ha</span></div>
-          <div class="kpi-bottom-row">
-            <span style="font-size:11px; font-weight:600; color:#059669;">+2,2 ton/ha acima da meta</span>
-            <span style="font-size:10px; color:#94A3B8;">Meta: 32,0</span>
+        <!-- KPI 2: PRODUTIVIDADE MÉDIA -->
+        <div class="hs-kpi-card">
+          <div class="hs-kpi-top">
+            <span class="hs-kpi-label">PRODUTIVIDADE MÉDIA</span>
+            <div class="hs-kpi-icon-box green">
+              <i data-lucide="trending-up" style="width: 16px; height: 16px;"></i>
+            </div>
+          </div>
+          <div class="hs-kpi-val">
+            34,2 <span class="hs-kpi-unit">ton/ha</span>
+          </div>
+          <!-- Sparkline de área suave ascendente -->
+          <div class="hs-kpi-sparkline">
+            <svg width="100%" height="24" viewBox="0 0 120 24" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="hs-grad-kpi2" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stop-color="#10B981" stop-opacity="0.35"/>
+                  <stop offset="100%" stop-color="#10B981" stop-opacity="0.0"/>
+                </linearGradient>
+              </defs>
+              <path d="M0,20 Q20,19 40,15 T80,8 T120,3 L120,24 L0,24 Z" fill="url(#hs-grad-kpi2)"/>
+              <path d="M0,20 Q20,19 40,15 T80,8 T120,3" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <!-- Rodapé -->
+          <div>
+            <div class="hs-kpi-footer">
+              <span style="color: #059669; font-weight: 700;">● +2,2 ton/ha acima da meta</span>
+              <span class="hs-kpi-meta" style="font-family: var(--font-mono, monospace); font-size: 11px; color: #64748B;">Meta: 32,0</span>
+            </div>
+            <div class="hs-kpi-progress">
+              <div class="hs-kpi-progress-fill" style="width: 100%;"></div>
+            </div>
           </div>
         </div>
 
-            <!-- Eficiência Hídrica -->
-            <div class="kpi-analista-card">
-              <div style="font-size:10px; font-weight:700; text-transform:uppercase; color:#64748B; margin-bottom:4px;">EFICIÊNCIA HÍDRICA</div>
-              <div style="font-size:32px; font-weight:800; color:#0284C7; line-height:1;">4,1 <span style="font-size:16px; color:#475569;">m³/ton</span></div>
-              <div class="kpi-bottom-row">
-                <span style="font-size:11px; font-weight:600; color:#0284C7;">Consumo Otimizado (-8.4%)</span>
-                <span style="font-size:10px; color:#94A3B8;">42 m³/ha poupados</span>
-              </div>
+        <!-- KPI 3: EFICIÊNCIA HÍDRICA -->
+        <div class="hs-kpi-card">
+          <div class="hs-kpi-top">
+            <span class="hs-kpi-label">EFICIÊNCIA HÍDRICA</span>
+            <div class="hs-kpi-icon-box blue">
+              <i data-lucide="droplet" style="width: 16px; height: 16px;"></i>
             </div>
-
-                  <!-- Grau Brix Médio -->
-                  <div class="kpi-analista-card">
-                    <div style="font-size:10px; font-weight:700; text-transform:uppercase; color:#64748B; margin-bottom:4px;">GRAU BRIX MÉDIO</div>
-                    <div style="font-size:32px; font-weight:800; color:#059669; line-height:1;">18,2° <span style="font-size:16px; color:#475569;">Brix</span></div>
-                    <div class="kpi-bottom-row">
-                      <span style="font-size:11px; font-weight:600; color:#059669;">Padrão Exportação A+</span>
-                      <span style="font-size:10px; color:#94A3B8;">Ideal: &ge; 17.5°</span>
-                    </div>
-                  </div>
-                </div>
-
-      <!-- Comparativo Visual Gestora -->
-      <div class="analista-chart-box">
-        <h3 style="font-size: 16px; font-weight: 700; color: #0F172A; margin-bottom: 12px;">Comparativo Visual de Rendimento entre Safras</h3>
-        <div style="display:flex; flex-direction:column; gap:12px;">
-          <div>
-            <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
-              <span>Safra 2023/2024</span>
-              <span>28,4 ton/ha • 182 m³/ha</span>
-            </div>
-            <div style="height:16px; background:#10B981; border-radius:4px; width:70%;"></div>
           </div>
-          <div>
-            <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
-              <span>Safra 2024/2025</span>
-              <span>30,5 ton/ha • 168 m³/ha</span>
-            </div>
-            <div style="height:16px; background:#10B981; border-radius:4px; width:78%;"></div>
+          <div class="hs-kpi-val" style="color: #0284C7;">
+            4,1 <span class="hs-kpi-unit">m³/ton</span>
           </div>
-          <div style="background:#FAFDFB; border:1px solid #10B981; padding:8px; border-radius:6px;">
-            <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px; font-weight:700; color:#047857;">
-              <span>Safra 2025/2026 (Atual) [CICLO ATIVO]</span>
-              <span>34,2 ton/ha • 140 m³/ha</span>
+          <!-- Pílula e variação -->
+          <div class="hs-kpi-pill-row">
+            <span class="hs-tag blue">CONSUMO OTIMIZADO</span>
+            <span style="color: #0284C7; font-size: 11px; font-weight: 700;">↓ -8.4% aplicado</span>
+          </div>
+          <!-- Barra segmentada -->
+          <div class="hs-kpi-seg-bar">
+            <div style="flex: 4.5; background: #0284C7; border-radius: 2px;"></div>
+            <div style="flex: 3.5; background: #38BDF8; border-radius: 2px;"></div>
+            <div style="flex: 2; background: #E2E8F0; border-radius: 2px;"></div>
+          </div>
+          <!-- Rodapé em mono cinza -->
+          <div class="hs-kpi-footer" style="margin-bottom: 0;">
+            <span style="font-family: var(--font-mono, monospace); font-size: 10px; color: #94A3B8;">Alta Eficiência</span>
+            <span style="font-family: var(--font-mono, monospace); font-size: 10px; color: #94A3B8;">-42 m³/ha vs 23/24</span>
+          </div>
+        </div>
+
+        <!-- KPI 4: GRAU BRIX MÉDIO -->
+        <div class="hs-kpi-card">
+          <div class="hs-kpi-top">
+            <span class="hs-kpi-label">GRAU BRIX MÉDIO</span>
+            <div class="hs-kpi-icon-box green">
+              <i data-lucide="badge-check" style="width: 16px; height: 16px;"></i>
             </div>
-            <div style="height:20px; background:#059669; border-radius:4px; width:90%; color:#fff; font-size:10px; display:flex; align-items:center; padding-left:8px;">+12.1% Produtividade</div>
+          </div>
+          <div class="hs-kpi-val" style="color: #059669;">
+            18,2° <span class="hs-kpi-unit">Brix</span>
+          </div>
+          <!-- Pílula e ideal -->
+          <div class="hs-kpi-pill-row">
+            <span class="hs-tag darkgreen">PADRÃO EXPORTAÇÃO A+</span>
+            <span style="color: #64748B; font-size: 11px;">Ideal: ≥17,5°</span>
+          </div>
+          <!-- Barra escala -->
+          <div class="hs-kpi-scale-bar"></div>
+          <div class="hs-kpi-scale-labels">
+            <span>14° Mesa</span>
+            <span>16° Premium</span>
+            <span style="color: #059669; font-weight: 700;">18.2° Atual</span>
           </div>
         </div>
       </div>
+
+      <!-- LINHA 2: 2/3 + 1/3 -->
+      <div class="hs-split-grid">
+        <!-- ESQUERDA: Comparativo Visual de Rendimento entre Safras -->
+        <div class="hs-card">
+          <div class="hs-card-header">
+            <h3 class="hs-card-title">
+              <span class="hs-dot-green"></span>
+              Comparativo Visual de Rendimento entre Safras
+            </h3>
+            <div style="display: flex; align-items: center; gap: 16px; font-size: 11px; color: #475569;">
+              <span style="display: flex; align-items: center; gap: 6px;">
+                <span style="width: 8px; height: 8px; border-radius: 2px; background: #10B981;"></span>
+                Produtividade (ton/ha)
+              </span>
+              <span style="display: flex; align-items: center; gap: 6px;">
+                <span style="width: 8px; height: 8px; border-radius: 2px; background: #0284C7;"></span>
+                Consumo Água (m³/ha)
+              </span>
+            </div>
+          </div>
+
+          <!-- Bloco 1: Safra 2023/2024 -->
+          <div class="hs-season-block">
+            <div class="hs-season-header">
+              <span style="font-weight: 700; color: #0F172A;">Safra 2023/2024</span>
+              <span style="font-family: var(--font-mono, monospace); color: #64748B; font-size: 11px;">28,4 ton/ha • 182 m³/ha</span>
+            </div>
+            <div class="hs-season-track">
+              <div class="hs-season-fill green" style="width: 50%;">
+                <span>Produtividade</span>
+                <span style="font-family: var(--font-mono, monospace);">28,4 ton/ha</span>
               </div>
-              `;
-}
+            </div>
+            <div class="hs-season-track">
+              <div class="hs-season-fill blue" style="width: 63%;">
+                <span>Consumo Hídrico</span>
+                <span style="font-family: var(--font-mono, monospace);">182 m³/ha</span>
+              </div>
+            </div>
+          </div>
 
-              export function setupLeiturasEvents() {
+          <!-- Bloco 2: Safra 2024/2025 -->
+          <div class="hs-season-block">
+            <div class="hs-season-header">
+              <span style="font-weight: 700; color: #0F172A;">Safra 2024/2025</span>
+              <span style="font-family: var(--font-mono, monospace); color: #64748B; font-size: 11px;">30,5 ton/ha • 168 m³/ha</span>
+            </div>
+            <div class="hs-season-track">
+              <div class="hs-season-fill green" style="width: 53%;">
+                <span>Produtividade</span>
+                <span style="font-family: var(--font-mono, monospace);">30,5 ton/ha</span>
+              </div>
+            </div>
+            <div class="hs-season-track">
+              <div class="hs-season-fill blue" style="width: 58%;">
+                <span>Consumo Hídrico</span>
+                <span style="font-family: var(--font-mono, monospace);">168 m³/ha</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bloco 3: Safra 2025/2026 (Atual) [CICLO ATIVO] -->
+          <div class="hs-season-block active">
+            <div class="hs-season-header">
+              <span style="font-weight: 700; color: #065F46; display: flex; align-items: center; gap: 8px;">
+                Safra 2025/2026 (Atual)
+                <span style="background: #183D2E; color: #FFFFFF; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px; letter-spacing: 0.3px;">CICLO ATIVO</span>
+              </span>
+              <span style="font-family: var(--font-mono, monospace); font-weight: 700; color: #065F46; font-size: 11px;">34,2 ton/ha • 140 m³/ha</span>
+            </div>
+            <div class="hs-season-track">
+              <div class="hs-season-fill green-dark" style="width: 60%;">
+                <span>↑ Produtividade</span>
+                <span style="font-family: var(--font-mono, monospace);">34,2 ton/ha (+12.1%)</span>
+              </div>
+            </div>
+            <div class="hs-season-track blue-tint">
+              <div class="hs-season-fill blue" style="width: 49%;">
+                <span>💧 Consumo Reduzido</span>
+                <span style="font-family: var(--font-mono, monospace);">140 m³/ha (-16.7%)</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3 mini-cards em linha -->
+          <div class="hs-season-kpis">
+            <div class="hs-season-mini">
+              <div class="hs-kpi-icon-box green">
+                <i data-lucide="gauge" style="width: 16px; height: 16px;"></i>
+              </div>
+              <div>
+                <div style="font-size: 13px; font-weight: 800; color: #0F172A;">+19.8% Eficiência</div>
+                <div style="font-size: 9px; font-weight: 700; color: #64748B; text-transform: uppercase;">PRODUTIVIDADE X INSUMO</div>
+              </div>
+            </div>
+            <div class="hs-season-mini">
+              <div class="hs-kpi-icon-box blue">
+                <i data-lucide="droplet" style="width: 16px; height: 16px;"></i>
+              </div>
+              <div>
+                <div style="font-size: 13px; font-weight: 800; color: #0F172A;">42 m³/ha Poupados</div>
+                <div style="font-size: 9px; font-weight: 700; color: #64748B; text-transform: uppercase;">GESTÃO IOT LORA</div>
+              </div>
+            </div>
+            <div class="hs-season-mini">
+              <div class="hs-kpi-icon-box green">
+                <i data-lucide="award" style="width: 16px; height: 16px;"></i>
+              </div>
+              <div>
+                <div style="font-size: 13px; font-weight: 800; color: #0F172A;">94.2 / 100</div>
+                <div style="font-size: 9px; font-weight: 700; color: #64748B; text-transform: uppercase;">ÍNDICE QUALIDADE</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- DIREITA: Classificação Comercial -->
+        <div class="hs-card" style="display: flex; flex-direction: column;">
+          <div class="hs-card-header">
+            <h3 class="hs-card-title">Classificação Comercial</h3>
+            <span class="hs-pill-badge gray">VOLUME TOTAL</span>
+          </div>
+
+          <!-- Donut SVG -->
+          <div class="hs-donut-wrap">
+            <svg width="150" height="150" viewBox="0 0 160 160" style="transform: rotate(-90deg);">
+              <!-- Fundo base sutil -->
+              <circle cx="80" cy="80" r="58" fill="none" stroke="#F1F5F9" stroke-width="16" />
+              <!-- Segmento 1: Verde 65% (circumference ~364.4 => 65% is 236.8) -->
+              <circle cx="80" cy="80" r="58" fill="none" stroke="#10B981" stroke-width="16"
+                stroke-dasharray="233 131" stroke-dashoffset="0" />
+              <!-- Segmento 2: Azul 25% (25% is 91.1) -->
+              <circle cx="80" cy="80" r="58" fill="none" stroke="#0284C7" stroke-width="16"
+                stroke-dasharray="87 277" stroke-dashoffset="-237" />
+              <!-- Segmento 3: Cinza-azulado 10% (10% is 36.4) -->
+              <circle cx="80" cy="80" r="58" fill="none" stroke="#94A3B8" stroke-width="16"
+                stroke-dasharray="32 332" stroke-dashoffset="-328" />
+            </svg>
+            <div class="hs-donut-center">
+              <div style="font-size: 26px; font-weight: 800; color: #0F172A; line-height: 1; font-family: var(--font-heading, 'Plus Jakarta Sans', sans-serif);">65%</div>
+              <div style="font-size: 9px; font-weight: 700; color: #059669; letter-spacing: 0.5px; margin-top: 3px;">EXPORTAÇÃO</div>
+            </div>
+          </div>
+
+          <!-- Legenda em 3 linhas -->
+          <div style="display: flex; flex-direction: column; gap: 10px; margin: 14px 0 18px;">
+            <div class="hs-legend-item">
+              <span style="display: flex; align-items: center; color: #334155;">
+                <span class="hs-legend-bullet" style="background: #10B981;"></span>
+                Exportação (Europa/EUA)
+              </span>
+              <span style="font-weight: 700; color: #0F172A;">65% <span style="font-family: var(--font-mono, monospace); font-weight: 400; color: #94A3B8; font-size: 11px;">(962 ton)</span></span>
+            </div>
+            <div class="hs-legend-item">
+              <span style="display: flex; align-items: center; color: #334155;">
+                <span class="hs-legend-bullet" style="background: #0284C7;"></span>
+                Mercado Interno
+              </span>
+              <span style="font-weight: 700; color: #0F172A;">25% <span style="font-family: var(--font-mono, monospace); font-weight: 400; color: #94A3B8; font-size: 11px;">(370 ton)</span></span>
+            </div>
+            <div class="hs-legend-item">
+              <span style="display: flex; align-items: center; color: #334155;">
+                <span class="hs-legend-bullet" style="background: #94A3B8;"></span>
+                Processamento / Sucos
+              </span>
+              <span style="font-weight: 700; color: #0F172A;">10% <span style="font-family: var(--font-mono, monospace); font-weight: 400; color: #94A3B8; font-size: 11px;">(148 ton)</span></span>
+            </div>
+          </div>
+
+          <!-- Rodapé: GlobalG.A.P. Compliance -->
+          <div class="hs-compliance-box">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="shield-check" style="width: 18px; height: 18px; color: #16A34A;"></i>
+              <div>
+                <div style="font-size: 12px; font-weight: 700; color: #14532D;">GlobalG.A.P. Compliance</div>
+                <div style="font-size: 9px; font-weight: 700; color: #15803D; font-family: var(--font-mono, monospace);">AUDITADO LORAWAN</div>
+              </div>
+            </div>
+            <span style="background: #15803D; color: #FFFFFF; font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 4px;">100% OK</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- LINHA 3: 2/3 + 1/3 -->
+      <div class="hs-split-grid">
+        <!-- ESQUERDA: Desempenho por Talhão -->
+        <div class="hs-card">
+          <div class="hs-card-header" style="margin-bottom: 12px;">
+            <div>
+              <h3 class="hs-card-title">Desempenho por Talhão</h3>
+              <p class="hs-card-subtitle">Produtividade aferida, hídrico e maturidade individualizada</p>
+            </div>
+            <span class="hs-pill-badge gray">4 talhões monitorados</span>
+          </div>
+
+          <div class="hs-table-wrap">
+            <table class="hs-table">
+              <thead>
+                <tr>
+                  <th>TALHÃO</th>
+                  <th>VARIEDADE</th>
+                  <th>ÁREA</th>
+                  <th>PRODUTIVIDADE REAL</th>
+                  <th>CONSUMO ÁGUA</th>
+                  <th>BRIX</th>
+                  <th>STATUS</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Linha 1: A1 -->
+                <tr>
+                  <td>
+                    <span style="background: #ECFDF5; color: #047857; font-weight: 800; font-size: 11px; padding: 3px 8px; border-radius: 4px; display: inline-block;">Talhão A1</span>
+                  </td>
+                  <td style="font-weight: 600;">Uva Vitória</td>
+                  <td style="font-family: var(--font-mono, monospace); color: #475569;">12.5 ha</td>
+                  <td>
+                    <span style="font-family: var(--font-mono, monospace); font-weight: 700;">36.8 ton/ha</span>
+                    <span style="display: inline-block; width: 44px; height: 5px; background: #10B981; border-radius: 3px; vertical-align: middle; margin-left: 8px;"></span>
+                  </td>
+                  <td style="font-family: var(--font-mono, monospace); color: #0284C7; font-weight: 600;">
+                    💧 3.9 m³/ton
+                  </td>
+                  <td>
+                    <span style="background: #ECFDF5; color: #047857; font-weight: 700; font-family: var(--font-mono, monospace); font-size: 11px; padding: 2px 8px; border-radius: 12px;">19.2°</span>
+                  </td>
+                  <td>
+                    <span style="background: #ECFDF5; color: #059669; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 12px; display: inline-flex; align-items: center; gap: 4px;">
+                      <span style="width: 5px; height: 5px; border-radius: 50%; background: #059669;"></span>
+                      Concluído
+                    </span>
+                  </td>
+                </tr>
+
+                <!-- Linha 2: A2 -->
+                <tr>
+                  <td>
+                    <span style="background: #ECFDF5; color: #047857; font-weight: 800; font-size: 11px; padding: 3px 8px; border-radius: 4px; display: inline-block;">Talhão A2</span>
+                  </td>
+                  <td style="font-weight: 600;">Uva Crimson</td>
+                  <td style="font-family: var(--font-mono, monospace); color: #475569;">10.0 ha</td>
+                  <td>
+                    <span style="font-family: var(--font-mono, monospace); font-weight: 700;">34.5 ton/ha</span>
+                    <span style="display: inline-block; width: 40px; height: 5px; background: #10B981; border-radius: 3px; vertical-align: middle; margin-left: 8px;"></span>
+                  </td>
+                  <td style="font-family: var(--font-mono, monospace); color: #0284C7; font-weight: 600;">
+                    💧 4.1 m³/ton
+                  </td>
+                  <td>
+                    <span style="background: #ECFDF5; color: #047857; font-weight: 700; font-family: var(--font-mono, monospace); font-size: 11px; padding: 2px 8px; border-radius: 12px;">18.5°</span>
+                  </td>
+                  <td>
+                    <span style="background: #ECFDF5; color: #059669; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 12px; display: inline-flex; align-items: center; gap: 4px;">
+                      <span style="width: 5px; height: 5px; border-radius: 50%; background: #059669;"></span>
+                      Concluído
+                    </span>
+                  </td>
+                </tr>
+
+                <!-- Linha 3: B1 -->
+                <tr>
+                  <td>
+                    <span style="background: #FEF3C7; color: #B45309; font-weight: 800; font-size: 11px; padding: 3px 8px; border-radius: 4px; display: inline-block;">Talhão B1</span>
+                  </td>
+                  <td style="font-weight: 600;">Uva Thompson</td>
+                  <td style="font-family: var(--font-mono, monospace); color: #475569;">14.0 ha</td>
+                  <td>
+                    <span style="font-family: var(--font-mono, monospace); font-weight: 700;">31.2 ton/ha</span>
+                    <span style="display: inline-block; width: 36px; height: 5px; background: #F59E0B; border-radius: 3px; vertical-align: middle; margin-left: 8px;"></span>
+                  </td>
+                  <td style="font-family: var(--font-mono, monospace); color: #0284C7; font-weight: 600;">
+                    💧 4.4 m³/ton
+                  </td>
+                  <td>
+                    <span style="background: #FEF3C7; color: #B45309; font-weight: 700; font-family: var(--font-mono, monospace); font-size: 11px; padding: 2px 8px; border-radius: 12px;">17.8°</span>
+                  </td>
+                  <td>
+                    <span style="background: #FEF3C7; color: #D97706; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 12px; display: inline-flex; align-items: center; gap: 4px;">
+                      <span style="width: 5px; height: 5px; border-radius: 50%; background: #D97706;"></span>
+                      Em Colheita
+                    </span>
+                  </td>
+                </tr>
+
+                <!-- Linha 4: B2 -->
+                <tr>
+                  <td>
+                    <span style="background: #F1F5F9; color: #475569; font-weight: 800; font-size: 11px; padding: 3px 8px; border-radius: 4px; display: inline-block;">Talhão B2</span>
+                  </td>
+                  <td style="font-weight: 600;">Uva Autumn Crisp</td>
+                  <td style="font-family: var(--font-mono, monospace); color: #475569;">8.5 ha</td>
+                  <td>
+                    <span style="font-family: var(--font-mono, monospace); font-weight: 700;">35.0 ton/ha</span>
+                    <span style="display: inline-block; width: 42px; height: 5px; background: #10B981; border-radius: 3px; vertical-align: middle; margin-left: 8px;"></span>
+                  </td>
+                  <td style="font-family: var(--font-mono, monospace); color: #0284C7; font-weight: 600;">
+                    💧 4.0 m³/ton
+                  </td>
+                  <td>
+                    <span style="background: #F1F5F9; color: #475569; font-weight: 700; font-family: var(--font-mono, monospace); font-size: 11px; padding: 2px 8px; border-radius: 12px;">18.0°</span>
+                  </td>
+                  <td>
+                    <span style="background: #F1F5F9; color: #64748B; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 12px; display: inline-flex; align-items: center; gap: 4px;">
+                      <span style="width: 5px; height: 5px; border-radius: 50%; background: #64748B;"></span>
+                      Planejado
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Rodapé Tabela -->
+          <div class="hs-table-footer">
+            <div>
+              Área consolidada: <strong style="color: #0F172A; font-family: var(--font-mono, monospace);">45.0 hectares</strong>
+            </div>
+            <div class="hs-pagination">
+              <button class="hs-page-btn" style="opacity: 0.6; cursor: default;">Anterior</button>
+              <button class="hs-page-btn active">1</button>
+              <button class="hs-page-btn">2</button>
+              <button class="hs-page-btn">Próximo</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- DIREITA: Correlação IoT -->
+        <div class="hs-card" style="display: flex; flex-direction: column;">
+          <div class="hs-card-header" style="margin-bottom: 12px;">
+            <h3 class="hs-card-title">
+              <i data-lucide="radio" style="width: 16px; height: 16px; color: #10B981;"></i>
+              Correlação IoT
+            </h3>
+            <span class="hs-pill-badge green">MESH ATIVA</span>
+          </div>
+
+          <!-- Sub-card 1: Umidade Solo (VWC) -->
+          <div class="hs-iot-subcard">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <i data-lucide="waves" style="width: 16px; height: 16px; color: #0284C7;"></i>
+                <div>
+                  <div style="font-weight: 700; font-size: 12px; color: #0F172A;">Umidade Solo (VWC)</div>
+                  <div style="font-family: var(--font-mono, monospace); font-size: 10px; color: #64748B;">FDR 30cm & 60cm</div>
+                </div>
+              </div>
+              <span style="background: #ECFDF5; color: #047857; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;">+14% Brix</span>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; font-size: 11px; margin-top: 6px;">
+              <span style="color: #64748B;">Faixa de Maturação Ideal</span>
+              <span style="font-family: var(--font-mono, monospace); font-weight: 700; color: #0F172A;">28 – 32% VWC</span>
+            </div>
+            <div class="hs-range-track">
+              <div class="hs-range-fill" style="left: 35%; width: 40%;"></div>
+              <div class="hs-range-marker" style="left: 56%;"></div>
+            </div>
+
+            <!-- Sparkline de área suave -->
+            <div style="width: 100%; height: 22px;">
+              <svg width="100%" height="22" viewBox="0 0 100 22" preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id="hs-grad-vwc" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#10B981" stop-opacity="0.3"/>
+                    <stop offset="100%" stop-color="#10B981" stop-opacity="0.0"/>
+                  </linearGradient>
+                </defs>
+                <path d="M0,16 Q25,8 50,14 T100,6 L100,22 L0,22 Z" fill="url(#hs-grad-vwc)"/>
+                <path d="M0,16 Q25,8 50,14 T100,6" fill="none" stroke="#10B981" stroke-width="1.8" stroke-linecap="round"/>
+              </svg>
+            </div>
+          </div>
+
+          <!-- Sub-card 2: Risco Mildio & Molhamento -->
+          <div class="hs-iot-subcard">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <i data-lucide="leaf" style="width: 16px; height: 16px; color: #059669;"></i>
+                <div>
+                  <div style="font-weight: 700; font-size: 12px; color: #0F172A;">Risco Mildio & Molhamento</div>
+                  <div style="font-family: var(--font-mono, monospace); font-size: 10px; color: #64748B;">Sensor Dielétrico Foliar</div>
+                </div>
+              </div>
+              <span style="background: #ECFDF5; color: #047857; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;">-92% Perdas</span>
+            </div>
+
+            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px; padding: 6px 10px; display: flex; justify-content: space-between; align-items: center; margin: 8px 0;">
+              <span style="color: #059669; font-weight: 700; font-size: 11px; display: flex; align-items: center; gap: 5px;">
+                <span style="width: 6px; height: 6px; border-radius: 50%; background: #059669;"></span>
+                Baixo Risco (0%)
+              </span>
+              <span style="font-family: var(--font-mono, monospace); font-size: 10px; color: #64748B;">Lâmina d'água &lt; 4h</span>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; font-size: 11px; margin-top: 4px;">
+              <span style="color: #64748B;">Histórico 24h</span>
+              <span style="color: #059669; font-weight: 700;">Sem Infecção</span>
+            </div>
+
+            <div class="hs-ticks-strip">
+              ${Array(24).fill('<div class="hs-tick"></div>').join('')}
+            </div>
+          </div>
+
+          <!-- Botão largo Série Histórica de Telemetria -->
+          <button class="hs-btn-telemetria" id="hs-btn-telemetria">
+            <span>Série Histórica de Telemetria</span>
+            <i data-lucide="arrow-right" style="width: 16px; height: 16px;"></i>
+          </button>
+        </div>
+      </div>
+
+    </div>
+    `;
+    }
+
+export function setupLeiturasEvents() {
   const btnSync = document.getElementById('btn-sync-safra');
-              if (btnSync) {
-                btnSync.addEventListener('click', () => {
-                  toast.info('Sincronização Safra', 'Consultando dados de colheita dos talhões homologados...');
-                  setTimeout(() => {
-                    toast.success('Safra Sincronizada', 'Métricas consolidadas com canais LoRaWAN US915.');
-                  }, 800);
-                });
+  if (btnSync) {
+    btnSync.addEventListener('click', () => {
+      toast.info('Sincronização Safra', 'Consultando dados de colheita dos talhões homologados...');
+      setTimeout(() => {
+        toast.success('Safra Sincronizada', 'Métricas consolidadas com canais LoRaWAN US915.');
+      }, 800);
+    });
   }
 
-              const btnExport = document.getElementById('btn-export-safra');
-              if (btnExport) {
-                btnExport.addEventListener('click', () => {
-                  toast.success('Download Concluído', 'Relatório executivo da safra 2025/2026 gerado com sucesso.');
-                });
+  const btnExport = document.getElementById('btn-export-safra');
+  if (btnExport) {
+    btnExport.addEventListener('click', () => {
+      toast.success('Download Concluído', 'Relatório executivo da safra 2025/2026 gerado com sucesso.');
+    });
   }
 
-              const btnLotes = document.getElementById('btn-export-lotes-analista');
-              if (btnLotes) {
-                btnLotes.addEventListener('click', () => {
-                  toast.success('Exportação de Lotes', 'Planilha detalhada de lotes (A1, A2, B1, B2) exportada.');
-                });
+  const btnLotes = document.getElementById('btn-export-lotes-analista');
+  if (btnLotes) {
+    btnLotes.addEventListener('click', () => {
+      toast.success('Exportação de Lotes', 'Planilha detalhada de lotes (A1, A2, B1, B2) exportada.');
+    });
   }
 
-  // Filtros de Talhão
+  // Filtros de Talhão (Analista)
   document.querySelectorAll('[data-safra-filter]').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                  document.querySelectorAll('[data-safra-filter]').forEach(b => b.classList.remove('active'));
-                  e.currentTarget.classList.add('active');
-                  toast.info('Filtro de Safra', `Exibindo indicadores para: ${e.currentTarget.innerText}`);
-                });
+    btn.addEventListener('click', (e) => {
+      document.querySelectorAll('[data-safra-filter]').forEach(b => b.classList.remove('active'));
+      e.currentTarget.classList.add('active');
+      toast.info('Filtro de Safra', `Exibindo indicadores para: ${e.currentTarget.innerText}`);
+    });
   });
+
+  // Evento botão Gestora Série Histórica
+  const btnTelemetria = document.getElementById('hs-btn-telemetria');
+  if (btnTelemetria) {
+    btnTelemetria.addEventListener('click', () => {
+      toast.info('Série Histórica', 'Telemetria e dados agroclimáticos dos últimos 90 dias.');
+    });
+  }
+
+  // Paginação visual da tabela Gestora
+  document.querySelectorAll('.hs-page-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      document.querySelectorAll('.hs-page-btn').forEach(b => b.classList.remove('active'));
+      e.currentTarget.classList.add('active');
+    });
+  });
+
+  if (window.lucide) {
+    try {
+      window.lucide.createIcons();
+    } catch (e) {
+      console.warn('Erro ao carregar ícones lucide:', e);
+    }
+  }
 }

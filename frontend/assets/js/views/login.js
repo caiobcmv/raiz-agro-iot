@@ -40,8 +40,7 @@ export function renderLogin() {
                   type="email" 
                   id="login-email" 
                   class="login-input" 
-                  placeholder="gestao@frutas.agro.br" 
-                  value="gestao@frutas.agro.br"
+                  placeholder="exemplo@raizagro.agr.br" 
                   required
                 >
               </div>
@@ -62,7 +61,6 @@ export function renderLogin() {
                   id="login-password" 
                   class="login-input" 
                   placeholder="••••••••••••" 
-                  value="senha12345"
                   required
                 >
                 <button type="button" class="login-toggle-password" id="toggle-password" title="Alternar visibilidade">
@@ -98,12 +96,6 @@ export function renderLogin() {
               <path d="m9 12 2 2 4-4"/>
             </svg>
             <span>Acesso via MFA (Multi-Factor Authentication)</span>
-          </div>
-
-          <!-- Dica de demonstração para facilitar avaliação -->
-          <div class="login-demo-helper">
-            <div>💡 <strong>Dica de Acesso Rápido:</strong> As credenciais já vêm preenchidas. Clique em <strong>ENTRAR</strong> para testar a validação e o fluxo de 2FA.</div>
-            <div style="font-size: 11px; opacity: 0.85;">No modo MFA, qualquer código de 6 dígitos (ex: <code>123456</code>) libera o acesso.</div>
           </div>
 
         </div>
@@ -147,86 +139,60 @@ export function setupLoginEvents() {
     });
   }
 
-      // Acesso direto por perfil
-      const btnAnalista = document.getElementById('btn-login-analista');
-      if (btnAnalista) {
-        btnAnalista.addEventListener('click', () => {
-          api.setTokens('demo_jwt_token_analista', 'demo_refresh_token_analista');
-          auth.setActiveProfile('analista');
-          auth.setUser({
-            id_usuario: 2,
-            nome: 'Luiz Felipe',
-            email: 'luiz.felipe@raizagro.agr.br',
-            perfil: 'Analista IoT & Telemetria'
+  // Submissão do formulário
+  if (form) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('login-email').value.trim().toLowerCase();
+      const senha = passwordInput.value;
+
+      if (!email || !senha) {
+        toast.warning('Atenção', 'Preencha o e-mail e a senha.');
+        return;
+      }
+
+      // Validação estrita de e-mail por comparação exata (sem includes)
+      if (email !== 'maria.clara@raizagro.agr.br' && email !== 'luiz.felipe@raizagro.agr.br') {
+        toast.error('Acesso Negado', 'E-mail não autorizado. Apenas usuários cadastrados podem acessar o sistema.');
+        return;
+      }
+
+      submitBtn.classList.add('loading');
+      submitBtn.textContent = 'AUTENTICANDO...';
+
+      try {
+        const response = await api.login(email, senha);
+
+        if (response.access_token) {
+          api.setTokens(response.access_token, response.refresh_token);
+          const isAnalista = email === 'luiz.felipe@raizagro.agr.br';
+          auth.setActiveProfile(isAnalista ? 'analista' : 'gestor');
+          auth.setUser(response.user || {
+            id_usuario: isAnalista ? 2 : 1,
+            nome: isAnalista ? 'Luiz Felipe' : 'Maria Clara',
+            email: email,
+            perfil: isAnalista ? 'Analista IoT & Telemetria' : 'Gestora de Operações'
           });
-          toast.success('Acesso Concedido', 'Entrando como Luiz Felipe (Analista)...');
+          toast.success('Bem-vindo(a)!', `Acesso autorizado como ${isAnalista ? 'Luiz Felipe' : 'Maria Clara'}.`);
           window.location.hash = '#/dashboard';
-        });
+        } else if (response.requer_2fa) {
+          toast.success('Credenciais válidas', 'Código de verificação 2FA gerado.');
+          open2FAModal(response.token_temporario, response.email_mascarado, email);
+        }
+      } catch (err) {
+        toast.error('Falha de Login', err.message || 'E-mail ou senha incorretos.');
+      } finally {
+        submitBtn.classList.remove('loading');
+        submitBtn.textContent = 'ENTRAR';
       }
-
-      const btnGestor = document.getElementById('btn-login-gestor');
-      if (btnGestor) {
-        btnGestor.addEventListener('click', () => {
-          api.setTokens('demo_jwt_token_gestor', 'demo_refresh_token_gestor');
-          auth.setActiveProfile('gestor');
-          auth.setUser({
-            id_usuario: 1,
-            nome: 'Maria Clara',
-        email: 'maria.clara@raizagro.agr.br',
-            perfil: 'Gestora de Operações'
-          });
-          toast.success('Acesso Concedido', 'Entrando como Maria Clara (Gestora)...');
-          window.location.hash = '#/dashboard';
-        });
-      }
-
-      // Submissão do formulário
-      if (form) {
-        form.addEventListener('submit', async (e) => {
-          e.preventDefault();
-          const email = document.getElementById('login-email').value.trim();
-          const senha = passwordInput.value;
-
-          if (!email || !senha) {
-            toast.warning('Atenção', 'Preencha o e-mail e a senha.');
-            return;
-          }
-
-          submitBtn.classList.add('loading');
-          submitBtn.textContent = 'AUTENTICANDO...';
-
-          try {
-            const response = await api.login(email, senha);
-
-            if (response.access_token) {
-              api.setTokens(response.access_token, response.refresh_token);
-              const isAnalistaEmail = email.includes('analista') || email.includes('felipe');
-              auth.setActiveProfile(isAnalistaEmail ? 'analista' : 'gestor');
-              auth.setUser({
-                nome: isAnalistaEmail ? 'Luiz Felipe' : 'Maria Clara',
-                email: email,
-                perfil: isAnalistaEmail ? 'Analista IoT & Telemetria' : 'Gestora de Operações'
-              });
-              toast.success('Bem-vindo(a)!', `Acesso autorizado como ${isAnalistaEmail ? 'Luiz Felipe' : 'Maria Clara'}.`);
-              window.location.hash = '#/dashboard';
-            } else if (response.requer_2fa) {
-              toast.success('Credenciais válidas', 'Código de verificação 2FA gerado.');
-              open2FAModal(response.token_temporario, response.email_mascarado);
-            }
-          } catch (err) {
-            toast.error('Falha de Login', err.message || 'E-mail ou senha incorretos.');
-          } finally {
-            submitBtn.classList.remove('loading');
-            submitBtn.textContent = 'ENTRAR';
-          }
-        });
-      }
-    }
+    });
+  }
+}
 
 /**
  * MODAL DE SEGUNDO FATOR DE AUTENTICAÇÃO (MFA / 2FA)
  */
-function open2FAModal(tokenTemporario, emailMascarado) {
+function open2FAModal(tokenTemporario, emailMascarado, email) {
         const modalWrap = document.createElement('div');
         modalWrap.className = 'mfa-modal-overlay';
         modalWrap.id = 'mfa-modal';
@@ -243,7 +209,7 @@ function open2FAModal(tokenTemporario, emailMascarado) {
       <h2 class="mfa-modal-title">Verificação em Duas Etapas</h2>
       <p class="mfa-modal-subtitle">
         Enviamos um código de segurança de 6 dígitos para o e-mail:<br>
-        <strong>${emailMascarado || 'gestao@frutas.agro.br'}</strong>
+        <strong>${emailMascarado || email}</strong>
       </p>
 
       <form id="mfa-form">
@@ -348,22 +314,26 @@ function open2FAModal(tokenTemporario, emailMascarado) {
             clearInterval(interval);
             modalWrap.remove();
 
+            const isAnalista = email === 'luiz.felipe@raizagro.agr.br';
+            const profileKey = isAnalista ? 'analista' : 'gestor';
+            auth.setActiveProfile(profileKey);
+
             // Salva tokens e usuário na sessão
             if (session && session.access_token) {
               api.setTokens(session.access_token, session.refresh_token);
             } else {
-              api.setTokens('demo_jwt_token_auth', 'demo_refresh_token_auth');
+              api.setTokens('demo_jwt_token_' + profileKey, 'demo_refresh_token_' + profileKey);
             }
 
-            const userData = (session && session.usuario) ? session.usuario : {
-              id_usuario: 1,
-              nome: 'Maria Clara',
-              email: 'gestao@frutas.agro.br',
-              perfil: 'Produtor/Exportador'
-            };
+            const userData = (session && session.usuario) ? session.usuario : ((session && session.user) ? session.user : {
+              id_usuario: isAnalista ? 2 : 1,
+              nome: isAnalista ? 'Luiz Felipe' : 'Maria Clara',
+              email: email,
+              perfil: isAnalista ? 'Analista IoT & Telemetria' : 'Gestora de Operações'
+            });
             auth.setUser(userData);
 
-            toast.success('Autenticação Concluída', 'Seja bem-vindo ao sistema!');
+            toast.success('Autenticação Concluída', `Seja bem-vindo(a), ${userData.nome}!`);
             window.location.hash = '#/dashboard';
           } catch (err) {
             toast.error('Código Inválido', err.message || 'Código incorreto ou expirado.');

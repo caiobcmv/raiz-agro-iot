@@ -169,7 +169,7 @@
   border: 1px solid #E2E8F0;
   padding: 4px 12px 4px 4px;
   border-radius: 9999px;
-  cursor: pointer;
+  cursor: default;
   transition: all 0.2s ease;
 }
 
@@ -581,4 +581,26 @@
   letter-spacing: 0.5px;
   margin-top: 2px;
 }
+
+/* Botão Verde Médio do Log de Ingestão */
+.btn-log-ingestao {
+  width: 100%;
+  margin-top: 12px;
+  background: #10B981;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: background 0.2s;
+  text-align: left;
+}
+
+.btn-log-ingestao:hover {
+  background: #059669;
+}
+
 
