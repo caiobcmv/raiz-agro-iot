@@ -23,6 +23,8 @@ import { renderRelatorios, setupRelatoriosEvents } from './views/relatorios.js';
 import { renderConfiguracoes, setupConfiguracoesEvents } from './views/configuracoes.js';
 import { renderUsuarios, setupUsuariosEvents } from './views/usuarios.js';
 import { renderRegrasAgronomicas, setupRegrasAgronomicasEvents } from './views/regras-agronomicas.js';
+import { renderAuditoria, setupAuditoriaEvents } from './views/auditoria.js';
+import { renderSensoresAdmin, setupSensoresAdminEvents } from './views/sensores-admin.js';
 
 const routes = {
   '#/login': {
@@ -39,8 +41,14 @@ const routes = {
   },
   '#/sensores': {
     title: 'Sensores & Telemetria de Campo',
-    render: renderSensores,
-    setup: setupSensoresEvents,
+    render: async () => {
+      const isAdmin = auth.getActiveProfile() === 'admin';
+      return isAdmin ? renderSensoresAdmin() : renderSensores();
+    },
+    setup: async () => {
+      const isAdmin = auth.getActiveProfile() === 'admin';
+      return isAdmin ? setupSensoresAdminEvents() : setupSensoresEvents();
+    },
     authRequired: true
   },
   '#/rede-esp32': {
@@ -105,8 +113,8 @@ const routes = {
   },
   '#/auditoria': {
     title: 'Auditoria & Logs Operacionais',
-    render: renderRelatorios,
-    setup: setupRelatoriosEvents,
+    render: renderAuditoria,
+    setup: setupAuditoriaEvents,
     authRequired: true
   }
 };
