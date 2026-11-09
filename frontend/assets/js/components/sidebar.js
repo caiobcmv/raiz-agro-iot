@@ -52,7 +52,7 @@ export function renderSidebar(currentPath) {
         </a>
 
         <a href="#/regras-agronomicas" class="sidebar-menu-item ${currentPath === '#/regras-agronomicas' ? 'active' : ''}">
-          <i data-lucide="check-circle-2"></i>
+          <i data-lucide="shield-alert"></i>
           <span>Regras Agronômicas</span>
         </a>
 

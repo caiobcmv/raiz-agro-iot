@@ -123,17 +123,17 @@ class AuthState {
     if (current === 'admin') {
       return {
         id: 'admin',
-        nome: 'Carlos Silva',
-        sobrenome: 'Silva',
+        nome: 'Lorena Lira',
+        sobrenome: 'Lira',
         cargo: 'Administrador',
         tituloCompleto: 'Administrador da Plataforma',
-        iniciais: 'CS',
-        email: 'carlos.silva@raizagro.agr.br',
-        avatarBg: '#E2E8F0',
-        avatarBorder: '#0F172A',
-        avatarColor: '#0F172A',
-        gatewayPill: 'LoRaWAN + 4G',
-        gatewayStatus: 'Online',
+        iniciais: 'LL',
+        email: 'lorena.lira@raizagro.agr.br',
+        avatarBg: '#DCFCE7',
+        avatarBorder: '#86EFAC',
+        avatarColor: '#166534',
+        gatewayPill: 'LoRa Gateway',
+        gatewayStatus: 'Conectado',
         farm: 'Vale das Uvas',
         farmSub: 'Petrolina - Setor 04'
       };

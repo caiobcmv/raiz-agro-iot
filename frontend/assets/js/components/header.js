@@ -81,15 +81,16 @@ export function renderHeader(title) {
           <span class="header-bell-badge">2</span>
         </a>
 
-        <!-- Perfil Header: Alternável entre Maria Clara, Luiz Felipe e Carlos Silva -->
-        <div class="user-profile-header-pill" id="user-profile-header-pill" title="Clique para alternar perfil de acesso">
-          <div class="avatar-initials-pill" style="background:${profile.avatarBg}; border:1.5px solid ${profile.avatarBorder}; color:${profile.avatarColor};">
+        <!-- Perfil Header: Alternável entre Maria Clara, Luiz Felipe e Lorena Lira -->
+        <div class="user-profile-header-pill" id="user-profile-header-pill" title="Clique para alternar perfil de acesso" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+          <div class="avatar-initials-pill" style="width: 32px; height: 32px; border-radius: 50%; background:${profile.avatarBg}; border:1.5px solid ${profile.avatarBorder}; color:${profile.avatarColor}; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 11px;">
             ${profile.iniciais}
           </div>
-          <div class="profile-name-role">
-            <span class="profile-name">${profile.nome}</span>
-            <span class="profile-role">${profile.cargo}</span>
+          <div class="profile-name-role" style="display: flex; flex-direction: column; text-align: left;">
+            <span class="profile-name" style="font-size: 12px; font-weight: 700; color: #0F172A; line-height: 1.1;">${profile.nome}</span>
+            <span class="profile-role" style="font-size: 10px; color: #64748B;">${profile.cargo}</span>
           </div>
+          <i data-lucide="chevron-down" style="width: 14px; height: 14px; color: #64748B; margin-left: 2px;"></i>
         </div>
       </div>
     </header>
