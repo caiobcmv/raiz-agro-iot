@@ -207,7 +207,7 @@ if (userCount === 0) {
 
 // Atualizar Lorena Lira para bancos já criados
 try {
-  db.prepare("UPDATE usuario SET nome = 'Lorena Lira', email = 'lorena.lira@raizagro.agr.br' WHERE id_usuario = 3 OR email = 'carlos.silva@raizagro.agr.br'").run();
+  db.prepare("UPDATE usuario SET nome = 'Lorena Lira', email = 'lorena.lira@raizagro.agr.br' WHERE id_usuario = 3").run();
 } catch (e) {}
 
 module.exports = { db };

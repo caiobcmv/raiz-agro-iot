@@ -22,7 +22,7 @@ const usuariosSeed = [
 ];
 
 // Corrige bancos já criados
-db.prepare("UPDATE usuario SET nome = 'Lorena Lira', email = 'lorena.lira@raizagro.agr.br' WHERE id_usuario = 3 OR email = 'carlos.silva@raizagro.agr.br'").run();
+db.prepare("UPDATE usuario SET nome = 'Lorena Lira', email = 'lorena.lira@raizagro.agr.br' WHERE id_usuario = 3").run();
 
 for (const u of usuariosSeed) {
   const exists = db.prepare('SELECT * FROM usuario WHERE email = ?').get(u.email);
