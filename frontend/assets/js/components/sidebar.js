@@ -1,12 +1,17 @@
 /**
  * COMPONENTE SIDEBAR DE NAVEGAÇÃO - FIEL AO FIGMA (#183D2E)
- * Suporte dinâmico aos perfis Analista (6 itens) e Gestora (4 itens).
+ * Suporte dinâmico aos 3 perfis:
+ * 1. Administrador (Carlos Silva): 8 itens de menu
+ * 2. Analista (Luiz Felipe): 6 itens de menu
+ * 3. Gestora (Maria Clara): 4 itens de menu
  */
 
 import { auth } from '../auth.js';
 
 export function renderSidebar(currentPath) {
-  const isAnalista = auth.getActiveProfile() === 'analista';
+  const profileRole = auth.getActiveProfile();
+  const isAdmin = profileRole === 'admin';
+  const isAnalista = profileRole === 'analista';
   const profile = auth.getProfileData();
 
   return `
@@ -18,14 +23,49 @@ export function renderSidebar(currentPath) {
         </a>
       </div>
 
-      <!-- Menu Principal Dinâmico -->
+      <!-- Menu Principal Dinâmico Conforme o Perfil -->
       <nav class="sidebar-nav-container">
         <a href="#/dashboard" class="sidebar-menu-item ${currentPath === '#/dashboard' ? 'active' : ''}">
           <i data-lucide="layout-grid"></i>
           <span>Visão geral</span>
         </a>
 
-        ${isAnalista ? `
+        ${isAdmin ? `
+        <a href="#/usuarios" class="sidebar-menu-item ${currentPath === '#/usuarios' ? 'active' : ''}">
+          <i data-lucide="users"></i>
+          <span>Usuários</span>
+        </a>
+
+        <a href="#/lotes" class="sidebar-menu-item ${currentPath === '#/lotes' ? 'active' : ''}">
+          <i data-lucide="layers"></i>
+          <span>Lotes e safra</span>
+        </a>
+
+        <a href="#/sensores" class="sidebar-menu-item ${currentPath === '#/sensores' ? 'active' : ''}">
+          <i data-lucide="radio"></i>
+          <span>Sensores</span>
+        </a>
+
+        <a href="#/relatorios" class="sidebar-menu-item ${currentPath === '#/relatorios' ? 'active' : ''}">
+          <i data-lucide="bar-chart-3"></i>
+          <span>Relatórios</span>
+        </a>
+
+        <a href="#/regras-agronomicas" class="sidebar-menu-item ${currentPath === '#/regras-agronomicas' ? 'active' : ''}">
+          <i data-lucide="check-circle-2"></i>
+          <span>Regras Agronômicas</span>
+        </a>
+
+        <a href="#/auditoria" class="sidebar-menu-item ${currentPath === '#/auditoria' ? 'active' : ''}">
+          <i data-lucide="shield-check"></i>
+          <span>Auditoria &amp; Logs</span>
+        </a>
+
+        <a href="#/configuracoes" class="sidebar-menu-item ${currentPath === '#/configuracoes' ? 'active' : ''}">
+          <i data-lucide="settings"></i>
+          <span>Configurações</span>
+        </a>
+        ` : (isAnalista ? `
         <a href="#/sensores" class="sidebar-menu-item ${currentPath === '#/sensores' ? 'active' : ''}">
           <i data-lucide="radio"></i>
           <span>Sensores</span>
@@ -35,7 +75,6 @@ export function renderSidebar(currentPath) {
           <i data-lucide="share-2"></i>
           <span>Rede ESP32</span>
         </a>
-        ` : ''}
 
         <a href="#/leituras" class="sidebar-menu-item ${currentPath === '#/leituras' ? 'active' : ''}">
           <i data-lucide="file-text"></i>
@@ -51,6 +90,22 @@ export function renderSidebar(currentPath) {
           <i data-lucide="settings"></i>
           <span>Configurações</span>
         </a>
+        ` : `
+        <a href="#/leituras" class="sidebar-menu-item ${currentPath === '#/leituras' ? 'active' : ''}">
+          <i data-lucide="file-text"></i>
+          <span>Histórico Safra</span>
+        </a>
+
+        <a href="#/alertas" class="sidebar-menu-item ${currentPath === '#/alertas' ? 'active' : ''}">
+          <i data-lucide="alert-triangle"></i>
+          <span>Alertas</span>
+        </a>
+
+        <a href="#/configuracoes" class="sidebar-menu-item ${currentPath === '#/configuracoes' ? 'active' : ''}">
+          <i data-lucide="settings"></i>
+          <span>Configurações</span>
+        </a>
+        `)}
       </nav>
 
       <!-- Bottom Profile & Connectivity (Figma: Vale das Uvas / Petrolina - Setor 04) -->

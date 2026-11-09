@@ -1,9 +1,20 @@
 /**
  * COMPONENTE TOPBAR HEADER - FIEL AO FIGMA
- * Suporta dinamicamente perfis Analista (Luiz Felipe) e Gestora (Maria Clara)
+ * Suporta dinamicamente perfis: Administrador (Carlos Silva), Analista (Luiz Felipe) e Gestora (Maria Clara)
  */
 
 import { auth } from '../auth.js';
+
+const PAGE_META_ADMIN = {
+  '#/dashboard':           { h2: 'Visão Geral do Sistema',          sub: 'Gerencie preferências da fazenda, parâmetros de sensores, notificações e acessos.' },
+  '#/usuarios':            { h2: 'Gerenciamento de Usuários',       sub: 'Gerencie os usuários cadastrados, perfis de acesso e permissões na plataforma.' },
+  '#/lotes':               { h2: 'Lotes e Safra',                   sub: 'Gerencie os usuários cadastrados, perfis de acesso e permissões na plataforma.' },
+  '#/sensores':            { h2: 'Sensores & Telemetria de Campo',  sub: 'Gerencie os usuários cadastrados, perfis de acesso e permissões na plataforma.' },
+  '#/relatorios':          { h2: 'Relatórios & Documentos Oficiais', sub: 'Gerencie os usuários cadastrados, perfis de acesso e permissões na plataforma.' },
+  '#/regras-agronomicas':  { h2: 'Regras Agronômicas Vigentes',     sub: 'Definição de limiares bioclimáticos, faixas ótimas por cultura e gatilhos de acionamento.' },
+  '#/auditoria':           { h2: 'Auditoria & Logs Operacionais',   sub: 'Trilha de auditoria criptográfica, integridade cadastral e registros forenses de conformidade.' },
+  '#/configuracoes':       { h2: 'Configurações do Sistema',        sub: 'Parâmetros globais da infraestrutura, chaves de API, ThingSpeak e políticas de governança.' }
+};
 
 const PAGE_META_GESTOR = {
   '#/dashboard':     { h2: 'Visão Geral do Sistema',          sub: 'Monitoramento em tempo real dos talhões, culturas e condições agrometeorológicas.' },
@@ -23,10 +34,15 @@ const PAGE_META_ANALISTA = {
 
 export function renderHeader(title) {
   const hash = window.location.hash || '#/dashboard';
-  const isAnalista = auth.getActiveProfile() === 'analista';
+  const profileRole = auth.getActiveProfile();
+  const isAdmin = profileRole === 'admin';
+  const isAnalista = profileRole === 'analista';
   const profile = auth.getProfileData();
 
-  const metaDict = isAnalista ? PAGE_META_ANALISTA : PAGE_META_GESTOR;
+  let metaDict = PAGE_META_GESTOR;
+  if (isAdmin) metaDict = PAGE_META_ADMIN;
+  else if (isAnalista) metaDict = PAGE_META_ANALISTA;
+
   const meta = metaDict[hash] || { h2: title || 'Visão Geral do Sistema', sub: 'Gerencie preferências da fazenda, parâmetros de sensores, notificações e acessos.' };
 
   const isDashboard = hash === '#/dashboard';
@@ -42,7 +58,7 @@ export function renderHeader(title) {
 
       <div class="header-right-controls">
         <!-- Toggle Resumido vs Detalhado (só no dashboard da Gestora) -->
-        ${isDashboard && !isAnalista ? `
+        ${isDashboard && !isAnalista && !isAdmin ? `
         <div class="view-mode-toggle ${!isResumido ? 'detalhado' : ''}" id="toggle-dashboard-mode" title="Alternar entre modo Resumido e Detalhado">
           <div class="toggle-switch-track">
             <div class="toggle-switch-thumb"></div>
@@ -64,8 +80,8 @@ export function renderHeader(title) {
           <span class="header-bell-badge">2</span>
         </a>
 
-        <!-- Perfil Header: Alternável entre Maria Clara (Gestora) e Luiz Felipe (Analista) -->
-        <div class="user-profile-header-pill" id="user-profile-header-pill" title="Clique para alternar perfil de usuário">
+        <!-- Perfil Header: Alternável entre Maria Clara, Luiz Felipe e Carlos Silva -->
+        <div class="user-profile-header-pill" id="user-profile-header-pill" title="Clique para alternar perfil de acesso">
           <div class="avatar-initials-pill" style="background:${profile.avatarBg}; border:1.5px solid ${profile.avatarBorder}; color:${profile.avatarColor};">
             ${profile.iniciais}
           </div>

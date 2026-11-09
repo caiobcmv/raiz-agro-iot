@@ -12,8 +12,11 @@ import { Modal } from '../components/modal.js';
 let chartInstances = [];
 
 export async function renderDashboard() {
-  const isAnalista = auth.getActiveProfile() === 'analista';
-  if (isAnalista) {
+  const profileRole = auth.getActiveProfile();
+  if (profileRole === 'admin') {
+    return renderAdminDashboard();
+  }
+  if (profileRole === 'analista') {
     return renderAnalistaDashboard();
   }
 
@@ -953,8 +956,12 @@ function renderModoDetalhado(resumo, clima) {
  * CONFIGURAÇÃO DOS EVENTOS DO DASHBOARD E RENDERIZAÇÃO DOS 4 GRÁFICOS APPLE STYLE
  */
 export async function setupDashboardEvents() {
-  const isAnalista = auth.getActiveProfile() === 'analista';
-  if (isAnalista) {
+  const profileRole = auth.getActiveProfile();
+  if (profileRole === 'admin') {
+    setupAdminDashboardEvents();
+    return;
+  }
+  if (profileRole === 'analista') {
     setupAnalistaDashboardEvents();
     return;
   }
@@ -1346,5 +1353,535 @@ function setupAnalistaDashboardEvents() {
         toast.warning('Filtro Desativado', 'Sensores transmitindo valores analógicos brutos.');
       }
     });
+  }
+}
+
+/**
+ * 3. DASHBOARD DO ADMINISTRADOR (FIGMA MOCKUP 1: CARLOS SILVA / LORENA LIRA)
+ * Visão Geral do Sistema com Governança, Lotes, Sensores, Conformidade e Atividade 24h
+ */
+function renderAdminDashboard() {
+  return `
+    <div class="dashboard-canvas apple-animate-in">
+      <!-- Sub-barra Técnica do Administrador -->
+      <div class="analista-subbar" style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 12px 16px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+          <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: #047857; background: #ECFDF5; border: 1px solid #A7F3D0; padding: 4px 10px; border-radius: 20px;">
+            <i data-lucide="map-pin" style="width: 12px; height: 12px;"></i> Polo Sertão São Francisco
+          </span>
+          <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: #0284C7; background: #F0F9FF; border: 1px solid #BAE6FD; padding: 4px 10px; border-radius: 20px;">
+            <i data-lucide="radio" style="width: 12px; height: 12px;"></i> Rede LoRaWAN + Gateway 4G Online
+          </span>
+          <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: #475569; background: #F8FAFC; border: 1px solid #E2E8F0; padding: 4px 10px; border-radius: 20px;">
+            <i data-lucide="file-check" style="width: 12px; height: 12px;"></i> 3 Regras Agronômicas Vigentes
+          </span>
+          <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: #15803D; background: #DCFCE7; border: 1px solid #86EFAC; padding: 4px 10px; border-radius: 20px;">
+            <i data-lucide="check-circle" style="width: 12px; height: 12px;"></i> Auditoria GlobalGAP em Dia
+          </span>
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button class="btn-analista-sync" id="btn-admin-convidar-user" style="background: #F8FAFC; border: 1px solid #CBD5E1; color: #334155; font-size: 12px; font-weight: 600; padding: 6px 14px; border-radius: 8px; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+            <i data-lucide="user-plus" style="width: 14px; height: 14px;"></i>
+            <span>Convidar Usuário</span>
+          </button>
+          <button class="btn-analista-sync" id="btn-admin-parametros-safra" style="background: #F8FAFC; border: 1px solid #CBD5E1; color: #334155; font-size: 12px; font-weight: 600; padding: 6px 14px; border-radius: 8px; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+            <i data-lucide="sliders" style="width: 14px; height: 14px;"></i>
+            <span>Parâmetros da Safra</span>
+          </button>
+          <button class="btn-analista-export" id="btn-admin-emitir-relatorio" style="background: #183D2E; border: none; color: #FFFFFF; font-size: 12px; font-weight: 600; padding: 6px 14px; border-radius: 8px; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+            <i data-lucide="file-text" style="width: 14px; height: 14px;"></i>
+            <span>Emitir Relatório Executivo</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 4 Cards Superiores de Governança -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 20px;">
+        <!-- Card 1: Perfis de Usuários -->
+        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 11px; font-weight: 700; color: #64748B; letter-spacing: 0.5px;">PERFIS DE USUÁRIOS</span>
+            <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 2px 8px; border-radius: 12px;">12 ATIVOS</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 14px; margin: 14px 0;">
+            <div style="width: 58px; height: 58px; border-radius: 50%; border: 5px solid #10B981; border-top-color: #0284C7; border-right-color: #0F172A; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+              <span style="font-size: 15px; font-weight: 800; color: #0F172A; line-height: 1;">12</span>
+              <span style="font-size: 8px; color: #64748B;">MEMBROS</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 3px; font-size: 11px;">
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span style="width: 6px; height: 6px; border-radius: 50%; background: #10B981;"></span>
+                <span style="color: #475569;">Produtores: <strong>5</strong> <span style="color: #94A3B8;">(42%)</span></span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span style="width: 6px; height: 6px; border-radius: 50%; background: #0284C7;"></span>
+                <span style="color: #475569;">Analistas: <strong>4</strong> <span style="color: #94A3B8;">(33%)</span></span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span style="width: 6px; height: 6px; border-radius: 50%; background: #0F172A;"></span>
+                <span style="color: #475569;">Admins: <strong>3</strong> <span style="color: #94A3B8;">(25%)</span></span>
+              </div>
+            </div>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 11px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px;">
+            <span>Acesso à Plataforma</span>
+            <strong style="color: #047857;">100% Autenticados</strong>
+          </div>
+        </div>
+
+        <!-- Card 2: Lotes & Culturas -->
+        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 11px; font-weight: 700; color: #64748B; letter-spacing: 0.5px;">LOTES &amp; CULTURAS</span>
+            <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 2px 8px; border-radius: 12px;">3 LOTES ATIVOS</span>
+          </div>
+          <div style="margin: 12px 0;">
+            <div style="display: flex; justify-content: space-between; align-items: baseline;">
+              <div>
+                <span style="font-size: 20px; font-weight: 800; color: #0F172A;">1.800</span>
+                <span style="font-size: 12px; font-weight: 600; color: #64748B;">kg</span>
+              </div>
+              <span style="font-size: 10px; font-weight: 600; color: #059669; background: #ECFDF5; padding: 2px 6px; border-radius: 6px;">Safra 2026</span>
+            </div>
+            <div style="width: 100%; height: 6px; background: #E2E8F0; border-radius: 3px; display: flex; overflow: hidden; margin-top: 8px;">
+              <div style="width: 55%; background: #10B981;" title="Manga: 1.000kg"></div>
+              <div style="width: 30%; background: #3B82F6;" title="Uva: 500kg"></div>
+              <div style="width: 15%; background: #F59E0B;" title="Melão: 300kg"></div>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B; margin-top: 6px;">
+              <span>• Manga (1.000kg)</span>
+              <span>• Uva (500kg)</span>
+              <span>• Melão (300kg)</span>
+            </div>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 11px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px;">
+            <span>3 Setores</span>
+            <strong style="color: #0F172A;">Petrolina Setor 04 &amp; Vale</strong>
+          </div>
+        </div>
+
+        <!-- Card 3: Sensores de Campo (IoT) -->
+        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 11px; font-weight: 700; color: #64748B; letter-spacing: 0.5px;">SENSORES DE CAMPO (IOT)</span>
+            <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 2px 8px; border-radius: 12px;">100% ONLINE</span>
+          </div>
+          <div style="margin: 12px 0; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <span style="font-size: 20px; font-weight: 800; color: #0F172A;">99.8 %</span>
+              <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Transmissão em Tempo Real</div>
+              <div style="font-size: 10px; color: #94A3B8;">Nós DHT11 + Solo TDR</div>
+            </div>
+            <div style="display: flex; align-items: flex-end; gap: 3px; height: 36px;">
+              <span style="width: 5px; height: 18px; background: #10B981; border-radius: 2px;"></span>
+              <span style="width: 5px; height: 26px; background: #10B981; border-radius: 2px;"></span>
+              <span style="width: 5px; height: 32px; background: #10B981; border-radius: 2px;"></span>
+              <span style="width: 5px; height: 28px; background: #10B981; border-radius: 2px;"></span>
+              <span style="width: 5px; height: 36px; background: #10B981; border-radius: 2px;"></span>
+            </div>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 11px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px;">
+            <span>Cadência de Leitura</span>
+            <strong style="color: #0F172A;">A cada 300s (5 min)</strong>
+          </div>
+        </div>
+
+        <!-- Card 4: Alertas & Incidentes -->
+        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 11px; font-weight: 700; color: #64748B; letter-spacing: 0.5px;">ALERTAS &amp; INCIDENTES</span>
+            <span style="font-size: 10px; font-weight: 700; color: #0284C7; background: #F0F9FF; padding: 2px 8px; border-radius: 12px;">OPERAÇÃO ESTÁVEL</span>
+          </div>
+          <div style="margin: 12px 0; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <span style="font-size: 20px; font-weight: 800; color: #0F172A;">2 ativos</span>
+              <div style="font-size: 11px; color: #64748B; margin-top: 2px;">0 Críticos • 1 Atenção • 1 Info</div>
+            </div>
+            <div style="display: flex; gap: 4px;">
+              <span style="width: 10px; height: 10px; border-radius: 50%; background: #94A3B8;"></span>
+              <span style="width: 10px; height: 10px; border-radius: 50%; background: #F59E0B;"></span>
+              <span style="width: 10px; height: 10px; border-radius: 50%; background: #3B82F6;"></span>
+            </div>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 11px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px;">
+            <span>Resolução Média</span>
+            <strong style="color: #0F172A;">14 minutos</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- Gráfico Central: Atividade Operacional da Fazenda (Últimas 24h) -->
+      <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+          <div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <h3 style="font-size: 15px; font-weight: 700; color: #0F172A; margin: 0;">Atividade Operacional da Fazenda (Últimas 24h)</h3>
+              <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 2px 8px; border-radius: 12px;">Tempo Real</span>
+            </div>
+            <p style="font-size: 12px; color: #64748B; margin: 4px 0 0 0;">Monitoramento consolidado dos lotes: umidade do solo (VWC) e temperatura média com faixa agronômica ideal</p>
+          </div>
+          <div style="display: flex; align-items: center; gap: 16px; font-size: 11px;">
+            <span style="display: flex; align-items: center; gap: 6px; color: #047857; font-weight: 600;">
+              <span style="width: 8px; height: 8px; border-radius: 50%; background: #10B981;"></span> Umidade do Solo (VWC)
+            </span>
+            <span style="display: flex; align-items: center; gap: 6px; color: #0284C7; font-weight: 600;">
+              <span style="width: 8px; height: 8px; border-radius: 50%; background: #0284C7;"></span> Temp. Média Lotes (°C)
+            </span>
+            <span style="display: flex; align-items: center; gap: 6px; color: #475569; font-weight: 600;">
+              <span style="width: 12px; height: 6px; background: #D1FAE5; border-radius: 2px;"></span> Faixa Agronômica Ideal (40-60%)
+            </span>
+          </div>
+        </div>
+
+        <!-- Canvas do Gráfico -->
+        <div style="height: 240px; position: relative;">
+          <canvas id="chart-admin-atividade"></canvas>
+        </div>
+
+        <!-- 3 Métricas Rápidas abaixo do Gráfico -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 16px;">
+          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <span style="font-size: 10px; font-weight: 700; color: #64748B;">UMIDADE MÉDIA DO SOLO</span>
+              <div style="font-size: 16px; font-weight: 800; color: #047857; margin-top: 2px;">46.8% VWC</div>
+            </div>
+            <span style="font-size: 10px; font-weight: 600; color: #047857; background: #D1FAE5; padding: 3px 8px; border-radius: 6px;">Dentro da Faixa</span>
+          </div>
+
+          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <span style="font-size: 10px; font-weight: 700; color: #64748B;">TEMPERATURA MÉDIA</span>
+              <div style="font-size: 16px; font-weight: 800; color: #0284C7; margin-top: 2px;">11.8°C</div>
+            </div>
+            <span style="font-size: 10px; font-weight: 600; color: #0284C7; background: #E0F2FE; padding: 3px 8px; border-radius: 6px;">Estável</span>
+          </div>
+
+          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <span style="font-size: 10px; font-weight: 700; color: #64748B;">CICLOS DE IRRIGAÇÃO</span>
+              <div style="font-size: 16px; font-weight: 800; color: #0F172A; margin-top: 2px;">3 concluídos hoje</div>
+            </div>
+            <span style="font-size: 10px; font-weight: 600; color: #047857; background: #D1FAE5; padding: 3px 8px; border-radius: 6px;">100% Eficiência</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Seção: Gestão de Perfis & Acessos Recentes -->
+      <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="users" style="width: 16px; height: 16px; color: #0F172A;"></i>
+              <h3 style="font-size: 14px; font-weight: 700; color: #0F172A; margin: 0;">Gestão de Perfis &amp; Acessos Recentes</h3>
+              <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 2px 8px; border-radius: 12px;">4 MEMBROS ONLINE HOJE</span>
+            </div>
+            <p style="font-size: 12px; color: #64748B; margin: 4px 0 0 0;">Atividades operacionais em tempo real e sessões ativas da equipe de campo e gestão</p>
+          </div>
+          <a href="#/usuarios" style="font-size: 12px; font-weight: 600; color: #0284C7; text-decoration: none; display: flex; align-items: center; gap: 4px;">
+            Gerenciar Todos os Usuários &rarr;
+          </a>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px;">
+          <!-- Usuário 1: Maria Clara -->
+          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px; display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <div style="width: 36px; height: 36px; border-radius: 50%; background: #D1FAE5; border: 1.5px solid #10B981; color: #065F46; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 12px;">MC</div>
+              <div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <strong style="font-size: 13px; color: #0F172A;">Maria Clara</strong>
+                  <span style="font-size: 9px; font-weight: 700; color: #047857; background: #DCFCE7; padding: 1px 6px; border-radius: 4px;">Produtor</span>
+                </div>
+                <div style="font-size: 11px; color: #64748B;">Colheita Lote #7 Manga</div>
+              </div>
+            </div>
+            <div style="text-align: right;">
+              <span style="font-size: 10px; color: #64748B;">15:47</span>
+              <div style="font-size: 10px; font-weight: 700; color: #047857;">Ativo</div>
+            </div>
+          </div>
+
+          <!-- Usuário 2: Luiz Felipe -->
+          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px; display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <div style="width: 36px; height: 36px; border-radius: 50%; background: #E0F2FE; border: 1.5px solid #0284C7; color: #0369A1; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 12px;">LF</div>
+              <div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <strong style="font-size: 13px; color: #0F172A;">Luiz Felipe</strong>
+                  <span style="font-size: 9px; font-weight: 700; color: #0284C7; background: #E0F2FE; padding: 1px 6px; border-radius: 4px;">Analista</span>
+                </div>
+                <div style="font-size: 11px; color: #64748B;">Laudo Uva Vitória</div>
+              </div>
+            </div>
+            <div style="text-align: right;">
+              <span style="font-size: 10px; color: #64748B;">15:15</span>
+              <div style="font-size: 10px; font-weight: 600; color: #64748B;">27m</div>
+            </div>
+          </div>
+
+          <!-- Usuário 3: Rodrigo Alves -->
+          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px; display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <div style="width: 36px; height: 36px; border-radius: 50%; background: #F1F5F9; border: 1.5px solid #94A3B8; color: #334155; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 12px;">RA</div>
+              <div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <strong style="font-size: 13px; color: #0F172A;">Rodrigo Alves</strong>
+                  <span style="font-size: 9px; font-weight: 700; color: #047857; background: #DCFCE7; padding: 1px 6px; border-radius: 4px;">Produtor</span>
+                </div>
+                <div style="font-size: 11px; color: #64748B;">Turno fertirrigação</div>
+              </div>
+            </div>
+            <div style="text-align: right;">
+              <span style="font-size: 10px; color: #64748B;">14:50</span>
+              <div style="font-size: 10px; font-weight: 600; color: #64748B;">52m</div>
+            </div>
+          </div>
+
+          <!-- Usuário 4: Carlos Silva -->
+          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px; display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <div style="width: 36px; height: 36px; border-radius: 50%; background: #E2E8F0; border: 1.5px solid #0F172A; color: #0F172A; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 12px;">CS</div>
+              <div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <strong style="font-size: 13px; color: #0F172A;">Carlos Silva</strong>
+                  <span style="font-size: 9px; font-weight: 700; color: #0F172A; background: #E2E8F0; padding: 1px 6px; border-radius: 4px;">Admin</span>
+                </div>
+                <div style="font-size: 11px; color: #64748B;">Parâmetros de clima</div>
+              </div>
+            </div>
+            <div style="text-align: right;">
+              <span style="font-size: 10px; color: #64748B;">14:20</span>
+              <div style="font-size: 10px; font-weight: 700; color: #047857;">Ativo</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2 Cards Inferiores: Parâmetros Agronômicos & Regras Ativas + Conformidade & Despachos -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 16px;">
+        <!-- Card 1: Parâmetros Agronômicos & Regras Ativas -->
+        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+            <div>
+              <h3 style="font-size: 14px; font-weight: 700; color: #0F172A; margin: 0;">Parâmetros Agronômicos &amp; Regras Ativas</h3>
+              <p style="font-size: 11px; color: #64748B; margin: 2px 0 0 0;">Faixas climáticas ideais validadas para as culturas da safra</p>
+            </div>
+            <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 3px 8px; border-radius: 6px;">3 REGRAS VIGENTES</span>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <span style="width: 8px; height: 8px; border-radius: 50%; background: #10B981;"></span>
+                  <strong style="font-size: 13px; color: #0F172A;">Manga (Tommy Atkins / Kent)</strong>
+                </div>
+                <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Umidade ideal no solo: 55% a 65% VWC</div>
+              </div>
+              <div style="text-align: right;">
+                <span style="font-size: 12px; font-weight: 700; color: #047857; background: #ECFDF5; padding: 2px 8px; border-radius: 6px;">10.0°C a 13.0°C</span>
+                <div style="font-size: 10px; color: #047857; font-weight: 600; margin-top: 2px;">• Em Faixa Ótima</div>
+              </div>
+            </div>
+
+            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <span style="width: 8px; height: 8px; border-radius: 50%; background: #3B82F6;"></span>
+                  <strong style="font-size: 13px; color: #0F172A;">Uva de Mesa (Vitória Sem Semente)</strong>
+                </div>
+                <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Umidade ideal no solo: 40% a 50% VWC</div>
+              </div>
+              <div style="text-align: right;">
+                <span style="font-size: 12px; font-weight: 700; color: #0284C7; background: #F0F9FF; padding: 2px 8px; border-radius: 6px;">8.0°C a 11.5°C</span>
+                <div style="font-size: 10px; color: #047857; font-weight: 600; margin-top: 2px;">• Em Faixa Ótima</div>
+              </div>
+            </div>
+
+            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <span style="width: 8px; height: 8px; border-radius: 50%; background: #F59E0B;"></span>
+                  <strong style="font-size: 13px; color: #0F172A;">Melão Amarelo</strong>
+                </div>
+                <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Umidade ideal no solo: 45% a 55% VWC</div>
+              </div>
+              <div style="text-align: right;">
+                <span style="font-size: 12px; font-weight: 700; color: #D97706; background: #FFFBEB; padding: 2px 8px; border-radius: 6px;">12.0°C a 15.0°C</span>
+                <div style="font-size: 10px; color: #047857; font-weight: 600; margin-top: 2px;">• Em Faixa Ótima</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; padding-top: 10px; border-top: 1px solid #F1F5F9; font-size: 11px;">
+            <span style="color: #64748B;">Tolerâncias climáticas aplicadas aos atuadores</span>
+            <button id="btn-config-regras" style="background: none; border: none; color: #0284C7; font-weight: 600; cursor: pointer;">Configurar Parâmetros</button>
+          </div>
+        </div>
+
+        <!-- Card 2: Conformidade, Despachos & Auditoria -->
+        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+            <div>
+              <h3 style="font-size: 14px; font-weight: 700; color: #0F172A; margin: 0;">Conformidade, Despachos &amp; Auditoria</h3>
+              <p style="font-size: 11px; color: #64748B; margin: 2px 0 0 0;">Rastreabilidade portuária e certificação GlobalG.A.P.</p>
+            </div>
+            <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 3px 8px; border-radius: 6px;">GLOBALGAP 100%</span>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <div style="font-size: 11px; font-weight: 700; color: #64748B; margin-bottom: 2px;">STATUS DAS ROTAS DE DESPACHO</div>
+            
+            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <strong style="font-size: 12px; color: #0F172A;">Porto Pecém (CE)</strong>
+                <div style="font-size: 10px; color: #64748B;">Melão (300 kg) • 10°C Monitorado</div>
+              </div>
+              <span style="font-size: 10px; font-weight: 700; color: #047857; background: #DCFCE7; padding: 2px 8px; border-radius: 4px;">Trânsito OK</span>
+            </div>
+
+            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <strong style="font-size: 12px; color: #0F172A;">Porto Suape (PE)</strong>
+                <div style="font-size: 10px; color: #64748B;">Uva Vitória (500 kg) • Atracado</div>
+              </div>
+              <span style="font-size: 10px; font-weight: 700; color: #0284C7; background: #E0F2FE; padding: 2px 8px; border-radius: 4px;">Embarque</span>
+            </div>
+
+            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <strong style="font-size: 12px; color: #0F172A;">Porto Salvador (BA)</strong>
+                <div style="font-size: 10px; color: #64748B;">Manga Tommy (1.000 kg) • 24/09</div>
+              </div>
+              <span style="font-size: 10px; font-weight: 700; color: #059669; background: #D1FAE5; padding: 2px 8px; border-radius: 4px;">Packing House</span>
+            </div>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; padding-top: 10px; border-top: 1px solid #F1F5F9; font-size: 11px;">
+            <span style="color: #64748B;">Cadeia de Frio e Transporte Refrigerado</span>
+            <strong style="color: #047857;">100% Conforme GlobalG.A.P.</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function setupAdminDashboardEvents() {
+  // Destrói instâncias anteriores de gráficos
+  chartInstances.forEach(c => c && c.destroy());
+  chartInstances = [];
+
+  // Botões da sub-barra do Admin
+  const btnConvidar = document.getElementById('btn-admin-convidar-user');
+  if (btnConvidar) {
+    btnConvidar.addEventListener('click', () => {
+      window.location.hash = '#/usuarios';
+    });
+  }
+
+  const btnParametros = document.getElementById('btn-admin-parametros-safra');
+  if (btnParametros) {
+    btnParametros.addEventListener('click', () => {
+      window.location.hash = '#/configuracoes';
+    });
+  }
+
+  const btnRelatorio = document.getElementById('btn-admin-emitir-relatorio');
+  if (btnRelatorio) {
+    btnRelatorio.addEventListener('click', () => {
+      window.location.hash = '#/relatorios';
+    });
+  }
+
+  const btnConfigRegras = document.getElementById('btn-config-regras');
+  if (btnConfigRegras) {
+    btnConfigRegras.addEventListener('click', () => {
+      window.location.hash = '#/configuracoes';
+    });
+  }
+
+  // Gráfico: Atividade Operacional da Fazenda (Últimas 24h)
+  const ctx = document.getElementById('chart-admin-atividade');
+  if (ctx && window.Chart) {
+    const hours = ['00:00', '02:00', '04:00', '06:00', '08:00 (Início da Irrigação)', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', 'Agora (15:42)'];
+    const vwcData = [45.2, 45.0, 44.8, 45.5, 48.0, 49.5, 49.0, 48.2, 47.5, 47.0, 46.8, 46.8];
+    const tempData = [10.5, 10.2, 10.0, 10.4, 11.0, 11.5, 12.0, 12.8, 12.2, 11.8, 11.6, 11.8];
+
+    const chart = new window.Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: hours,
+        datasets: [
+          {
+            label: 'Umidade do Solo (VWC)',
+            data: vwcData,
+            borderColor: '#10B981',
+            backgroundColor: 'rgba(16, 185, 129, 0.15)',
+            borderWidth: 2.5,
+            fill: true,
+            tension: 0.35,
+            pointRadius: [0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 5],
+            pointBackgroundColor: '#10B981',
+            yAxisID: 'y'
+          },
+          {
+            label: 'Temp. Média Lotes (°C)',
+            data: tempData,
+            borderColor: '#0284C7',
+            backgroundColor: 'transparent',
+            borderWidth: 2,
+            borderDash: [4, 4],
+            tension: 0.35,
+            pointRadius: 0,
+            yAxisID: 'y1'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#0F172A',
+            padding: 10,
+            callbacks: {
+              label: (item) => item.datasetIndex === 0 ? `Umidade: ${item.raw}% VWC` : `Temperatura: ${item.raw}°C`
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            ticks: { font: { size: 10 }, color: '#94A3B8' }
+          },
+          y: {
+            position: 'left',
+            min: 30,
+            max: 70,
+            ticks: {
+              callback: (v) => v + '%',
+              font: { size: 10 },
+              color: '#10B981'
+            },
+            grid: { color: '#F1F5F9' }
+          },
+          y1: {
+            position: 'right',
+            min: 5,
+            max: 20,
+            ticks: {
+              callback: (v) => v + '°C',
+              font: { size: 10 },
+              color: '#0284C7'
+            },
+            grid: { display: false }
+          }
+        }
+      }
+    });
+
+    chartInstances.push(chart);
   }
 }

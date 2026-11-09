@@ -1,8 +1,9 @@
 /**
  * GERENCIAMENTO DE ESTADO DE AUTENTICAÇÃO E SESSÃO MULTI-PERFIL
- * Suporta:
- * 1. Perfil Analista: Luiz Felipe (IoT, ESP32, Topologia, Telemetria LoRa, ML Preditivo)
- * 2. Perfil Gestora: Maria Clara (Visão Executiva, Talhões, Cadeia Fria, Produtividade)
+ * Suporta 3 perfis dinâmicos:
+ * 1. Analista IoT: Luiz Felipe (Telemetria, ESP32, MESH, Modelos Preditivos)
+ * 2. Gestora Operações: Maria Clara (Visão Executiva, Talhões, Cadeia Fria, Produtividade)
+ * 3. Administrador Geral: Carlos Silva (Governança RBAC, Lotes & Safra, Auditoria, Políticas Globais)
  */
 
 import { api } from './api.js';
@@ -25,24 +26,36 @@ class AuthState {
       console.warn('Recuperando sessão padrão...');
     }
 
-    // Usuário padrão inicial caso ainda não haja sessão salva
-    const isAnalista = this.getActiveProfile() === 'analista';
-    const defaultUser = isAnalista ? {
-      id_usuario: 2,
-      nome: 'Luiz Felipe',
-      email: 'luiz.felipe@raizagro.agr.br',
-      perfil: 'Analista IoT & Telemetria'
-    } : {
-      id_usuario: 1,
-      nome: 'Maria Clara',
-      email: 'maria.clara@raizagro.agr.br',
-      perfil: 'Gestora de Operações'
-    };
+    const currentProfile = this.getActiveProfile();
+    let defaultUser;
+
+    if (currentProfile === 'admin') {
+      defaultUser = {
+        id_usuario: 3,
+        nome: 'Carlos Silva',
+        email: 'carlos.silva@raizagro.agr.br',
+        perfil: 'Administrador da Plataforma'
+      };
+    } else if (currentProfile === 'analista') {
+      defaultUser = {
+        id_usuario: 2,
+        nome: 'Luiz Felipe',
+        email: 'luiz.felipe@raizagro.agr.br',
+        perfil: 'Analista IoT & Telemetria'
+      };
+    } else {
+      defaultUser = {
+        id_usuario: 1,
+        nome: 'Maria Clara',
+        email: 'maria.clara@raizagro.agr.br',
+        perfil: 'Gestora de Operações'
+      };
+    }
 
     try {
       localStorage.setItem('user_data', JSON.stringify(defaultUser));
       if (!localStorage.getItem('access_token')) {
-        localStorage.setItem('access_token', 'demo_token_' + (isAnalista ? 'analista' : 'gestor'));
+        localStorage.setItem('access_token', 'demo_token_' + currentProfile);
       }
     } catch (e) { }
 
@@ -50,25 +63,30 @@ class AuthState {
   }
 
   loadActiveProfile() {
-    // Garante que o usuário abra no novo perfil Analista solicitado
-    if (!localStorage.getItem('PERFIL_ANALISTA_V2')) {
-      localStorage.setItem('ACTIVE_PROFILE', 'analista');
-      localStorage.setItem('PERFIL_ANALISTA_V2', 'true');
-      return 'analista';
-    }
-    return localStorage.getItem('ACTIVE_PROFILE') || 'analista';
+    return localStorage.getItem('ACTIVE_PROFILE') || 'admin';
   }
 
   getActiveProfile() {
-    return this.activeProfile || 'analista';
+    return this.activeProfile || 'admin';
   }
 
   setActiveProfile(profile) {
-    this.activeProfile = profile === 'gestor' ? 'gestor' : 'analista';
+    if (profile === 'admin' || profile === 'gestor' || profile === 'analista') {
+      this.activeProfile = profile;
+    } else {
+      this.activeProfile = 'admin';
+    }
     localStorage.setItem('ACTIVE_PROFILE', this.activeProfile);
 
     // Atualiza dados do usuário correspondente
-    if (this.activeProfile === 'analista') {
+    if (this.activeProfile === 'admin') {
+      this.setUser({
+        id_usuario: 3,
+        nome: 'Carlos Silva',
+        email: 'carlos.silva@raizagro.agr.br',
+        perfil: 'Administrador da Plataforma'
+      });
+    } else if (this.activeProfile === 'analista') {
       this.setUser({
         id_usuario: 2,
         nome: 'Luiz Felipe',
@@ -88,14 +106,36 @@ class AuthState {
   }
 
   toggleProfile() {
-    const next = this.getActiveProfile() === 'analista' ? 'gestor' : 'analista';
+    const current = this.getActiveProfile();
+    let next = 'admin';
+    if (current === 'analista') next = 'gestor';
+    else if (current === 'gestor') next = 'admin';
+    else next = 'analista';
     this.setActiveProfile(next);
     return next;
   }
 
   getProfileData() {
-    const isAnalista = this.getActiveProfile() === 'analista';
-    if (isAnalista) {
+    const current = this.getActiveProfile();
+
+    if (current === 'admin') {
+      return {
+        id: 'admin',
+        nome: 'Carlos Silva',
+        sobrenome: 'Silva',
+        cargo: 'Administrador',
+        tituloCompleto: 'Administrador da Plataforma',
+        iniciais: 'CS',
+        email: 'carlos.silva@raizagro.agr.br',
+        avatarBg: '#E2E8F0',
+        avatarBorder: '#0F172A',
+        avatarColor: '#0F172A',
+        gatewayPill: 'LoRaWAN + 4G',
+        gatewayStatus: 'Online',
+        farm: 'Vale das Uvas',
+        farmSub: 'Petrolina - Setor 04'
+      };
+    } else if (current === 'analista') {
       return {
         id: 'analista',
         nome: 'Luiz Felipe',
