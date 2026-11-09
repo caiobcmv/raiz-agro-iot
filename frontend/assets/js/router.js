@@ -22,6 +22,7 @@ import { renderPrevisoes } from './views/previsoes.js';
 import { renderRelatorios, setupRelatoriosEvents } from './views/relatorios.js';
 import { renderConfiguracoes, setupConfiguracoesEvents } from './views/configuracoes.js';
 import { renderUsuarios, setupUsuariosEvents } from './views/usuarios.js';
+import { renderRegrasAgronomicas, setupRegrasAgronomicasEvents } from './views/regras-agronomicas.js';
 
 const routes = {
   '#/login': {
@@ -98,8 +99,8 @@ const routes = {
   },
   '#/regras-agronomicas': {
     title: 'Regras Agronômicas Vigentes',
-    render: renderConfiguracoes,
-    setup: setupConfiguracoesEvents,
+    render: renderRegrasAgronomicas,
+    setup: setupRegrasAgronomicasEvents,
     authRequired: true
   },
   '#/auditoria': {

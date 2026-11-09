@@ -162,8 +162,8 @@ export async function renderSensores() {
 
         <!-- Painel do Gráfico sem borda -->
         <div style="position: relative; width: 100%; background: #F8FAFC; border-radius: 12px; overflow: hidden; padding: 16px 16px 12px 16px;">
-          <div style="position: relative; width: 100%; height: 220px;">
-            <svg viewBox="0 0 860 220" style="width: 100%; height: 100%;" preserveAspectRatio="none">
+          <div style="position: relative; width: 100%; height: 260px;">
+            <svg viewBox="0 0 860 220" style="width: 100%; height: 100%; display: block;" preserveAspectRatio="xMidYMid meet">
               <defs>
                 <linearGradient id="grad-umidade-solo" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stop-color="#10B981" stop-opacity="0.25"/>

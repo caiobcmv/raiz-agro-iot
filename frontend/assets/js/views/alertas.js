@@ -425,8 +425,8 @@ function renderAnalistaAlertas() {
         </div>
 
         <!-- Gráfico SVG com Faixa de Segurança e Reta de Projeção ML -->
-        <div style="position: relative; width: 100%; height: 220px; background: #FAFDFB; border: 1px solid #E2E8F0; border-radius: 12px; overflow: hidden; padding: 10px;">
-          <svg viewBox="0 0 800 200" style="width: 100%; height: 100%;" preserveAspectRatio="xMidYMid meet">
+        <div style="position: relative; width: 100%; height: 260px; background: #FAFDFB; border: 1px solid #E2E8F0; border-radius: 12px; overflow: hidden; padding: 10px;">
+          <svg viewBox="0 0 800 200" style="width: 100%; height: 100%; display: block;" preserveAspectRatio="xMidYMid meet">
             <!-- Faixa Segura de 10°C a 13°C (Área Verde Clara) -->
             <rect x="0" y="70" width="800" height="70" fill="#ECFDF5" opacity="0.7"/>
 
