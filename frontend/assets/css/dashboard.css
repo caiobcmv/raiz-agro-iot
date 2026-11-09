@@ -267,6 +267,11 @@
   cursor: default;
 }
 
+/* avatar informativo — sem efeito hover de clicável */
+.user-profile-header-pill:hover {
+  cursor: default;
+}
+
 .avatar-initials-mc {
   width: 34px;
   height: 34px;

@@ -131,14 +131,16 @@ if (userCount === 0) {
   db.exec(`
     INSERT INTO perfil (id_perfil, nome, descricao) VALUES
     (1, 'Gestor', 'Acesso administrativo e executivo de operações'),
-    (2, 'Analista', 'Acesso técnico a telemetria, hardware ESP32 e calibrações');
+    (2, 'Analista', 'Acesso técnico a telemetria, hardware ESP32 e calibrações'),
+    (3, 'Administrador', 'Controle absoluto de infraestrutura, governança de usuários e políticas globais');
   `);
 
   // Usuários
   db.exec(`
     INSERT INTO usuario (id_usuario, id_perfil, nome, email, senha_hash, ativo) VALUES
     (1, 1, 'Maria Clara', 'maria.clara@raizagro.agr.br', 'pbkdf2_sha256$mocked_hash_gestora', 1),
-    (2, 2, 'Luiz Felipe', 'luiz.felipe@raizagro.agr.br', 'pbkdf2_sha256$mocked_hash_analista', 1);
+    (2, 2, 'Luiz Felipe', 'luiz.felipe@raizagro.agr.br', 'pbkdf2_sha256$mocked_hash_analista', 1),
+    (3, 3, 'Lorena Lira', 'lorena.lira@raizagro.agr.br', 'pbkdf2_sha256$mocked_hash_admin', 1);
   `);
 
   // Sensores
@@ -197,6 +199,11 @@ if (userCount === 0) {
 } else {
   console.log('Banco de dados já existente e operacional com registros persistidos.');
 }
+
+// Atualizar Lorena Lira para bancos já criados
+try {
+  db.prepare("UPDATE usuario SET nome = 'Lorena Lira', email = 'lorena.lira@raizagro.agr.br' WHERE id_usuario = 3 OR email = 'carlos.silva@raizagro.agr.br'").run();
+} catch (e) {}
 
 module.exports = { db };
 

@@ -46,7 +46,7 @@ export async function renderAuditoria() {
       badge: 'ALTERAÇÃO DE PARÂMETRO',
       badgeClass: 'badge-info',
       codigo_ref: 'config_parametro',
-      lote: 'Carlos Silva (Admin)',
+      lote: 'Lorena Lira (Admin)',
       data: '22/09/2026 11:30:15',
       titulo: 'Edição de Limiar Fisiológico em Uva Vitória (Sem Semente)',
       origem: 'temp_min_segura: <span style="color:#DC2626; text-decoration:line-through;">-1.0°C</span> &rarr; <span style="color:#047857; font-weight:700;">-0.5°C</span>',
@@ -76,7 +76,7 @@ export async function renderAuditoria() {
       badge: 'SEGURANÇA RBAC',
       badgeClass: 'badge-rbac',
       codigo_ref: 'Tabela usuario',
-      lote: 'Ativado por Carlos Silva',
+      lote: 'Ativado por Lorena Lira',
       data: '21/09/2026 17:40:00',
       titulo: 'Criação de Novo Operador de Campo — João Pedro (Irrigação)',
       origem: 'Perfil Concedido: Operador de Campo',
@@ -387,7 +387,7 @@ export function setupAuditoriaEvents() {
       const csv = `timestamp;tipo_evento;entidade_referencia;usuario_agente;ip_origem;status;hash_sha256\n` +
                   `2026-09-22 14:12:08;DISPARO_PROTOCOLO;#ALT-2026-084;Sistema Automatico;10.0.0.1;ATIVO;a7f83b99120ce9c1\n` +
                   `2026-09-22 13:45:20;LOGIN_MFA;usuario_5;Dra. Gabriela Sales;187.54.210.12;SUCESSO;e8c22fa1090123\n` +
-                  `2026-09-22 11:30:15;ALTERACAO_PARAMETRO;config_parametro;Carlos Silva;192.168.1.45;HOMOLOGADO;91283fa0123cb\n` +
+                  `2026-09-22 11:30:15;ALTERACAO_PARAMETRO;config_parametro;Lorena Lira;192.168.1.45;HOMOLOGADO;91283fa0123cb\n` +
                   `2026-09-22 10:15:02;SANITIZACAO_IOT;leitura_rejeitada;Gateway LoRaWAN;10.0.0.25;ISOLADO;192803acbbef\n`;
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);

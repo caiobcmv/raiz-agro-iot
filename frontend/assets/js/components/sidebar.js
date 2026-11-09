@@ -1,7 +1,7 @@
 /**
  * COMPONENTE SIDEBAR DE NAVEGAÇÃO - FIEL AO FIGMA (#183D2E)
  * Suporte dinâmico aos 3 perfis:
- * 1. Administrador (Carlos Silva): 8 itens de menu
+ * 1. Administradora (Lorena Lira): 8 itens de menu
  * 2. Analista (Luiz Felipe): 6 itens de menu
  * 3. Gestora (Maria Clara): 4 itens de menu
  */

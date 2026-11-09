@@ -5,6 +5,7 @@
  */
 
 import { api } from '../api.js';
+import { auth } from '../auth.js';
 import { Modal } from '../components/modal.js';
 import { toast } from '../components/toast.js';
 
@@ -16,21 +17,24 @@ export async function renderUsuarios() {
     console.warn('Falha ao buscar usuários do backend, usando seed local.');
   }
 
+  const usuarioLogado = auth.getUser();
+  const emailLogado = usuarioLogado ? (usuarioLogado.email || '').trim().toLowerCase() : '';
+
   // Lista padrão caso backend retorne vazio
   if (!usuarios || usuarios.length === 0) {
     usuarios = [
-      { id_usuario: 3, nome: 'Carlos Silva', email: 'carlos.silva@raizagro.agr.br', perfil: 'Administrador', data_cadastro: '14/01/2025', ultimo_acesso: 'Hoje às 15:42 • IP 192.168.1.45', ativo: 1, isVoce: true },
+      { id_usuario: 3, nome: 'Lorena Lira', email: 'lorena.lira@raizagro.agr.br', perfil: 'Administrador', data_cadastro: '14/01/2025', ultimo_acesso: 'Hoje às 15:42 • IP 192.168.1.45', ativo: 1 },
       { id_usuario: 1, nome: 'Maria Clara Gestora', email: 'maria.clara@raizagro.agr.br', perfil: 'Produtor / Exportador', data_cadastro: '02/02/2025', ultimo_acesso: 'Hoje às 15:40 • IP 187.54.12.8', ativo: 1 },
       { id_usuario: 2, nome: 'Luiz Felipe', email: 'luiz.felipe@raizagro.agr.br', perfil: 'Analista de Dados', data_cadastro: '10/02/2025', ultimo_acesso: 'Hoje às 15:15 • IP 10.0.0.12', ativo: 1 },
       { id_usuario: 4, nome: 'Rodrigo Alves', email: 'rodrigo.alves@raizagro.agr.br', perfil: 'Produtor / Exportador', data_cadastro: '22/03/2025', ultimo_acesso: 'Hoje às 14:50 • Terminal Mobile', ativo: 1 },
       { id_usuario: 5, nome: 'Dra. Gabriela Sales', email: 'gabriela.sales@raizagro.agr.br', perfil: 'Analista de Dados', data_cadastro: '05/04/2025', ultimo_acesso: 'Ontem às 18:20 • API Gateway', ativo: 1 },
       { id_usuario: 6, nome: 'João Pedro', email: 'joao.pedro@raizagro.agr.br', perfil: 'Produtor / Exportador', data_cadastro: '12/05/2025', ultimo_acesso: 'Ontem às 11:30 • IP 187.54.12.8', ativo: 1 }
-    ];
+    ].map(u => ({ ...u, isVoce: u.email === emailLogado }));
   } else {
     // Enriquecer dados da query
     usuarios = usuarios.map(u => ({
       ...u,
-      isVoce: u.email === 'carlos.silva@raizagro.agr.br',
+      isVoce: (u.email || '').trim().toLowerCase() === emailLogado,
       data_cadastro: u.data_cadastro || '14/01/2025',
       ultimo_acesso: u.ultimo_acesso || 'Hoje às 15:30 • IP 192.168.1.45'
     }));

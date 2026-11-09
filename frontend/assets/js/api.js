@@ -4,6 +4,8 @@
  * para modo demonstração caso o banco ou backend estejam temporariamente offline.
  */
 
+import { USUARIOS } from './auth.js';
+
 const API_BASE_URL = localStorage.getItem('API_URL') || 'http://localhost:8000';
 
 class ApiService {
@@ -101,7 +103,7 @@ class ApiService {
   // ==========================================
   async login(email, senha) {
     const cleanEmail = (email || '').trim().toLowerCase();
-    if (cleanEmail !== 'maria.clara@raizagro.agr.br' && cleanEmail !== 'luiz.felipe@raizagro.agr.br') {
+    if (!USUARIOS[cleanEmail]) {
       throw new Error('E-mail não autorizado. Apenas usuários cadastrados podem acessar o sistema.');
     }
     this.currentLoginEmail = cleanEmail;
@@ -139,25 +141,20 @@ class ApiService {
         // Aceita qualquer código de 6 dígitos no modo demonstração
         if (codigo && codigo.length === 6) {
           const email = this.currentLoginEmail || localStorage.getItem('pending_login_email') || '';
-          if (email !== 'maria.clara@raizagro.agr.br' && email !== 'luiz.felipe@raizagro.agr.br') {
+          const usuario = USUARIOS[email];
+          if (!usuario) {
             throw new Error('E-mail não autorizado para autenticação.');
           }
-          const isAnalista = email === 'luiz.felipe@raizagro.agr.br';
           const demoSession = {
-            access_token: 'demo_jwt_token_' + (isAnalista ? 'analista' : 'gestor'),
-            refresh_token: 'demo_refresh_' + (isAnalista ? 'analista' : 'gestor'),
+            access_token: 'demo_jwt_token_' + usuario.profile,
+            refresh_token: 'demo_refresh_' + usuario.profile,
             token_type: 'bearer',
             expires_in: 3600,
-            usuario: isAnalista ? {
-              id_usuario: 2,
-              nome: 'Luiz Felipe',
-              email: 'luiz.felipe@raizagro.agr.br',
-              perfil: 'Analista IoT & Telemetria'
-            } : {
-              id_usuario: 1,
-              nome: 'Maria Clara',
-              email: 'maria.clara@raizagro.agr.br',
-              perfil: 'Gestora de Operações'
+            usuario: {
+              id_usuario: usuario.id_usuario,
+              nome: usuario.nome,
+              email: usuario.email,
+              perfil: usuario.perfil
             }
           };
           this.setTokens(demoSession.access_token, demoSession.refresh_token);

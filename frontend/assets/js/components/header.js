@@ -1,6 +1,6 @@
 /**
  * COMPONENTE TOPBAR HEADER - FIEL AO FIGMA
- * Suporta dinamicamente perfis: Administrador (Carlos Silva), Analista (Luiz Felipe) e Gestora (Maria Clara)
+ * Suporta dinamicamente perfis: Administradora (Lorena Lira), Analista (Luiz Felipe) e Gestora (Maria Clara)
  */
 
 import { auth } from '../auth.js';
@@ -81,8 +81,8 @@ export function renderHeader(title) {
           <span class="header-bell-badge">2</span>
         </a>
 
-        <!-- Perfil Header: Alternável entre Maria Clara, Luiz Felipe e Lorena Lira -->
-        <div class="user-profile-header-pill" id="user-profile-header-pill" title="Clique para alternar perfil de acesso" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+        <!-- Perfil Header: informativo — exibe Lorena Lira, Luiz Felipe ou Maria Clara conforme o login -->
+        <div class="user-profile-header-pill" id="user-profile-header-pill" title="${profile.tituloCompleto}" style="display: flex; align-items: center; gap: 8px; cursor: default;">
           <div class="avatar-initials-pill" style="width: 32px; height: 32px; border-radius: 50%; background:${profile.avatarBg}; border:1.5px solid ${profile.avatarBorder}; color:${profile.avatarColor}; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 11px;">
             ${profile.iniciais}
           </div>
@@ -90,7 +90,6 @@ export function renderHeader(title) {
             <span class="profile-name" style="font-size: 12px; font-weight: 700; color: #0F172A; line-height: 1.1;">${profile.nome}</span>
             <span class="profile-role" style="font-size: 10px; color: #64748B;">${profile.cargo}</span>
           </div>
-          <i data-lucide="chevron-down" style="width: 14px; height: 14px; color: #64748B; margin-left: 2px;"></i>
         </div>
       </div>
     </header>

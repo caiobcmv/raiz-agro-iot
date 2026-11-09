@@ -3,7 +3,7 @@
  */
 
 import { api } from '../api.js';
-import { auth } from '../auth.js';
+import { auth, USUARIOS } from '../auth.js';
 import { toast } from '../components/toast.js';
 
 export function renderLogin() {
@@ -151,8 +151,9 @@ export function setupLoginEvents() {
         return;
       }
 
-      // Validação estrita de e-mail por comparação exata (sem includes)
-      if (email !== 'maria.clara@raizagro.agr.br' && email !== 'luiz.felipe@raizagro.agr.br') {
+      // Validação estrita de e-mail por comparação exata via mapa de USUARIOS
+      const usuarioAutorizado = USUARIOS[email];
+      if (!usuarioAutorizado) {
         toast.error('Acesso Negado', 'E-mail não autorizado. Apenas usuários cadastrados podem acessar o sistema.');
         return;
       }
@@ -165,15 +166,8 @@ export function setupLoginEvents() {
 
         if (response.access_token) {
           api.setTokens(response.access_token, response.refresh_token);
-          const isAnalista = email === 'luiz.felipe@raizagro.agr.br';
-          auth.setActiveProfile(isAnalista ? 'analista' : 'gestor');
-          auth.setUser(response.user || {
-            id_usuario: isAnalista ? 2 : 1,
-            nome: isAnalista ? 'Luiz Felipe' : 'Maria Clara',
-            email: email,
-            perfil: isAnalista ? 'Analista IoT & Telemetria' : 'Gestora de Operações'
-          });
-          toast.success('Bem-vindo(a)!', `Acesso autorizado como ${isAnalista ? 'Luiz Felipe' : 'Maria Clara'}.`);
+          auth.startSession(email);
+          toast.success('Bem-vindo(a)!', `Acesso autorizado como ${usuarioAutorizado.nome}.`);
           window.location.hash = '#/dashboard';
         } else if (response.requer_2fa) {
           toast.success('Credenciais válidas', 'Código de verificação 2FA gerado.');
@@ -314,26 +308,20 @@ function open2FAModal(tokenTemporario, emailMascarado, email) {
             clearInterval(interval);
             modalWrap.remove();
 
-            const isAnalista = email === 'luiz.felipe@raizagro.agr.br';
-            const profileKey = isAnalista ? 'analista' : 'gestor';
-            auth.setActiveProfile(profileKey);
+            const usuarioAutorizado = USUARIOS[email];
+            const profileKey = usuarioAutorizado ? usuarioAutorizado.profile : 'gestor';
 
-            // Salva tokens e usuário na sessão
+            // Salva tokens na sessão
             if (session && session.access_token) {
               api.setTokens(session.access_token, session.refresh_token);
             } else {
               api.setTokens('demo_jwt_token_' + profileKey, 'demo_refresh_token_' + profileKey);
             }
 
-            const userData = (session && session.usuario) ? session.usuario : ((session && session.user) ? session.user : {
-              id_usuario: isAnalista ? 2 : 1,
-              nome: isAnalista ? 'Luiz Felipe' : 'Maria Clara',
-              email: email,
-              perfil: isAnalista ? 'Analista IoT & Telemetria' : 'Gestora de Operações'
-            });
-            auth.setUser(userData);
+            auth.startSession(email);
+            const nomeExibicao = (usuarioAutorizado && usuarioAutorizado.nome) || (auth.getUser() && auth.getUser().nome) || 'Usuário';
 
-            toast.success('Autenticação Concluída', `Seja bem-vindo(a), ${userData.nome}!`);
+            toast.success('Autenticação Concluída', `Seja bem-vindo(a), ${nomeExibicao}!`);
             window.location.hash = '#/dashboard';
           } catch (err) {
             toast.error('Código Inválido', err.message || 'Código incorreto ou expirado.');

@@ -15,11 +15,14 @@ if (!perfilAdmin) {
 const usuariosSeed = [
   { id: 1, id_perfil: 1, nome: 'Maria Clara Gestora', email: 'maria.clara@raizagro.agr.br', senha: 'hash', ativo: 1 },
   { id: 2, id_perfil: 2, nome: 'Luiz Felipe', email: 'luiz.felipe@raizagro.agr.br', senha: 'hash', ativo: 1 },
-  { id: 3, id_perfil: 3, nome: 'Carlos Silva', email: 'carlos.silva@raizagro.agr.br', senha: 'hash', ativo: 1 },
+  { id: 3, id_perfil: 3, nome: 'Lorena Lira', email: 'lorena.lira@raizagro.agr.br', senha: 'hash', ativo: 1 },
   { id: 4, id_perfil: 1, nome: 'Rodrigo Alves', email: 'rodrigo.alves@raizagro.agr.br', senha: 'hash', ativo: 1 },
   { id: 5, id_perfil: 2, nome: 'Dra. Gabriela Sales', email: 'gabriela.sales@raizagro.agr.br', senha: 'hash', ativo: 1 },
   { id: 6, id_perfil: 1, nome: 'João Pedro', email: 'joao.pedro@raizagro.agr.br', senha: 'hash', ativo: 1 }
 ];
+
+// Corrige bancos já criados
+db.prepare("UPDATE usuario SET nome = 'Lorena Lira', email = 'lorena.lira@raizagro.agr.br' WHERE id_usuario = 3 OR email = 'carlos.silva@raizagro.agr.br'").run();
 
 for (const u of usuariosSeed) {
   const exists = db.prepare('SELECT * FROM usuario WHERE email = ?').get(u.email);

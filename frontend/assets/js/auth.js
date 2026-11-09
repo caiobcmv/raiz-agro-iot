@@ -1,18 +1,44 @@
 /**
  * GERENCIAMENTO DE ESTADO DE AUTENTICAÇÃO E SESSÃO MULTI-PERFIL
  * Suporta 3 perfis dinâmicos:
- * 1. Analista IoT: Luiz Felipe (Telemetria, ESP32, MESH, Modelos Preditivos)
- * 2. Gestora Operações: Maria Clara (Visão Executiva, Talhões, Cadeia Fria, Produtividade)
- * 3. Administrador Geral: Carlos Silva (Governança RBAC, Lotes & Safra, Auditoria, Políticas Globais)
+ * 1. Analista IoT & Telemetria: Luiz Felipe
+ * 2. Gestora de Operações: Maria Clara
+ * 3. Administradora da Plataforma: Lorena Lira
  */
 
 import { api } from './api.js';
 import { toast } from './components/toast.js';
 
+export const USUARIOS = {
+  'lorena.lira@raizagro.agr.br': {
+    id_usuario: 3,
+    nome: 'Lorena Lira',
+    email: 'lorena.lira@raizagro.agr.br',
+    perfil: 'Administradora da Plataforma',
+    profile: 'admin'
+  },
+  'maria.clara@raizagro.agr.br': {
+    id_usuario: 1,
+    nome: 'Maria Clara',
+    email: 'maria.clara@raizagro.agr.br',
+    perfil: 'Gestora de Operações',
+    profile: 'gestor'
+  },
+  'luiz.felipe@raizagro.agr.br': {
+    id_usuario: 2,
+    nome: 'Luiz Felipe',
+    email: 'luiz.felipe@raizagro.agr.br',
+    perfil: 'Analista IoT & Telemetria',
+    profile: 'analista'
+  }
+};
+
+export const EMAILS_AUTORIZADOS = Object.keys(USUARIOS);
+
 class AuthState {
   constructor() {
     this.user = this.loadUser();
-    this.activeProfile = this.loadActiveProfile();
+    this.activeProfile = this.getActiveProfile();
   }
 
   loadUser() {
@@ -21,100 +47,56 @@ class AuthState {
       if (data && data !== 'undefined' && data !== 'null') {
         const parsed = JSON.parse(data);
         if (parsed && typeof parsed === 'object' && parsed.email) {
-          return parsed;
+          const email = String(parsed.email).trim().toLowerCase();
+          if (USUARIOS[email]) {
+            return {
+              ...USUARIOS[email],
+              ...parsed,
+              email
+            };
+          }
         }
       }
     } catch (e) {
       console.warn('Erro ao carregar usuário da sessão:', e);
     }
-
-    const currentProfile = this.getActiveProfile();
-    let defaultUser;
-
-    if (currentProfile === 'admin') {
-      defaultUser = {
-        id_usuario: 3,
-        nome: 'Carlos Silva',
-        email: 'carlos.silva@raizagro.agr.br',
-        perfil: 'Administrador da Plataforma'
-      };
-    } else if (currentProfile === 'analista') {
-      defaultUser = {
-        id_usuario: 2,
-        nome: 'Luiz Felipe',
-        email: 'luiz.felipe@raizagro.agr.br',
-        perfil: 'Analista IoT & Telemetria'
-      };
-    } else {
-      defaultUser = {
-        id_usuario: 1,
-        nome: 'Maria Clara',
-        email: 'maria.clara@raizagro.agr.br',
-        perfil: 'Gestora de Operações'
-      };
-    }
-
-    try {
-      localStorage.setItem('user_data', JSON.stringify(defaultUser));
-      if (!localStorage.getItem('access_token')) {
-        localStorage.setItem('access_token', 'demo_token_' + currentProfile);
-      }
-    } catch (e) { }
-
-    return defaultUser;
-  }
-
-  loadActiveProfile() {
-    return localStorage.getItem('ACTIVE_PROFILE') || 'admin';
+    return null;
   }
 
   getActiveProfile() {
-    return this.activeProfile || 'admin';
+    if (!this.user) {
+      this.user = this.loadUser();
+    }
+    if (this.user && this.user.email) {
+      const email = String(this.user.email).trim().toLowerCase();
+      if (USUARIOS[email]) {
+        return USUARIOS[email].profile;
+      }
+    }
+    return null;
   }
 
-  setActiveProfile(profile) {
-    if (profile === 'admin' || profile === 'gestor' || profile === 'analista') {
-      this.activeProfile = profile;
-    } else {
-      this.activeProfile = 'admin';
-    }
-    localStorage.setItem('ACTIVE_PROFILE', this.activeProfile);
-
-    // Atualiza dados do usuário correspondente
-    if (this.activeProfile === 'admin') {
-      this.setUser({
-        id_usuario: 3,
-        nome: 'Carlos Silva',
-        email: 'carlos.silva@raizagro.agr.br',
-        perfil: 'Administrador da Plataforma'
-      });
-    } else if (this.activeProfile === 'analista') {
-      this.setUser({
-        id_usuario: 2,
-        nome: 'Luiz Felipe',
-        email: 'luiz.felipe@raizagro.agr.br',
-        perfil: 'Analista IoT & Telemetria'
-      });
-    } else {
-      this.setUser({
-        id_usuario: 1,
-        nome: 'Maria Clara',
-        email: 'maria.clara@raizagro.agr.br',
-        perfil: 'Gestora de Operações'
-      });
+  startSession(email) {
+    const cleanEmail = (email || '').trim().toLowerCase();
+    const usuario = USUARIOS[cleanEmail];
+    if (!usuario) {
+      return false;
     }
 
-    window.dispatchEvent(new CustomEvent('profile-changed', { detail: { profile: this.activeProfile } }));
-  }
+    this.user = { ...usuario };
+    this.activeProfile = usuario.profile;
 
-  toggleProfile() {
-    const current = this.getActiveProfile();
-    let next = 'admin';
-    if (current === 'analista') next = 'gestor';
-    else if (current === 'gestor') next = 'admin';
-    else next = 'analista';
-    this.setActiveProfile(next);
-    return next;
+    try {
+      localStorage.setItem('user_data', JSON.stringify(this.user));
+      localStorage.setItem('ACTIVE_PROFILE', this.activeProfile);
+    } catch (e) {
+      console.warn('Erro ao salvar sessão no localStorage:', e);
+    }
+
+    window.dispatchEvent(new CustomEvent('profile-changed', {
+      detail: { profile: this.activeProfile, user: this.user }
+    }));
+    return true;
   }
 
   getProfileData() {
@@ -125,8 +107,8 @@ class AuthState {
         id: 'admin',
         nome: 'Lorena Lira',
         sobrenome: 'Lira',
-        cargo: 'Administrador',
-        tituloCompleto: 'Administrador da Plataforma',
+        cargo: 'Administradora',
+        tituloCompleto: 'Administradora da Plataforma',
         iniciais: 'LL',
         email: 'lorena.lira@raizagro.agr.br',
         avatarBg: '#DCFCE7',
@@ -178,8 +160,15 @@ class AuthState {
     if (!this.user) {
       this.user = this.loadUser();
     }
+    if (!this.user || !this.user.email) {
+      return false;
+    }
+    const cleanEmail = String(this.user.email).trim().toLowerCase();
+    if (!USUARIOS[cleanEmail]) {
+      return false;
+    }
     const token = api.getToken() || localStorage.getItem('access_token');
-    return Boolean(this.user && token);
+    return Boolean(token);
   }
 
   getUser() {
@@ -189,11 +178,10 @@ class AuthState {
   setUser(userData) {
     this.user = userData;
     if (userData) {
-      localStorage.setItem('user_data', JSON.stringify(userData));
-      if (userData.email === 'luiz.felipe@raizagro.agr.br') {
-        this.setActiveProfile('analista');
-      } else if (userData.email === 'maria.clara@raizagro.agr.br') {
-        this.setActiveProfile('gestor');
+      try {
+        localStorage.setItem('user_data', JSON.stringify(userData));
+      } catch (e) {
+        console.warn('Erro ao salvar user_data no localStorage:', e);
       }
     } else {
       localStorage.removeItem('user_data');

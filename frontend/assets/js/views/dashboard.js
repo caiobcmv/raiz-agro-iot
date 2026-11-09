@@ -1357,7 +1357,7 @@ function setupAnalistaDashboardEvents() {
 }
 
 /**
- * 3. DASHBOARD DO ADMINISTRADOR (FIGMA MOCKUP 1: CARLOS SILVA / LORENA LIRA)
+ * 3. DASHBOARD DO ADMINISTRADOR (FIGMA MOCKUP 1: LORENA LIRA)
  * Visão Geral do Sistema com Governança, Lotes, Sensores, Conformidade e Atividade 24h
  */
 function renderAdminDashboard() {
@@ -1637,13 +1637,13 @@ function renderAdminDashboard() {
             </div>
           </div>
 
-          <!-- Usuário 4: Carlos Silva -->
+          <!-- Usuário 4: Lorena Lira -->
           <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px; display: flex; align-items: center; justify-content: space-between;">
             <div style="display: flex; align-items: center; gap: 10px;">
-              <div style="width: 36px; height: 36px; border-radius: 50%; background: #E2E8F0; border: 1.5px solid #0F172A; color: #0F172A; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 12px;">CS</div>
+              <div style="width: 36px; height: 36px; border-radius: 50%; background: #DCFCE7; border: 1.5px solid #86EFAC; color: #166534; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 12px;">LL</div>
               <div>
                 <div style="display: flex; align-items: center; gap: 6px;">
-                  <strong style="font-size: 13px; color: #0F172A;">Carlos Silva</strong>
+                  <strong style="font-size: 13px; color: #0F172A;">Lorena Lira</strong>
                   <span style="font-size: 9px; font-weight: 700; color: #0F172A; background: #E2E8F0; padding: 1px 6px; border-radius: 4px;">Admin</span>
                 </div>
                 <div style="font-size: 11px; color: #64748B;">Parâmetros de clima</div>

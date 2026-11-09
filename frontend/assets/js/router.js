@@ -123,7 +123,6 @@ export class Router {
   constructor(appContainer) {
     this.appContainer = appContainer;
     window.addEventListener('hashchange', () => this.handleRoute());
-    window.addEventListener('profile-changed', () => this.handleRoute());
   }
 
   async init() {
@@ -176,6 +175,20 @@ export class Router {
       return;
     }
 
+    // Guarda de perfil: rotas exclusivas de admin só podem ser acessadas pelo perfil admin
+    const ROTAS_ADMIN = ['#/usuarios', '#/auditoria', '#/lotes', '#/regras-agronomicas'];
+    const ROTAS_ANALISTA = ['#/rede-esp32', '#/leituras'];
+    const activeProfile = auth.getActiveProfile();
+    if (ROTAS_ADMIN.includes(hash) && activeProfile !== 'admin') {
+      hash = '#/dashboard';
+      window.location.hash = hash;
+      toast.info('Acesso Restrito', 'Esta área é exclusiva da Administradora.');
+    } else if (ROTAS_ANALISTA.includes(hash) && activeProfile !== 'analista' && activeProfile !== 'admin') {
+      hash = '#/dashboard';
+      window.location.hash = hash;
+      toast.info('Acesso Restrito', 'Esta área é exclusiva do Analista.');
+    }
+
     document.title = `${route.title} | Raiz Agro`;
 
     if (hash === '#/login') {
@@ -212,96 +225,8 @@ export class Router {
           });
         }
 
-        // Interatividade no Perfil do Header (Alternador entre Carlos Silva, Luiz Felipe e Maria Clara)
-        const profilePill = document.getElementById('user-profile-header-pill');
-        if (profilePill) {
-          profilePill.addEventListener('click', () => {
-            const activeProfile = auth.getActiveProfile();
-            const isAdmin = activeProfile === 'admin';
-            const isAnalista = activeProfile === 'analista';
-            const isGestor = activeProfile === 'gestor';
-
-            Modal.open('Alternar Perfil de Acesso — RAIZ Agro', `
-              <div style="font-size: 13px; color: #475569; margin-bottom: 16px;">
-                Selecione o perfil desejado para alternar dinamicamente entre as visões do sistema:
-              </div>
-
-              <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px;">
-                <!-- Opção 1: Administrador (Carlos Silva) -->
-                <div id="btn-select-admin" style="padding: 14px 16px; border: 2px solid ${isAdmin ? '#0F172A' : '#E2E8F0'}; background: ${isAdmin ? '#F8FAFC' : '#FFFFFF'}; border-radius: 12px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; transition: all 0.2s;">
-                  <div style="display: flex; align-items: center; gap: 12px;">
-                    <div style="width: 42px; height: 42px; border-radius: 50%; background: #E2E8F0; border: 2px solid #0F172A; color: #0F172A; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px;">CS</div>
-                    <div>
-                      <div style="font-weight: 700; font-size: 14px; color: #0F172A;">Carlos Silva</div>
-                      <div style="font-size: 11px; color: #0F172A; font-weight: 600;">Administrador da Plataforma (Superuser)</div>
-                      <div style="font-size: 10px; color: #64748B;">Acesso irrestrito: Governança RBAC, Gestão de Usuários, Lotes &amp; Safra e Relatórios</div>
-                    </div>
-                  </div>
-                  ${isAdmin ? '<span style="background: #0F172A; color: #FFFFFF; font-size: 10px; font-weight: 700; padding: 4px 8px; border-radius: 6px;">ATIVO</span>' : '<span style="background: #E2E8F0; color: #334155; font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 6px;">Selecionar</span>'}
-                </div>
-
-                <!-- Opção 2: Analista (Luiz Felipe) -->
-                <div id="btn-select-analista" style="padding: 14px 16px; border: 2px solid ${isAnalista ? '#0284C7' : '#E2E8F0'}; background: ${isAnalista ? '#F0F9FF' : '#FFFFFF'}; border-radius: 12px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; transition: all 0.2s;">
-                  <div style="display: flex; align-items: center; gap: 12px;">
-                    <div style="width: 42px; height: 42px; border-radius: 50%; background: #E0F2FE; border: 2px solid #0284C7; color: #0369A1; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px;">LF</div>
-                    <div>
-                      <div style="font-weight: 700; font-size: 14px; color: #0F172A;">Luiz Felipe</div>
-                      <div style="font-size: 11px; color: #0284C7; font-weight: 600;">Analista de Telemetria &amp; IoT LoRaWAN</div>
-                      <div style="font-size: 10px; color: #64748B;">Acesso técnico: MESH, ThingSpeak, Topologia ESP32 e Modelos ML</div>
-                    </div>
-                  </div>
-                  ${isAnalista ? '<span style="background: #0284C7; color: #FFFFFF; font-size: 10px; font-weight: 700; padding: 4px 8px; border-radius: 6px;">ATIVO</span>' : '<span style="background: #E2E8F0; color: #334155; font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 6px;">Selecionar</span>'}
-                </div>
-
-                <!-- Opção 3: Gestora (Maria Clara) -->
-                <div id="btn-select-gestor" style="padding: 14px 16px; border: 2px solid ${isGestor ? '#10B981' : '#E2E8F0'}; background: ${isGestor ? '#F0FDF4' : '#FFFFFF'}; border-radius: 12px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; transition: all 0.2s;">
-                  <div style="display: flex; align-items: center; gap: 12px;">
-                    <div style="width: 42px; height: 42px; border-radius: 50%; background: #D1FAE5; border: 2px solid #10B981; color: #065F46; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px;">MC</div>
-                    <div>
-                      <div style="font-weight: 700; font-size: 14px; color: #0F172A;">Maria Clara Souza</div>
-                      <div style="font-size: 11px; color: #059669; font-weight: 600;">Gestora de Operações Agrícolas</div>
-                      <div style="font-size: 10px; color: #64748B;">Visão executiva da safra, talhões, irrigação e cadeia fria</div>
-                    </div>
-                  </div>
-                  ${isGestor ? '<span style="background: #10B981; color: #FFFFFF; font-size: 10px; font-weight: 700; padding: 4px 8px; border-radius: 6px;">ATIVO</span>' : '<span style="background: #E2E8F0; color: #334155; font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 6px;">Selecionar</span>'}
-                </div>
-              </div>
-            `, () => {
-              auth.logout();
-            }, 'Sair da Conta');
-
-            // Listeners dentro do Modal
-            setTimeout(() => {
-              const optAdmin = document.getElementById('btn-select-admin');
-              const optAnalista = document.getElementById('btn-select-analista');
-              const optGestor = document.getElementById('btn-select-gestor');
-
-              if (optAdmin) {
-                optAdmin.addEventListener('click', () => {
-                  auth.setActiveProfile('admin');
-                  Modal.close();
-                  toast.success('Perfil Ativado', 'Bem-vindo(a), Carlos Silva (Administrador da Plataforma).');
-                });
-              }
-
-              if (optAnalista) {
-                optAnalista.addEventListener('click', () => {
-                  auth.setActiveProfile('analista');
-                  Modal.close();
-                  toast.success('Perfil Ativado', 'Bem-vindo(a), Luiz Felipe (Analista IoT & Telemetria).');
-                });
-              }
-
-              if (optGestor) {
-                optGestor.addEventListener('click', () => {
-                  auth.setActiveProfile('gestor');
-                  Modal.close();
-                  toast.success('Perfil Ativado', 'Bem-vindo(a), Maria Clara (Gestora de Operações).');
-                });
-              }
-            }, 100);
-          });
-        }
+        // Avatar do header é apenas informativo — sem interação de troca de perfil
+        // Para mudar de perfil, use o botão Sair e faça login com outro e-mail.
 
         if (route.setup) await route.setup();
       } catch (renderError) {
