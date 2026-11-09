@@ -14,7 +14,10 @@ import { renderLogin, setupLoginEvents } from './views/login.js';
 import {
   renderPrimeiroAcesso, setupPrimeiroAcessoEvents,
   renderRecuperarSenha, setupRecuperarSenhaEvents,
-  renderVerificacao, setupVerificacaoEvents
+  renderVerificacao, setupVerificacaoEvents,
+  renderRedefinirSenha, setupRedefinirSenhaEvents,
+  renderSenhaAlterada, setupSenhaAlteradaEvents,
+  renderContaBloqueada, setupContaBloqueadaEvents
 } from './views/auth-flow.js';
 import { renderDashboard, setupDashboardEvents } from './views/dashboard.js';
 import { renderSensores, setupSensoresEvents } from './views/sensores.js';
@@ -54,6 +57,24 @@ const routes = {
     title: 'Digite o código de 6 dígitos - RAIZ',
     render: renderVerificacao,
     setup: setupVerificacaoEvents,
+    authRequired: false
+  },
+  '#/redefinir-senha': {
+    title: 'Redefinir sua senha - RAIZ',
+    render: renderRedefinirSenha,
+    setup: setupRedefinirSenhaEvents,
+    authRequired: false
+  },
+  '#/senha-alterada': {
+    title: 'Senha alterada com sucesso! - RAIZ',
+    render: renderSenhaAlterada,
+    setup: setupSenhaAlteradaEvents,
+    authRequired: false
+  },
+  '#/conta-bloqueada': {
+    title: 'Conta temporariamente bloqueada - RAIZ',
+    render: renderContaBloqueada,
+    setup: setupContaBloqueadaEvents,
     authRequired: false
   },
   '#/dashboard': {
@@ -150,7 +171,7 @@ export class Router {
 
   async init() {
     // Checagem assíncrona não bloqueante
-    api.checkHealth().catch(() => {});
+    api.checkHealth().catch(() => { });
 
     // Normaliza caminhos que foram digitados sem hash (ex: /dashboard ou //dashboard)
     if (window.location.pathname && window.location.pathname !== '/' && !window.location.pathname.includes('.')) {
@@ -214,7 +235,15 @@ export class Router {
 
     document.title = `${route.title} | Raiz Agro`;
 
-    const FULLSCREEN_ROUTES = ['#/login', '#/primeiro-acesso', '#/recuperar-senha', '#/verificacao'];
+    const FULLSCREEN_ROUTES = [
+      '#/login',
+      '#/primeiro-acesso',
+      '#/recuperar-senha',
+      '#/verificacao',
+      '#/redefinir-senha',
+      '#/senha-alterada',
+      '#/conta-bloqueada'
+    ];
 
     if (FULLSCREEN_ROUTES.includes(hash)) {
       // Telas de autenticação em tela cheia com visual do Figma

@@ -5,6 +5,7 @@
 import { api } from '../api.js';
 import { auth, USUARIOS } from '../auth.js';
 import { toast } from '../components/toast.js';
+import { isBloqueado, registrarFalha, limparTentativas } from './auth-flow.js';
 
 export function renderLogin() {
   return `
@@ -162,6 +163,14 @@ export function setupLoginEvents() {
         return;
       }
 
+      // Verificação de bloqueio temporário
+      if (isBloqueado(email)) {
+        sessionStorage.setItem('conta_bloqueada_email', email);
+        toast.warning('Acesso Bloqueado', 'Esta conta está temporariamente suspensa.');
+        window.location.hash = '#/conta-bloqueada';
+        return;
+      }
+
       submitBtn.classList.add('loading');
       submitBtn.textContent = 'AUTENTICANDO...';
 
@@ -169,6 +178,7 @@ export function setupLoginEvents() {
         const response = await api.login(email, senha);
 
         if (response.access_token) {
+          limparTentativas(email);
           api.setTokens(response.access_token, response.refresh_token);
           auth.startSession(email);
           toast.success('Bem-vindo(a)!', `Acesso autorizado como ${usuarioAutorizado.nome}.`);
@@ -182,7 +192,14 @@ export function setupLoginEvents() {
           window.location.hash = '#/verificacao';
         }
       } catch (err) {
-        toast.error('Falha de Login', err.message || 'E-mail ou senha incorretos.');
+        const resFalha = registrarFalha(email);
+        if (resFalha.bloqueado) {
+          sessionStorage.setItem('conta_bloqueada_email', email);
+          toast.error('Conta Bloqueada', 'Número máximo de tentativas incorretas excedido.');
+          window.location.hash = '#/conta-bloqueada';
+        } else {
+          toast.error('Falha de Login', err.message || 'E-mail ou senha incorretos.');
+        }
       } finally {
         submitBtn.classList.remove('loading');
         submitBtn.textContent = 'ENTRAR';
