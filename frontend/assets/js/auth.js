@@ -11,8 +11,8 @@ import { toast } from './components/toast.js';
 
 class AuthState {
   constructor() {
-    this.activeProfile = this.loadActiveProfile();
     this.user = this.loadUser();
+    this.activeProfile = this.loadActiveProfile();
   }
 
   loadUser() {
@@ -20,10 +20,12 @@ class AuthState {
       const data = localStorage.getItem('user_data');
       if (data && data !== 'undefined' && data !== 'null') {
         const parsed = JSON.parse(data);
-        if (parsed && typeof parsed === 'object') return parsed;
+        if (parsed && typeof parsed === 'object' && parsed.email) {
+          return parsed;
+        }
       }
     } catch (e) {
-      console.warn('Recuperando sessão padrão...');
+      console.warn('Erro ao carregar usuário da sessão:', e);
     }
 
     const currentProfile = this.getActiveProfile();
@@ -157,7 +159,7 @@ class AuthState {
         id: 'gestor',
         nome: 'Maria Clara',
         sobrenome: 'Souza',
-        cargo: 'Gestora',
+        cargo: 'Gestora Técnica',
         tituloCompleto: 'Gestora de Operações',
         iniciais: 'MC',
         email: 'maria.clara@raizagro.agr.br',
@@ -176,27 +178,37 @@ class AuthState {
     if (!this.user) {
       this.user = this.loadUser();
     }
-    return !!this.user;
+    const token = api.getToken() || localStorage.getItem('access_token');
+    return Boolean(this.user && token);
   }
 
   getUser() {
-    return this.user || {
-      nome: this.getProfileData().nome,
-      email: this.getProfileData().email,
-      perfil: this.getProfileData().tituloCompleto
-    };
+    return this.user;
   }
 
   setUser(userData) {
     this.user = userData;
-    localStorage.setItem('user_data', JSON.stringify(userData));
+    if (userData) {
+      localStorage.setItem('user_data', JSON.stringify(userData));
+      if (userData.email === 'luiz.felipe@raizagro.agr.br') {
+        this.setActiveProfile('analista');
+      } else if (userData.email === 'maria.clara@raizagro.agr.br') {
+        this.setActiveProfile('gestor');
+      }
+    } else {
+      localStorage.removeItem('user_data');
+    }
   }
 
   logout() {
     api.clearTokens();
     this.user = null;
+    this.activeProfile = null;
     localStorage.removeItem('user_data');
     localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('ACTIVE_PROFILE');
+    localStorage.removeItem('pending_login_email');
     toast.info('Sessão encerrada', 'Você saiu com segurança do sistema.');
     window.location.hash = '#/login';
   }

@@ -26,6 +26,8 @@ class ApiService {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('user_data');
+    localStorage.removeItem('pending_login_email');
+    this.currentLoginEmail = null;
   }
 
   // Verifica conectividade com o backend FastAPI (timeout rápido de 400ms)
@@ -98,10 +100,17 @@ class ApiService {
   // AUTENTICAÇÃO E 2FA (MFA)
   // ==========================================
   async login(email, senha) {
+    const cleanEmail = (email || '').trim().toLowerCase();
+    if (cleanEmail !== 'maria.clara@raizagro.agr.br' && cleanEmail !== 'luiz.felipe@raizagro.agr.br') {
+      throw new Error('E-mail não autorizado. Apenas usuários cadastrados podem acessar o sistema.');
+    }
+    this.currentLoginEmail = cleanEmail;
+    localStorage.setItem('pending_login_email', cleanEmail);
+
     try {
       return await this.request('/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ email, senha })
+        body: JSON.stringify({ email: cleanEmail, senha })
       });
     } catch (err) {
       // Fallback em caso de backend offline para teste visual imediato
@@ -110,7 +119,7 @@ class ApiService {
         return {
           requer_2fa: true,
           metodo: 'email',
-          email_mascarado: email.replace(/(.{2})(.*)(?=@)/, '$1***'),
+          email_mascarado: cleanEmail.replace(/(.{2})(.*)(?=@)/, '$1***'),
           expira_em_min: 10,
           token_temporario: 'demo_token_2fa_' + Date.now()
         };
@@ -129,16 +138,26 @@ class ApiService {
       if (err.message.includes('Failed to fetch') || !this.isBackendOnline) {
         // Aceita qualquer código de 6 dígitos no modo demonstração
         if (codigo && codigo.length === 6) {
+          const email = this.currentLoginEmail || localStorage.getItem('pending_login_email') || '';
+          if (email !== 'maria.clara@raizagro.agr.br' && email !== 'luiz.felipe@raizagro.agr.br') {
+            throw new Error('E-mail não autorizado para autenticação.');
+          }
+          const isAnalista = email === 'luiz.felipe@raizagro.agr.br';
           const demoSession = {
-            access_token: 'demo_jwt_token_' + Math.random().toString(36),
-            refresh_token: 'demo_refresh_' + Math.random().toString(36),
+            access_token: 'demo_jwt_token_' + (isAnalista ? 'analista' : 'gestor'),
+            refresh_token: 'demo_refresh_' + (isAnalista ? 'analista' : 'gestor'),
             token_type: 'bearer',
             expires_in: 3600,
-            usuario: {
+            usuario: isAnalista ? {
+              id_usuario: 2,
+              nome: 'Luiz Felipe',
+              email: 'luiz.felipe@raizagro.agr.br',
+              perfil: 'Analista IoT & Telemetria'
+            } : {
               id_usuario: 1,
-              nome: 'Carlos Gestor Agro',
-              email: 'gestao@frutas.agro.br',
-              perfil: 'Produtor/Exportador'
+              nome: 'Maria Clara',
+              email: 'maria.clara@raizagro.agr.br',
+              perfil: 'Gestora de Operações'
             }
           };
           this.setTokens(demoSession.access_token, demoSession.refresh_token);
