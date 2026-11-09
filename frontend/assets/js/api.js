@@ -140,7 +140,7 @@ class ApiService {
       if (err.message.includes('Failed to fetch') || !this.isBackendOnline) {
         // Aceita qualquer código de 6 dígitos no modo demonstração
         if (codigo && codigo.length === 6) {
-          const email = this.currentLoginEmail || localStorage.getItem('pending_login_email') || '';
+          const email = this.currentLoginEmail || sessionStorage.getItem('mfa_email') || localStorage.getItem('pending_login_email') || '';
           const usuario = USUARIOS[email];
           if (!usuario) {
             throw new Error('E-mail não autorizado para autenticação.');

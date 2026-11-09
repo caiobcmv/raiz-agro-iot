@@ -11,6 +11,11 @@ import { toast } from './components/toast.js';
 
 // Importação das Views
 import { renderLogin, setupLoginEvents } from './views/login.js';
+import {
+  renderPrimeiroAcesso, setupPrimeiroAcessoEvents,
+  renderRecuperarSenha, setupRecuperarSenhaEvents,
+  renderVerificacao, setupVerificacaoEvents
+} from './views/auth-flow.js';
 import { renderDashboard, setupDashboardEvents } from './views/dashboard.js';
 import { renderSensores, setupSensoresEvents } from './views/sensores.js';
 import { renderRedeEsp32, setupRedeEsp32Events } from './views/rede-esp32.js';
@@ -31,6 +36,24 @@ const routes = {
     title: 'Acesse sua conta - RAIZ',
     render: renderLogin,
     setup: setupLoginEvents,
+    authRequired: false
+  },
+  '#/primeiro-acesso': {
+    title: 'Ative seu primeiro acesso - RAIZ',
+    render: renderPrimeiroAcesso,
+    setup: setupPrimeiroAcessoEvents,
+    authRequired: false
+  },
+  '#/recuperar-senha': {
+    title: 'Recuperação de Senha - RAIZ',
+    render: renderRecuperarSenha,
+    setup: setupRecuperarSenhaEvents,
+    authRequired: false
+  },
+  '#/verificacao': {
+    title: 'Digite o código de 6 dígitos - RAIZ',
+    render: renderVerificacao,
+    setup: setupVerificacaoEvents,
     authRequired: false
   },
   '#/dashboard': {
@@ -191,8 +214,10 @@ export class Router {
 
     document.title = `${route.title} | Raiz Agro`;
 
-    if (hash === '#/login') {
-      // Tela de login em tela cheia com visual do Figma
+    const FULLSCREEN_ROUTES = ['#/login', '#/primeiro-acesso', '#/recuperar-senha', '#/verificacao'];
+
+    if (FULLSCREEN_ROUTES.includes(hash)) {
+      // Telas de autenticação em tela cheia com visual do Figma
       this.appContainer.innerHTML = route.render();
       if (route.setup) await route.setup();
     } else {

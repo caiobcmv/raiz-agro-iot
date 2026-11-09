@@ -78,7 +78,7 @@ export function renderLogin() {
                 <input type="checkbox" id="remember-me" class="login-checkbox" checked>
                 <span>Lembrar desta conta</span>
               </label>
-              <a href="javascript:void(0)" id="forgot-password-link" class="login-forgot-link">Esqueceu?</a>
+              <a href="#/recuperar-senha" id="forgot-password-link" class="login-forgot-link">Esqueceu?</a>
             </div>
 
             <!-- Botão Entrar -->
@@ -86,7 +86,10 @@ export function renderLogin() {
               ENTRAR
             </button>
 
-            
+            <!-- Link Primeiro Acesso -->
+            <div class="login-first-access">
+              Primeiro acesso? <a href="#/primeiro-acesso" class="login-first-access-link"><strong>Ative sua conta</strong></a>
+            </div>
           </form>
 
           <!-- Selo de Acesso MFA -->
@@ -132,10 +135,11 @@ export function setupLoginEvents() {
     });
   }
 
-  // Esqueci minha senha
+  // Esqueci minha senha (navega para recuperação sem toast)
   if (forgotLink) {
-    forgotLink.addEventListener('click', () => {
-      toast.info('Recuperação de Senha', 'Instruções enviadas para o e-mail de segurança cadastrado.');
+    forgotLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      window.location.hash = '#/recuperar-senha';
     });
   }
 
@@ -170,8 +174,12 @@ export function setupLoginEvents() {
           toast.success('Bem-vindo(a)!', `Acesso autorizado como ${usuarioAutorizado.nome}.`);
           window.location.hash = '#/dashboard';
         } else if (response.requer_2fa) {
-          toast.success('Credenciais válidas', 'Código de verificação 2FA gerado.');
-          open2FAModal(response.token_temporario, response.email_mascarado, email);
+          // Salva estado para a tela #/verificacao
+          sessionStorage.setItem('mfa_contexto', 'login');
+          sessionStorage.setItem('mfa_email', email);
+          sessionStorage.setItem('mfa_token_temporario', response.token_temporario || ('demo_token_2fa_' + Date.now()));
+          sessionStorage.setItem('mfa_metodo', response.metodo || 'email');
+          window.location.hash = '#/verificacao';
         }
       } catch (err) {
         toast.error('Falha de Login', err.message || 'E-mail ou senha incorretos.');
@@ -182,153 +190,3 @@ export function setupLoginEvents() {
     });
   }
 }
-
-/**
- * MODAL DE SEGUNDO FATOR DE AUTENTICAÇÃO (MFA / 2FA)
- */
-function open2FAModal(tokenTemporario, emailMascarado, email) {
-        const modalWrap = document.createElement('div');
-        modalWrap.className = 'mfa-modal-overlay';
-        modalWrap.id = 'mfa-modal';
-
-        modalWrap.innerHTML = `
-    <div class="mfa-modal-card">
-      <div class="mfa-modal-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/>
-          <path d="m9 12 2 2 4-4"/>
-        </svg>
-      </div>
-
-      <h2 class="mfa-modal-title">Verificação em Duas Etapas</h2>
-      <p class="mfa-modal-subtitle">
-        Enviamos um código de segurança de 6 dígitos para o e-mail:<br>
-        <strong>${emailMascarado || email}</strong>
-      </p>
-
-      <form id="mfa-form">
-        <div class="mfa-inputs-group">
-          <input type="text" class="mfa-digit-input" maxlength="1" pattern="[0-9]" inputmode="numeric" autofocus required>
-          <input type="text" class="mfa-digit-input" maxlength="1" pattern="[0-9]" inputmode="numeric" required>
-          <input type="text" class="mfa-digit-input" maxlength="1" pattern="[0-9]" inputmode="numeric" required>
-          <input type="text" class="mfa-digit-input" maxlength="1" pattern="[0-9]" inputmode="numeric" required>
-          <input type="text" class="mfa-digit-input" maxlength="1" pattern="[0-9]" inputmode="numeric" required>
-          <input type="text" class="mfa-digit-input" maxlength="1" pattern="[0-9]" inputmode="numeric" required>
-        </div>
-
-        <div class="mfa-resend-row">
-          <span>Tempo restante: <strong id="mfa-timer">09:59</strong></span>
-          <button type="button" class="mfa-resend-btn" id="mfa-resend-btn" disabled>Reenviar código</button>
-        </div>
-
-        <button type="submit" class="login-submit-btn" id="mfa-verify-btn">
-          CONFIRMAR E ENTRAR
-        </button>
-      </form>
-    </div>
-  `;
-
-        document.body.appendChild(modalWrap);
-
-        const inputs = modalWrap.querySelectorAll('.mfa-digit-input');
-        const mfaForm = modalWrap.querySelector('#mfa-form');
-        const verifyBtn = modalWrap.querySelector('#mfa-verify-btn');
-        const resendBtn = modalWrap.querySelector('#mfa-resend-btn');
-
-        // Foco automático e avanço entre dígitos
-        inputs.forEach((input, index) => {
-          input.addEventListener('input', (e) => {
-            if (input.value && index < inputs.length - 1) {
-              inputs[index + 1].focus();
-            }
-          });
-
-          input.addEventListener('keydown', (e) => {
-            if (e.key === 'Backspace' && !input.value && index > 0) {
-              inputs[index - 1].focus();
-            }
-          });
-
-          // Colar código de 6 dígitos diretamente
-          input.addEventListener('paste', (e) => {
-            e.preventDefault();
-            const pasteData = (e.clipboardData || window.clipboardData).getData('text').trim();
-            if (/^\d{6}$/.test(pasteData)) {
-              inputs.forEach((inp, idx) => inp.value = pasteData[idx]);
-              inputs[inputs.length - 1].focus();
-            }
-          });
-        });
-
-        // Contador de 10 minutos
-        let timeLeft = 600;
-        const timerEl = modalWrap.querySelector('#mfa-timer');
-        const interval = setInterval(() => {
-          timeLeft--;
-          const mins = String(Math.floor(timeLeft / 60)).padStart(2, '0');
-          const secs = String(timeLeft % 60).padStart(2, '0');
-          if (timerEl) timerEl.textContent = `${mins}:${secs}`;
-
-          if (timeLeft <= 540 && resendBtn) {
-            resendBtn.disabled = false;
-          }
-
-          if (timeLeft <= 0) {
-            clearInterval(interval);
-            toast.error('Código Expirado', 'Solicite um novo código de verificação.');
-          }
-        }, 1000);
-
-        // Reenviar código
-        resendBtn.addEventListener('click', async () => {
-          try {
-            await api.resend2FA(tokenTemporario);
-            toast.success('Código Reenviado', 'Verifique sua caixa de entrada.');
-            resendBtn.disabled = true;
-          } catch (e) {
-            toast.error('Erro', e.message);
-          }
-        });
-
-        // Validar código
-        mfaForm.addEventListener('submit', async (e) => {
-          e.preventDefault();
-          const code = Array.from(inputs).map(i => i.value).join('');
-
-          if (code.length !== 6) {
-            toast.warning('Atenção', 'Digite o código de 6 dígitos completo.');
-            return;
-          }
-
-          verifyBtn.textContent = 'VERIFICANDO...';
-          verifyBtn.disabled = true;
-
-          try {
-            const session = await api.verify2FA(tokenTemporario, code);
-            clearInterval(interval);
-            modalWrap.remove();
-
-            const usuarioAutorizado = USUARIOS[email];
-            const profileKey = usuarioAutorizado ? usuarioAutorizado.profile : 'gestor';
-
-            // Salva tokens na sessão
-            if (session && session.access_token) {
-              api.setTokens(session.access_token, session.refresh_token);
-            } else {
-              api.setTokens('demo_jwt_token_' + profileKey, 'demo_refresh_token_' + profileKey);
-            }
-
-            auth.startSession(email);
-            const nomeExibicao = (usuarioAutorizado && usuarioAutorizado.nome) || (auth.getUser() && auth.getUser().nome) || 'Usuário';
-
-            toast.success('Autenticação Concluída', `Seja bem-vindo(a), ${nomeExibicao}!`);
-            window.location.hash = '#/dashboard';
-          } catch (err) {
-            toast.error('Código Inválido', err.message || 'Código incorreto ou expirado.');
-            verifyBtn.textContent = 'CONFIRMAR E ENTRAR';
-            verifyBtn.disabled = false;
-            inputs.forEach(i => i.value = '');
-            inputs[0].focus();
-          }
-        });
-      }
