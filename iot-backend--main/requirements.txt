@@ -4,11 +4,13 @@ python-dotenv==1.0.1
 
 # Banco de Dados
 psycopg2-binary==2.9.13
+sqlalchemy
 
 # Framework da API
 fastapi
 uvicorn[standard]
 pydantic[email]
+google-genai
 
 # Segurança e Criptografia
 bcrypt
