@@ -1,8 +1,14 @@
+import urllib.parse
 import psycopg2
 from src import config, validacao
 
 
 def conectar():
+    db_url = config.DATABASE_URL
+    if db_url:
+        # Se DATABASE_URL estiver configurada (ex: Neon PostgreSQL no Render)
+        return psycopg2.connect(db_url)
+    
     return psycopg2.connect(
         host=config.DB_HOST,
         port=config.DB_PORT,
