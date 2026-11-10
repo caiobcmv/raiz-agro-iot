@@ -1,12 +1,12 @@
 /**
  * RAIZ AGRO IOT - CLIENTE API CENTRALIZADO
- * Conecta com o backend FastAPI (http://localhost:8000) e possui fallback resiliente
+ * Conecta com o backend FastAPI (https://raiz-agro-iot.onrender.com) e possui fallback resiliente
  * para modo demonstração caso o banco ou backend estejam temporariamente offline.
  */
 
 import { USUARIOS } from './auth.js';
 
-const API_BASE_URL = localStorage.getItem('API_URL') || 'http://localhost:8000';
+const API_BASE_URL = localStorage.getItem('API_URL') || 'https://raiz-agro-iot.onrender.com';
 
 class ApiService {
   constructor() {
@@ -32,11 +32,11 @@ class ApiService {
     this.currentLoginEmail = null;
   }
 
-  // Verifica conectividade com o backend FastAPI (timeout rápido de 400ms)
+  // Verifica conectividade com o backend FastAPI
   async checkHealth() {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 400);
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
       const res = await fetch(`${this.baseUrl}/`, { signal: controller.signal });
       clearTimeout(timeoutId);
       this.isBackendOnline = res.ok;
@@ -47,10 +47,10 @@ class ApiService {
     }
   }
 
-  // Wrapper genérico para requisições com autenticação Bearer e Timeout Estrito (900ms)
+  // Wrapper genérico para requisições com autenticação Bearer e Timeout resiliente para produção
   async request(endpoint, options = {}) {
     // Se já foi detectado que o backend está offline, retorna erro imediato para disparar mock sem delay
-    if (this.isBackendOnline === false) {
+    if (this.isBackendOnline === false && !endpoint.startsWith('/auth/')) {
       throw new Error('Backend offline (Modo Demonstração Ativo)');
     }
 
@@ -64,9 +64,9 @@ class ApiService {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    // Timeout de 900ms para evitar qualquer congelamento na tela de carregamento
+    // Timeout de 8000ms para suportar conexões de nuvem (Render + Neon PostgreSQL)
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 900);
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
 
     try {
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
