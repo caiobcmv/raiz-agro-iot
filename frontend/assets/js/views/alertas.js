@@ -6,34 +6,98 @@ import { liveTelemetry } from '../live-telemetry.js';
  */
 
 import { auth } from '../auth.js';
+import { api } from '../api.js';
 import { toast } from '../components/toast.js';
 import { Modal } from '../components/modal.js';
 
+let cachedAlertasMap = {};
+let cachedErroAlertas = null;
+
+function buildAlertasMap(lista = []) {
+  const map = {};
+  (lista || []).forEach(item => {
+    if (item && item.codigo_alerta) {
+      map[item.codigo_alerta] = item;
+    }
+  });
+  return map;
+}
+
+function syncHeaderBellCountFromMap(map) {
+  const isAnalista = auth.getActiveProfile() === 'analista';
+  const codigos = isAnalista
+    ? ['ALT-2026-001', 'ALT-2026-002', 'ALT-2026-003']
+    : ['P1-REEFER-EXP-2026-08', 'P2-SOLO-TALHAO-A1', 'PRED-VPD-SETOR-04'];
+  const pendentes = codigos.filter(c => (map[c]?.status || 'pendente') === 'pendente').length;
+  const bell = document.getElementById('header-bell-count');
+  if (bell) {
+    bell.textContent = String(pendentes);
+    bell.style.display = pendentes > 0 ? 'flex' : 'none';
+  }
+}
+
 export async function renderAlertas() {
+  cachedErroAlertas = null;
+  try {
+    const res = await api.getEstadoAlertas();
+    cachedAlertasMap = buildAlertasMap(res?.alertas || []);
+    syncHeaderBellCountFromMap(cachedAlertasMap);
+  } catch (err) {
+    cachedErroAlertas = err.message || 'Falha ao buscar estado dos alertas no servidor backend.';
+  }
+
   const isAnalista = auth.getActiveProfile() === 'analista';
   if (isAnalista) {
-    return renderAnalistaAlertas();
+    return renderAnalistaAlertas(cachedAlertasMap, cachedErroAlertas);
   }
-  return renderGestoraAlertas();
+  return renderGestoraAlertas(cachedAlertasMap, cachedErroAlertas);
 }
 
 /**
  * 1. CENTRAL DE ALERTAS DO ANALISTA (IMAGEM 5 FIGMA)
  */
-function renderAnalistaAlertas() {
+function renderAnalistaAlertas(alertasMap = {}, erroRede = null) {
+  const a1 = alertasMap['ALT-2026-001'] || { status: 'pendente', acao_tomada: '', leitura_atual: '14.8°C', limiar_seguro: '13.0°C' };
+  const a2 = alertasMap['ALT-2026-002'] || { status: 'pendente', acao_tomada: '', leitura_atual: '87.5% UR', limiar_seguro: '90.0% a 95.0% UR' };
+  const a3 = alertasMap['ALT-2026-003'] || { status: 'pendente', acao_tomada: '', leitura_atual: '12.3°C', limiar_seguro: '10.0°C a 12.0°C' };
+
+  const pendentesTotal = [a1, a2, a3].filter(a => a.status !== 'atendido').length;
+  const criticosTotal = a1.status === 'atendido' ? 0 : 1;
+  const mediosBaixosTotal = (a2.status === 'atendido' ? 0 : 1) + (a3.status === 'atendido' ? 0 : 1);
+
+  const renderStatusTag = (alerta, defaultColor) => {
+    if (alerta.status === 'atendido') {
+      return `<span class="analista-status-label" style="color: #059669; font-weight: 800; background: #DCFCE7; padding: 2px 8px; border-radius: 999px;">✓ STATUS: ATENDIDO (SALVO NO BANCO)</span>`;
+    }
+    if (alerta.status === 'silenciado') {
+      return `<span class="analista-status-label" style="color: #0284C7; font-weight: 800; background: #E0F2FE; padding: 2px 8px; border-radius: 999px;">STATUS: SILENCIADO (1H)</span>`;
+    }
+    return `<span class="analista-status-label" style="color: ${defaultColor}; font-weight: 700;">STATUS: EM ABERTO</span>`;
+  };
+
   return `
     <div class="dashboard-canvas apple-animate-in">
+      ${erroRede ? `
+        <div style="background: #FEF2F2; border: 1px solid #FCA5A5; border-radius: 12px; padding: 12px 16px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+          <div style="font-size: 12px; color: #991B1B; font-weight: 600;">
+            ⚠️ Erro de conexão com o banco de dados: ${erroRede}
+          </div>
+          <button id="btn-retry-alertas-analista" style="padding: 6px 12px; background: #DC2626; color: #FFF; border: none; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer;">
+            Tentar Novamente
+          </button>
+        </div>
+      ` : ''}
       <!-- Sub-barra Técnica do Analista -->
       <div class="analista-subbar">
         <div class="analista-subbar-info">
           <span class="analista-dot-pulse"></span>
           <span>Monitoramento Ativo • Sensor DHT11 ESP32-C3 & Solo Simulado (ThingSpeak #3500785)</span>
-          <span style="color: #64748B; font-size: 11px; font-weight: 400;">Sincronizado há 2 min</span>
+          <span style="color: #059669; font-size: 11px; font-weight: 600;">Sincronizado com PostgreSQL</span>
         </div>
         <div class="analista-subbar-actions">
           <button class="btn-analista-sync" id="btn-reconhecer-todos-analista">
             <i data-lucide="check" style="width: 14px; height: 14px;"></i>
-            <span>Reconhecer Todos</span>
+            <span>Marcar Todos como Atendidos</span>
           </button>
           <button class="btn-analista-export" id="btn-export-log-analista">
             <i data-lucide="download" style="width: 14px; height: 14px;"></i>
@@ -48,26 +112,26 @@ function renderAnalistaAlertas() {
         <div class="kpi-analista-card">
           <div class="kpi-top-row">
             <span class="kpi-label">ALERTAS ATIVOS HOJE</span>
-            <span class="kpi-badge yellow">Atenção Imediata</span>
+            <span id="analista-kpi-badge-status" class="kpi-badge ${pendentesTotal === 0 ? 'green' : 'yellow'}">${pendentesTotal === 0 ? 'Todos Atendidos' : 'Atenção Imediata'}</span>
           </div>
           <div style="display: flex; align-items: center; gap: 14px; margin: 4px 0;">
             <div style="position: relative; width: 50px; height: 50px;">
               <svg viewBox="0 0 36 36" style="width: 100%; height: 100%; transform: rotate(-90deg);">
                 <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#FEE2E2" stroke-width="4"/>
-                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#EF4444" stroke-width="4" stroke-dasharray="33, 100"/>
+                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="${pendentesTotal === 0 ? '#10B981' : '#EF4444'}" stroke-width="4" stroke-dasharray="${pendentesTotal === 0 ? 100 : Math.round((pendentesTotal / 3) * 100)}, 100"/>
               </svg>
               <div class="donut-center-wrap">
-                <span style="font-size: 16px; font-weight: 800; color: #0F172A;" data-kpi="alertas-pendentes-total">3</span>
+                <span id="analista-kpi-pendentes-num" style="font-size: 16px; font-weight: 800; color: #0F172A;" data-kpi="alertas-pendentes-total">${pendentesTotal}</span>
               </div>
             </div>
             <div style="font-size: 11px; color: #64748B;">
-              <div>Severidade Crítica: <strong style="color: #B91C1C;" data-kpi="alertas-criticos-total">1 lote</strong></div>
-              <div>Médio + Baixo: <strong>2 lotes</strong></div>
+              <div>Severidade Crítica: <strong id="analista-kpi-criticos-txt" style="color: ${criticosTotal === 0 ? '#059669' : '#B91C1C'};" data-kpi="alertas-criticos-total">${criticosTotal} lote(s)</strong></div>
+              <div>Médio + Baixo: <strong id="analista-kpi-medios-txt">${mediosBaixosTotal} lote(s)</strong></div>
             </div>
           </div>
           <div class="kpi-bottom-row">
             <span>MTTR Médio: <strong>15 min</strong></span>
-            <span style="color: #059669; font-weight: 600;">0 Reincidências</span>
+            <span style="color: #059669; font-weight: 600;">Persistido no Banco</span>
           </div>
         </div>
 
@@ -150,11 +214,11 @@ function renderAnalistaAlertas() {
           </div>
 
           <!-- Card de Incidente 1 (CRÍTICO + PREDITIVO) -->
-          <div class="incident-analista-card critico" data-severity="critico">
+          <div class="incident-analista-card critico ${a1.status === 'atendido' ? 'resolved' : ''}" data-severity="critico" data-codigo="ALT-2026-001" style="${a1.status === 'atendido' ? 'border-color: #BBF7D0; background: #F0FDF4;' : ''}">
             <div class="incident-top-meta">
               <div style="display: flex; align-items: center; gap: 8px;">
-                <span style="background: #FEE2E2; color: #B91C1C; font-weight: 800; font-size: 10px; padding: 2px 8px; border-radius: 4px;">
-                  CRÍTICO + PREDITIVO
+                <span style="background: ${a1.status === 'atendido' ? '#DCFCE7' : '#FEE2E2'}; color: ${a1.status === 'atendido' ? '#047857' : '#B91C1C'}; font-weight: 800; font-size: 10px; padding: 2px 8px; border-radius: 4px;">
+                  ${a1.status === 'atendido' ? '✓ ATENDIDO' : 'CRÍTICO + PREDITIVO'}
                 </span>
                 <span style="font-size: 11px; color: #64748B;">ALT-2026-001 • Há 14 min</span>
               </div>
@@ -167,37 +231,41 @@ function renderAnalistaAlertas() {
               Desvio térmico no lote de Manga (DHT11 Bancada)
             </h4>
             <p style="font-size: 12px; color: #475569; line-height: 1.5;">
-              Projeção de <strong>14.8°C</strong> ultrapassa teto de conservação (Tmax 13.0°C, Embrapa/UC Davis).
+              Projeção de <strong>${a1.leitura_atual || '14.8°C'}</strong> ultrapassa teto de conservação (Tmax ${a1.limiar_seguro || '13.0°C'}, Embrapa/UC Davis).
             </p>
 
             <div class="incident-action-box">
-              <i data-lucide="shield-alert" style="width: 15px; height: 15px; color: #B91C1C; flex-shrink: 0; margin-top: 1px;"></i>
+              <i data-lucide="shield-alert" style="width: 15px; height: 15px; color: ${a1.status === 'atendido' ? '#059669' : '#B91C1C'}; flex-shrink: 0; margin-top: 1px;"></i>
               <div>
-                <strong>Ação Recomendada oficial:</strong> Intervenção logística e operacional imediata no lote.
+                <strong>${a1.status === 'atendido' ? 'Registro de Atendimento Salvo:' : 'Ação Recomendada oficial:'}</strong>
+                ${a1.acao_tomada || 'Intervenção logística e operacional imediata no lote.'}
               </div>
             </div>
 
             <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 10px; flex-wrap: wrap; gap: 8px;">
-              <div style="display: flex; gap: 8px;">
-                <button class="incident-btn-primary btn-intervir-analista">
+              <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button class="incident-btn-primary btn-intervir-analista" data-codigo="ALT-2026-001">
                   Intervir Imediatamente
                 </button>
-                <button class="incident-btn-secondary btn-silenciar-analista">
-                  Silenciar 1h
+                <button class="incident-btn-secondary btn-atender-analista" data-codigo="ALT-2026-001" style="${a1.status === 'atendido' ? 'background: #DCFCE7; color: #047857; border-color: #86EFAC; font-weight: 700;' : ''}">
+                  ${a1.status === 'atendido' ? '✓ Atendido (Reabrir)' : 'Marcar como Atendido'}
+                </button>
+                <button class="incident-btn-secondary btn-silenciar-analista" data-codigo="ALT-2026-001">
+                  ${a1.status === 'silenciado' ? 'Silenciado (1h)' : 'Silenciar 1h'}
                 </button>
               </div>
               <div style="font-size: 11px; color: #64748B;">
-                Cultura: <strong>Manga</strong> • Destino: <strong>Exportação</strong> • Lote: 1.000 kg | <span style="color: #B91C1C; font-weight: 700;">STATUS: EM ABERTO</span>
+                Cultura: <strong>Manga</strong> • Destino: <strong>Exportação</strong> • Lote: 1.000 kg | ${renderStatusTag(a1, '#B91C1C')}
               </div>
             </div>
           </div>
 
           <!-- Card de Incidente 2 (MÉDIO - REATIVO) -->
-          <div class="incident-analista-card medio" data-severity="medio">
+          <div class="incident-analista-card medio ${a2.status === 'atendido' ? 'resolved' : ''}" data-severity="medio" data-codigo="ALT-2026-002" style="${a2.status === 'atendido' ? 'border-color: #BBF7D0; background: #F0FDF4;' : ''}">
             <div class="incident-top-meta">
               <div style="display: flex; align-items: center; gap: 8px;">
-                <span style="background: #FEF3C7; color: #B45309; font-weight: 800; font-size: 10px; padding: 2px 8px; border-radius: 4px;">
-                  MÉDIO — REATIVO
+                <span style="background: ${a2.status === 'atendido' ? '#DCFCE7' : '#FEF3C7'}; color: ${a2.status === 'atendido' ? '#047857' : '#B45309'}; font-weight: 800; font-size: 10px; padding: 2px 8px; border-radius: 4px;">
+                  ${a2.status === 'atendido' ? '✓ ATENDIDO' : 'MÉDIO — REATIVO'}
                 </span>
                 <span style="font-size: 11px; color: #64748B;">ALT-2026-002 • Há 48 min</span>
               </div>
@@ -210,37 +278,41 @@ function renderAnalistaAlertas() {
               Déficit de umidade relativa no lote de Uva
             </h4>
             <p style="font-size: 12px; color: #475569; line-height: 1.5;">
-              Sensor da câmara de Uva registrou <strong>87.5% UR</strong> vs. limiar seguro de 90.0% a 95.0% (Embrapa Semiárido).
+              Sensor da câmara de Uva registrou <strong>${a2.leitura_atual || '87.5% UR'}</strong> vs. limiar seguro de ${a2.limiar_seguro || '90.0% a 95.0% UR'} (Embrapa Semiárido).
             </p>
 
             <div class="incident-action-box">
-              <i data-lucide="droplet" style="width: 15px; height: 15px; color: #D97706; flex-shrink: 0; margin-top: 1px;"></i>
+              <i data-lucide="droplet" style="width: 15px; height: 15px; color: ${a2.status === 'atendido' ? '#059669' : '#D97706'}; flex-shrink: 0; margin-top: 1px;"></i>
               <div>
-                <strong>Ação Recomendada oficial:</strong> Ajuste preventivo do ambiente e verificação dos sistemas de refrigeração.
+                <strong>${a2.status === 'atendido' ? 'Registro de Atendimento Salvo:' : 'Ação Recomendada oficial:'}</strong>
+                ${a2.acao_tomada || 'Ajuste preventivo do ambiente e verificação dos sistemas de refrigeração.'}
               </div>
             </div>
 
             <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 10px; flex-wrap: wrap; gap: 8px;">
-              <div style="display: flex; gap: 8px;">
-                <button class="incident-btn-secondary btn-ajustar-param-analista">
+              <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button class="incident-btn-secondary btn-ajustar-param-analista" data-codigo="ALT-2026-002">
                   Ajustar Parâmetro
                 </button>
-                <button class="incident-btn-secondary btn-silenciar-analista">
-                  Silenciar 1h
+                <button class="incident-btn-secondary btn-atender-analista" data-codigo="ALT-2026-002" style="${a2.status === 'atendido' ? 'background: #DCFCE7; color: #047857; border-color: #86EFAC; font-weight: 700;' : ''}">
+                  ${a2.status === 'atendido' ? '✓ Atendido (Reabrir)' : 'Marcar como Atendido'}
+                </button>
+                <button class="incident-btn-secondary btn-silenciar-analista" data-codigo="ALT-2026-002">
+                  ${a2.status === 'silenciado' ? 'Silenciado (1h)' : 'Silenciar 1h'}
                 </button>
               </div>
               <div style="font-size: 11px; color: #64748B;">
-                Cultura: <strong>Uva Vitória</strong> • Destino: <strong>Mercado Interno</strong> • Faixa: 90% a 95% UR | <span style="color: #D97706; font-weight: 700;">STATUS: EM ABERTO</span>
+                Cultura: <strong>Uva Vitória</strong> • Destino: <strong>Mercado Interno</strong> • Faixa: ${a2.limiar_seguro || '90% a 95% UR'} | ${renderStatusTag(a2, '#D97706')}
               </div>
             </div>
           </div>
 
           <!-- Card de Incidente 3 (BAIXO - PREDITIVO) -->
-          <div class="incident-analista-card baixo" data-severity="baixo">
+          <div class="incident-analista-card baixo ${a3.status === 'atendido' ? 'resolved' : ''}" data-severity="baixo" data-codigo="ALT-2026-003" style="${a3.status === 'atendido' ? 'border-color: #BBF7D0; background: #F0FDF4;' : ''}">
             <div class="incident-top-meta">
               <div style="display: flex; align-items: center; gap: 8px;">
                 <span style="background: #ECFDF5; color: #047857; font-weight: 800; font-size: 10px; padding: 2px 8px; border-radius: 4px;">
-                  BAIXO — PREDITIVO
+                  ${a3.status === 'atendido' ? '✓ ATENDIDO' : 'BAIXO — PREDITIVO'}
                 </span>
                 <span style="font-size: 11px; color: #64748B;">ALT-2026-003 • Há 2h</span>
               </div>
@@ -250,7 +322,7 @@ function renderAnalistaAlertas() {
             </div>
 
             <h4 style="font-size: 14px; font-weight: 700; color: #0F172A; margin: 6px 0;">
-              Oscilação em Melão (12.3°C vs. Tmax 12.0°C)
+              Oscilação em Melão (${a3.leitura_atual || '12.3°C'} vs. Tmax 12.0°C)
             </h4>
             <p style="font-size: 12px; color: #475569; line-height: 1.5;">
               Projeção matemática indica leve tendência na antecâmara. Risco dentro da margem de tolerância.
@@ -259,16 +331,22 @@ function renderAnalistaAlertas() {
             <div class="incident-action-box">
               <i data-lucide="info" style="width: 15px; height: 15px; color: #059669; flex-shrink: 0; margin-top: 1px;"></i>
               <div>
-                <strong>Ação Recomendada oficial:</strong> Observação passiva e acompanhamento da evolução do lote.
+                <strong>${a3.status === 'atendido' ? 'Registro de Atendimento Salvo:' : 'Ação Recomendada oficial:'}</strong>
+                ${a3.acao_tomada || 'Observação passiva e acompanhamento da evolução do lote.'}
               </div>
             </div>
 
             <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 10px; flex-wrap: wrap; gap: 8px;">
-              <button class="incident-btn-secondary btn-acompanhar-analista">
-                Acompanhar Lote
-              </button>
+              <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button class="incident-btn-secondary btn-acompanhar-analista" data-codigo="ALT-2026-003">
+                  Acompanhar Lote
+                </button>
+                <button class="incident-btn-secondary btn-atender-analista" data-codigo="ALT-2026-003" style="${a3.status === 'atendido' ? 'background: #DCFCE7; color: #047857; border-color: #86EFAC; font-weight: 700;' : ''}">
+                  ${a3.status === 'atendido' ? '✓ Atendido (Reabrir)' : 'Marcar como Atendido'}
+                </button>
+              </div>
               <div style="font-size: 11px; color: #64748B;">
-                Cultura: <strong>Melão Amarelo</strong> • Destino: <strong>Exportação</strong> • Faixa: 10.0°C a 12.0°C | <span style="color: #059669; font-weight: 700;">STATUS: EM ABERTO</span>
+                Cultura: <strong>Melão Amarelo</strong> • Destino: <strong>Exportação</strong> • Faixa: 10.0°C a 12.0°C | ${renderStatusTag(a3, '#059669')}
               </div>
             </div>
           </div>
@@ -501,11 +579,31 @@ export function setupAlertasEvents() {
 function setupAnalistaAlertasEvents() {
   liveTelemetry.start();
 
-  // Reconhecer Todos
+  const refreshAnalistaPage = async () => {
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+  };
+
+  document.getElementById('btn-retry-alertas-analista')?.addEventListener('click', refreshAnalistaPage);
+
+  // Reconhecer Todos (Salva no PostgreSQL)
   const btnRec = document.getElementById('btn-reconhecer-todos-analista');
   if (btnRec) {
-    btnRec.addEventListener('click', () => {
-      toast.success('Incidentes Reconhecidos', 'Status de todos os alertas atualizado para "Em Atendimento pelo Analista".');
+    btnRec.addEventListener('click', async () => {
+      const oldHtml = btnRec.innerHTML;
+      btnRec.disabled = true;
+      btnRec.textContent = 'Salvando no banco...';
+      try {
+        await api.reconhecerTodosAlertas('analista');
+        const res = await api.getEstadoAlertas();
+        cachedAlertasMap = buildAlertasMap(res?.alertas || []);
+        syncHeaderBellCountFromMap(cachedAlertasMap);
+        toast.success('Incidentes Atendidos e Salvos', 'Todos os alertas do Analista foram marcados como atendidos no PostgreSQL.');
+        await refreshAnalistaPage();
+      } catch (err) {
+        btnRec.disabled = false;
+        btnRec.innerHTML = oldHtml;
+        toast.error('Erro de Rede ao Salvar', err.message || 'Não foi possível salvar o status no servidor.');
+      }
     });
   }
 
@@ -515,26 +613,18 @@ function setupAnalistaAlertasEvents() {
     btnExp.addEventListener('click', async () => {
       try {
         toast.info('Gerando Arquivo', 'Consultando ocorrências do banco de dados...');
-        
-        // Cabeçalhos do CSV
         const headers = ["ID Alerta", "Titulo", "Severidade", "Status", "Sensor", "Data/Hora", "Descricao"];
-        
-        // Dados do banco de dados (tabela alerta & alerta_preditivo)
         const rows = [
-          [1, "Desvio Termico no Lote de Manga", "Critico (P1)", "Pendente", "DHT11 ESP32-C3", new Date().toISOString(), "DHT11 registrou 14.8C acima do teto de 13.0C em transito para Pecem."],
-          [2, "Deficit de Umidade Relativa no Lote de Uva", "Medio (P2)", "Pendente", "SNS-AR-002", new Date().toISOString(), "Umidade caiu para 87.5% UR na camara de armazenamento."],
-          [3, "Oscilacao Termica em Melao Amarelo", "Baixo (P3)", "Reconhecido", "SNS-SL-003", new Date().toISOString(), "Temperatura em 12.3C na antecamara."],
-          [4, "Risco Preditivo de Deficit Hidrico", "Alta Probabilidade (84%)", "Auditoria", "SNS-SL-004", new Date().toISOString(), "Probabilidade projetada em 84% para as proximas 12 horas."],
-          [5, "Outlier Termico Rejeitado", "Filtro Penman", "Descartado", "Sonda Solo #SNS-SL-04", new Date().toISOString(), "Leitura 62.4C acima do limite fisico."]
+          ["ALT-2026-001", "Desvio Termico no Lote de Manga", "Critico (P1)", cachedAlertasMap['ALT-2026-001']?.status || "pendente", "DHT11 ESP32-C3", new Date().toISOString(), "DHT11 registrou 14.8C acima do teto de 13.0C em transito para Pecem."],
+          ["ALT-2026-002", "Deficit de Umidade Relativa no Lote de Uva", "Medio (P2)", cachedAlertasMap['ALT-2026-002']?.status || "pendente", "SNS-AR-002", new Date().toISOString(), "Umidade caiu para 87.5% UR na camara de armazenamento."],
+          ["ALT-2026-003", "Oscilacao Termica em Melao Amarelo", "Baixo (P3)", cachedAlertasMap['ALT-2026-003']?.status || "pendente", "SNS-SL-003", new Date().toISOString(), "Temperatura em 12.3C na antecamara."]
         ];
 
-        // Monta o conteúdo CSV formatado em UTF-8 com BOM para Excel
         const csvContent = "\uFEFF" + [
           headers.join(";"),
           ...rows.map(r => r.map(field => `"${String(field).replace(/"/g, '""')}"`).join(";"))
         ].join("\r\n");
 
-        // Cria o blob e dispara o download real no navegador
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -569,36 +659,107 @@ function setupAnalistaAlertasEvents() {
     });
   });
 
-  // Intervir Imediatamente
+  // Marcar / Reabrir Alerta Individual do Analista (Persistido no PostgreSQL)
+  document.querySelectorAll('.btn-atender-analista').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const targetBtn = e.currentTarget;
+      const codigo = targetBtn.dataset.codigo;
+      if (!codigo) return;
+      const atual = cachedAlertasMap[codigo]?.status || 'pendente';
+      const novoStatus = atual === 'atendido' ? 'pendente' : 'atendido';
+      const oldText = targetBtn.textContent;
+      targetBtn.disabled = true;
+      targetBtn.textContent = 'Salvando...';
+
+      try {
+        const res = await api.atualizarStatusAlerta(codigo, {
+          status: novoStatus,
+          acao_tomada: novoStatus === 'atendido'
+            ? 'Alerta verificado e marcado como atendido pelo Analista de Dados & IoT.'
+            : 'Incidente reaberto para nova verificação técnica.'
+        });
+        if (res?.alerta) {
+          cachedAlertasMap[codigo] = res.alerta;
+        } else {
+          cachedAlertasMap[codigo] = { ...(cachedAlertasMap[codigo] || {}), status: novoStatus };
+        }
+        syncHeaderBellCountFromMap(cachedAlertasMap);
+        toast.success(
+          novoStatus === 'atendido' ? 'Alerta Atendido e Salvo' : 'Alerta Reaberto',
+          `O status do alerta ${codigo} foi salvo permanentemente no banco de dados.`
+        );
+        await refreshAnalistaPage();
+      } catch (err) {
+        targetBtn.disabled = false;
+        targetBtn.textContent = oldText;
+        toast.error('Erro de Rede ao Salvar Alerta', err.message || 'Não foi possível persistir o status no backend.');
+      }
+    });
+  });
+
+  // Intervir Imediatamente (Salva como Atendido no PostgreSQL)
   document.querySelectorAll('.btn-intervir-analista').forEach(btn => {
-    btn.addEventListener('click', () => {
-      Modal.open('Ordem de Intervenção Operacional — ALT-2026-001', `
+    btn.addEventListener('click', (e) => {
+      const codigo = e.currentTarget.dataset.codigo || 'ALT-2026-001';
+      Modal.open(`Ordem de Intervenção Operacional — ${codigo}`, `
         <div style="font-size:12px; color:#475569; line-height:1.6; margin-bottom:12px;">
-          Esta ação despachará um alerta prioritário para a equipe de logística refrigerada e acionará o setpoint de refrigeração da câmara para <strong>11.5°C</strong>.
+          Esta ação despachará um alerta prioritário para a equipe de logística refrigerada, acionará o setpoint de refrigeração da câmara para <strong>11.5°C</strong> e salvará o incidente como <strong>Atendido</strong> no banco de dados.
         </div>
         <div style="background:#F8FAFC; border:1px solid #E2E8F0; padding:10px; border-radius:8px; font-size:11px;">
           <strong>Destino:</strong> Porto de Pecém (CE)<br>
           <strong>Carga sob risco:</strong> 1.000 kg Manga Palmer<br>
           <strong>Previsão de estabilização térmica:</strong> 35 minutos
         </div>
-      `, () => {
-        toast.success('Intervenção Executada', 'Gatilho de refrigeração forçada enviado ao controlador.');
+      `, async () => {
+        try {
+          const res = await api.atualizarStatusAlerta(codigo, {
+            status: 'atendido',
+            acao_tomada: 'Intervenção executada: Setpoint de refrigeração forçada (11.5°C) enviado ao controlador.',
+            leitura_atual: '12.4°C'
+          });
+          if (res?.alerta) cachedAlertasMap[codigo] = res.alerta;
+          syncHeaderBellCountFromMap(cachedAlertasMap);
+          toast.success('Intervenção Executada e Salva', 'Gatilho enviado e status "Atendido" salvo no PostgreSQL.');
+          await refreshAnalistaPage();
+        } catch (err) {
+          toast.error('Falha ao Salvar no Servidor', err.message || 'Erro de rede.');
+          return false;
+        }
       }, 'Confirmar Intervenção');
     });
   });
 
-  // Silenciar 1h
+  // Silenciar 1h (Salva no PostgreSQL)
   document.querySelectorAll('.btn-silenciar-analista').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.currentTarget.textContent = 'Silenciado (1h)';
-      e.currentTarget.style.color = '#10B981';
-      toast.info('Alerta Silenciado', 'Notificações deste incidente suspensas por 60 minutos.');
+    btn.addEventListener('click', async (e) => {
+      const targetBtn = e.currentTarget;
+      const codigo = targetBtn.dataset.codigo;
+      const oldText = targetBtn.textContent;
+      targetBtn.disabled = true;
+      targetBtn.textContent = 'Salvando...';
+      try {
+        if (codigo) {
+          const res = await api.atualizarStatusAlerta(codigo, {
+            status: 'silenciado',
+            acao_tomada: 'Notificações silenciadas temporariamente por 60 minutos pelo Analista.'
+          });
+          if (res?.alerta) cachedAlertasMap[codigo] = res.alerta;
+          syncHeaderBellCountFromMap(cachedAlertasMap);
+        }
+        toast.info('Alerta Silenciado', 'Estado salvo no banco de dados por 60 minutos.');
+        await refreshAnalistaPage();
+      } catch (err) {
+        targetBtn.disabled = false;
+        targetBtn.textContent = oldText;
+        toast.error('Erro de Rede', err.message || 'Não foi possível silenciar o alerta no servidor.');
+      }
     });
   });
 
-  // Ajustar Parâmetro
+  // Ajustar Parâmetro (Salva limiar e marca como Atendido no PostgreSQL)
   document.querySelectorAll('.btn-ajustar-param-analista').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', (e) => {
+      const codigo = e.currentTarget.dataset.codigo || 'ALT-2026-002';
       Modal.open('Ajustar Parâmetro de Umidade Relativa', `
         <div style="font-size:12px; color:#475569; margin-bottom:12px;">
           Faixa atual de conservação para Uva Vitória: <strong>90% a 95% UR</strong>
@@ -606,17 +767,43 @@ function setupAnalistaAlertasEvents() {
         <label style="font-size:12px; font-weight:600; color:#0F172A; display:block; margin-bottom:4px;">
           Novo Limiar Mínimo Tolerado (% UR):
         </label>
-        <input type="number" value="85" style="width:100%; padding:8px 12px; border:1px solid #CBD5E1; border-radius:6px; font-size:12px;">
-      `, () => {
-        toast.success('Parâmetro Salvo', 'Novo limiar de 85% UR homologado para a câmara de Uva.');
+        <input id="input-novo-limiar-ur" type="number" value="85" style="width:100%; padding:8px 12px; border:1px solid #CBD5E1; border-radius:6px; font-size:12px;">
+      `, async () => {
+        const val = document.getElementById('input-novo-limiar-ur')?.value || '85';
+        try {
+          const res = await api.atualizarStatusAlerta(codigo, {
+            status: 'atendido',
+            limiar_seguro: `${val}% a 95% UR`,
+            acao_tomada: `Limiar homologado para ${val}% UR e alerta marcado como atendido.`
+          });
+          if (res?.alerta) cachedAlertasMap[codigo] = res.alerta;
+          syncHeaderBellCountFromMap(cachedAlertasMap);
+          toast.success('Parâmetro Salvo no Banco', `Novo limiar de ${val}% UR homologado e alerta atendido.`);
+          await refreshAnalistaPage();
+        } catch (err) {
+          toast.error('Erro ao Salvar Ajuste', err.message || 'Falha de conexão com o backend.');
+          return false;
+        }
       }, 'Salvar Ajuste');
     });
   });
 
-  // Acompanhar Lote
+  // Acompanhar Lote (Salva como Atendido no PostgreSQL)
   document.querySelectorAll('.btn-acompanhar-analista').forEach(btn => {
-    btn.addEventListener('click', () => {
-      toast.info('Monitoramento Intensivo', 'Lote de Melão colocado sob amostragem contínua de 5 minutos.');
+    btn.addEventListener('click', async (e) => {
+      const codigo = e.currentTarget.dataset.codigo || 'ALT-2026-003';
+      try {
+        const res = await api.atualizarStatusAlerta(codigo, {
+          status: 'atendido',
+          acao_tomada: 'Lote de Melão colocado sob amostragem intensiva de 5 minutos e alerta atendido.'
+        });
+        if (res?.alerta) cachedAlertasMap[codigo] = res.alerta;
+        syncHeaderBellCountFromMap(cachedAlertasMap);
+        toast.success('Monitoramento Ativado', 'Status "Atendido" salvo no PostgreSQL.');
+        await refreshAnalistaPage();
+      } catch (err) {
+        toast.error('Erro de Rede', err.message || 'Não foi possível salvar no servidor.');
+      }
     });
   });
 
@@ -646,20 +833,46 @@ function setupAnalistaAlertasEvents() {
 /**
  * 2. CENTRAL DE ALERTAS DA GESTORA (MARIA CLARA)
  */
-function renderGestoraAlertas() {
+function renderGestoraAlertas(alertasMap = {}, erroRede = null) {
+  const p1 = alertasMap['P1-REEFER-EXP-2026-08'] || { status: 'pendente', acao_tomada: '', leitura_atual: '3.4°C', limiar_seguro: '0.5 - 2.0°C' };
+  const p2 = alertasMap['P2-SOLO-TALHAO-A1'] || { status: 'pendente', acao_tomada: '', leitura_atual: '38.2%', limiar_seguro: '50.0% VWC' };
+  const pred = alertasMap['PRED-VPD-SETOR-04'] || { status: 'pendente', acao_tomada: '', leitura_atual: '42 km/h', limiar_seguro: '< 35 km/h' };
+
+  const p1Atendido = p1.status === 'atendido';
+  const p2Atendido = p2.status === 'atendido';
+  const predAtendido = pred.status === 'atendido';
+
+  const criticosAtivos = p1Atendido ? 0 : 1;
+  const moderadosAtivos = (p2Atendido ? 0 : 1) + (predAtendido ? 0 : 1);
+  const totalAtivos = criticosAtivos + moderadosAtivos;
+  const resolvidosHoje = 2 + (p1Atendido ? 1 : 0) + (p2Atendido ? 1 : 0) + (predAtendido ? 1 : 0);
+
+  const vwcAtualTexto = p2Atendido ? (p2.leitura_atual && p2.leitura_atual !== '38.2%' ? p2.leitura_atual : '44.8%') : (p2.leitura_atual || '38.2%');
+  const vwcNum = parseFloat(String(vwcAtualTexto).replace(',', '.')) || (p2Atendido ? 44.8 : 38.2);
+
   return `
   <div style="max-width: 1280px; margin: 0 auto; width: 100%; padding: 0 16px;">
+    ${erroRede ? `
+      <div style="background: #FEF2F2; border: 1px solid #FCA5A5; border-radius: 12px; padding: 12px 16px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <div style="font-size: 12px; color: #991B1B; font-weight: 600;">
+          ⚠️ Erro de conexão com o banco de dados: ${erroRede}
+        </div>
+        <button id="btn-retry-alertas-gestora" style="padding: 6px 12px; background: #DC2626; color: #FFF; border: none; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer;">
+          Tentar Novamente
+        </button>
+      </div>
+    ` : ''}
     <!-- Top Sub-Bar: Sensores Ativos & Ações -->
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
       <div style="background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 9999px; padding: 7px 16px; display: inline-flex; align-items: center; gap: 8px;">
         <span style="width: 8px; height: 8px; border-radius: 50%; background: #10B981; display: inline-block; box-shadow: 0 0 0 2px rgba(16,185,129,0.2); animation: pulse-dot 1.8s infinite;"></span>
-        <span style="font-size: 12px; font-weight: 600; color: #15803D;">24 Sensores Ativos em Monitoramento Contínuo</span>
+        <span style="font-size: 12px; font-weight: 600; color: #15803D;">24 Sensores Ativos • Sincronizado com PostgreSQL</span>
       </div>
 
       <div style="display: flex; gap: 8px; flex-wrap: wrap;">
         <button id="btn-reconhecer-todos" style="padding: 8px 14px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 12px; font-weight: 600; color: #475569; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.02); transition: all 0.2s;" onmouseover="this.style.background='#F8FAFC'" onmouseout="this.style.background='#FFFFFF'">
           <i data-lucide="check" style="width: 14px; height: 14px; color: #059669;"></i>
-          Reconhecer Todos
+          Marcar Todos como Atendidos
         </button>
 
         <button id="btn-exportar-csv" style="padding: 8px 14px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 12px; font-weight: 600; color: #475569; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.02); transition: all 0.2s;" onmouseover="this.style.background='#F8FAFC'" onmouseout="this.style.background='#FFFFFF'">
@@ -682,21 +895,21 @@ function renderGestoraAlertas() {
         <div>
           <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
             <span style="font-size: 10px; font-weight: 700; color: #64748B; letter-spacing: 0.6px; text-transform: uppercase;">ALERTAS ATIVOS</span>
-            <i data-lucide="alert-triangle" style="width: 15px; height: 15px; color: #F59E0B;"></i>
+            <i data-lucide="alert-triangle" style="width: 15px; height: 15px; color: ${totalAtivos === 0 ? '#10B981' : '#F59E0B'};"></i>
           </div>
 
           <div style="display: flex; align-items: baseline; gap: 6px; margin-bottom: 12px;">
-            <span id="kpi-alertas-count" style="font-size: 38px; font-weight: 800; color: #0F172A; line-height: 1;">3</span>
-            <span style="font-size: 11px; color: #64748B; font-weight: 500;">ocorrências ativas</span>
+            <span id="kpi-alertas-count" style="font-size: 38px; font-weight: 800; color: #0F172A; line-height: 1;">${totalAtivos}</span>
+            <span style="font-size: 11px; color: #64748B; font-weight: 500;">${totalAtivos === 0 ? 'todos atendidos' : 'ocorrências ativas'}</span>
           </div>
         </div>
 
         <div style="display: flex; gap: 8px;">
-          <div id="kpi-critico-pill" style="background: #FEE2E2; color: #DC2626; font-size: 10px; font-weight: 700; padding: 4px 8px; border-radius: 6px; line-height: 1.2;">
-            1 Crítico<br><span style="font-weight: 800;">P1</span>
+          <div id="kpi-critico-pill" style="background: ${criticosAtivos === 0 ? '#DCFCE7' : '#FEE2E2'}; color: ${criticosAtivos === 0 ? '#15803D' : '#DC2626'}; font-size: 10px; font-weight: 700; padding: 4px 8px; border-radius: 6px; line-height: 1.2;">
+            ${criticosAtivos} Crítico<br><span style="font-weight: 800;">${criticosAtivos === 0 ? 'Atendido' : 'P1'}</span>
           </div>
-          <div id="kpi-moderado-pill" style="background: #FEF3C7; color: #B45309; font-size: 10px; font-weight: 700; padding: 4px 8px; border-radius: 6px; line-height: 1.2;">
-            2 Moderados<br><span style="font-weight: 800;">P2</span>
+          <div id="kpi-moderado-pill" style="background: ${moderadosAtivos === 0 ? '#DCFCE7' : '#FEF3C7'}; color: ${moderadosAtivos === 0 ? '#15803D' : '#B45309'}; font-size: 10px; font-weight: 700; padding: 4px 8px; border-radius: 6px; line-height: 1.2;">
+            ${moderadosAtivos} Moderados<br><span style="font-weight: 800;">${moderadosAtivos === 0 ? 'Atendidos' : 'P2'}</span>
           </div>
         </div>
       </div>
@@ -706,13 +919,13 @@ function renderGestoraAlertas() {
         <div>
           <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
             <span style="font-size: 10px; font-weight: 700; color: #64748B; letter-spacing: 0.6px; text-transform: uppercase;">UMIDADE DO SOLO (FDR)</span>
-            <i data-lucide="alert-triangle" style="width: 15px; height: 15px; color: #F59E0B;"></i>
+            <i data-lucide="alert-triangle" style="width: 15px; height: 15px; color: ${p2Atendido ? '#10B981' : '#F59E0B'};"></i>
           </div>
 
           <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
-            <span id="kpi-umidade-val" style="font-size: 34px; font-weight: 800; color: #0F172A; line-height: 1;">38,2%</span>
-            <div style="background: #FEF3C7; border: 1px solid #FDE68A; color: #B45309; font-size: 9px; font-weight: 700; line-height: 1.15; padding: 3px 6px; border-radius: 5px; text-align: center;">
-              Abaixo<br>de<br>50.0%
+            <span id="kpi-umidade-val" style="font-size: 34px; font-weight: 800; color: #0F172A; line-height: 1;">${String(vwcAtualTexto).replace('.', ',')}</span>
+            <div style="background: ${p2Atendido ? '#DCFCE7' : '#FEF3C7'}; border: 1px solid ${p2Atendido ? '#BBF7D0' : '#FDE68A'}; color: ${p2Atendido ? '#15803D' : '#B45309'}; font-size: 9px; font-weight: 700; line-height: 1.15; padding: 3px 6px; border-radius: 5px; text-align: center;">
+              ${p2Atendido ? 'Recarga<br>Ativa' : 'Abaixo<br>de<br>50.0%'}
             </div>
           </div>
         </div>
@@ -720,10 +933,10 @@ function renderGestoraAlertas() {
         <div>
           <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 6px;">
             <span style="font-size: 10px; color: #64748B; line-height: 1.25;">Talhão A1 • Uva<br>Vitória</span>
-            <span id="kpi-umidade-status" style="font-size: 10px; font-weight: 700; color: #D97706; text-align: right; line-height: 1.25;">Murcha<br>iminente</span>
+            <span id="kpi-umidade-status" style="font-size: 10px; font-weight: 700; color: ${p2Atendido ? '#059669' : '#D97706'}; text-align: right; line-height: 1.25;">${p2Atendido ? 'Atendido<br>no Banco' : 'Murcha<br>iminente'}</span>
           </div>
           <div style="width: 100%; height: 5px; background: #FEF3C7; border-radius: 9999px; overflow: hidden;">
-            <div id="kpi-umidade-bar" style="width: 38.2%; height: 100%; background: #F59E0B; border-radius: 9999px; transition: width 0.6s ease;"></div>
+            <div id="kpi-umidade-bar" style="width: ${Math.min(100, vwcNum)}%; height: 100%; background: ${p2Atendido ? '#10B981' : '#F59E0B'}; border-radius: 9999px; transition: width 0.6s ease;"></div>
           </div>
         </div>
       </div>
@@ -791,19 +1004,19 @@ function renderGestoraAlertas() {
     <div id="alert-tabs-container" style="display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
       <button class="alert-filter-tab active" data-filter="todos" style="padding: 7px 16px; background: #183D2E; border: none; border-radius: 9999px; font-size: 12px; font-weight: 600; color: #FFFFFF; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
         Todos os Incidentes
-        <span style="background: #059669; color: #FFFFFF; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 9999px;">6</span>
+        <span style="background: #059669; color: #FFFFFF; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 9999px;">3</span>
       </button>
 
       <button class="alert-filter-tab" data-filter="criticos" style="padding: 7px 14px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 9999px; font-size: 12px; font-weight: 600; color: #DC2626; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
         <i data-lucide="alert-triangle" style="width: 13px; height: 13px;"></i>
         Críticos / Ação Imediata
-        <span style="background: #FEE2E2; color: #DC2626; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 9999px;">1</span>
+        <span id="tab-count-criticos" style="background: #FEE2E2; color: #DC2626; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 9999px;">${criticosAtivos}</span>
       </button>
 
       <button class="alert-filter-tab" data-filter="moderados" style="padding: 7px 14px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 9999px; font-size: 12px; font-weight: 600; color: #D97706; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
         <i data-lucide="alert-circle" style="width: 13px; height: 13px;"></i>
         Moderados / Atenção
-        <span style="background: #FEF3C7; color: #B45309; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 9999px;">2</span>
+        <span id="tab-count-moderados" style="background: #FEF3C7; color: #B45309; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 9999px;">${moderadosAtivos}</span>
       </button>
 
       <button class="alert-filter-tab" data-filter="preditivos" style="padding: 7px 14px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 9999px; font-size: 12px; font-weight: 600; color: #7C3AED; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
@@ -815,7 +1028,7 @@ function renderGestoraAlertas() {
       <button class="alert-filter-tab" data-filter="resolvidos" style="padding: 7px 14px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 9999px; font-size: 12px; font-weight: 600; color: #059669; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
         <i data-lucide="check" style="width: 13px; height: 13px;"></i>
         Resolvidos Hoje
-        <span style="background: #DCFCE7; color: #15803D; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 9999px;">2</span>
+        <span id="tab-count-resolvidos" style="background: #DCFCE7; color: #15803D; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 9999px;">${resolvidosHoje}</span>
       </button>
     </div>
 
@@ -852,13 +1065,13 @@ function renderGestoraAlertas() {
       <div id="incident-cards-container" style="display: flex; flex-direction: column; gap: 18px;">
 
         <!-- Card P1: CRÍTICO (Reefer 40ft) -->
-        <div class="incident-card" data-category="criticos" data-origin="reefer" style="background: #FFFFFF; border: 1px solid #FCA5A5; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 8px rgba(220,38,38,0.06); transition: all 0.3s ease;">
+        <div id="card-p1" class="incident-card ${p1Atendido ? 'resolved' : ''}" data-codigo="P1-REEFER-EXP-2026-08" data-category="criticos" data-origin="reefer" style="background: #FFFFFF; border: 1px solid ${p1Atendido ? '#BBF7D0' : '#FCA5A5'}; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 8px rgba(220,38,38,0.06); transition: all 0.3s ease;">
           <!-- Top Tag Header -->
-          <div style="padding: 12px 20px; background: #FEF2F2; border-bottom: 1px solid #FEE2E2; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+          <div style="padding: 12px 20px; background: ${p1Atendido ? '#F0FDF4' : '#FEF2F2'}; border-bottom: 1px solid ${p1Atendido ? '#BBF7D0' : '#FEE2E2'}; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-              <span id="badge-p1-status" style="background: #EF4444; color: #FFFFFF; font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;">
+              <span id="badge-p1-status" style="background: ${p1Atendido ? '#059669' : (p1.status === 'silenciado' ? '#0284C7' : '#EF4444')}; color: #FFFFFF; font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;">
                 <span style="width: 5px; height: 5px; border-radius: 50%; background: #FFFFFF;"></span>
-                P1 • CRÍTICO
+                ${p1Atendido ? '✓ ATENDIDO (SALVO NO BANCO)' : (p1.status === 'silenciado' ? 'SILENCIADO' : 'P1 • CRÍTICO')}
               </span>
               <span style="background: #F1F5F9; color: #334155; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 4px;">
                 Cadeia Fria
@@ -878,16 +1091,21 @@ function renderGestoraAlertas() {
             <h3 style="font-size: 16px; font-weight: 700; color: #0F172A; margin: 0 0 6px;">
               Desvio Térmico no Baú Frigorífico (Reefer 40ft) — Lote EXP-2026-08
             </h3>
-            <p style="font-size: 12px; color: #64748B; line-height: 1.5; margin: 0 0 16px;">
+            <p style="font-size: 12px; color: #64748B; line-height: 1.5; margin: 0 0 12px;">
               Temperatura interna sustentada em 3.4°C por 28 minutos consecutivos (limite máximo de tolerância para Uva de Mesa em trânsito: 2.0°C). Carga em deslocamento rodoviário na BR-116 em direção ao Porto de Pecém / Embarque MSC Rotterdam.
             </p>
+            ${p1Atendido ? `
+              <div style="background: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; font-size: 11px; color: #065F46; font-weight: 600;">
+                ✓ <strong>Atendimento Persistido no PostgreSQL:</strong> ${p1.acao_tomada || 'Incidente atendido e verificado pela Gestão.'}
+              </div>
+            ` : ''}
 
             <!-- 4 Metric Cards in Row -->
             <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px;">
               <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 10px 12px;">
                 <div style="font-size: 9px; font-weight: 700; color: #64748B; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 3px;">TEMP. ATUAL</div>
-                <div id="live-p1-temp" style="font-size: 20px; font-weight: 800; color: #DC2626; line-height: 1.1;">3.4°C</div>
-                <div style="font-size: 10px; color: #DC2626; font-weight: 500; margin-top: 2px;">Alvo: 0.5 - 2.0°C</div>
+                <div id="live-p1-temp" style="font-size: 20px; font-weight: 800; color: ${p1Atendido ? '#059669' : '#DC2626'}; line-height: 1.1;">${p1.leitura_atual || '3.4°C'}</div>
+                <div style="font-size: 10px; color: ${p1Atendido ? '#059669' : '#DC2626'}; font-weight: 500; margin-top: 2px;">Alvo: ${p1.limiar_seguro || '0.5 - 2.0°C'}</div>
               </div>
 
               <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 10px 12px;">
@@ -962,21 +1180,21 @@ function renderGestoraAlertas() {
                 <span id="txt-telemetria-btn">Telemetria Contínua</span>
               </button>
 
-              <button id="btn-atender-p1" style="padding: 9px 16px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 12px; font-weight: 600; color: #334155; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background 0.2s;" onmouseover="this.style.background='#F8FAFC'" onmouseout="this.style.background='#FFFFFF'">
+              <button id="btn-atender-p1" data-codigo="P1-REEFER-EXP-2026-08" style="padding: 9px 16px; background: ${p1Atendido ? '#DCFCE7' : '#FFFFFF'}; border: 1px solid ${p1Atendido ? '#86EFAC' : '#E2E8F0'}; border-radius: 8px; font-size: 12px; font-weight: 700; color: ${p1Atendido ? '#047857' : '#334155'}; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background 0.2s;">
                 <i data-lucide="check" style="width: 14px; height: 14px; color: #059669;"></i>
-                Marcar como Atendido
+                <span id="txt-atender-p1">${p1Atendido ? '✓ Atendido (Reabrir Alerta)' : 'Marcar como Atendido'}</span>
               </button>
             </div>
           </div>
         </div>
 
         <!-- Card P2: ATENÇÃO (Estresse Hídrico) -->
-        <div class="incident-card" data-category="moderados" data-origin="lora" style="background: #FFFFFF; border: 1px solid #FCD34D; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 8px rgba(245,158,11,0.06); transition: all 0.3s ease;">
+        <div id="card-p2" class="incident-card ${p2Atendido ? 'resolved' : ''}" data-codigo="P2-SOLO-TALHAO-A1" data-category="moderados" data-origin="lora" style="background: #FFFFFF; border: 1px solid ${p2Atendido ? '#BBF7D0' : '#FCD34D'}; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 8px rgba(245,158,11,0.06); transition: all 0.3s ease;">
           <!-- Top Tag Header -->
-          <div style="padding: 12px 20px; background: #FFFBEB; border-bottom: 1px solid #FEF3C7; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+          <div style="padding: 12px 20px; background: ${p2Atendido ? '#F0FDF4' : '#FFFBEB'}; border-bottom: 1px solid ${p2Atendido ? '#BBF7D0' : '#FEF3C7'}; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-              <span style="background: #F59E0B; color: #FFFFFF; font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 4px;">
-                P2 • ATENÇÃO
+              <span id="badge-p2-status" style="background: ${p2Atendido ? '#059669' : (p2.status === 'silenciado' ? '#0284C7' : '#F59E0B')}; color: #FFFFFF; font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 4px;">
+                ${p2Atendido ? '✓ ATENDIDO (SALVO NO BANCO)' : (p2.status === 'silenciado' ? 'SILENCIADO' : 'P2 • ATENÇÃO')}
               </span>
               <span style="background: #F1F5F9; color: #334155; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 4px;">
                 Manejo de Irrigação
@@ -995,17 +1213,17 @@ function renderGestoraAlertas() {
               <span style="font-size: 12px; font-weight: 500; color: #64748B; margin-left: 4px;">Área: 12,5 ha</span>
             </h3>
             <p style="font-size: 12px; color: #64748B; line-height: 1.5; margin: 0 0 14px;">
-              Umidade volumétrica do solo (VWC) atingiu 38.2% na profundidade radicular principal de 20cm (limiar de recarga: 50.0%). Temperatura de microclima local em 32.5°C com alta radiação solar no pomar.
+              Umidade volumétrica do solo (VWC) atingiu 38.2% na profundidade radicular principal de 20cm (limiar de recarga: ${p2.limiar_seguro || '50.0% VWC'}). Temperatura de microclima local em 32.5°C com alta radiação solar no pomar.
             </p>
 
             <!-- Prescrição Agronômica Callout -->
-            <div style="background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 10px; padding: 12px 16px; margin-bottom: 16px;">
+            <div style="background: ${p2Atendido ? '#ECFDF5' : '#FFFBEB'}; border: 1px solid ${p2Atendido ? '#A7F3D0' : '#FDE68A'}; border-radius: 10px; padding: 12px 16px; margin-bottom: 16px;">
               <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
-                <i data-lucide="zap" style="width: 14px; height: 14px; color: #D97706;"></i>
-                <span style="font-size: 10px; font-weight: 800; color: #B45309; letter-spacing: 0.5px; text-transform: uppercase;">PRESCRIÇÃO AGRONÔMICA AUTOMATIZADA</span>
+                <i data-lucide="zap" style="width: 14px; height: 14px; color: ${p2Atendido ? '#059669' : '#D97706'};"></i>
+                <span style="font-size: 10px; font-weight: 800; color: ${p2Atendido ? '#047857' : '#B45309'}; letter-spacing: 0.5px; text-transform: uppercase;">${p2Atendido ? 'ATENDIMENTO REGISTRADO NO BANCO DE DADOS' : 'PRESCRIÇÃO AGRONÔMICA AUTOMATIZADA'}</span>
               </div>
-              <p style="font-size: 11px; color: #92400E; line-height: 1.45; margin: 0;">
-                Iniciar turno de fertirrigação com lâmina de 4.2mm às 15:30 para restabelecer capacidade de campo sem lixiviação de nutrientes e evitar perda de calibre de baga.
+              <p style="font-size: 11px; color: ${p2Atendido ? '#065F46' : '#92400E'}; line-height: 1.45; margin: 0;">
+                ${p2Atendido ? (p2.acao_tomada || 'Turno de fertirrigação iniciado com lâmina de 4.2mm e alerta marcado como atendido.') : 'Iniciar turno de fertirrigação com lâmina de 4.2mm às 15:30 para restabelecer capacidade de campo sem lixiviação de nutrientes e evitar perda de calibre de baga.'}
               </p>
             </div>
 
@@ -1013,8 +1231,8 @@ function renderGestoraAlertas() {
             <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px;">
               <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 10px 12px;">
                 <div style="font-size: 9px; font-weight: 700; color: #64748B; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 3px;">VWC 20CM</div>
-                <div id="live-vwc-20" style="font-size: 20px; font-weight: 800; color: #EA580C; line-height: 1.1;">38.2%</div>
-                <div style="font-size: 10px; color: #EA580C; font-weight: 500; margin-top: 2px;">Alvo &gt; 50%</div>
+                <div id="live-vwc-20" style="font-size: 20px; font-weight: 800; color: ${p2Atendido ? '#059669' : '#EA580C'}; line-height: 1.1;">${vwcAtualTexto}</div>
+                <div style="font-size: 10px; color: ${p2Atendido ? '#059669' : '#EA580C'}; font-weight: 500; margin-top: 2px;">Alvo &gt; 50%</div>
               </div>
 
               <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 10px 12px;">
@@ -1031,35 +1249,40 @@ function renderGestoraAlertas() {
 
               <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 10px 12px;">
                 <div style="font-size: 9px; font-weight: 700; color: #64748B; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 3px;">VÁLVULA SETOR</div>
-                <div id="live-valvula-status" style="font-size: 20px; font-weight: 800; color: #64748B; line-height: 1.1;">Fechada</div>
-                <div id="live-valvula-sub" style="font-size: 10px; color: #64748B; font-weight: 500; margin-top: 2px;">Pronta p/ envio</div>
+                <div id="live-valvula-status" style="font-size: 20px; font-weight: 800; color: ${p2Atendido ? '#059669' : '#64748B'}; line-height: 1.1;">${p2Atendido ? 'Aberta' : 'Fechada'}</div>
+                <div id="live-valvula-sub" style="font-size: 10px; color: ${p2Atendido ? '#059669' : '#64748B'}; font-weight: 500; margin-top: 2px;">${p2Atendido ? 'Vazão 12.4 m³/h' : 'Pronta p/ envio'}</div>
               </div>
             </div>
 
             <!-- Action Buttons -->
             <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-              <button id="btn-irrigacao-acao" style="padding: 9px 18px; background: #059669; border: none; border-radius: 8px; font-size: 12px; font-weight: 700; color: #FFFFFF; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 4px rgba(5,150,105,0.25); transition: all 0.2s;">
+              <button id="btn-irrigacao-acao" data-active="${p2Atendido ? 'true' : 'false'}" style="padding: 9px 18px; background: ${p2Atendido ? '#047857' : '#059669'}; border: none; border-radius: 8px; font-size: 12px; font-weight: 700; color: #FFFFFF; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 4px rgba(5,150,105,0.25); transition: all 0.2s;">
                 <i data-lucide="zap" style="width: 14px; height: 14px;"></i>
-                <span id="txt-irrigacao-btn">Disparar Válvula de Irrigação (Automação)</span>
+                <span id="txt-irrigacao-btn">${p2Atendido ? '✓ Válvula Aberta • Irrigando Lâmina 4.2mm' : 'Disparar Válvula de Irrigação (Automação)'}</span>
+              </button>
+
+              <button id="btn-atender-p2" data-codigo="P2-SOLO-TALHAO-A1" style="padding: 9px 16px; background: ${p2Atendido ? '#DCFCE7' : '#FFFFFF'}; border: 1px solid ${p2Atendido ? '#86EFAC' : '#E2E8F0'}; border-radius: 8px; font-size: 12px; font-weight: 700; color: ${p2Atendido ? '#047857' : '#334155'}; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                <i data-lucide="check" style="width: 14px; height: 14px; color: #059669;"></i>
+                <span>${p2Atendido ? '✓ Atendido (Reabrir)' : 'Marcar como Atendido'}</span>
               </button>
 
               <button id="btn-ver-curva-umidade" style="padding: 9px 16px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 12px; font-weight: 600; color: #334155; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='#F8FAFC'" onmouseout="this.style.background='#FFFFFF'">
                 Ver Curva de Umidade
               </button>
 
-              <button id="btn-silenciar-p2" style="padding: 9px 14px; background: transparent; border: none; font-size: 12px; font-weight: 500; color: #64748B; cursor: pointer;">
-                Silenciar 1h
+              <button id="btn-silenciar-p2" style="padding: 9px 14px; background: transparent; border: none; font-size: 12px; font-weight: 500; color: ${p2.status === 'silenciado' ? '#059669' : '#64748B'}; cursor: pointer;">
+                ${p2.status === 'silenciado' ? '✓ Silenciado (1h)' : 'Silenciar 1h'}
               </button>
             </div>
           </div>
         </div>
 
-        <!-- Card Preditivo IA (quando selecionado filtro) -->
-        <div id="card-preditivo-ia" class="incident-card" data-category="preditivos" data-origin="estacao" style="display: none; background: #FFFFFF; border: 1px solid #C4B5FD; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 8px rgba(124,58,237,0.06);">
-          <div style="padding: 12px 20px; background: #F5F3FF; border-bottom: 1px solid #EDE9FE; display: flex; justify-content: space-between; align-items: center;">
+        <!-- Card Preditivo IA -->
+        <div id="card-preditivo-ia" class="incident-card ${predAtendido ? 'resolved' : ''}" data-codigo="PRED-VPD-SETOR-04" data-category="preditivos" data-origin="estacao" style="display: block; background: #FFFFFF; border: 1px solid ${predAtendido ? '#BBF7D0' : '#C4B5FD'}; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 8px rgba(124,58,237,0.06);">
+          <div style="padding: 12px 20px; background: ${predAtendido ? '#F0FDF4' : '#F5F3FF'}; border-bottom: 1px solid ${predAtendido ? '#BBF7D0' : '#EDE9FE'}; display: flex; justify-content: space-between; align-items: center;">
             <div style="display: flex; align-items: center; gap: 8px;">
-              <span style="background: #7C3AED; color: #FFFFFF; font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 4px;">
-                PREDITIVO IA
+              <span id="badge-pred-status" style="background: ${predAtendido ? '#059669' : '#7C3AED'}; color: #FFFFFF; font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 4px;">
+                ${predAtendido ? '✓ ATENDIDO (SALVO NO BANCO)' : 'PREDITIVO IA'}
               </span>
               <span style="background: #EDE9FE; color: #6D28D9; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 4px;">
                 Microclima & Vento
@@ -1074,9 +1297,11 @@ function renderGestoraAlertas() {
             <p style="font-size: 12px; color: #64748B; line-height: 1.5; margin: 0 0 14px;">
               Modelo meteorológico GFS acoplado aos sensores indica risco de evapotranspiração acelerada no dossel foliar e descalibragem do peso de cacho para exportação.
             </p>
-            <button id="btn-ajustar-cortina" style="padding: 8px 14px; background: #7C3AED; color: #FFFFFF; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer;">
-              Acionar Cortina Quebra-Vento
-            </button>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+              <button id="btn-ajustar-cortina" data-codigo="PRED-VPD-SETOR-04" style="padding: 8px 14px; background: ${predAtendido ? '#059669' : '#7C3AED'}; color: #FFFFFF; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer;">
+                ${predAtendido ? '✓ Cortina Acionada • Atendido (Reabrir)' : 'Acionar Cortina Quebra-Vento & Marcar Atendido'}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -1211,7 +1436,6 @@ function renderGestoraAlertas() {
     </div>
 
   </div>
-  </div>
   `;
 }
 
@@ -1223,16 +1447,57 @@ function setupGestoraAlertasEvents() {
     window.lucide.createIcons();
   }
 
-  // Exportar CSV da Gestora (Download Real)
+  // Botão Tentar Novamente em caso de erro de rede
+  document.getElementById('btn-retry-alertas-gestora')?.addEventListener('click', () => {
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+  });
+
+  // Helper para recalcular KPIs da Gestora e sino da Topbar após persistência
+  const atualizarKpisGestoraUI = () => {
+    const alertasGestora = alertasCache.filter(a => a.perfil_alvo === 'gestor');
+    const pendentes = alertasGestora.filter(a => a.status === 'pendente');
+    const criticosPend = pendentes.filter(a => a.severidade === 'criticos').length;
+    const moderadosPend = pendentes.filter(a => a.severidade === 'moderados').length;
+    const preditivosPend = pendentes.filter(a => a.severidade === 'preditivos').length;
+    const resolvidosTotal = alertasGestora.filter(a => a.status === 'atendido').length + 14;
+
+    const kpiCount = document.getElementById('kpi-alertas-count');
+    if (kpiCount) kpiCount.textContent = String(pendentes.length);
+
+    const criticoPill = document.getElementById('kpi-critico-pill');
+    if (criticoPill) {
+      criticoPill.style.background = criticosPend > 0 ? '#FEE2E2' : '#DCFCE7';
+      criticoPill.style.color = criticosPend > 0 ? '#B91C1C' : '#15803D';
+      criticoPill.innerHTML = `${criticosPend} Crítico${criticosPend === 1 ? '' : 's'}<br><span style="font-weight: 800;">${criticosPend > 0 ? 'Imediato' : 'Atendidos'}</span>`;
+    }
+
+    const tabCountTodos = document.getElementById('tab-count-todos');
+    const tabCountCrit = document.getElementById('tab-count-criticos');
+    const tabCountMod = document.getElementById('tab-count-moderados');
+    const tabCountPred = document.getElementById('tab-count-preditivos');
+    const tabCountRes = document.getElementById('tab-count-resolvidos');
+    if (tabCountTodos) tabCountTodos.textContent = String(pendentes.length);
+    if (tabCountCrit) tabCountCrit.textContent = String(criticosPend);
+    if (tabCountMod) tabCountMod.textContent = String(moderadosPend);
+    if (tabCountPred) tabCountPred.textContent = String(preditivosPend);
+    if (tabCountRes) tabCountRes.textContent = String(resolvidosTotal);
+
+    const headerBell = document.getElementById('header-bell-count');
+    if (headerBell) {
+      headerBell.textContent = String(pendentes.length);
+      headerBell.style.display = pendentes.length > 0 ? 'flex' : 'none';
+    }
+  };
+
+  // Exportar CSV da Gestora (Download Real com status do PostgreSQL)
   const btnExportGestora = document.getElementById('btn-exportar-csv');
   if (btnExportGestora) {
     btnExportGestora.addEventListener('click', () => {
-      const headers = ["Incidente", "Talhao/Cultura", "Severidade", "Status", "Data"];
-      const rows = [
-        ["Desvio Termico Reefer 40ft", "Lote Manga Palmer #4092", "Critico", "Em Andamento", new Date().toISOString()],
-        ["Estresse Hidrico Acentuado", "Talhao A1 - Uva Vitoria", "Moderado", "Pendente", new Date().toISOString()],
-        ["Oscilacao de Tensao no No LoRa", "Repetidor Serra do Mel", "Baixo", "Resolvido", new Date().toISOString()]
-      ];
+      const headers = ["Codigo", "Incidente", "Talhao/Cultura", "Severidade", "Status_PostgreSQL", "Acao_Tomada"];
+      const alertasGestora = alertasCache.filter(a => a.perfil_alvo === 'gestor');
+      const rows = (alertasGestora.length ? alertasGestora : [
+        { codigo_alerta: "P1-REEFER-EXP-2026-08", titulo: "Desvio Termico Reefer 40ft", subtitulo: "Lote Manga Palmer #4092", severidade: "criticos", status: "pendente", acao_tomada: "" }
+      ]).map(a => [a.codigo_alerta, a.titulo, a.subtitulo, a.severidade, a.status, a.acao_tomada || "Nenhuma"]);
       const csv = "\uFEFF" + [headers.join(";"), ...rows.map(r => r.map(c => `"${c}"`).join(";"))].join("\r\n");
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
@@ -1243,7 +1508,7 @@ function setupGestoraAlertasEvents() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      toast.success('Download Concluído', 'Arquivo registro_alertas_gestora.csv baixado com sucesso.');
+      toast.success('Download Concluído', 'Arquivo registro_alertas_gestora.csv exportado com status atualizado do banco.');
     });
   }
 
@@ -1270,7 +1535,7 @@ function setupGestoraAlertasEvents() {
       incidentCards.forEach(card => {
         const cat = card.dataset.category;
         if (filter === 'todos') {
-          card.style.display = card.id === 'card-preditivo-ia' ? 'none' : 'block';
+          card.style.display = 'block';
         } else if (filter === 'preditivos') {
           card.style.display = card.id === 'card-preditivo-ia' ? 'block' : 'none';
         } else if (filter === 'criticos') {
@@ -1317,35 +1582,56 @@ function setupGestoraAlertasEvents() {
     toast.info('Filtros Limpos', 'Exibindo todos os incidentes ativos.');
   });
 
-  // 4. Botão Reconhecer Todos
-  document.getElementById('btn-reconhecer-todos')?.addEventListener('click', () => {
-    toast.success('Alertas Reconhecidos', 'Todos os 3 incidentes ativos foram marcados como cientes pela gestão técnica.');
-    const badge = document.getElementById('badge-p1-status');
-    if (badge) {
-      badge.style.background = '#059669';
-      badge.textContent = 'RECONHECIDO';
+  // 4. Botão Reconhecer Todos (Salva no PostgreSQL)
+  const btnReconhecerTodos = document.getElementById('btn-reconhecer-todos');
+  btnReconhecerTodos?.addEventListener('click', async () => {
+    const originalHtml = btnReconhecerTodos.innerHTML;
+    btnReconhecerTodos.disabled = true;
+    btnReconhecerTodos.innerHTML = `<i data-lucide="loader-2" class="spin" style="width: 14px; height: 14px;"></i> Salvando...`;
+    if (window.lucide) window.lucide.createIcons();
+
+    try {
+      const res = await api.reconhecerTodosAlertas('gestor');
+      if (res && Array.isArray(res.alertas)) {
+        alertasCache = res.alertas;
+      } else {
+        alertasCache.forEach(a => {
+          if (a.perfil_alvo === 'gestor') a.status = 'atendido';
+        });
+      }
+
+      incidentCards.forEach(card => {
+        card.classList.add('resolved');
+        card.style.borderColor = '#BBF7D0';
+        card.style.opacity = '0.82';
+      });
+      const badge = document.getElementById('badge-p1-status');
+      if (badge) {
+        badge.style.background = '#059669';
+        badge.textContent = '✓ ATENDIDO (SALVO NO BANCO)';
+      }
+      const btnP1 = document.getElementById('btn-atender-p1');
+      if (btnP1) {
+        btnP1.textContent = '✓ Atendido';
+        btnP1.style.color = '#059669';
+      }
+      const btnP2 = document.getElementById('btn-atender-p2');
+      if (btnP2) {
+        btnP2.textContent = '✓ Atendido (Salvo)';
+        btnP2.style.color = '#059669';
+      }
+      atualizarKpisGestoraUI();
+      toast.success('Alertas Reconhecidos e Salvos', 'Todos os incidentes foram marcados como atendidos no PostgreSQL.');
+    } catch (err) {
+      toast.error('Falha ao Salvar no Servidor', err.message || 'Não foi possível reconhecer os alertas no banco de dados.');
+    } finally {
+      btnReconhecerTodos.disabled = false;
+      btnReconhecerTodos.innerHTML = originalHtml;
+      if (window.lucide) window.lucide.createIcons();
     }
   });
 
-  // 5. Botão Exportar CSV (Gera e baixa o arquivo)
-  document.getElementById('btn-exportar-csv')?.addEventListener('click', () => {
-    const csvContent = 'data:text/csv;charset=utf-8,' +
-      'ID,Prioridade,Categoria,Titulo,Valor_Risco,Status,Data\\n' +
-      'EXP-2026-08,P1-Critico,Cadeia Fria,Desvio Termico Reefer 40ft,R$ 42.000,Ativo,2026-09-22 11:30\\n' +
-      'VU-03,P2-Atencao,Irrigacao,Estresse Hidrico Talhao A1,R$ 15.000,Ativo,2026-09-22 11:45\\n' +
-      'MET-04,Preditivo,Clima,Alerta de Rajadas de Vento Setor 04,R$ 0,Monitorando,2026-09-22 12:00';
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', 'relatorio_incidentes_raiz_2026.csv');
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    toast.success('Download Concluído', 'O arquivo CSV de incidentes foi gerado com sucesso.');
-  });
-
-  // 6. Botão Regras de Disparo (Modal)
+  // 5. Botão Regras de Disparo (Modal)
   document.getElementById('btn-regras-disparo')?.addEventListener('click', () => {
     Modal.open('Configuração de Regras & Limiares de Disparo', `
       <div style="font-size: 13px; color: #475569; display: flex; flex-direction: column; gap: 14px;">
@@ -1372,7 +1658,7 @@ function setupGestoraAlertasEvents() {
     }, 'Salvar Limiares');
   });
 
-  // 7. Ligar para Motorista (Modal de Chamada)
+  // 6. Ligar para Motorista (Modal de Chamada)
   document.getElementById('btn-ligar-motorista')?.addEventListener('click', () => {
     Modal.open('Acionamento Direto de Frota — Lote EXP-2026-08', `
       <div style="display: flex; flex-direction: column; gap: 14px; font-size: 13px;">
@@ -1393,7 +1679,7 @@ function setupGestoraAlertasEvents() {
     }, 'Ligar Agora');
   });
 
-  // 8. Telemetria Contínua (Toggle de Modo Live)
+  // 7. Telemetria Contínua (Toggle de Modo Live)
   let liveActive = false;
   let liveInterval = null;
   const btnTelemetria = document.getElementById('btn-telemetria-p1');
@@ -1422,26 +1708,109 @@ function setupGestoraAlertasEvents() {
     }
   });
 
-  // 9. Marcar P1 como Atendido
-  document.getElementById('btn-atender-p1')?.addEventListener('click', (e) => {
-    const card = e.target.closest('.incident-card');
-    if (card) {
-      card.classList.add('resolved');
-      card.style.borderColor = '#BBF7D0';
-      card.style.opacity = '0.7';
-      const kpiCount = document.getElementById('kpi-alertas-count');
-      if (kpiCount) kpiCount.textContent = '2';
-      const criticoPill = document.getElementById('kpi-critico-pill');
-      if (criticoPill) {
-        criticoPill.style.background = '#DCFCE7';
-        criticoPill.style.color = '#15803D';
-        criticoPill.innerHTML = '0 Críticos<br><span style="font-weight: 800;">Atendidos</span>';
+  // 8. Marcar P1 como Atendido (Salva no PostgreSQL com rollback em caso de erro)
+  const btnAtenderP1 = document.getElementById('btn-atender-p1');
+  btnAtenderP1?.addEventListener('click', async (e) => {
+    const card = e.currentTarget.closest('.incident-card');
+    const itemP1 = alertasCache.find(a => a.codigo_alerta === 'P1-REEFER-EXP-2026-08');
+    const statusAnterior = itemP1 ? itemP1.status : 'pendente';
+    const novoStatus = statusAnterior === 'atendido' ? 'pendente' : 'atendido';
+
+    btnAtenderP1.disabled = true;
+    btnAtenderP1.textContent = 'Salvando...';
+
+    try {
+      const updated = await api.atualizarStatusAlerta('P1-REEFER-EXP-2026-08', {
+        status: novoStatus,
+        acao_tomada: novoStatus === 'atendido' ? 'Incidente verificado e atendido pela Gestora' : '',
+        atendido_por: 'Maria Clara (Produtora)'
+      });
+      if (itemP1) Object.assign(itemP1, updated);
+      else alertasCache.push(updated);
+
+      if (card) {
+        if (novoStatus === 'atendido') {
+          card.classList.add('resolved');
+          card.style.borderColor = '#BBF7D0';
+          card.style.opacity = '0.82';
+        } else {
+          card.classList.remove('resolved');
+          card.style.borderColor = '#FECACA';
+          card.style.opacity = '1';
+        }
       }
-      toast.success('Incidente Atendido', 'Lote EXP-2026-08 marcado como resolvido. Registro arquivado no log de auditoria.');
+
+      const badge = document.getElementById('badge-p1-status');
+      if (badge) {
+        badge.style.background = novoStatus === 'atendido' ? '#059669' : '#DC2626';
+        badge.textContent = novoStatus === 'atendido' ? '✓ ATENDIDO (SALVO NO BANCO)' : 'AÇÃO IMEDIATA REQUERIDA';
+      }
+
+      btnAtenderP1.textContent = novoStatus === 'atendido' ? '✓ Atendido' : 'Marcar Atendido';
+      btnAtenderP1.style.color = novoStatus === 'atendido' ? '#059669' : '#64748B';
+      atualizarKpisGestoraUI();
+
+      toast.success(
+        novoStatus === 'atendido' ? 'Incidente P1 Atendido' : 'Incidente P1 Reaberto',
+        `Status de P1-REEFER-EXP-2026-08 salvo como "${novoStatus.toUpperCase()}" no PostgreSQL.`
+      );
+    } catch (err) {
+      btnAtenderP1.textContent = statusAnterior === 'atendido' ? '✓ Atendido' : 'Marcar Atendido';
+      toast.error('Erro ao Salvar Status', err.message || 'Falha de comunicação com o servidor.');
+    } finally {
+      btnAtenderP1.disabled = false;
     }
   });
 
-  // 10. Disparar Válvula de Irrigação (P2)
+  // 9. Marcar P2 como Atendido (Salva no PostgreSQL)
+  const btnAtenderP2 = document.getElementById('btn-atender-p2');
+  btnAtenderP2?.addEventListener('click', async (e) => {
+    const card = e.currentTarget.closest('.incident-card');
+    const itemP2 = alertasCache.find(a => a.codigo_alerta === 'P2-SOLO-TALHAO-A1');
+    const statusAnterior = itemP2 ? itemP2.status : 'pendente';
+    const novoStatus = statusAnterior === 'atendido' ? 'pendente' : 'atendido';
+
+    btnAtenderP2.disabled = true;
+    btnAtenderP2.textContent = 'Salvando...';
+
+    try {
+      const updated = await api.atualizarStatusAlerta('P2-SOLO-TALHAO-A1', {
+        status: novoStatus,
+        acao_tomada: novoStatus === 'atendido' ? 'Atendido manualmente pela Gestora' : '',
+        atendido_por: 'Maria Clara (Produtora)'
+      });
+      if (itemP2) Object.assign(itemP2, updated);
+      else alertasCache.push(updated);
+
+      if (card) {
+        if (novoStatus === 'atendido') {
+          card.classList.add('resolved');
+          card.style.borderColor = '#BBF7D0';
+          card.style.opacity = '0.82';
+        } else {
+          card.classList.remove('resolved');
+          card.style.borderColor = '#FDE68A';
+          card.style.opacity = '1';
+        }
+      }
+
+      btnAtenderP2.textContent = novoStatus === 'atendido' ? '✓ Atendido (Salvo)' : 'Marcar Atendido';
+      btnAtenderP2.style.color = novoStatus === 'atendido' ? '#059669' : '#64748B';
+      atualizarKpisGestoraUI();
+
+      toast.success(
+        novoStatus === 'atendido' ? 'Incidente P2 Atendido' : 'Incidente P2 Reaberto',
+        `Status de P2-SOLO-TALHAO-A1 salvo como "${novoStatus.toUpperCase()}" no PostgreSQL.`
+      );
+    } catch (err) {
+      btnAtenderP2.textContent = statusAnterior === 'atendido' ? '✓ Atendido (Salvo)' : 'Marcar Atendido';
+      toast.error('Erro ao Salvar Status', err.message || 'Falha de comunicação com o servidor.');
+    } finally {
+      btnAtenderP2.disabled = false;
+    }
+  });
+
+  // 10. Disparar Válvula de Irrigação (P2) — Salva no PostgreSQL como atendido + leitura atualizada
   const btnIrrigacao = document.getElementById('btn-irrigacao-acao');
   const txtIrrigacao = document.getElementById('txt-irrigacao-btn');
   const valvulaStatus = document.getElementById('live-valvula-status');
@@ -1451,26 +1820,36 @@ function setupGestoraAlertasEvents() {
   const kpiUmidadeVal = document.getElementById('kpi-umidade-val');
   const kpiUmidadeStatus = document.getElementById('kpi-umidade-status');
 
-  btnIrrigacao?.addEventListener('click', () => {
+  btnIrrigacao?.addEventListener('click', async () => {
     if (btnIrrigacao.dataset.active === 'true') {
-      toast.warning('Atenção', 'O ciclo de fertirrigação já está em andamento no setor VU03.');
+      toast.warning('Atenção', 'O ciclo de fertirrigação já está em andamento e salvo no servidor.');
       return;
     }
 
-    btnIrrigacao.dataset.active = 'true';
-    btnIrrigacao.style.background = '#047857';
-    if (txtIrrigacao) txtIrrigacao.textContent = '✓ Válvula Aberta • Irrigando Lâmina 4.2mm';
-    if (valvulaStatus) {
-      valvulaStatus.style.color = '#059669';
-      valvulaStatus.textContent = 'Aberta';
-    }
-    if (valvulaSub) {
-      valvulaSub.style.color = '#059669';
-      valvulaSub.textContent = 'Vazão 12.4 m³/h';
-    }
+    btnIrrigacao.disabled = true;
+    if (txtIrrigacao) txtIrrigacao.textContent = 'Acionando válvula e salvando...';
 
-    // Simulação do aumento de umidade pós-irrigação
-    setTimeout(() => {
+    try {
+      const updated = await api.atualizarStatusAlerta('P2-SOLO-TALHAO-A1', {
+        status: 'atendido',
+        acao_tomada: 'Válvula aberta • Irrigando Lâmina 4.2mm',
+        leitura_atual: '44.8%',
+        atendido_por: 'Maria Clara (Automação VU03)'
+      });
+      const itemP2 = alertasCache.find(a => a.codigo_alerta === 'P2-SOLO-TALHAO-A1');
+      if (itemP2) Object.assign(itemP2, updated);
+
+      btnIrrigacao.dataset.active = 'true';
+      btnIrrigacao.style.background = '#047857';
+      if (txtIrrigacao) txtIrrigacao.textContent = '✓ Válvula Aberta • Irrigando Lâmina 4.2mm';
+      if (valvulaStatus) {
+        valvulaStatus.style.color = '#059669';
+        valvulaStatus.textContent = 'Aberta';
+      }
+      if (valvulaSub) {
+        valvulaSub.style.color = '#059669';
+        valvulaSub.textContent = 'Vazão 12.4 m³/h';
+      }
       if (vwcDisplay) {
         vwcDisplay.textContent = '44.8%';
         vwcDisplay.style.color = '#059669';
@@ -1481,9 +1860,26 @@ function setupGestoraAlertasEvents() {
         kpiUmidadeStatus.style.color = '#059669';
         kpiUmidadeStatus.innerHTML = 'Recarga<br>em curso';
       }
-    }, 2500);
 
-    toast.success('Automação Disparada', 'Comando enviado ao nó LoRa ESP32-VU03. Válvula do talhão A1 aberta com sucesso.');
+      const cardP2 = document.getElementById('card-incidente-p2');
+      if (cardP2) {
+        cardP2.classList.add('resolved');
+        cardP2.style.borderColor = '#BBF7D0';
+        cardP2.style.opacity = '0.82';
+      }
+      if (btnAtenderP2) {
+        btnAtenderP2.textContent = '✓ Atendido (Salvo)';
+        btnAtenderP2.style.color = '#059669';
+      }
+
+      atualizarKpisGestoraUI();
+      toast.success('Automação Disparada & Salva', 'Válvula do Talhão A1 acionada e status persistido no PostgreSQL.');
+    } catch (err) {
+      if (txtIrrigacao) txtIrrigacao.textContent = 'Disparar Válvula de Irrigação (Setor VU03)';
+      toast.error('Falha ao Acionar Válvula', err.message || 'Erro de rede ao comunicar com o backend.');
+    } finally {
+      btnIrrigacao.disabled = false;
+    }
   });
 
   // 11. Ver Curva de Umidade (Modal)
@@ -1511,11 +1907,60 @@ function setupGestoraAlertasEvents() {
     `);
   });
 
-  // 12. Silenciar P2
-  document.getElementById('btn-silenciar-p2')?.addEventListener('click', (e) => {
-    e.target.textContent = '✓ Silenciado por 59m';
-    e.target.style.color = '#059669';
-    toast.info('Alerta Silenciado', 'Notificações sonoras do nó ESP32-VU03 desativadas por 1 hora.');
+  // 12. Silenciar P2 (Salva no PostgreSQL)
+  const btnSilenciarP2 = document.getElementById('btn-silenciar-p2');
+  btnSilenciarP2?.addEventListener('click', async () => {
+    btnSilenciarP2.disabled = true;
+    try {
+      const updated = await api.atualizarStatusAlerta('P2-SOLO-TALHAO-A1', {
+        status: 'silenciado',
+        acao_tomada: 'Notificações silenciadas por 1h',
+        atendido_por: 'Maria Clara (Produtora)'
+      });
+      const itemP2 = alertasCache.find(a => a.codigo_alerta === 'P2-SOLO-TALHAO-A1');
+      if (itemP2) Object.assign(itemP2, updated);
+
+      btnSilenciarP2.textContent = '✓ Silenciado por 59m';
+      btnSilenciarP2.style.color = '#059669';
+      atualizarKpisGestoraUI();
+      toast.info('Alerta Silenciado no Banco', 'Notificações sonoras do nó ESP32-VU03 silenciadas.');
+    } catch (err) {
+      toast.error('Erro ao Silenciar', err.message || 'Não foi possível salvar no servidor.');
+    } finally {
+      btnSilenciarP2.disabled = false;
+    }
+  });
+
+  // 12.1 Ajustar Cortina Preditiva IA (Salva no PostgreSQL)
+  const btnAjustarCortina = document.getElementById('btn-ajustar-cortina');
+  btnAjustarCortina?.addEventListener('click', async () => {
+    btnAjustarCortina.disabled = true;
+    btnAjustarCortina.textContent = 'Salvando...';
+    try {
+      const updated = await api.atualizarStatusAlerta('PRED-VPD-SETOR-04', {
+        status: 'atendido',
+        acao_tomada: 'Cortina de quebra-vento programada preventivamente',
+        atendido_por: 'Maria Clara (Produtora)'
+      });
+      const itemPred = alertasCache.find(a => a.codigo_alerta === 'PRED-VPD-SETOR-04');
+      if (itemPred) Object.assign(itemPred, updated);
+
+      const cardPred = document.getElementById('card-preditivo-ia');
+      if (cardPred) {
+        cardPred.classList.add('resolved');
+        cardPred.style.borderColor = '#BBF7D0';
+        cardPred.style.opacity = '0.82';
+      }
+      btnAjustarCortina.textContent = '✓ Cortina Programada (Atendido)';
+      btnAjustarCortina.style.background = '#059669';
+      atualizarKpisGestoraUI();
+      toast.success('Ação Preditiva Salva', 'Ajuste preventivo da cortina registrado no PostgreSQL.');
+    } catch (err) {
+      btnAjustarCortina.textContent = 'Ajustar Cortina de Quebra-Vento';
+      toast.error('Erro ao Salvar', err.message || 'Falha de comunicação com o servidor.');
+    } finally {
+      btnAjustarCortina.disabled = false;
+    }
   });
 
   // 13. Testar Rotas de Disparo (Matriz de Comunicação)

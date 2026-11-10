@@ -4,16 +4,29 @@
  * e perfil Gestora (Rendimento Executivo e Talhões).
  */
 
+import { api } from '../api.js';
 import { auth } from '../auth.js';
 import { toast } from '../components/toast.js';
 import { Modal } from '../components/modal.js';
+
+let _ultimoEstadoSafras = null;
 
 export async function renderLeituras() {
   const isAnalista = auth.getActiveProfile() === 'analista';
   if (isAnalista) {
     return renderAnalistaSafra();
   }
-  return renderGestorSafra();
+
+  let dadosBackend = null;
+  let erroBackend = null;
+  try {
+    dadosBackend = await api.getHistoricoSafras();
+    _ultimoEstadoSafras = dadosBackend;
+  } catch (err) {
+    erroBackend = err.message || 'Não foi possível carregar o histórico de safra do servidor.';
+  }
+
+  return renderGestorSafra(dadosBackend, erroBackend);
 }
 
   /**
@@ -492,24 +505,129 @@ export async function renderLeituras() {
     /**
      * 2. TELA DA GESTORA: HISTÓRICO SAFRA EXECUTIVO (FIEL AO DESIGN DE REFERÊNCIA)
      */
-    function renderGestorSafra() {
-      return `
-    <div class="dashboard-canvas apple-animate-in">
+function renderGestorSafra(dadosBackend, erroBackend) {
+  const safras = Array.isArray(dadosBackend?.safras) ? dadosBackend.safras : [];
+  const talhoes = Array.isArray(dadosBackend?.talhoes) ? dadosBackend.talhoes : [];
+  const safraAtiva = dadosBackend?.safra_ativa || safras[0] || {
+    id_safra: 1,
+    ciclo: '2025/2026',
+    cultura: 'Uva Vitória & Manga Palmer',
+    area_ha: 42.5,
+    produtividade_ton_ha: 30.2,
+    volume_total_ton: 1284.5,
+    consumo_agua_m3_ha: 3420,
+    brix_medio: 19.4,
+    taxa_exportacao_pct: 96.2,
+    status: 'Em Andamento',
+    destinacao_export_pct: 78,
+    destinacao_interno_pct: 16,
+    destinacao_industria_pct: 6
+  };
 
-      <!-- LINHA 1: 4 KPIS -->
+  // Estado de erro explícito caso a API falhe e não haja dados carregados
+  if (erroBackend && safras.length === 0) {
+    return `
+      <div class="dashboard-canvas apple-animate-in" id="gestor-safra-root">
+        <div class="hs-card" style="padding: 36px 24px; text-align: center; border: 1.5px solid #FECACA; background: #FEF2F2;">
+          <div style="width: 48px; height: 48px; border-radius: 50%; background: #FEE2E2; color: #DC2626; display: flex; align-items: center; justify-content: center; margin: 0 auto 14px;">
+            <i data-lucide="wifi-off" style="width: 24px; height: 24px;"></i>
+          </div>
+          <h3 style="font-size: 16px; font-weight: 800; color: #991B1B; margin-bottom: 6px;">Erro ao carregar Histórico de Safra</h3>
+          <p style="font-size: 13px; color: #7F1D1D; max-width: 480px; margin: 0 auto 18px;">${erroBackend}</p>
+          <button type="button" id="btn-retry-safra" class="btn btn-primary" style="background: #DC2626; border: none; padding: 10px 20px; border-radius: 8px; color: #fff; font-weight: 700;">
+            <i data-lucide="refresh-cw" style="width: 14px; height: 14px;"></i> Tentar Novamente
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  // Estado vazio explícito caso o banco retorne 0 safras
+  if (!erroBackend && safras.length === 0) {
+    return `
+      <div class="dashboard-canvas apple-animate-in" id="gestor-safra-root">
+        <div class="hs-card" style="padding: 40px 24px; text-align: center;">
+          <div style="width: 48px; height: 48px; border-radius: 50%; background: #ECFDF5; color: #059669; display: flex; align-items: center; justify-content: center; margin: 0 auto 14px;">
+            <i data-lucide="sprout" style="width: 24px; height: 24px;"></i>
+          </div>
+          <h3 style="font-size: 16px; font-weight: 800; color: #0F172A; margin-bottom: 6px;">Nenhuma safra registrada</h3>
+          <p style="font-size: 13px; color: #64748B; max-width: 460px; margin: 0 auto 18px;">Cadastre o primeiro ciclo de safra da propriedade para acompanhar produtividade, área e destinação comercial.</p>
+          <button type="button" id="btn-nova-safra" class="btn btn-primary" style="background: #059669; border: none; padding: 10px 20px; border-radius: 8px; color: #fff; font-weight: 700;">
+            + Cadastrar Primeira Safra
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  // Cálculos dinâmicos para os gráficos e KPIs a partir dos dados reais do backend
+  const volTotal = Number(safraAtiva.volume_total_ton || 0);
+  const prodMedia = Number(safraAtiva.produtividade_ton_ha || 0);
+  const consumoAguaM3Ha = Number(safraAtiva.consumo_agua_m3_ha || 3420);
+  const eficienciaHidrica = prodMedia > 0 ? (consumoAguaM3Ha / (prodMedia * 20)).toFixed(1).replace('.', ',') : '4,1';
+  const brixMedio = Number(safraAtiva.brix_medio || 18.2).toFixed(1).replace('.', ',');
+
+  const expPct = Number(safraAtiva.destinacao_export_pct ?? 78);
+  const intPct = Number(safraAtiva.destinacao_interno_pct ?? 16);
+  const indPct = Math.max(0, 100 - expPct - intPct);
+
+  const expTon = Math.round((volTotal * expPct) / 100);
+  const intTon = Math.round((volTotal * intPct) / 100);
+  const indTon = Math.max(0, Math.round(volTotal) - expTon - intTon);
+
+  // Circunferência r=58 => ~364.4
+  const circ = 364.4;
+  const dashExp = Math.round((expPct / 100) * circ);
+  const dashInt = Math.round((intPct / 100) * circ);
+  const dashInd = Math.max(0, Math.round(circ - dashExp - dashInt));
+
+  const areaTotalTalhoes = talhoes.reduce((acc, t) => acc + Number(t.area_ha || 0), 0) || Number(safraAtiva.area_ha || 42.5);
+  const safrasOrdenadasAsc = [...safras].sort((a, b) => String(a.ciclo).localeCompare(String(b.ciclo)));
+
+  return `
+    <div class="dashboard-canvas apple-animate-in" id="gestor-safra-root">
+
+      <!-- Sub-barra de Gestão do Histórico de Safra (Produtor) -->
+      <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 14px; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+          <span style="background: #ECFDF5; border: 1px solid #A7F3D0; color: #047857; font-size: 11px; font-weight: 700; padding: 5px 12px; border-radius: 999px; display: inline-flex; align-items: center; gap: 6px;">
+            <span style="width: 7px; height: 7px; border-radius: 50%; background: #10B981;"></span>
+            Dados Reais do Backend PostgreSQL (${safras.length} safras • ${talhoes.length} talhões)
+          </span>
+          <span style="font-size: 12px; color: #64748B;">
+            Ciclo ativo: <strong style="color: #0F172A;">${safraAtiva.ciclo}</strong> (${safraAtiva.cultura})
+          </span>
+        </div>
+
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button type="button" id="btn-recarregar-safra" style="padding: 8px 13px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 12px; font-weight: 600; color: #334155; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
+            <i data-lucide="refresh-cw" style="width: 13px; height: 13px; color: #059669;"></i>
+            <span>Atualizar do Banco</span>
+          </button>
+          <button type="button" id="btn-editar-safra-ativa" data-id="${safraAtiva.id_safra}" style="padding: 8px 14px; background: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 8px; font-size: 12px; font-weight: 700; color: #065F46; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
+            <i data-lucide="sliders" style="width: 13px; height: 13px;"></i>
+            <span>Editar Safra Ativa</span>
+          </button>
+          <button type="button" id="btn-nova-safra" style="padding: 8px 15px; background: #183D2E; border: none; border-radius: 8px; font-size: 12px; font-weight: 700; color: #FFFFFF; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
+            <i data-lucide="plus" style="width: 14px; height: 14px;"></i>
+            <span>Registrar Safra</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- LINHA 1: 4 KPIS DINÂMICOS -->
       <div class="hs-kpi-grid">
         <!-- KPI 1: PRODUÇÃO TOTAL -->
         <div class="hs-kpi-card">
           <div class="hs-kpi-top">
-            <span class="hs-kpi-label">PRODUÇÃO TOTAL</span>
+            <span class="hs-kpi-label">PRODUÇÃO TOTAL (${safraAtiva.ciclo})</span>
             <div class="hs-kpi-icon-box green">
               <i data-lucide="archive" style="width: 16px; height: 16px;"></i>
             </div>
           </div>
           <div class="hs-kpi-val">
-            1.480 <span class="hs-kpi-unit">ton</span>
+            ${volTotal.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} <span class="hs-kpi-unit">ton</span>
           </div>
-          <!-- Mini barras crescentes -->
           <div class="hs-kpi-bars">
             <div class="hs-kpi-bar" style="height: 8px; background: #A7F3D0;"></div>
             <div class="hs-kpi-bar" style="height: 11px; background: #6EE7B7;"></div>
@@ -518,14 +636,13 @@ export async function renderLeituras() {
             <div class="hs-kpi-bar" style="height: 20px; background: #059669;"></div>
             <div class="hs-kpi-bar" style="height: 24px; background: #047857;"></div>
           </div>
-          <!-- Rodapé -->
           <div>
             <div class="hs-kpi-footer">
-              <span style="color: #059669; font-weight: 700;">↑ +12% vs ciclo anterior</span>
-              <span class="hs-kpi-meta" style="font-family: var(--font-mono, monospace); font-size: 11px; color: #64748B;">1.480 / 1.600 ton</span>
+              <span style="color: #059669; font-weight: 700;">Área: ${Number(safraAtiva.area_ha).toLocaleString('pt-BR')} ha</span>
+              <span class="hs-kpi-meta" style="font-family: var(--font-mono, monospace); font-size: 11px; color: #64748B;">Meta: 1.600 ton</span>
             </div>
             <div class="hs-kpi-progress">
-              <div class="hs-kpi-progress-fill" style="width: 92.5%;"></div>
+              <div class="hs-kpi-progress-fill" style="width: ${Math.min(100, Math.round((volTotal / 1600) * 100))}%;"></div>
             </div>
           </div>
         </div>
@@ -539,9 +656,8 @@ export async function renderLeituras() {
             </div>
           </div>
           <div class="hs-kpi-val">
-            34,2 <span class="hs-kpi-unit">ton/ha</span>
+            ${prodMedia.toFixed(1).replace('.', ',')} <span class="hs-kpi-unit">ton/ha</span>
           </div>
-          <!-- Sparkline de área suave ascendente -->
           <div class="hs-kpi-sparkline">
             <svg width="100%" height="24" viewBox="0 0 120 24" preserveAspectRatio="none">
               <defs>
@@ -554,14 +670,13 @@ export async function renderLeituras() {
               <path d="M0,20 Q20,19 40,15 T80,8 T120,3" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round"/>
             </svg>
           </div>
-          <!-- Rodapé -->
           <div>
             <div class="hs-kpi-footer">
-              <span style="color: #059669; font-weight: 700;">● +2,2 ton/ha acima da meta</span>
+              <span style="color: #059669; font-weight: 700;">● Cultura: ${safraAtiva.cultura.split('&')[0].trim()}</span>
               <span class="hs-kpi-meta" style="font-family: var(--font-mono, monospace); font-size: 11px; color: #64748B;">Meta: 32,0</span>
             </div>
             <div class="hs-kpi-progress">
-              <div class="hs-kpi-progress-fill" style="width: 100%;"></div>
+              <div class="hs-kpi-progress-fill" style="width: ${Math.min(100, Math.round((prodMedia / 35) * 100))}%;"></div>
             </div>
           </div>
         </div>
@@ -569,29 +684,26 @@ export async function renderLeituras() {
         <!-- KPI 3: EFICIÊNCIA HÍDRICA -->
         <div class="hs-kpi-card">
           <div class="hs-kpi-top">
-            <span class="hs-kpi-label">EFICIÊNCIA HÍDRICA</span>
+            <span class="hs-kpi-label">CONSUMO & EFICIÊNCIA HÍDRICA</span>
             <div class="hs-kpi-icon-box blue">
               <i data-lucide="droplet" style="width: 16px; height: 16px;"></i>
             </div>
           </div>
           <div class="hs-kpi-val" style="color: #0284C7;">
-            4,1 <span class="hs-kpi-unit">m³/ton</span>
+            ${consumoAguaM3Ha.toLocaleString('pt-BR')} <span class="hs-kpi-unit">m³/ha</span>
           </div>
-          <!-- Pílula e variação -->
           <div class="hs-kpi-pill-row">
             <span class="hs-tag blue">CONSUMO OTIMIZADO</span>
-            <span style="color: #0284C7; font-size: 11px; font-weight: 700;">↓ -8.4% aplicado</span>
+            <span style="color: #0284C7; font-size: 11px; font-weight: 700;">${eficienciaHidrica} m³/ton</span>
           </div>
-          <!-- Barra segmentada -->
           <div class="hs-kpi-seg-bar">
             <div style="flex: 4.5; background: #0284C7; border-radius: 2px;"></div>
             <div style="flex: 3.5; background: #38BDF8; border-radius: 2px;"></div>
             <div style="flex: 2; background: #E2E8F0; border-radius: 2px;"></div>
           </div>
-          <!-- Rodapé em mono cinza -->
           <div class="hs-kpi-footer" style="margin-bottom: 0;">
-            <span style="font-family: var(--font-mono, monospace); font-size: 10px; color: #94A3B8;">Alta Eficiência</span>
-            <span style="font-family: var(--font-mono, monospace); font-size: 10px; color: #94A3B8;">-42 m³/ha vs 23/24</span>
+            <span style="font-family: var(--font-mono, monospace); font-size: 10px; color: #94A3B8;">Irrigação Gotejamento IoT</span>
+            <span style="font-family: var(--font-mono, monospace); font-size: 10px; color: #94A3B8;">Status: ${safraAtiva.status}</span>
           </div>
         </div>
 
@@ -604,33 +716,34 @@ export async function renderLeituras() {
             </div>
           </div>
           <div class="hs-kpi-val" style="color: #059669;">
-            18,2° <span class="hs-kpi-unit">Brix</span>
+            ${brixMedio}° <span class="hs-kpi-unit">Brix</span>
           </div>
-          <!-- Pílula e ideal -->
           <div class="hs-kpi-pill-row">
-            <span class="hs-tag darkgreen">PADRÃO EXPORTAÇÃO A+</span>
+            <span class="hs-tag darkgreen">EXPORTAÇÃO ${Number(safraAtiva.taxa_exportacao_pct || 96).toFixed(1)}%</span>
             <span style="color: #64748B; font-size: 11px;">Ideal: ≥17,5°</span>
           </div>
-          <!-- Barra escala -->
           <div class="hs-kpi-scale-bar"></div>
           <div class="hs-kpi-scale-labels">
             <span>14° Mesa</span>
             <span>16° Premium</span>
-            <span style="color: #059669; font-weight: 700;">18.2° Atual</span>
+            <span style="color: #059669; font-weight: 700;">${brixMedio}° Atual</span>
           </div>
         </div>
       </div>
 
-      <!-- LINHA 2: 2/3 + 1/3 -->
+      <!-- LINHA 2: COMPARATIVO ENTRE SAFRAS (GRÁFICO DE BARRAS) + DESTINAÇÃO COMERCIAL (DONUT) -->
       <div class="hs-split-grid">
         <!-- ESQUERDA: Comparativo Visual de Rendimento entre Safras -->
         <div class="hs-card">
-          <div class="hs-card-header">
-            <h3 class="hs-card-title">
-              <span class="hs-dot-green"></span>
-              Comparativo Visual de Rendimento entre Safras
-            </h3>
-            <div style="display: flex; align-items: center; gap: 16px; font-size: 11px; color: #475569;">
+          <div class="hs-card-header" style="flex-wrap: wrap; gap: 8px;">
+            <div>
+              <h3 class="hs-card-title">
+                <span class="hs-dot-green"></span>
+                Histórico de Safras & Comparativo de Rendimento
+              </h3>
+              <p class="hs-card-subtitle">Clique em "Editar" em qualquer safra para alterar seus dados e atualizar os gráficos</p>
+            </div>
+            <div style="display: flex; align-items: center; gap: 14px; font-size: 11px; color: #475569;">
               <span style="display: flex; align-items: center; gap: 6px;">
                 <span style="width: 8px; height: 8px; border-radius: 2px; background: #10B981;"></span>
                 Produtividade (ton/ha)
@@ -642,68 +755,45 @@ export async function renderLeituras() {
             </div>
           </div>
 
-          <!-- Bloco 1: Safra 2023/2024 -->
-          <div class="hs-season-block">
-            <div class="hs-season-header">
-              <span style="font-weight: 700; color: #0F172A;">Safra 2023/2024</span>
-              <span style="font-family: var(--font-mono, monospace); color: #64748B; font-size: 11px;">28,4 ton/ha • 182 m³/ha</span>
-            </div>
-            <div class="hs-season-track">
-              <div class="hs-season-fill green" style="width: 50%;">
-                <span>Produtividade</span>
-                <span style="font-family: var(--font-mono, monospace);">28,4 ton/ha</span>
-              </div>
-            </div>
-            <div class="hs-season-track">
-              <div class="hs-season-fill blue" style="width: 63%;">
-                <span>Consumo Hídrico</span>
-                <span style="font-family: var(--font-mono, monospace);">182 m³/ha</span>
-              </div>
-            </div>
-          </div>
+          ${safrasOrdenadasAsc.map(s => {
+            const isAtiva = s.id_safra === safraAtiva.id_safra || s.status === 'Em Andamento';
+            const prodVal = Number(s.produtividade_ton_ha || 0);
+            const aguaVal = Number(s.consumo_agua_m3_ha || 3400);
+            const prodWidth = Math.min(96, Math.max(25, Math.round((prodVal / 45) * 100)));
+            const aguaWidth = Math.min(96, Math.max(25, Math.round((aguaVal / 5200) * 100)));
 
-          <!-- Bloco 2: Safra 2024/2025 -->
-          <div class="hs-season-block">
-            <div class="hs-season-header">
-              <span style="font-weight: 700; color: #0F172A;">Safra 2024/2025</span>
-              <span style="font-family: var(--font-mono, monospace); color: #64748B; font-size: 11px;">30,5 ton/ha • 168 m³/ha</span>
-            </div>
-            <div class="hs-season-track">
-              <div class="hs-season-fill green" style="width: 53%;">
-                <span>Produtividade</span>
-                <span style="font-family: var(--font-mono, monospace);">30,5 ton/ha</span>
+            return `
+              <div class="hs-season-block ${isAtiva ? 'active' : ''}" data-safra-id="${s.id_safra}">
+                <div class="hs-season-header" style="flex-wrap: wrap; gap: 8px;">
+                  <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <span style="font-weight: 800; color: ${isAtiva ? '#065F46' : '#0F172A'};">Safra ${s.ciclo}</span>
+                    <span style="font-size: 11px; color: #475569; background: #FFFFFF; border: 1px solid #E2E8F0; padding: 1px 8px; border-radius: 6px;">${s.cultura} • ${Number(s.area_ha).toLocaleString('pt-BR')} ha</span>
+                    ${isAtiva ? `<span style="background: #183D2E; color: #FFFFFF; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px;">${s.status.toUpperCase()}</span>` : `<span style="background: #F1F5F9; color: #64748B; font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 4px;">${s.status}</span>`}
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-family: var(--font-mono, monospace); font-weight: 700; color: ${isAtiva ? '#065F46' : '#475569'}; font-size: 11px;">
+                      ${prodVal.toFixed(1).replace('.', ',')} ton/ha • ${Number(s.volume_total_ton).toLocaleString('pt-BR')} t • ${Number(s.brix_medio).toFixed(1)}° Brix
+                    </span>
+                    <button type="button" class="btn-editar-safra" data-id="${s.id_safra}" style="padding: 4px 10px; font-size: 11px; font-weight: 700; background: #FFFFFF; border: 1px solid #CBD5E1; border-radius: 6px; color: #0F172A; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+                      <i data-lucide="pencil" style="width: 11px; height: 11px; color: #059669;"></i> Editar
+                    </button>
+                  </div>
+                </div>
+                <div class="hs-season-track">
+                  <div class="hs-season-fill ${isAtiva ? 'green-dark' : 'green'}" style="width: ${prodWidth}%;">
+                    <span>Produtividade (${Number(s.area_ha).toLocaleString('pt-BR')} ha)</span>
+                    <span style="font-family: var(--font-mono, monospace);">${prodVal.toFixed(1).replace('.', ',')} ton/ha (${Number(s.volume_total_ton).toLocaleString('pt-BR')} t)</span>
+                  </div>
+                </div>
+                <div class="hs-season-track ${isAtiva ? 'blue-tint' : ''}">
+                  <div class="hs-season-fill blue" style="width: ${aguaWidth}%;">
+                    <span>💧 Consumo Hídrico</span>
+                    <span style="font-family: var(--font-mono, monospace);">${aguaVal.toLocaleString('pt-BR')} m³/ha</span>
+                  </div>
+                </div>
               </div>
-            </div>
-            <div class="hs-season-track">
-              <div class="hs-season-fill blue" style="width: 58%;">
-                <span>Consumo Hídrico</span>
-                <span style="font-family: var(--font-mono, monospace);">168 m³/ha</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Bloco 3: Safra 2025/2026 (Atual) [CICLO ATIVO] -->
-          <div class="hs-season-block active">
-            <div class="hs-season-header">
-              <span style="font-weight: 700; color: #065F46; display: flex; align-items: center; gap: 8px;">
-                Safra 2025/2026 (Atual)
-                <span style="background: #183D2E; color: #FFFFFF; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px; letter-spacing: 0.3px;">CICLO ATIVO</span>
-              </span>
-              <span style="font-family: var(--font-mono, monospace); font-weight: 700; color: #065F46; font-size: 11px;">34,2 ton/ha • 140 m³/ha</span>
-            </div>
-            <div class="hs-season-track">
-              <div class="hs-season-fill green-dark" style="width: 60%;">
-                <span>↑ Produtividade</span>
-                <span style="font-family: var(--font-mono, monospace);">34,2 ton/ha (+12.1%)</span>
-              </div>
-            </div>
-            <div class="hs-season-track blue-tint">
-              <div class="hs-season-fill blue" style="width: 49%;">
-                <span>💧 Consumo Reduzido</span>
-                <span style="font-family: var(--font-mono, monospace);">140 m³/ha (-16.7%)</span>
-              </div>
-            </div>
-          </div>
+            `;
+          }).join('')}
 
           <!-- 3 mini-cards em linha -->
           <div class="hs-season-kpis">
@@ -721,8 +811,8 @@ export async function renderLeituras() {
                 <i data-lucide="droplet" style="width: 16px; height: 16px;"></i>
               </div>
               <div>
-                <div style="font-size: 13px; font-weight: 800; color: #0F172A;">42 m³/ha Poupados</div>
-                <div style="font-size: 9px; font-weight: 700; color: #64748B; text-transform: uppercase;">GESTÃO IOT LORA</div>
+                <div style="font-size: 13px; font-weight: 800; color: #0F172A;">${consumoAguaM3Ha.toLocaleString('pt-BR')} m³/ha</div>
+                <div style="font-size: 9px; font-weight: 700; color: #64748B; text-transform: uppercase;">GESTÃO HÍDRICA LORA</div>
               </div>
             </div>
             <div class="hs-season-mini">
@@ -730,63 +820,61 @@ export async function renderLeituras() {
                 <i data-lucide="award" style="width: 16px; height: 16px;"></i>
               </div>
               <div>
-                <div style="font-size: 13px; font-weight: 800; color: #0F172A;">94.2 / 100</div>
+                <div style="font-size: 13px; font-weight: 800; color: #0F172A;">${Number(safraAtiva.taxa_exportacao_pct || 94.2).toFixed(1)} / 100</div>
                 <div style="font-size: 9px; font-weight: 700; color: #64748B; text-transform: uppercase;">ÍNDICE QUALIDADE</div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- DIREITA: Classificação Comercial -->
+        <!-- DIREITA: Classificação Comercial (Donut alimentado pelo backend) -->
         <div class="hs-card" style="display: flex; flex-direction: column;">
           <div class="hs-card-header">
             <h3 class="hs-card-title">Classificação Comercial</h3>
-            <span class="hs-pill-badge gray">VOLUME TOTAL</span>
+            <button type="button" class="btn-editar-safra" data-id="${safraAtiva.id_safra}" style="padding: 4px 10px; font-size: 11px; font-weight: 700; background: #F8FAFC; border: 1px solid #CBD5E1; border-radius: 6px; color: #047857; cursor: pointer;">
+              Ajustar %
+            </button>
           </div>
 
-          <!-- Donut SVG -->
+          <!-- Donut SVG Dinâmico -->
           <div class="hs-donut-wrap">
             <svg width="150" height="150" viewBox="0 0 160 160" style="transform: rotate(-90deg);">
-              <!-- Fundo base sutil -->
               <circle cx="80" cy="80" r="58" fill="none" stroke="#F1F5F9" stroke-width="16" />
-              <!-- Segmento 1: Verde 65% (circumference ~364.4 => 65% is 236.8) -->
               <circle cx="80" cy="80" r="58" fill="none" stroke="#10B981" stroke-width="16"
-                stroke-dasharray="233 131" stroke-dashoffset="0" />
-              <!-- Segmento 2: Azul 25% (25% is 91.1) -->
+                stroke-dasharray="${dashExp} ${circ}" stroke-dashoffset="0" />
               <circle cx="80" cy="80" r="58" fill="none" stroke="#0284C7" stroke-width="16"
-                stroke-dasharray="87 277" stroke-dashoffset="-237" />
-              <!-- Segmento 3: Cinza-azulado 10% (10% is 36.4) -->
+                stroke-dasharray="${dashInt} ${circ}" stroke-dashoffset="-${dashExp}" />
               <circle cx="80" cy="80" r="58" fill="none" stroke="#94A3B8" stroke-width="16"
-                stroke-dasharray="32 332" stroke-dashoffset="-328" />
+                stroke-dasharray="${dashInd} ${circ}" stroke-dashoffset="-${dashExp + dashInt}" />
             </svg>
             <div class="hs-donut-center">
-              <div style="font-size: 26px; font-weight: 800; color: #0F172A; line-height: 1; font-family: var(--font-heading, 'Plus Jakarta Sans', sans-serif);">65%</div>
+              <div style="font-size: 26px; font-weight: 800; color: #0F172A; line-height: 1; font-family: var(--font-heading, 'Plus Jakarta Sans', sans-serif);">${expPct}%</div>
               <div style="font-size: 9px; font-weight: 700; color: #059669; letter-spacing: 0.5px; margin-top: 3px;">EXPORTAÇÃO</div>
             </div>
           </div>
 
-          <!-- Legenda em 3 linhas -->
+          <!-- Legenda em 3 linhas calculada sobre o volume real -->
           <div style="display: flex; flex-direction: column; gap: 10px; margin: 14px 0 18px;">
             <div class="hs-legend-item">
               <span style="display: flex; align-items: center; color: #334155;">
                 <span class="hs-legend-bullet" style="background: #10B981;"></span>
                 Exportação (Europa/EUA)
               </span>
-              <span style="font-weight: 700; color: #0F172A;">65% <span style="font-family: var(--font-mono, monospace); font-weight: 400; color: #94A3B8; font-size: 11px;">(962 ton)</span></span>
+              <span style="font-weight: 700; color: #0F172A;">${expPct}% <span style="font-family: var(--font-mono, monospace); font-weight: 400; color: #94A3B8; font-size: 11px;">(${expTon} ton)</span></span>
             </div>
             <div class="hs-legend-item">
               <span style="display: flex; align-items: center; color: #334155;">
                 <span class="hs-legend-bullet" style="background: #0284C7;"></span>
                 Mercado Interno
               </span>
-              <span style="font-weight: 700; color: #0F172A;">25% <span style="font-family: var(--font-mono, monospace); font-weight: 400; color: #94A3B8; font-size: 11px;">(370 ton)</span></span>
+              <span style="font-weight: 700; color: #0F172A;">${intPct}% <span style="font-family: var(--font-mono, monospace); font-weight: 400; color: #94A3B8; font-size: 11px;">(${intTon} ton)</span></span>
             </div>
             <div class="hs-legend-item">
               <span style="display: flex; align-items: center; color: #334155;">
                 <span class="hs-legend-bullet" style="background: #94A3B8;"></span>
                 Processamento / Sucos
               </span>
-              <span style="font-weight: 700; color: #0F172A;">10% <span style="font-family: var(--font-mono, monospace); font-weight: 400; color: #94A3B8; font-size: 11px;">(148 ton)</span></span>
+              <span style="font-weight: 700; color: #0F172A;">${indPct}% <span style="font-family: var(--font-mono, monospace); font-weight: 400; color: #94A3B8; font-size: 11px;">(${indTon} ton)</span></span>
             </div>
           </div>
 
@@ -804,16 +892,16 @@ export async function renderLeituras() {
         </div>
       </div>
 
-      <!-- LINHA 3: 2/3 + 1/3 -->
+      <!-- LINHA 3: DESEMPENHO POR TALHÃO + CORRELAÇÃO IOT -->
       <div class="hs-split-grid">
         <!-- ESQUERDA: Desempenho por Talhão -->
         <div class="hs-card">
           <div class="hs-card-header" style="margin-bottom: 12px;">
             <div>
               <h3 class="hs-card-title">Desempenho por Talhão</h3>
-              <p class="hs-card-subtitle">Produtividade aferida, hídrico e maturidade individualizada</p>
+              <p class="hs-card-subtitle">Produtividade aferida, volume colhido, maturidade Brix e edição sincronizada no banco</p>
             </div>
-            <span class="hs-pill-badge gray">4 talhões monitorados</span>
+            <span class="hs-pill-badge gray">${talhoes.length} talhões monitorados</span>
           </div>
 
           <div class="hs-table-wrap">
@@ -824,111 +912,48 @@ export async function renderLeituras() {
                   <th>VARIEDADE</th>
                   <th>ÁREA</th>
                   <th>PRODUTIVIDADE REAL</th>
-                  <th>CONSUMO ÁGUA</th>
+                  <th>VOLUME</th>
                   <th>BRIX</th>
                   <th>STATUS</th>
+                  <th style="text-align: right;">AÇÃO</th>
                 </tr>
               </thead>
               <tbody>
-                <!-- Linha 1: A1 -->
-                <tr>
-                  <td>
-                    <span style="background: #ECFDF5; color: #047857; font-weight: 800; font-size: 11px; padding: 3px 8px; border-radius: 4px; display: inline-block;">Talhão A1</span>
-                  </td>
-                  <td style="font-weight: 600;">Uva Vitória</td>
-                  <td style="font-family: var(--font-mono, monospace); color: #475569;">12.5 ha</td>
-                  <td>
-                    <span style="font-family: var(--font-mono, monospace); font-weight: 700;">36.8 ton/ha</span>
-                    <span style="display: inline-block; width: 44px; height: 5px; background: #10B981; border-radius: 3px; vertical-align: middle; margin-left: 8px;"></span>
-                  </td>
-                  <td style="font-family: var(--font-mono, monospace); color: #0284C7; font-weight: 600;">
-                    💧 3.9 m³/ton
-                  </td>
-                  <td>
-                    <span style="background: #ECFDF5; color: #047857; font-weight: 700; font-family: var(--font-mono, monospace); font-size: 11px; padding: 2px 8px; border-radius: 12px;">19.2°</span>
-                  </td>
-                  <td>
-                    <span style="background: #ECFDF5; color: #059669; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 12px; display: inline-flex; align-items: center; gap: 4px;">
-                      <span style="width: 5px; height: 5px; border-radius: 50%; background: #059669;"></span>
-                      Concluído
-                    </span>
-                  </td>
-                </tr>
-
-                <!-- Linha 2: A2 -->
-                <tr>
-                  <td>
-                    <span style="background: #ECFDF5; color: #047857; font-weight: 800; font-size: 11px; padding: 3px 8px; border-radius: 4px; display: inline-block;">Talhão A2</span>
-                  </td>
-                  <td style="font-weight: 600;">Uva Crimson</td>
-                  <td style="font-family: var(--font-mono, monospace); color: #475569;">10.0 ha</td>
-                  <td>
-                    <span style="font-family: var(--font-mono, monospace); font-weight: 700;">34.5 ton/ha</span>
-                    <span style="display: inline-block; width: 40px; height: 5px; background: #10B981; border-radius: 3px; vertical-align: middle; margin-left: 8px;"></span>
-                  </td>
-                  <td style="font-family: var(--font-mono, monospace); color: #0284C7; font-weight: 600;">
-                    💧 4.1 m³/ton
-                  </td>
-                  <td>
-                    <span style="background: #ECFDF5; color: #047857; font-weight: 700; font-family: var(--font-mono, monospace); font-size: 11px; padding: 2px 8px; border-radius: 12px;">18.5°</span>
-                  </td>
-                  <td>
-                    <span style="background: #ECFDF5; color: #059669; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 12px; display: inline-flex; align-items: center; gap: 4px;">
-                      <span style="width: 5px; height: 5px; border-radius: 50%; background: #059669;"></span>
-                      Concluído
-                    </span>
-                  </td>
-                </tr>
-
-                <!-- Linha 3: B1 -->
-                <tr>
-                  <td>
-                    <span style="background: #FEF3C7; color: #B45309; font-weight: 800; font-size: 11px; padding: 3px 8px; border-radius: 4px; display: inline-block;">Talhão B1</span>
-                  </td>
-                  <td style="font-weight: 600;">Uva Thompson</td>
-                  <td style="font-family: var(--font-mono, monospace); color: #475569;">14.0 ha</td>
-                  <td>
-                    <span style="font-family: var(--font-mono, monospace); font-weight: 700;">31.2 ton/ha</span>
-                    <span style="display: inline-block; width: 36px; height: 5px; background: #F59E0B; border-radius: 3px; vertical-align: middle; margin-left: 8px;"></span>
-                  </td>
-                  <td style="font-family: var(--font-mono, monospace); color: #0284C7; font-weight: 600;">
-                    💧 4.4 m³/ton
-                  </td>
-                  <td>
-                    <span style="background: #FEF3C7; color: #B45309; font-weight: 700; font-family: var(--font-mono, monospace); font-size: 11px; padding: 2px 8px; border-radius: 12px;">17.8°</span>
-                  </td>
-                  <td>
-                    <span style="background: #FEF3C7; color: #D97706; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 12px; display: inline-flex; align-items: center; gap: 4px;">
-                      <span style="width: 5px; height: 5px; border-radius: 50%; background: #D97706;"></span>
-                      Em Colheita
-                    </span>
-                  </td>
-                </tr>
-
-                <!-- Linha 4: B2 -->
-                <tr>
-                  <td>
-                    <span style="background: #F1F5F9; color: #475569; font-weight: 800; font-size: 11px; padding: 3px 8px; border-radius: 4px; display: inline-block;">Talhão B2</span>
-                  </td>
-                  <td style="font-weight: 600;">Uva Autumn Crisp</td>
-                  <td style="font-family: var(--font-mono, monospace); color: #475569;">8.5 ha</td>
-                  <td>
-                    <span style="font-family: var(--font-mono, monospace); font-weight: 700;">35.0 ton/ha</span>
-                    <span style="display: inline-block; width: 42px; height: 5px; background: #10B981; border-radius: 3px; vertical-align: middle; margin-left: 8px;"></span>
-                  </td>
-                  <td style="font-family: var(--font-mono, monospace); color: #0284C7; font-weight: 600;">
-                    💧 4.0 m³/ton
-                  </td>
-                  <td>
-                    <span style="background: #F1F5F9; color: #475569; font-weight: 700; font-family: var(--font-mono, monospace); font-size: 11px; padding: 2px 8px; border-radius: 12px;">18.0°</span>
-                  </td>
-                  <td>
-                    <span style="background: #F1F5F9; color: #64748B; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 12px; display: inline-flex; align-items: center; gap: 4px;">
-                      <span style="width: 5px; height: 5px; border-radius: 50%; background: #64748B;"></span>
-                      Planejado
-                    </span>
-                  </td>
-                </tr>
+                ${talhoes.map(t => {
+                  const isColheita = String(t.status).toLowerCase().includes('colheita') || String(t.status).toLowerCase().includes('trânsito');
+                  const badgeBg = isColheita ? '#FEF3C7' : '#ECFDF5';
+                  const badgeColor = isColheita ? '#B45309' : '#047857';
+                  return `
+                    <tr>
+                      <td>
+                        <span style="background: ${badgeBg}; color: ${badgeColor}; font-weight: 800; font-size: 11px; padding: 3px 8px; border-radius: 4px; display: inline-block;">${t.codigo}</span>
+                      </td>
+                      <td style="font-weight: 600;">${t.variedade}</td>
+                      <td style="font-family: var(--font-mono, monospace); color: #475569;">${Number(t.area_ha).toFixed(1)} ha</td>
+                      <td>
+                        <span style="font-family: var(--font-mono, monospace); font-weight: 700;">${Number(t.produtividade_ton_ha).toFixed(1)} ton/ha</span>
+                        <span style="display: inline-block; width: ${Math.min(52, Math.round(Number(t.produtividade_ton_ha) * 1.2))}px; height: 5px; background: #10B981; border-radius: 3px; vertical-align: middle; margin-left: 8px;"></span>
+                      </td>
+                      <td style="font-family: var(--font-mono, monospace); color: #0284C7; font-weight: 600;">
+                        ${Number(t.volume_ton).toFixed(1)} t
+                      </td>
+                      <td>
+                        <span style="background: #ECFDF5; color: #047857; font-weight: 700; font-family: var(--font-mono, monospace); font-size: 11px; padding: 2px 8px; border-radius: 12px;">${Number(t.brix_medio).toFixed(1)}°</span>
+                      </td>
+                      <td>
+                        <span style="background: ${badgeBg}; color: ${badgeColor}; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 12px; display: inline-flex; align-items: center; gap: 4px;">
+                          <span style="width: 5px; height: 5px; border-radius: 50%; background: ${badgeColor};"></span>
+                          ${t.status}
+                        </span>
+                      </td>
+                      <td style="text-align: right;">
+                        <button type="button" class="btn-editar-talhao" data-id="${t.id_talhao}" style="padding: 4px 10px; font-size: 11px; font-weight: 700; background: #F8FAFC; border: 1px solid #CBD5E1; border-radius: 6px; color: #0F172A; cursor: pointer;">
+                          Editar
+                        </button>
+                      </td>
+                    </tr>
+                  `;
+                }).join('')}
               </tbody>
             </table>
           </div>
@@ -936,13 +961,10 @@ export async function renderLeituras() {
           <!-- Rodapé Tabela -->
           <div class="hs-table-footer">
             <div>
-              Área consolidada: <strong style="color: #0F172A; font-family: var(--font-mono, monospace);">45.0 hectares</strong>
+              Área consolidada dos talhões: <strong style="color: #0F172A; font-family: var(--font-mono, monospace);">${areaTotalTalhoes.toFixed(1)} hectares</strong>
             </div>
             <div class="hs-pagination">
-              <button class="hs-page-btn" style="opacity: 0.6; cursor: default;">Anterior</button>
-              <button class="hs-page-btn active">1</button>
-              <button class="hs-page-btn">2</button>
-              <button class="hs-page-btn">Próximo</button>
+              <button class="hs-page-btn active">Todos (${talhoes.length})</button>
             </div>
           </div>
         </div>
@@ -979,7 +1001,6 @@ export async function renderLeituras() {
               <div class="hs-range-marker" style="left: 56%;"></div>
             </div>
 
-            <!-- Sparkline de área suave -->
             <div style="width: 100%; height: 22px;">
               <svg width="100%" height="22" viewBox="0 0 100 22" preserveAspectRatio="none">
                 <defs>
@@ -1025,7 +1046,6 @@ export async function renderLeituras() {
             </div>
           </div>
 
-          <!-- Botão largo Série Histórica de Telemetria -->
           <button class="hs-btn-telemetria" id="hs-btn-telemetria">
             <span>Série Histórica de Telemetria</span>
             <i data-lucide="arrow-right" style="width: 16px; height: 16px;"></i>
@@ -1034,10 +1054,231 @@ export async function renderLeituras() {
       </div>
 
     </div>
-    `;
-    }
+  `;
+}
+
+function reRenderGestorSafraView(novoEstado, erro = null) {
+  if (novoEstado) _ultimoEstadoSafras = novoEstado;
+  const container = document.getElementById('route-view-container');
+  if (container && auth.getActiveProfile() !== 'analista') {
+    container.innerHTML = renderGestorSafra(_ultimoEstadoSafras, erro);
+    setupLeiturasEvents();
+  }
+}
 
 export function setupLeiturasEvents() {
+  // Botão Tentar Novamente (em caso de erro de rede) ou Atualizar do Banco
+  const bindReload = (btnId) => {
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+    btn.addEventListener('click', async () => {
+      btn.classList.add('is-loading');
+      btn.disabled = true;
+      const orig = btn.innerHTML;
+      btn.innerHTML = `<span class="btn-spinner"></span> Carregando...`;
+      try {
+        const dados = await api.getHistoricoSafras();
+        reRenderGestorSafraView(dados, null);
+        toast.success('Dados Sincronizados', 'Histórico de safras e talhões recarregados do backend PostgreSQL.');
+      } catch (err) {
+        btn.classList.remove('is-loading');
+        btn.disabled = false;
+        btn.innerHTML = orig;
+        toast.error('Erro de Conexão com o Backend', err.message || 'Não foi possível buscar as safras.');
+      }
+    });
+  };
+  bindReload('btn-retry-safra');
+  bindReload('btn-recarregar-safra');
+
+  // Modal de Criar / Editar Safra (salva no PostgreSQL e atualiza gráficos e KPIs)
+  const abrirModalSafra = (safraExistente = null) => {
+    const isEdit = Boolean(safraExistente);
+    const s = safraExistente || {
+      ciclo: '2026/2027',
+      cultura: 'Uva Vitória & Manga Palmer',
+      area_ha: 45.0,
+      produtividade_ton_ha: 33.5,
+      consumo_agua_m3_ha: 3280,
+      brix_medio: 19.6,
+      taxa_exportacao_pct: 97.0,
+      status: 'Em Andamento',
+      destinacao_export_pct: 80,
+      destinacao_interno_pct: 15,
+      destinacao_industria_pct: 5
+    };
+
+    Modal.open(isEdit ? `Editar Safra ${s.ciclo}` : 'Registrar Novo Ciclo de Safra', `
+      <div style="display:flex; flex-direction:column; gap:12px; font-size:12px;">
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+          <div>
+            <label style="display:block; font-weight:700; color:#E2E8F0; margin-bottom:4px;">Ano / Ciclo</label>
+            <input id="safra-input-ciclo" value="${s.ciclo}" style="width:100%; padding:8px 10px; border-radius:8px; border:1px solid #CBD5E1; color:#0F172A; background:#FFFFFF;">
+          </div>
+          <div>
+            <label style="display:block; font-weight:700; color:#E2E8F0; margin-bottom:4px;">Status do Ciclo</label>
+            <select id="safra-input-status" style="width:100%; padding:8px 10px; border-radius:8px; border:1px solid #CBD5E1; color:#0F172A; background:#FFFFFF;">
+              <option value="Em Andamento" ${s.status === 'Em Andamento' ? 'selected' : ''}>Em Andamento</option>
+              <option value="Concluída" ${s.status === 'Concluída' ? 'selected' : ''}>Concluída</option>
+              <option value="Planejada" ${s.status === 'Planejada' ? 'selected' : ''}>Planejada</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label style="display:block; font-weight:700; color:#E2E8F0; margin-bottom:4px;">Cultura(s) Principal(is)</label>
+          <input id="safra-input-cultura" value="${s.cultura}" style="width:100%; padding:8px 10px; border-radius:8px; border:1px solid #CBD5E1; color:#0F172A; background:#FFFFFF;">
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
+          <div>
+            <label style="display:block; font-weight:700; color:#E2E8F0; margin-bottom:4px;">Área Plantada (ha)</label>
+            <input type="number" step="0.1" id="safra-input-area" value="${s.area_ha}" style="width:100%; padding:8px 10px; border-radius:8px; border:1px solid #CBD5E1; color:#0F172A; background:#FFFFFF;">
+          </div>
+          <div>
+            <label style="display:block; font-weight:700; color:#E2E8F0; margin-bottom:4px;">Produtividade (ton/ha)</label>
+            <input type="number" step="0.1" id="safra-input-prod" value="${s.produtividade_ton_ha}" style="width:100%; padding:8px 10px; border-radius:8px; border:1px solid #CBD5E1; color:#0F172A; background:#FFFFFF;">
+          </div>
+          <div>
+            <label style="display:block; font-weight:700; color:#E2E8F0; margin-bottom:4px;">Consumo Água (m³/ha)</label>
+            <input type="number" step="10" id="safra-input-agua" value="${s.consumo_agua_m3_ha}" style="width:100%; padding:8px 10px; border-radius:8px; border:1px solid #CBD5E1; color:#0F172A; background:#FFFFFF;">
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
+          <div>
+            <label style="display:block; font-weight:700; color:#E2E8F0; margin-bottom:4px;">Grau Brix Médio (°)</label>
+            <input type="number" step="0.1" id="safra-input-brix" value="${s.brix_medio}" style="width:100%; padding:8px 10px; border-radius:8px; border:1px solid #CBD5E1; color:#0F172A; background:#FFFFFF;">
+          </div>
+          <div>
+            <label style="display:block; font-weight:700; color:#E2E8F0; margin-bottom:4px;">% Exportação (Donut)</label>
+            <input type="number" step="1" min="0" max="100" id="safra-input-exp" value="${s.destinacao_export_pct ?? 78}" style="width:100%; padding:8px 10px; border-radius:8px; border:1px solid #CBD5E1; color:#0F172A; background:#FFFFFF;">
+          </div>
+          <div>
+            <label style="display:block; font-weight:700; color:#E2E8F0; margin-bottom:4px;">% Mercado Interno</label>
+            <input type="number" step="1" min="0" max="100" id="safra-input-int" value="${s.destinacao_interno_pct ?? 16}" style="width:100%; padding:8px 10px; border-radius:8px; border:1px solid #CBD5E1; color:#0F172A; background:#FFFFFF;">
+          </div>
+        </div>
+      </div>
+    `, async (modal) => {
+      const ciclo = modal.querySelector('#safra-input-ciclo')?.value.trim();
+      const cultura = modal.querySelector('#safra-input-cultura')?.value.trim();
+      const status = modal.querySelector('#safra-input-status')?.value || 'Em Andamento';
+      const area_ha = parseFloat(modal.querySelector('#safra-input-area')?.value) || 40;
+      const produtividade_ton_ha = parseFloat(modal.querySelector('#safra-input-prod')?.value) || 30;
+      const consumo_agua_m3_ha = parseInt(modal.querySelector('#safra-input-agua')?.value, 10) || 3420;
+      const brix_medio = parseFloat(modal.querySelector('#safra-input-brix')?.value) || 18.5;
+      const exp = Math.min(100, Math.max(0, parseInt(modal.querySelector('#safra-input-exp')?.value, 10) || 78));
+      const int = Math.min(100 - exp, Math.max(0, parseInt(modal.querySelector('#safra-input-int')?.value, 10) || 16));
+      const ind = Math.max(0, 100 - exp - int);
+
+      if (!ciclo || !cultura) {
+        toast.warning('Campos obrigatórios', 'Preencha o ciclo e a cultura da safra.');
+        return false;
+      }
+
+      const payload = {
+        ciclo,
+        cultura,
+        status,
+        area_ha,
+        produtividade_ton_ha,
+        volume_total_ton: Number((area_ha * produtividade_ton_ha).toFixed(2)),
+        consumo_agua_m3_ha,
+        brix_medio,
+        taxa_exportacao_pct: s.taxa_exportacao_pct || 96.2,
+        destinacao_export_pct: exp,
+        destinacao_interno_pct: int,
+        destinacao_industria_pct: ind
+      };
+
+      try {
+        const atualizado = isEdit
+          ? await api.atualizarSafra(s.id_safra, payload)
+          : await api.criarSafra(payload);
+        reRenderGestorSafraView(atualizado, null);
+        toast.success('Salvo no Banco de Dados!', `Safra ${ciclo} persistida no PostgreSQL e gráficos atualizados.`);
+      } catch (err) {
+        toast.error('Erro ao Salvar Safra no Servidor', err.message || 'Falha de rede ao comunicar com o backend.');
+      }
+      return true;
+    }, isEdit ? 'Salvar no Backend' : 'Cadastrar Safra');
+  };
+
+  document.getElementById('btn-nova-safra')?.addEventListener('click', () => abrirModalSafra(null));
+
+  document.getElementById('btn-editar-safra-ativa')?.addEventListener('click', (e) => {
+    const id = parseInt(e.currentTarget.dataset.id, 10);
+    const safra = (_ultimoEstadoSafras?.safras || []).find(x => x.id_safra === id) || _ultimoEstadoSafras?.safra_ativa;
+    abrirModalSafra(safra);
+  });
+
+  document.querySelectorAll('.btn-editar-safra').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const id = parseInt(e.currentTarget.dataset.id, 10);
+      const safra = (_ultimoEstadoSafras?.safras || []).find(x => x.id_safra === id);
+      if (safra) abrirModalSafra(safra);
+    });
+  });
+
+  // Modal de Editar Talhão (salva no PostgreSQL e recalcula a safra e gráficos)
+  document.querySelectorAll('.btn-editar-talhao').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const id = parseInt(e.currentTarget.dataset.id, 10);
+      const talhao = (_ultimoEstadoSafras?.talhoes || []).find(x => x.id_talhao === id);
+      if (!talhao) return;
+
+      Modal.open(`Editar ${talhao.codigo} — ${talhao.variedade}`, `
+        <div style="display:flex; flex-direction:column; gap:12px; font-size:12px;">
+          <div>
+            <label style="display:block; font-weight:700; color:#E2E8F0; margin-bottom:4px;">Variedade Cultivada</label>
+            <input id="talhao-input-var" value="${talhao.variedade}" style="width:100%; padding:8px 10px; border-radius:8px; border:1px solid #CBD5E1; color:#0F172A; background:#FFFFFF;">
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
+            <div>
+              <label style="display:block; font-weight:700; color:#E2E8F0; margin-bottom:4px;">Área (ha)</label>
+              <input type="number" step="0.1" id="talhao-input-area" value="${talhao.area_ha}" style="width:100%; padding:8px 10px; border-radius:8px; border:1px solid #CBD5E1; color:#0F172A; background:#FFFFFF;">
+            </div>
+            <div>
+              <label style="display:block; font-weight:700; color:#E2E8F0; margin-bottom:4px;">Produtiv. (ton/ha)</label>
+              <input type="number" step="0.1" id="talhao-input-prod" value="${talhao.produtividade_ton_ha}" style="width:100%; padding:8px 10px; border-radius:8px; border:1px solid #CBD5E1; color:#0F172A; background:#FFFFFF;">
+            </div>
+            <div>
+              <label style="display:block; font-weight:700; color:#E2E8F0; margin-bottom:4px;">Grau Brix (°)</label>
+              <input type="number" step="0.1" id="talhao-input-brix" value="${talhao.brix_medio}" style="width:100%; padding:8px 10px; border-radius:8px; border:1px solid #CBD5E1; color:#0F172A; background:#FFFFFF;">
+            </div>
+          </div>
+          <div>
+            <label style="display:block; font-weight:700; color:#E2E8F0; margin-bottom:4px;">Status Operacional</label>
+            <input id="talhao-input-status" value="${talhao.status}" style="width:100%; padding:8px 10px; border-radius:8px; border:1px solid #CBD5E1; color:#0F172A; background:#FFFFFF;">
+          </div>
+        </div>
+      `, async (modal) => {
+        const variedade = modal.querySelector('#talhao-input-var')?.value.trim() || talhao.variedade;
+        const area_ha = parseFloat(modal.querySelector('#talhao-input-area')?.value) || talhao.area_ha;
+        const produtividade_ton_ha = parseFloat(modal.querySelector('#talhao-input-prod')?.value) || talhao.produtividade_ton_ha;
+        const brix_medio = parseFloat(modal.querySelector('#talhao-input-brix')?.value) || talhao.brix_medio;
+        const status = modal.querySelector('#talhao-input-status')?.value.trim() || talhao.status;
+
+        try {
+          const atualizado = await api.atualizarTalhao(talhao.id_talhao, {
+            variedade,
+            area_ha,
+            produtividade_ton_ha,
+            volume_ton: Number((area_ha * produtividade_ton_ha).toFixed(1)),
+            brix_medio,
+            status
+          });
+          reRenderGestorSafraView(atualizado, null);
+          toast.success('Talhão Atualizado!', `${talhao.codigo} salvo no PostgreSQL e safra consolidada recalculada.`);
+        } catch (err) {
+          toast.error('Erro ao Atualizar Talhão', err.message || 'Falha de comunicação com o servidor.');
+        }
+        return true;
+      }, 'Salvar Talhão');
+    });
+  });
+
   const btnSync = document.getElementById('btn-sync-safra');
   if (btnSync) {
     btnSync.addEventListener('click', () => {
@@ -1075,17 +1316,10 @@ export function setupLeiturasEvents() {
   const btnTelemetria = document.getElementById('hs-btn-telemetria');
   if (btnTelemetria) {
     btnTelemetria.addEventListener('click', () => {
-      toast.info('Série Histórica', 'Telemetria e dados agroclimáticos dos últimos 90 dias.');
+      window.location.hash = '#/dashboard';
+      toast.info('Série Histórica', 'Exibindo curvas de telemetria em tempo real.');
     });
   }
-
-  // Paginação visual da tabela Gestora
-  document.querySelectorAll('.hs-page-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      document.querySelectorAll('.hs-page-btn').forEach(b => b.classList.remove('active'));
-      e.currentTarget.classList.add('active');
-    });
-  });
 
   if (window.lucide) {
     try {

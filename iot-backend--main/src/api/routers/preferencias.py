@@ -1,6 +1,5 @@
-import json
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from psycopg2.extras import Json, RealDictCursor
@@ -10,6 +9,10 @@ from src.api.deps import get_conn
 
 router = APIRouter(prefix="/preferencias", tags=["preferencias"])
 
+
+# ============================================================================
+# SCHEMAS PYDANTIC
+# ============================================================================
 
 class PreferenciasUpdateIn(BaseModel):
     nome: Optional[str] = Field(default=None, max_length=150)
@@ -30,9 +33,64 @@ class PreferenciasUpdateIn(BaseModel):
     preferencias_extras: Dict[str, Any] = Field(default_factory=dict)
 
 
-def _garantir_schema_preferencias(conn) -> None:
-    """Garante de forma idempotente as colunas de perfil em `usuario`, os 3 usuários base e a tabela `usuario_preferencia`."""
+class SafraCreateUpdateIn(BaseModel):
+    ciclo: str = Field(..., max_length=40)
+    cultura: str = Field(..., max_length=100)
+    area_ha: float = Field(..., gt=0)
+    produtividade_ton_ha: float = Field(..., ge=0)
+    volume_total_ton: Optional[float] = Field(default=None, ge=0)
+    consumo_agua_m3_ha: int = Field(default=3420, ge=0)
+    brix_medio: float = Field(default=18.5, ge=0)
+    taxa_exportacao_pct: float = Field(default=95.0, ge=0, le=100)
+    status: str = Field(default="Em Andamento", max_length=30)
+    destinacao_export_pct: int = Field(default=78, ge=0, le=100)
+    destinacao_interno_pct: int = Field(default=16, ge=0, le=100)
+    destinacao_industria_pct: int = Field(default=6, ge=0, le=100)
+
+
+class TalhaoUpdateIn(BaseModel):
+    codigo: Optional[str] = Field(default=None, max_length=30)
+    variedade: Optional[str] = Field(default=None, max_length=80)
+    porta_enxerto: Optional[str] = Field(default=None, max_length=60)
+    ciclo: Optional[str] = Field(default=None, max_length=40)
+    area_ha: Optional[float] = Field(default=None, gt=0)
+    volume_ton: Optional[float] = Field(default=None, ge=0)
+    produtividade_ton_ha: Optional[float] = Field(default=None, ge=0)
+    brix_medio: Optional[float] = Field(default=None, ge=0)
+    calibres_mm: Optional[str] = Field(default=None, max_length=30)
+    status: Optional[str] = Field(default=None, max_length=40)
+
+
+class AlertaPatchIn(BaseModel):
+    status: str = Field(..., pattern="^(pendente|atendido|silenciado)$")
+    acao_tomada: Optional[str] = Field(default=None, max_length=300)
+    atendido_por: Optional[str] = Field(default=None, max_length=100)
+    leitura_atual: Optional[str] = Field(default=None, max_length=60)
+    limiar_seguro: Optional[str] = Field(default=None, max_length=80)
+
+
+class GraficosTelemetriaUpdateIn(BaseModel):
+    umidade_ar_24h: List[float] = Field(default_factory=lambda: [61, 60, 59, 58, 60, 61, 63, 62])
+    umidade_solo_24h: List[float] = Field(default_factory=lambda: [54, 53, 55, 57, 59, 58, 57, 58])
+    temp_solo_24h: List[float] = Field(default_factory=lambda: [24.1, 23.9, 24.3, 24.6, 24.8, 24.5, 24.4, 24.5])
+    temp_ar_24h: List[float] = Field(default_factory=lambda: [26.2, 25.8, 26.8, 28.2, 29.0, 28.1, 27.5, 27.8])
+    conformidade_geral_pct: int = Field(default=90, ge=0, le=100)
+    saude_plantacao_pct: int = Field(default=85, ge=0, le=100)
+    umidade_dossel_pct: int = Field(default=67, ge=0, le=100)
+    temp_foliar_c: float = Field(default=27.0)
+    agua_reservatorio_pct: int = Field(default=63, ge=0, le=100)
+    vazao_ldia: int = Field(default=4200, ge=0)
+    curva_termica_analista: Dict[str, Any] = Field(default_factory=dict)
+
+
+# ============================================================================
+# GARANTIA DE SCHEMA E SEED AUTOMÁTICO (IDEMPOTENTE)
+# ============================================================================
+
+def _garantir_schema_completo(conn) -> None:
+    """Garante de forma idempotente as tabelas de perfil, histórico de safra, talhões, alertas e gráficos."""
     with conn.cursor() as cur:
+        # 1. Colunas de perfil em usuario e tabela usuario_preferencia
         cur.execute("""
             ALTER TABLE usuario
                 ADD COLUMN IF NOT EXISTS cargo VARCHAR(120),
@@ -59,7 +117,6 @@ def _garantir_schema_preferencias(conn) -> None:
                     REFERENCES usuario (id_usuario) ON DELETE CASCADE
             );
         """)
-        # Garante perfis base caso o banco esteja vazio
         cur.execute("""
             INSERT INTO perfil (nome, descricao)
             SELECT p.nome, p.descricao
@@ -70,7 +127,6 @@ def _garantir_schema_preferencias(conn) -> None:
             ) AS p(nome, descricao)
             WHERE NOT EXISTS (SELECT 1 FROM perfil x WHERE x.nome = p.nome);
         """)
-        # Garante os 3 usuários oficiais da plataforma caso não existam
         usuarios_padrao = [
             (1, "Maria Clara", "maria.clara@raizagro.agr.br", "Gestora Técnica", "MC", "#10B981", "Produtor/Exportador"),
             (2, "Luiz Felipe", "luiz.felipe@raizagro.agr.br", "Analista IoT & Telemetria", "LF", "#0284C7", "Analista de Dados"),
@@ -87,11 +143,150 @@ def _garantir_schema_preferencias(conn) -> None:
                         (SELECT id_perfil FROM perfil WHERE nome = %s LIMIT 1)
                     )
                 """, (uid, nome, email, cargo, iniciais, cor, nome_perfil))
+
+        # 2. Tabela historico_safra e desempenho_talhao
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS historico_safra (
+                id_safra                 SERIAL PRIMARY KEY,
+                ciclo                    VARCHAR(40) NOT NULL UNIQUE,
+                cultura                  VARCHAR(100) NOT NULL,
+                area_ha                  NUMERIC(10,2) NOT NULL,
+                produtividade_ton_ha     NUMERIC(10,2) NOT NULL,
+                volume_total_ton         NUMERIC(10,2) NOT NULL,
+                consumo_agua_m3_ha       INTEGER NOT NULL DEFAULT 3420,
+                brix_medio               NUMERIC(5,2) NOT NULL DEFAULT 18.5,
+                taxa_exportacao_pct      NUMERIC(5,2) NOT NULL DEFAULT 95.0,
+                status                   VARCHAR(30) NOT NULL DEFAULT 'Em Andamento',
+                destinacao_export_pct    INTEGER NOT NULL DEFAULT 78,
+                destinacao_interno_pct   INTEGER NOT NULL DEFAULT 16,
+                destinacao_industria_pct INTEGER NOT NULL DEFAULT 6,
+                data_atualizacao         TIMESTAMP NOT NULL DEFAULT (now() AT TIME ZONE 'UTC')
+            );
+        """)
+        cur.execute("SELECT COUNT(*) FROM historico_safra")
+        if cur.fetchone()[0] == 0:
+            cur.execute("""
+                INSERT INTO historico_safra (
+                    ciclo, cultura, area_ha, produtividade_ton_ha, volume_total_ton,
+                    consumo_agua_m3_ha, brix_medio, taxa_exportacao_pct, status,
+                    destinacao_export_pct, destinacao_interno_pct, destinacao_industria_pct
+                ) VALUES
+                ('2025/2026', 'Uva Vitória & Manga Palmer', 42.5, 30.2, 1284.5, 3420, 19.4, 96.2, 'Em Andamento', 78, 16, 6),
+                ('2024/2025', 'Uva Vitória (Seedless)',      40.0, 26.5, 1060.0, 3760, 18.2, 89.4, 'Concluída',    72, 20, 8),
+                ('2023/2024', 'Manga Tommy & Uva Crimson',  38.0, 24.8,  942.4, 4120, 17.5, 82.0, 'Concluída',    65, 25, 10);
+            """)
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS desempenho_talhao (
+                id_talhao            SERIAL PRIMARY KEY,
+                codigo               VARCHAR(30) NOT NULL UNIQUE,
+                variedade            VARCHAR(80) NOT NULL,
+                porta_enxerto        VARCHAR(60) NOT NULL,
+                ciclo                VARCHAR(40) NOT NULL DEFAULT '2025/2026',
+                area_ha              NUMERIC(8,2) NOT NULL,
+                volume_ton           NUMERIC(10,2) NOT NULL,
+                produtividade_ton_ha NUMERIC(8,2) NOT NULL,
+                brix_medio           NUMERIC(5,2) NOT NULL,
+                calibres_mm          VARCHAR(30) NOT NULL,
+                status               VARCHAR(40) NOT NULL,
+                data_atualizacao     TIMESTAMP NOT NULL DEFAULT (now() AT TIME ZONE 'UTC')
+            );
+        """)
+        cur.execute("SELECT COUNT(*) FROM desempenho_talhao")
+        if cur.fetchone()[0] == 0:
+            cur.execute("""
+                INSERT INTO desempenho_talhao (
+                    codigo, variedade, porta_enxerto, ciclo, area_ha, volume_ton,
+                    produtividade_ton_ha, brix_medio, calibres_mm, status
+                ) VALUES
+                ('Talhão A1', 'Uva Vitória (Seedless)', 'IAC 572',    '2025/2026', 12.0, 388.8, 32.4, 19.8, '21 - 24 mm', 'Colhido • Exportado'),
+                ('Talhão A2', 'Uva Vitória (Seedless)', 'IAC 766',    '2025/2026', 10.5, 323.4, 30.8, 19.2, '20 - 22 mm', 'Colhido • Exportado'),
+                ('Talhão B1', 'Manga Palmer',           'Espada',     '2025/2026', 11.0, 319.0, 29.0, 16.5, '420 - 480 g', 'Em Trânsito • Pecém'),
+                ('Talhão B2', 'Uva Thompson Seedless',  'SO4',        '2025/2026',  9.0, 253.3, 28.1, 18.6, '18 - 20 mm', 'Em Colheita (85%)');
+            """)
+
+        # 3. Tabela alerta_operacional_estado
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS alerta_operacional_estado (
+                codigo_alerta    VARCHAR(60) PRIMARY KEY,
+                titulo           VARCHAR(200) NOT NULL,
+                severidade       VARCHAR(30) NOT NULL,
+                prioridade       VARCHAR(10) NOT NULL,
+                status           VARCHAR(30) NOT NULL DEFAULT 'pendente',
+                lote_ou_talhao   VARCHAR(120),
+                sensor_ref       VARCHAR(80),
+                leitura_atual    VARCHAR(60),
+                limiar_seguro    VARCHAR(80),
+                acao_tomada      TEXT,
+                atendido_por     VARCHAR(100),
+                data_atualizacao TIMESTAMP NOT NULL DEFAULT (now() AT TIME ZONE 'UTC')
+            );
+        """)
+        cur.execute("SELECT COUNT(*) FROM alerta_operacional_estado")
+        if cur.fetchone()[0] == 0:
+            cur.execute("""
+                INSERT INTO alerta_operacional_estado (
+                    codigo_alerta, titulo, severidade, prioridade, status,
+                    lote_ou_talhao, sensor_ref, leitura_atual, limiar_seguro, acao_tomada
+                ) VALUES
+                ('P1-REEFER-EXP-2026-08', 'Excursão Térmica — Reefer Exportação #EXP-2026-08', 'critico', 'P1', 'pendente',
+                 'Lote Uva Vitória (18,4t) • BR-116 Km 412', 'Sensor Termo-Reefer #TR-08', '3,8°C', '0,5°C a 2,0°C', NULL),
+                ('P2-SOLO-TALHAO-A1', 'Umidade do Solo Abaixo do Limiar — Talhão A1', 'moderado', 'P2', 'pendente',
+                 'Talhão A1 • Uva Vitória (12,0 ha)', 'Sonda FDR #SL-A1-04', '38,2%', 'Mínimo 50,0% VWC', NULL),
+                ('PRED-VPD-SETOR-04', 'Previsão de Pico de Evapotranspiração (VPD > 2.8 kPa)', 'preditivo', 'IA', 'pendente',
+                 'Setor 04 • Talhões A1, A2 e B2', 'Modelo Penman-Monteith IA', '2.8 kPa', '< 2.2 kPa', NULL),
+                ('ALT-2026-001', 'Desvio Térmico no Lote de Manga', 'critico', 'P1', 'pendente',
+                 'Lote #101 • Manga Exportação (1.000 kg)', 'DHT11 ESP32-C3', '14,8°C', '10,0°C a 13,0°C', NULL),
+                ('ALT-2026-002', 'Déficit de Umidade Relativa no Lote de Uva', 'moderado', 'P2', 'pendente',
+                 'Lote #102 • Câmara Frigorífica Uva (500 kg)', 'SNS-AR-002', '87,5% UR', '90,0% a 95,0% UR', NULL),
+                ('ALT-2026-003', 'Oscilação Térmica em Melão Amarelo', 'baixo', 'P3', 'pendente',
+                 'Lote #103 • Antecâmara Packing (300 kg)', 'SNS-SL-003', '12,3°C', '10,0°C a 12,0°C', NULL);
+            """)
+
+        # 4. Tabela telemetria_grafico_estado
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS telemetria_grafico_estado (
+                id_config              INTEGER PRIMARY KEY DEFAULT 1,
+                umidade_ar_24h         JSONB NOT NULL,
+                umidade_solo_24h       JSONB NOT NULL,
+                temp_solo_24h          JSONB NOT NULL,
+                temp_ar_24h            JSONB NOT NULL,
+                conformidade_geral_pct INTEGER NOT NULL DEFAULT 90,
+                saude_plantacao_pct    INTEGER NOT NULL DEFAULT 85,
+                umidade_dossel_pct     INTEGER NOT NULL DEFAULT 67,
+                temp_foliar_c          NUMERIC(5,2) NOT NULL DEFAULT 27.0,
+                agua_reservatorio_pct  INTEGER NOT NULL DEFAULT 63,
+                vazao_ldia             INTEGER NOT NULL DEFAULT 4200,
+                curva_termica_analista JSONB NOT NULL DEFAULT '{}'::jsonb,
+                data_atualizacao       TIMESTAMP NOT NULL DEFAULT (now() AT TIME ZONE 'UTC')
+            );
+        """)
+        cur.execute("SELECT COUNT(*) FROM telemetria_grafico_estado WHERE id_config = 1")
+        if cur.fetchone()[0] == 0:
+            cur.execute("""
+                INSERT INTO telemetria_grafico_estado (
+                    id_config, umidade_ar_24h, umidade_solo_24h, temp_solo_24h, temp_ar_24h,
+                    conformidade_geral_pct, saude_plantacao_pct, umidade_dossel_pct,
+                    temp_foliar_c, agua_reservatorio_pct, vazao_ldia, curva_termica_analista
+                ) VALUES (
+                    1,
+                    '[61, 60, 59, 58, 60, 61, 63, 62]'::jsonb,
+                    '[54, 53, 55, 57, 59, 58, 57, 58]'::jsonb,
+                    '[24.1, 23.9, 24.3, 24.6, 24.8, 24.5, 24.4, 24.5]'::jsonb,
+                    '[26.2, 25.8, 26.8, 28.2, 29.0, 28.1, 27.5, 27.8]'::jsonb,
+                    90, 85, 67, 27.0, 63, 4200,
+                    '{"temp_atual": 14.8, "tmax": 13.0, "tmin": 10.0, "indice_preditivo": 0.84, "umidade_camara_uva": 87.5, "limiar_ur_uva": 90.0}'::jsonb
+                );
+            """)
     conn.commit()
 
 
+# ============================================================================
+# 1. ENDPOINTS DE PERFIL E PREFERÊNCIAS DO USUÁRIO
+# ============================================================================
+
 def _obter_perfil_e_preferencias(conn, id_usuario: int) -> dict:
-    _garantir_schema_preferencias(conn)
+    _garantir_schema_completo(conn)
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
         cur.execute("""
             SELECT
@@ -139,7 +334,7 @@ def obter_preferencias_usuario(id_usuario: int, conn=Depends(get_conn)):
 @router.get("/email/{email}")
 def obter_preferencias_por_email(email: str, conn=Depends(get_conn)):
     """Retorna os dados de perfil e preferências persistidas do usuário pelo e-mail."""
-    _garantir_schema_preferencias(conn)
+    _garantir_schema_completo(conn)
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
         cur.execute("SELECT id_usuario FROM usuario WHERE lower(email) = lower(%s)", (email.strip(),))
         row = cur.fetchone()
@@ -151,7 +346,7 @@ def obter_preferencias_por_email(email: str, conn=Depends(get_conn)):
 @router.put("/usuario/{id_usuario}")
 def salvar_preferencias_usuario(id_usuario: int, dados: PreferenciasUpdateIn, conn=Depends(get_conn)):
     """Salva permanentemente no banco de dados o perfil e todas as preferências do usuário."""
-    _garantir_schema_preferencias(conn)
+    _garantir_schema_completo(conn)
     agora = datetime.now(timezone.utc)
 
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
@@ -159,7 +354,6 @@ def salvar_preferencias_usuario(id_usuario: int, dados: PreferenciasUpdateIn, co
         if not cur.fetchone():
             raise HTTPException(status_code=404, detail="Usuário não encontrado")
 
-        # Atualiza colunas de perfil na tabela usuario
         sets_usuario = []
         params_usuario = []
         for campo in ("nome", "cargo", "bio", "telefone", "avatar_iniciais", "avatar_cor", "avatar_url"):
@@ -175,7 +369,6 @@ def salvar_preferencias_usuario(id_usuario: int, dados: PreferenciasUpdateIn, co
                 params_usuario,
             )
 
-        # Faz UPSERT na tabela usuario_preferencia
         cur.execute("""
             INSERT INTO usuario_preferencia (
                 fk_usuario_id_usuario,
@@ -218,3 +411,447 @@ def salvar_preferencias_usuario(id_usuario: int, dados: PreferenciasUpdateIn, co
     conn.commit()
 
     return _obter_perfil_e_preferencias(conn, id_usuario)
+
+
+# ============================================================================
+# 2. ENDPOINTS DE HISTÓRICO DE SAFRA E TALHÕES (PERSISTIDOS NO POSTGRESQL)
+# ============================================================================
+
+def _montar_payload_safras(conn) -> dict:
+    _garantir_schema_completo(conn)
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute("""
+            SELECT
+                id_safra,
+                ciclo,
+                cultura,
+                ROUND(area_ha::numeric, 2)::float AS area_ha,
+                ROUND(produtividade_ton_ha::numeric, 2)::float AS produtividade_ton_ha,
+                ROUND(volume_total_ton::numeric, 2)::float AS volume_total_ton,
+                consumo_agua_m3_ha,
+                ROUND(brix_medio::numeric, 2)::float AS brix_medio,
+                ROUND(taxa_exportacao_pct::numeric, 2)::float AS taxa_exportacao_pct,
+                status,
+                destinacao_export_pct,
+                destinacao_interno_pct,
+                destinacao_industria_pct,
+                data_atualizacao
+            FROM historico_safra
+            ORDER BY ciclo DESC, id_safra DESC
+        """)
+        safras = [dict(r) for r in cur.fetchall()]
+        for s in safras:
+            if s.get("data_atualizacao"):
+                s["data_atualizacao"] = s["data_atualizacao"].isoformat()
+
+        cur.execute("""
+            SELECT
+                id_talhao,
+                codigo,
+                variedade,
+                porta_enxerto,
+                ciclo,
+                ROUND(area_ha::numeric, 2)::float AS area_ha,
+                ROUND(volume_ton::numeric, 2)::float AS volume_ton,
+                ROUND(produtividade_ton_ha::numeric, 2)::float AS produtividade_ton_ha,
+                ROUND(brix_medio::numeric, 2)::float AS brix_medio,
+                calibres_mm,
+                status,
+                data_atualizacao
+            FROM desempenho_talhao
+            ORDER BY codigo ASC
+        """)
+        talhoes = [dict(r) for r in cur.fetchall()]
+        for t in talhoes:
+            if t.get("data_atualizacao"):
+                t["data_atualizacao"] = t["data_atualizacao"].isoformat()
+
+    safra_ativa = next((s for s in safras if s.get("status") == "Em Andamento"), safras[0] if safras else None)
+    return {
+        "safras": safras,
+        "talhoes": talhoes,
+        "safra_ativa": safra_ativa,
+    }
+
+
+@router.get("/safras")
+def listar_historico_safras(conn=Depends(get_conn)):
+    """Lista todas as safras e o desempenho por talhão salvos no banco PostgreSQL."""
+    return _montar_payload_safras(conn)
+
+
+@router.post("/safras")
+def criar_ou_atualizar_safra(dados: SafraCreateUpdateIn, conn=Depends(get_conn)):
+    """Cria um novo ciclo de safra (ou atualiza se o ciclo já existir) no banco PostgreSQL."""
+    _garantir_schema_completo(conn)
+    volume_calc = dados.volume_total_ton
+    if volume_calc is None or volume_calc <= 0:
+        volume_calc = round(dados.area_ha * dados.produtividade_ton_ha, 2)
+
+    agora = datetime.now(timezone.utc)
+    with conn.cursor() as cur:
+        cur.execute("""
+            INSERT INTO historico_safra (
+                ciclo, cultura, area_ha, produtividade_ton_ha, volume_total_ton,
+                consumo_agua_m3_ha, brix_medio, taxa_exportacao_pct, status,
+                destinacao_export_pct, destinacao_interno_pct, destinacao_industria_pct,
+                data_atualizacao
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (ciclo) DO UPDATE SET
+                cultura = EXCLUDED.cultura,
+                area_ha = EXCLUDED.area_ha,
+                produtividade_ton_ha = EXCLUDED.produtividade_ton_ha,
+                volume_total_ton = EXCLUDED.volume_total_ton,
+                consumo_agua_m3_ha = EXCLUDED.consumo_agua_m3_ha,
+                brix_medio = EXCLUDED.brix_medio,
+                taxa_exportacao_pct = EXCLUDED.taxa_exportacao_pct,
+                status = EXCLUDED.status,
+                destinacao_export_pct = EXCLUDED.destinacao_export_pct,
+                destinacao_interno_pct = EXCLUDED.destinacao_interno_pct,
+                destinacao_industria_pct = EXCLUDED.destinacao_industria_pct,
+                data_atualizacao = EXCLUDED.data_atualizacao
+        """, (
+            dados.ciclo.strip(),
+            dados.cultura.strip(),
+            dados.area_ha,
+            dados.produtividade_ton_ha,
+            volume_calc,
+            dados.consumo_agua_m3_ha,
+            dados.brix_medio,
+            dados.taxa_exportacao_pct,
+            dados.status.strip(),
+            dados.destinacao_export_pct,
+            dados.destinacao_interno_pct,
+            dados.destinacao_industria_pct,
+            agora,
+        ))
+    conn.commit()
+    return _montar_payload_safras(conn)
+
+
+@router.put("/safras/{id_safra}")
+def atualizar_safra_por_id(id_safra: int, dados: SafraCreateUpdateIn, conn=Depends(get_conn)):
+    """Atualiza os dados de uma safra existente no banco PostgreSQL."""
+    _garantir_schema_completo(conn)
+    volume_calc = dados.volume_total_ton
+    if volume_calc is None or volume_calc <= 0:
+        volume_calc = round(dados.area_ha * dados.produtividade_ton_ha, 2)
+
+    agora = datetime.now(timezone.utc)
+    with conn.cursor() as cur:
+        cur.execute("SELECT id_safra FROM historico_safra WHERE id_safra = %s", (id_safra,))
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="Safra não encontrada")
+
+        cur.execute("""
+            UPDATE historico_safra SET
+                ciclo = %s,
+                cultura = %s,
+                area_ha = %s,
+                produtividade_ton_ha = %s,
+                volume_total_ton = %s,
+                consumo_agua_m3_ha = %s,
+                brix_medio = %s,
+                taxa_exportacao_pct = %s,
+                status = %s,
+                destinacao_export_pct = %s,
+                destinacao_interno_pct = %s,
+                destinacao_industria_pct = %s,
+                data_atualizacao = %s
+            WHERE id_safra = %s
+        """, (
+            dados.ciclo.strip(),
+            dados.cultura.strip(),
+            dados.area_ha,
+            dados.produtividade_ton_ha,
+            volume_calc,
+            dados.consumo_agua_m3_ha,
+            dados.brix_medio,
+            dados.taxa_exportacao_pct,
+            dados.status.strip(),
+            dados.destinacao_export_pct,
+            dados.destinacao_interno_pct,
+            dados.destinacao_industria_pct,
+            agora,
+            id_safra,
+        ))
+    conn.commit()
+    return _montar_payload_safras(conn)
+
+
+@router.put("/talhoes/{id_talhao}")
+def atualizar_talhao_por_id(id_talhao: int, dados: TalhaoUpdateIn, conn=Depends(get_conn)):
+    """Atualiza um talhão no banco e recalcula automaticamente os indicadores da safra vigente."""
+    _garantir_schema_completo(conn)
+    agora = datetime.now(timezone.utc)
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute("SELECT * FROM desempenho_talhao WHERE id_talhao = %s", (id_talhao,))
+        atual = cur.fetchone()
+        if not atual:
+            raise HTTPException(status_code=404, detail="Talhão não encontrado")
+
+        area_ha = dados.area_ha if dados.area_ha is not None else float(atual["area_ha"])
+        prod_ton_ha = dados.produtividade_ton_ha if dados.produtividade_ton_ha is not None else float(atual["produtividade_ton_ha"])
+        vol_ton = dados.volume_ton if dados.volume_ton is not None else round(area_ha * prod_ton_ha, 1)
+        brix = dados.brix_medio if dados.brix_medio is not None else float(atual["brix_medio"])
+        variedade = dados.variedade if dados.variedade is not None else atual["variedade"]
+        porta_enxerto = dados.porta_enxerto if dados.porta_enxerto is not None else atual["porta_enxerto"]
+        calibres = dados.calibres_mm if dados.calibres_mm is not None else atual["calibres_mm"]
+        status = dados.status if dados.status is not None else atual["status"]
+
+        cur.execute("""
+            UPDATE desempenho_talhao SET
+                variedade = %s,
+                porta_enxerto = %s,
+                area_ha = %s,
+                volume_ton = %s,
+                produtividade_ton_ha = %s,
+                brix_medio = %s,
+                calibres_mm = %s,
+                status = %s,
+                data_atualizacao = %s
+            WHERE id_talhao = %s
+        """, (
+            variedade, porta_enxerto, area_ha, vol_ton,
+            prod_ton_ha, brix, calibres, status, agora, id_talhao
+        ))
+
+        # Recalcula o consolidado da safra 2025/2026 com base nos talhões
+        cur.execute("""
+            SELECT
+                COALESCE(SUM(area_ha), 42.5) AS total_area,
+                COALESCE(SUM(volume_ton), 1284.5) AS total_vol,
+                COALESCE(AVG(brix_medio), 19.4) AS avg_brix
+            FROM desempenho_talhao
+            WHERE ciclo = '2025/2026'
+        """)
+        agg = cur.fetchone()
+        if agg and float(agg["total_area"]) > 0:
+            nova_area = round(float(agg["total_area"]), 2)
+            novo_vol = round(float(agg["total_vol"]), 2)
+            nova_prod = round(novo_vol / nova_area, 2)
+            novo_brix = round(float(agg["avg_brix"]), 2)
+            cur.execute("""
+                UPDATE historico_safra SET
+                    area_ha = %s,
+                    volume_total_ton = %s,
+                    produtividade_ton_ha = %s,
+                    brix_medio = %s,
+                    data_atualizacao = %s
+                WHERE ciclo = '2025/2026'
+            """, (nova_area, novo_vol, nova_prod, novo_brix, agora))
+
+    conn.commit()
+    return _montar_payload_safras(conn)
+
+
+# ============================================================================
+# 3. ENDPOINTS DE ALERTAS OPERACIONAIS (PERSISTIDOS NO POSTGRESQL)
+# ============================================================================
+
+def _montar_payload_alertas(conn) -> dict:
+    _garantir_schema_completo(conn)
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute("""
+            SELECT
+                codigo_alerta,
+                titulo,
+                severidade,
+                prioridade,
+                status,
+                lote_ou_talhao,
+                sensor_ref,
+                leitura_atual,
+                limiar_seguro,
+                acao_tomada,
+                atendido_por,
+                data_atualizacao
+            FROM alerta_operacional_estado
+            ORDER BY
+                CASE prioridade
+                    WHEN 'P1' THEN 1
+                    WHEN 'P2' THEN 2
+                    WHEN 'IA' THEN 3
+                    ELSE 4
+                END,
+                codigo_alerta ASC
+        """)
+        alertas = [dict(r) for r in cur.fetchall()]
+        for a in alertas:
+            if a.get("data_atualizacao"):
+                a["data_atualizacao"] = a["data_atualizacao"].isoformat()
+
+    # Contadores separados para Gestora (cards P1, P2, PRED) e Analista (ALT-2026-001..003)
+    gestora_codes = {"P1-REEFER-EXP-2026-08", "P2-SOLO-TALHAO-A1", "PRED-VPD-SETOR-04"}
+    analista_codes = {"ALT-2026-001", "ALT-2026-002", "ALT-2026-003"}
+
+    gestora_ativos = [a for a in alertas if a["codigo_alerta"] in gestora_codes and a["status"] == "pendente"]
+    analista_ativos = [a for a in alertas if a["codigo_alerta"] in analista_codes and a["status"] == "pendente"]
+
+    return {
+        "alertas": alertas,
+        "por_codigo": {a["codigo_alerta"]: a for a in alertas},
+        "resumo": {
+            "total_pendentes": sum(1 for a in alertas if a["status"] == "pendente"),
+            "total_atendidos": sum(1 for a in alertas if a["status"] == "atendido"),
+            "gestora_ativos": len(gestora_ativos),
+            "gestora_criticos": sum(1 for a in gestora_ativos if a["prioridade"] == "P1"),
+            "gestora_moderados": sum(1 for a in gestora_ativos if a["prioridade"] != "P1"),
+            "analista_ativos": len(analista_ativos),
+        },
+    }
+
+
+@router.get("/alertas")
+def listar_estado_alertas(conn=Depends(get_conn)):
+    """Retorna o status real de todos os alertas operacionais diretamente do banco PostgreSQL."""
+    return _montar_payload_alertas(conn)
+
+
+@router.patch("/alertas/{codigo_alerta}")
+def atualizar_status_alerta(codigo_alerta: str, dados: AlertaPatchIn, conn=Depends(get_conn)):
+    """Atualiza o status de um alerta ('pendente', 'atendido' ou 'silenciado') no PostgreSQL."""
+    _garantir_schema_completo(conn)
+    agora = datetime.now(timezone.utc)
+    with conn.cursor() as cur:
+        cur.execute("SELECT codigo_alerta FROM alerta_operacional_estado WHERE codigo_alerta = %s", (codigo_alerta,))
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail=f"Alerta '{codigo_alerta}' não encontrado")
+
+        sets = ["status = %s", "data_atualizacao = %s"]
+        params: List[Any] = [dados.status, agora]
+
+        if dados.acao_tomada is not None:
+            sets.append("acao_tomada = %s")
+            params.append(dados.acao_tomada)
+        if dados.atendido_por is not None:
+            sets.append("atendido_por = %s")
+            params.append(dados.atendido_por)
+        if dados.leitura_atual is not None:
+            sets.append("leitura_atual = %s")
+            params.append(dados.leitura_atual)
+        if dados.limiar_seguro is not None:
+            sets.append("limiar_seguro = %s")
+            params.append(dados.limiar_seguro)
+
+        params.append(codigo_alerta)
+        cur.execute(
+            f"UPDATE alerta_operacional_estado SET {', '.join(sets)} WHERE codigo_alerta = %s",
+            params,
+        )
+
+        # Sincroniza também na tabela relacional `alerta` caso existam registros
+        if dados.status == "atendido":
+            cur.execute("UPDATE alerta SET status = 'resolvido', data_resolucao = %s WHERE status = 'ativo'", (agora,))
+    conn.commit()
+    return _montar_payload_alertas(conn)
+
+
+@router.post("/alertas/reconhecer-todos")
+def reconhecer_todos_alertas(perfil: Optional[str] = None, reset: bool = False, conn=Depends(get_conn)):
+    """Marca todos os alertas como 'atendido' (ou restaura para 'pendente' se reset=True) no PostgreSQL."""
+    _garantir_schema_completo(conn)
+    agora = datetime.now(timezone.utc)
+    novo_status = "pendente" if reset else "atendido"
+    acao = None if reset else "Reconhecido e atendido em lote pela central operacional"
+
+    with conn.cursor() as cur:
+        if perfil == "gestor":
+            codigos = ("P1-REEFER-EXP-2026-08", "P2-SOLO-TALHAO-A1", "PRED-VPD-SETOR-04")
+            cur.execute("""
+                UPDATE alerta_operacional_estado
+                SET status = %s, acao_tomada = %s, data_atualizacao = %s
+                WHERE codigo_alerta IN %s
+            """, (novo_status, acao, agora, codigos))
+        elif perfil == "analista":
+            codigos = ("ALT-2026-001", "ALT-2026-002", "ALT-2026-003")
+            cur.execute("""
+                UPDATE alerta_operacional_estado
+                SET status = %s, acao_tomada = %s, data_atualizacao = %s
+                WHERE codigo_alerta IN %s
+            """, (novo_status, acao, agora, codigos))
+        else:
+            cur.execute("""
+                UPDATE alerta_operacional_estado
+                SET status = %s, acao_tomada = %s, data_atualizacao = %s
+            """, (novo_status, acao, agora))
+    conn.commit()
+    return _montar_payload_alertas(conn)
+
+
+# ============================================================================
+# 4. ENDPOINTS DE TELEMETRIA E DADOS DOS GRÁFICOS (PERSISTIDOS NO POSTGRESQL)
+# ============================================================================
+
+def _obter_estado_graficos(conn) -> dict:
+    _garantir_schema_completo(conn)
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute("""
+            SELECT
+                umidade_ar_24h,
+                umidade_solo_24h,
+                temp_solo_24h,
+                temp_ar_24h,
+                conformidade_geral_pct,
+                saude_plantacao_pct,
+                umidade_dossel_pct,
+                ROUND(temp_foliar_c::numeric, 1)::float AS temp_foliar_c,
+                agua_reservatorio_pct,
+                vazao_ldia,
+                curva_termica_analista,
+                data_atualizacao
+            FROM telemetria_grafico_estado
+            WHERE id_config = 1
+        """)
+        row = cur.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Configuração de gráficos não encontrada")
+    res = dict(row)
+    if res.get("data_atualizacao"):
+        res["data_atualizacao"] = res["data_atualizacao"].isoformat()
+    return res
+
+
+@router.get("/graficos")
+def obter_dados_graficos(conn=Depends(get_conn)):
+    """Retorna as séries e indicadores que alimentam os gráficos do Dashboard e Central de Alertas."""
+    return _obter_estado_graficos(conn)
+
+
+@router.put("/graficos")
+def atualizar_dados_graficos(dados: GraficosTelemetriaUpdateIn, conn=Depends(get_conn)):
+    """Salva no PostgreSQL os dados editados que alimentam os gráficos e KPIs."""
+    _garantir_schema_completo(conn)
+    agora = datetime.now(timezone.utc)
+    with conn.cursor() as cur:
+        cur.execute("""
+            UPDATE telemetria_grafico_estado SET
+                umidade_ar_24h = %s,
+                umidade_solo_24h = %s,
+                temp_solo_24h = %s,
+                temp_ar_24h = %s,
+                conformidade_geral_pct = %s,
+                saude_plantacao_pct = %s,
+                umidade_dossel_pct = %s,
+                temp_foliar_c = %s,
+                agua_reservatorio_pct = %s,
+                vazao_ldia = %s,
+                curva_termica_analista = %s,
+                data_atualizacao = %s
+            WHERE id_config = 1
+        """, (
+            Json(dados.umidade_ar_24h),
+            Json(dados.umidade_solo_24h),
+            Json(dados.temp_solo_24h),
+            Json(dados.temp_ar_24h),
+            dados.conformidade_geral_pct,
+            dados.saude_plantacao_pct,
+            dados.umidade_dossel_pct,
+            dados.temp_foliar_c,
+            dados.agua_reservatorio_pct,
+            dados.vazao_ldia,
+            Json(dados.curva_termica_analista or {}),
+            agora,
+        ))
+    conn.commit()
+    return _obter_estado_graficos(conn)

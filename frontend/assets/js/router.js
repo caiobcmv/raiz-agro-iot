@@ -337,7 +337,18 @@ export class Router {
       });
     }
 
-    // 6. Garantir que absolutamente nenhum botão na view fique sem ação ou sem feedback tátil
+    // 6. Sincroniza o contador do sino de alertas no header com o status real no banco
+    api.getEstadoAlertas().then(data => {
+      const bell = document.getElementById('header-bell-count');
+      if (bell && data && data.resumo) {
+        const role = auth.getActiveProfile();
+        const count = role === 'analista' ? data.resumo.analista_ativos : data.resumo.gestora_ativos;
+        bell.textContent = String(count);
+        bell.style.display = count > 0 ? 'flex' : 'none';
+      }
+    }).catch(() => {});
+
+    // 7. Garantir que absolutamente nenhum botão na view fique sem ação ou sem feedback tátil
     this.bindGlobalButtonEnhancements();
   }
 
@@ -393,9 +404,9 @@ export class Router {
       return;
     }
 
-    // Guarda de perfil
+    // Guarda de perfil ('#/leituras' é acessível tanto pela Produtora/Gestora quanto pelo Analista)
     const ROTAS_ADMIN = ['#/usuarios', '#/auditoria', '#/lotes', '#/regras-agronomicas'];
-    const ROTAS_ANALISTA = ['#/rede-esp32', '#/leituras'];
+    const ROTAS_ANALISTA = ['#/rede-esp32'];
     const activeProfile = auth.getActiveProfile();
     if (ROTAS_ADMIN.includes(hash) && activeProfile !== 'admin') {
       hash = '#/dashboard';

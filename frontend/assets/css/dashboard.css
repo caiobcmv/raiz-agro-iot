@@ -4,7 +4,8 @@
 
 .dashboard-layout {
   display: flex;
-  min-height: 100vh;
+  align-items: flex-start;
+  min-height: 100dvh;
   width: 100%;
   background: #F8FAFC;
   position: relative;
@@ -12,16 +13,21 @@
   color: var(--text-dark);
 }
 
-/* Sidebar Fiel ao Figma */
+/* Sidebar Fiel ao Figma (sticky 100dvh sem área em branco ao rolar) */
 .sidebar {
   width: 296px;
   min-width: 296px;
   background-color: #183D2E;
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100dvh;
+  min-height: 100dvh;
+  max-height: 100dvh;
+  overflow-y: auto;
   position: sticky;
   top: 0;
+  align-self: flex-start;
+  flex-shrink: 0;
   z-index: 50;
   border-right: 1px solid rgba(0, 0, 0, 0.05);
 }
@@ -287,13 +293,14 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
-/* Área de Conteúdo do Dashboard */
+/* Área de Conteúdo do Dashboard (sem min-height artificial que gerava área em branco no final) */
 .dashboard-canvas {
-  padding: 28px 36px 48px;
+  padding: 24px 32px 24px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 20px;
   max-width: 1560px;
+  width: 100%;
   animation: appleFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
@@ -442,6 +449,10 @@
    ===================================================================== */
 .satellite-map-container {
   width: 100%;
+  flex: 1;
+  min-height: 250px;
+  display: flex;
+  flex-direction: column;
   border-radius: 14px;
   overflow: hidden;
   position: relative;
@@ -452,8 +463,9 @@
 
 .satellite-bg-img {
   width: 100%;
-  height: auto;
-  max-height: 420px;
+  flex: 1;
+  height: 100%;
+  max-height: 400px;
   object-fit: cover;
   object-position: center;
   display: block;
@@ -610,9 +622,9 @@
   box-shadow: 0 6px 24px rgba(0,0,0,0.08);
 }
 
-/* Scrollbar suave no canvas */
+/* Sem min-height forçado no canvas para evitar espaço em branco ao final da rolagem */
 .dashboard-canvas {
-  min-height: calc(100vh - 72px);
+  min-height: 0;
 }
 
 /* =====================================================================

@@ -64,12 +64,13 @@ class ApiService {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    // Timeout de 8000ms para suportar conexões de nuvem (Render + Neon PostgreSQL)
+    // Timeout de 15000ms para suportar conexões de nuvem e cold-start (Render + Neon PostgreSQL)
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
 
     try {
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        cache: 'no-store',
         ...options,
         headers,
         signal: controller.signal
@@ -90,9 +91,10 @@ class ApiService {
       return await response.json();
     } catch (error) {
       clearTimeout(timeoutId);
-      // Se deu timeout ou erro de rede, marca backend como offline para que próximas chamadas sejam instantâneas
+      // Se deu timeout ou erro de rede, marca backend como offline para endpoints legados
       if (error.name === 'AbortError' || error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
         this.isBackendOnline = false;
+        throw new Error('Falha de conexão com o servidor backend. Verifique sua internet ou tente novamente.');
       }
       throw error;
     }
@@ -605,19 +607,6 @@ class ApiService {
 
   async salvarPreferenciasUsuario(idUsuario, payload) {
     const storageKey = `raiz_prefs_user_${idUsuario}`;
-    // Salva cópia otimista local imediatamente
-    try {
-      const prev = JSON.parse(localStorage.getItem(storageKey) || '{}');
-      localStorage.setItem(storageKey, JSON.stringify({
-        ...prev,
-        ...payload,
-        id_usuario: idUsuario,
-        data_atualizacao: new Date().toISOString()
-      }));
-    } catch (e) {
-      // ignora erro de quota
-    }
-
     const saved = await this.request(`/preferencias/usuario/${idUsuario}`, {
       method: 'PUT',
       body: JSON.stringify(payload)
@@ -626,6 +615,78 @@ class ApiService {
       localStorage.setItem(storageKey, JSON.stringify(saved));
     }
     return { ...saved, _origem: 'database' };
+  }
+
+  // ==========================================
+  // HISTÓRICO DE SAFRA & TALHÕES (POSTGRESQL)
+  // ==========================================
+  async getHistoricoSafras() {
+    return await this.request(`/preferencias/safras?_t=${Date.now()}`, {
+      method: 'GET',
+      cache: 'no-store'
+    });
+  }
+
+  async criarSafra(payload) {
+    return await this.request('/preferencias/safras', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  }
+
+  async atualizarSafra(idSafra, payload) {
+    return await this.request(`/preferencias/safras/${idSafra}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload)
+    });
+  }
+
+  async atualizarTalhao(idTalhao, payload) {
+    return await this.request(`/preferencias/talhoes/${idTalhao}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload)
+    });
+  }
+
+  // ==========================================
+  // ESTADO DOS ALERTAS OPERACIONAIS (POSTGRESQL)
+  // ==========================================
+  async getEstadoAlertas() {
+    return await this.request(`/preferencias/alertas?_t=${Date.now()}`, {
+      method: 'GET',
+      cache: 'no-store'
+    });
+  }
+
+  async atualizarStatusAlerta(codigoAlerta, payload) {
+    return await this.request(`/preferencias/alertas/${encodeURIComponent(codigoAlerta)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload)
+    });
+  }
+
+  async reconhecerTodosAlertas(perfil = '', reset = false) {
+    const qs = `?perfil=${encodeURIComponent(perfil)}&reset=${Boolean(reset)}`;
+    return await this.request(`/preferencias/alertas/reconhecer-todos${qs}`, {
+      method: 'POST'
+    });
+  }
+
+  // ==========================================
+  // DADOS DE TELEMETRIA E GRÁFICOS (POSTGRESQL)
+  // ==========================================
+  async getDadosGraficos() {
+    return await this.request(`/preferencias/graficos?_t=${Date.now()}`, {
+      method: 'GET',
+      cache: 'no-store'
+    });
+  }
+
+  async salvarDadosGraficos(payload) {
+    return await this.request('/preferencias/graficos', {
+      method: 'PUT',
+      body: JSON.stringify(payload)
+    });
   }
 }
 

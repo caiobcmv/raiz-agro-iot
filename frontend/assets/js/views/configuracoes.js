@@ -3,6 +3,7 @@
  * Totalmente dinâmico, responsivo (320px+) e com persistência real no PostgreSQL por ID do usuário.
  */
 
+import { api } from '../api.js';
 import { auth } from '../auth.js';
 import { toast } from '../components/toast.js';
 import { Modal } from '../components/modal.js';
@@ -64,7 +65,7 @@ export async function renderConfiguracoes() {
   const tempoReal = profile.atualizacao_tempo_real !== false;
 
   return `
-  <div class="dashboard-canvas cfg-page-canvas" style="padding: 28px 36px 48px; overflow-y: auto;">
+  <div class="dashboard-canvas cfg-page-canvas" style="padding: 24px 32px 24px;">
 
     <!-- CARD DESTAQUE: MEU PERFIL & PREFERÊNCIAS DO USUÁRIO (PERSISTIDO NO BANCO DE DADOS) -->
     <div class="apple-card cfg-profile-card" style="padding: 24px 26px; margin-bottom: 20px; border: 1.5px solid rgba(16, 185, 129, 0.25);">
@@ -174,6 +175,43 @@ export async function renderConfiguracoes() {
               <span class="toggle-knob" style="position:absolute; left:${tempoReal ? '20px' : '2px'}; top:3px; width:18px; height:18px; background:#fff; border-radius:50%; box-shadow:0 1px 4px rgba(0,0,0,.2); transition:left .25s;"></span>
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SEÇÃO: HISTÓRICO DE SAFRA DO PRODUTOR (DADOS REAIS DO BACKEND POSTGRESQL) -->
+    <div class="apple-card" style="padding: 22px 26px; margin-bottom: 20px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="width:36px; height:36px; background:#ECFDF5; border:1px solid #A7F3D0; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+            <i data-lucide="sprout" style="width:18px; height:18px; color:#059669;"></i>
+          </div>
+          <div>
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+              <h3 style="font-size:15px; font-weight:800; color:#0F172A; margin:0;">Histórico de Safra do Produtor</h3>
+              <span style="background:#ECFDF5; color:#047857; border:1px solid #A7F3D0; font-size:10px; font-weight:700; padding:2px 8px; border-radius:999px;">PostgreSQL • Tempo Real</span>
+            </div>
+            <div style="font-size:11px; color:#64748B; margin-top:2px;">
+              Ciclos consolidados de colheita com cultura, área plantada, produtividade, consumo hídrico e Brix médio.
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button type="button" id="btn-cfg-refresh-safras" style="padding:7px 12px; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; font-size:11px; font-weight:600; color:#334155; display:inline-flex; align-items:center; gap:5px; cursor:pointer;">
+            <i data-lucide="refresh-cw" style="width:12px; height:12px; color:#059669;"></i> Recarregar
+          </button>
+          <a href="#/leituras" style="padding:7px 14px; background:#183D2E; color:#FFFFFF; border-radius:8px; font-size:11px; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
+            <i data-lucide="bar-chart-2" style="width:13px; height:13px;"></i> Painel Completo de Safra &rarr;
+          </a>
+        </div>
+      </div>
+
+      <!-- Container gerenciado dinamicamente (estados: carregando, vazio, erro e listagem) -->
+      <div id="cfg-historico-safra-container">
+        <div style="padding: 18px; text-align: center; color: #64748B; font-size: 12px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+          <span class="btn-spinner" style="border-color: #CBD5E1; border-top-color: #059669;"></span>
+          Buscando histórico de safras no backend...
         </div>
       </div>
     </div>
@@ -848,16 +886,14 @@ export async function setupConfiguracoesEvents() {
     } catch (err) {
       triggerBtn.classList.remove('is-loading');
       triggerBtn.classList.add('is-error');
-      triggerBtn.innerHTML = `⚠ Salvo localmente (Offline)`;
+      triggerBtn.innerHTML = `⚠ Falha ao salvar`;
       if (syncBadge) {
-        syncBadge.style.background = '#FFFBEB';
-        syncBadge.style.color = '#B45309';
-        syncBadge.style.borderColor = '#FDE68A';
-        syncBadge.innerHTML = `⚠ Salvo no cache local (reconectando ao banco...)`;
+        syncBadge.style.background = '#FEF2F2';
+        syncBadge.style.color = '#DC2626';
+        syncBadge.style.borderColor = '#FECACA';
+        syncBadge.innerHTML = `⚠ Erro de conexão com o banco (${err.message || 'Falha de rede'})`;
       }
-      auth.applyVisualPreferences();
-      auth.refreshHeaderAndSidebarDOM();
-      toast.warning('Atenção: Conexão Instável', 'Alterações aplicadas e guardadas em cache local. Serão sincronizadas assim que a conexão com o banco estabilizar.');
+      toast.error('Erro de Rede ao Salvar no Servidor', err.message || 'Não foi possível gravar as alterações no banco de dados. Tente novamente.');
     } finally {
       setTimeout(() => {
         triggerBtn.disabled = false;
@@ -867,6 +903,87 @@ export async function setupConfiguracoesEvents() {
       }, 1800);
     }
   }
+
+  // Carregamento do Histórico de Safra dentro do Perfil do Produtor (com estados: carregando, vazio, erro e dados)
+  const safraBox = document.getElementById('cfg-historico-safra-container');
+  async function carregarHistoricoSafraNoPerfil() {
+    if (!safraBox) return;
+    safraBox.innerHTML = `
+      <div style="padding: 20px; text-align: center; color: #64748B; font-size: 12px; display: flex; align-items: center; justify-content: center; gap: 8px; background: #F8FAFC; border-radius: 10px;">
+        <span class="btn-spinner" style="border-color: #CBD5E1; border-top-color: #059669;"></span>
+        Carregando histórico de safras do servidor PostgreSQL...
+      </div>
+    `;
+    try {
+      const res = await api.getHistoricoSafras();
+      const safras = Array.isArray(res?.safras) ? res.safras : [];
+      if (safras.length === 0) {
+        safraBox.innerHTML = `
+          <div style="padding: 24px; text-align: center; background: #F8FAFC; border: 1px dashed #CBD5E1; border-radius: 10px;">
+            <div style="font-size: 13px; font-weight: 700; color: #0F172A; margin-bottom: 4px;">Nenhuma safra encontrada</div>
+            <div style="font-size: 12px; color: #64748B; margin-bottom: 12px;">Não há ciclos de safra registrados no banco de dados para esta propriedade.</div>
+            <a href="#/leituras" style="padding: 7px 14px; background: #059669; color: #fff; border-radius: 8px; font-size: 12px; font-weight: 700; text-decoration: none;">+ Cadastrar Safra</a>
+          </div>
+        `;
+        return;
+      }
+
+      safraBox.innerHTML = `
+        <div style="overflow-x: auto;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
+            <thead>
+              <tr style="background: #F8FAFC; border-bottom: 1px solid #E2E8F0; color: #64748B; font-size: 10px; font-weight: 700; text-transform: uppercase;">
+                <th style="padding: 10px 12px;">Ano / Ciclo</th>
+                <th style="padding: 10px 12px;">Cultura Principal</th>
+                <th style="padding: 10px 12px;">Área (ha)</th>
+                <th style="padding: 10px 12px;">Produtividade</th>
+                <th style="padding: 10px 12px;">Volume Colhido</th>
+                <th style="padding: 10px 12px;">Consumo Água</th>
+                <th style="padding: 10px 12px;">Brix Médio</th>
+                <th style="padding: 10px 12px;">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${safras.map(s => {
+                const isAtiva = s.status === 'Em Andamento';
+                return `
+                  <tr style="border-bottom: 1px solid #F1F5F9;">
+                    <td style="padding: 11px 12px; font-weight: 800; color: #0F172A;">Safra ${s.ciclo}</td>
+                    <td style="padding: 11px 12px; font-weight: 600; color: #334155;">${s.cultura}</td>
+                    <td style="padding: 11px 12px; font-family: monospace; color: #475569;">${Number(s.area_ha).toLocaleString('pt-BR')} ha</td>
+                    <td style="padding: 11px 12px; font-family: monospace; font-weight: 700; color: #047857;">${Number(s.produtividade_ton_ha).toFixed(1).replace('.', ',')} ton/ha</td>
+                    <td style="padding: 11px 12px; font-family: monospace; color: #0F172A;">${Number(s.volume_total_ton).toLocaleString('pt-BR')} ton</td>
+                    <td style="padding: 11px 12px; font-family: monospace; color: #0284C7;">${Number(s.consumo_agua_m3_ha).toLocaleString('pt-BR')} m³/ha</td>
+                    <td style="padding: 11px 12px; font-family: monospace; font-weight: 700; color: #059669;">${Number(s.brix_medio).toFixed(1)}° Brix</td>
+                    <td style="padding: 11px 12px;">
+                      <span style="padding: 3px 9px; border-radius: 999px; font-size: 10px; font-weight: 700; background: ${isAtiva ? '#ECFDF5' : '#F1F5F9'}; color: ${isAtiva ? '#047857' : '#475569'};">
+                        ${s.status}
+                      </span>
+                    </td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    } catch (err) {
+      safraBox.innerHTML = `
+        <div style="padding: 18px; background: #FEF2F2; border: 1px solid #FECACA; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+          <div style="color: #991B1B; font-size: 12px;">
+            <strong>Falha ao buscar o histórico de safra:</strong> ${err.message || 'Erro de conexão com o backend.'}
+          </div>
+          <button type="button" id="btn-cfg-retry-safras" style="padding: 6px 12px; background: #DC2626; color: #fff; border: none; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer;">
+            Tentar Novamente
+          </button>
+        </div>
+      `;
+      document.getElementById('btn-cfg-retry-safras')?.addEventListener('click', carregarHistoricoSafraNoPerfil);
+    }
+  }
+
+  carregarHistoricoSafraNoPerfil();
+  document.getElementById('btn-cfg-refresh-safras')?.addEventListener('click', carregarHistoricoSafraNoPerfil);
 
   // 7. Botões de Salvar (Topo do Perfil e Rodapé da Página)
   document.getElementById('btn-salvar-configuracoes')?.addEventListener('click', (e) => {
