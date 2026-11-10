@@ -621,10 +621,24 @@ class ApiService {
   // HISTÓRICO DE SAFRA & TALHÕES (POSTGRESQL)
   // ==========================================
   async getHistoricoSafras() {
-    return await this.request(`/preferencias/safras?_t=${Date.now()}`, {
-      method: 'GET',
-      cache: 'no-store'
-    });
+    try {
+      const res = await this.request(`/preferencias/safras?_t=${Date.now()}`, {
+        method: 'GET',
+        cache: 'no-store'
+      });
+      if (res && Array.isArray(res.safras)) {
+        localStorage.setItem('LOCAL_SAFRAS_CACHE', JSON.stringify(res));
+      }
+      return res;
+    } catch (err) {
+      const salvo = localStorage.getItem('LOCAL_SAFRAS_CACHE');
+      if (salvo) {
+        try {
+          return JSON.parse(salvo);
+        } catch (e) {}
+      }
+      throw err;
+    }
   }
 
   async criarSafra(payload) {
@@ -652,17 +666,57 @@ class ApiService {
   // ESTADO DOS ALERTAS OPERACIONAIS (POSTGRESQL)
   // ==========================================
   async getEstadoAlertas() {
-    return await this.request(`/preferencias/alertas?_t=${Date.now()}`, {
-      method: 'GET',
-      cache: 'no-store'
-    });
+    try {
+      const res = await this.request(`/preferencias/alertas?_t=${Date.now()}`, {
+        method: 'GET',
+        cache: 'no-store'
+      });
+      if (res && Array.isArray(res.alertas)) {
+        localStorage.setItem('LOCAL_ALERTAS_CACHE', JSON.stringify(res.alertas));
+      }
+      return res;
+    } catch (err) {
+      // Fallback resiliente: usa o cache persistido local caso o backend esteja com delay
+      const salvo = localStorage.getItem('LOCAL_ALERTAS_CACHE');
+      if (salvo) {
+        try {
+          return { alertas: JSON.parse(salvo), offline: true };
+        } catch (e) {}
+      }
+      throw err;
+    }
   }
 
   async atualizarStatusAlerta(codigoAlerta, payload) {
-    return await this.request(`/preferencias/alertas/${encodeURIComponent(codigoAlerta)}`, {
-      method: 'PATCH',
-      body: JSON.stringify(payload)
-    });
+    try {
+      const res = await this.request(`/preferencias/alertas/${encodeURIComponent(codigoAlerta)}`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload)
+      });
+      // Sincroniza cache local
+      const salvo = localStorage.getItem('LOCAL_ALERTAS_CACHE');
+      if (salvo) {
+        try {
+          let lista = JSON.parse(salvo);
+          const idx = lista.findIndex(a => a.codigo_alerta === codigoAlerta);
+          if (idx >= 0 && res?.alerta) {
+            lista[idx] = res.alerta;
+            localStorage.setItem('LOCAL_ALERTAS_CACHE', JSON.stringify(lista));
+          }
+        } catch (e) {}
+      }
+      return res;
+    } catch (err) {
+      // Grava no cache local para resiliência imediata
+      const salvo = localStorage.getItem('LOCAL_ALERTAS_CACHE');
+      let lista = salvo ? JSON.parse(salvo) : [];
+      const idx = lista.findIndex(a => a.codigo_alerta === codigoAlerta);
+      const fakeAlerta = { codigo_alerta: codigoAlerta, status: payload.status, acao_tomada: payload.acao_tomada || '' };
+      if (idx >= 0) lista[idx] = { ...lista[idx], ...payload };
+      else lista.push(fakeAlerta);
+      localStorage.setItem('LOCAL_ALERTAS_CACHE', JSON.stringify(lista));
+      return { alerta: fakeAlerta, offline: true };
+    }
   }
 
   async reconhecerTodosAlertas(perfil = '', reset = false) {
@@ -676,10 +730,24 @@ class ApiService {
   // DADOS DE TELEMETRIA E GRÁFICOS (POSTGRESQL)
   // ==========================================
   async getDadosGraficos() {
-    return await this.request(`/preferencias/graficos?_t=${Date.now()}`, {
-      method: 'GET',
-      cache: 'no-store'
-    });
+    try {
+      const res = await this.request(`/preferencias/graficos?_t=${Date.now()}`, {
+        method: 'GET',
+        cache: 'no-store'
+      });
+      if (res) {
+        localStorage.setItem('LOCAL_GRAFICOS_CACHE', JSON.stringify(res));
+      }
+      return res;
+    } catch (err) {
+      const salvo = localStorage.getItem('LOCAL_GRAFICOS_CACHE');
+      if (salvo) {
+        try {
+          return JSON.parse(salvo);
+        } catch (e) {}
+      }
+      return null;
+    }
   }
 
   async salvarDadosGraficos(payload) {
