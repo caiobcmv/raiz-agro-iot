@@ -90,6 +90,27 @@ class GraficosTelemetriaUpdateIn(BaseModel):
 def _garantir_schema_completo(conn) -> None:
     """Garante de forma idempotente as tabelas de perfil, histórico de safra, talhões, alertas e gráficos."""
     with conn.cursor() as cur:
+        # Garante tabela perfil caso o banco esteja limpo
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS perfil (
+                id_perfil SERIAL PRIMARY KEY,
+                nome      VARCHAR(150),
+                descricao VARCHAR(150)
+            );
+        """)
+        # Garante tabela usuario caso o banco esteja limpo
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS usuario (
+                id_usuario          SERIAL PRIMARY KEY,
+                nome                VARCHAR(150),
+                email               VARCHAR(150) UNIQUE,
+                senha               VARCHAR(150),
+                status              VARCHAR(30) DEFAULT 'ativo',
+                data_cadastro       DATE DEFAULT CURRENT_DATE,
+                fk_perfil_id_perfil INTEGER
+            );
+        """)
+
         # 1. Colunas de perfil em usuario e tabela usuario_preferencia
         cur.execute("""
             ALTER TABLE usuario
@@ -112,9 +133,7 @@ def _garantir_schema_completo(conn) -> None:
                 notificacoes_json      JSONB NOT NULL DEFAULT '{}'::jsonb,
                 propriedade_json       JSONB NOT NULL DEFAULT '{}'::jsonb,
                 preferencias_extras    JSONB NOT NULL DEFAULT '{}'::jsonb,
-                data_atualizacao       TIMESTAMP NOT NULL DEFAULT (now() AT TIME ZONE 'UTC'),
-                CONSTRAINT fk_pref_usuario FOREIGN KEY (fk_usuario_id_usuario)
-                    REFERENCES usuario (id_usuario) ON DELETE CASCADE
+                data_atualizacao       TIMESTAMP NOT NULL DEFAULT (now() AT TIME ZONE 'UTC')
             );
         """)
         cur.execute("""
@@ -135,14 +154,23 @@ def _garantir_schema_completo(conn) -> None:
         for uid, nome, email, cargo, iniciais, cor, nome_perfil in usuarios_padrao:
             cur.execute("SELECT 1 FROM usuario WHERE id_usuario = %s OR lower(email) = lower(%s)", (uid, email))
             if not cur.fetchone():
-                cur.execute("""
-                    INSERT INTO usuario (id_usuario, nome, email, status, data_cadastro, cargo, avatar_iniciais, avatar_cor, fk_perfil_id_perfil)
-                    OVERRIDING SYSTEM VALUE
-                    VALUES (
-                        %s, %s, %s, 'ativo', CURRENT_DATE, %s, %s, %s,
-                        (SELECT id_perfil FROM perfil WHERE nome = %s LIMIT 1)
-                    )
-                """, (uid, nome, email, cargo, iniciais, cor, nome_perfil))
+                try:
+                    cur.execute("""
+                        INSERT INTO usuario (id_usuario, nome, email, status, data_cadastro, cargo, avatar_iniciais, avatar_cor, fk_perfil_id_perfil)
+                        OVERRIDING SYSTEM VALUE
+                        VALUES (
+                            %s, %s, %s, 'ativo', CURRENT_DATE, %s, %s, %s,
+                            (SELECT id_perfil FROM perfil WHERE nome = %s LIMIT 1)
+                        )
+                    """, (uid, nome, email, cargo, iniciais, cor, nome_perfil))
+                except Exception:
+                    cur.execute("""
+                        INSERT INTO usuario (nome, email, status, data_cadastro, cargo, avatar_iniciais, avatar_cor, fk_perfil_id_perfil)
+                        VALUES (
+                            %s, %s, 'ativo', CURRENT_DATE, %s, %s, %s,
+                            (SELECT id_perfil FROM perfil WHERE nome = %s LIMIT 1)
+                        )
+                    """, (nome, email, cargo, iniciais, cor, nome_perfil))
 
         # 2. Tabela historico_safra e desempenho_talhao
         cur.execute("""
@@ -477,6 +505,7 @@ def _montar_payload_safras(conn) -> dict:
 @router.get("/safras")
 def listar_historico_safras(conn=Depends(get_conn)):
     """Lista todas as safras e o desempenho por talhão salvos no banco PostgreSQL."""
+    _garantir_schema_completo(conn)
     return _montar_payload_safras(conn)
 
 
