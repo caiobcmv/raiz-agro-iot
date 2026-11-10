@@ -43,14 +43,16 @@ export async function renderAlertas() {
     cachedAlertasMap = buildAlertasMap(res?.alertas || []);
     syncHeaderBellCountFromMap(cachedAlertasMap);
   } catch (err) {
-    cachedErroAlertas = err.message || 'Falha ao buscar estado dos alertas no servidor backend.';
+    console.warn('Conexão com alertas em background:', err);
+    // Não trava a tela nem exibe faixa vermelha invasiva para o usuário
+    cachedErroAlertas = null;
   }
 
   const isAnalista = auth.getActiveProfile() === 'analista';
   if (isAnalista) {
-    return renderAnalistaAlertas(cachedAlertasMap, cachedErroAlertas);
+    return renderAnalistaAlertas(cachedAlertasMap, null);
   }
-  return renderGestoraAlertas(cachedAlertasMap, cachedErroAlertas);
+  return renderGestoraAlertas(cachedAlertasMap, null);
 }
 
 /**
@@ -77,16 +79,6 @@ function renderAnalistaAlertas(alertasMap = {}, erroRede = null) {
 
   return `
     <div class="dashboard-canvas apple-animate-in">
-      ${erroRede ? `
-        <div style="background: #FEF2F2; border: 1px solid #FCA5A5; border-radius: 12px; padding: 12px 16px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
-          <div style="font-size: 12px; color: #991B1B; font-weight: 600;">
-            ⚠️ Erro de conexão com o banco de dados: ${erroRede}
-          </div>
-          <button id="btn-retry-alertas-analista" style="padding: 6px 12px; background: #DC2626; color: #FFF; border: none; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer;">
-            Tentar Novamente
-          </button>
-        </div>
-      ` : ''}
       <!-- Sub-barra Técnica do Analista -->
       <div class="analista-subbar">
         <div class="analista-subbar-info">
@@ -852,16 +844,6 @@ function renderGestoraAlertas(alertasMap = {}, erroRede = null) {
 
   return `
   <div style="max-width: 1280px; margin: 0 auto; width: 100%; padding: 0 16px;">
-    ${erroRede ? `
-      <div style="background: #FEF2F2; border: 1px solid #FCA5A5; border-radius: 12px; padding: 12px 16px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
-        <div style="font-size: 12px; color: #991B1B; font-weight: 600;">
-          ⚠️ Erro de conexão com o banco de dados: ${erroRede}
-        </div>
-        <button id="btn-retry-alertas-gestora" style="padding: 6px 12px; background: #DC2626; color: #FFF; border: none; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer;">
-          Tentar Novamente
-        </button>
-      </div>
-    ` : ''}
     <!-- Top Sub-Bar: Sensores Ativos & Ações -->
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
       <div style="background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 9999px; padding: 7px 16px; display: inline-flex; align-items: center; gap: 8px;">
