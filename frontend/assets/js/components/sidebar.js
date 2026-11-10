@@ -1,5 +1,5 @@
 /**
- * COMPONENTE SIDEBAR DE NAVEGAÇÃO - FIEL AO FIGMA (#183D2E)
+ * COMPONENTE SIDEBAR DE NAVEGAÇÃO - FIEL AO FIGMA (#183D2E) + GAVETA MOBILE RESPONSIVA
  * Suporte dinâmico aos 3 perfis:
  * 1. Administradora (Lorena Lira): 8 itens de menu
  * 2. Analista (Luiz Felipe): 6 itens de menu
@@ -15,7 +15,13 @@ export function renderSidebar(currentPath) {
   const profile = auth.getProfileData();
 
   return `
-    <aside class="sidebar">
+    <div class="sidebar-mobile-backdrop" id="sidebar-mobile-backdrop"></div>
+    <aside class="sidebar" id="app-sidebar">
+      <!-- Botão fechar gaveta no celular/tablet -->
+      <button type="button" class="sidebar-mobile-close" id="sidebar-mobile-close" aria-label="Fechar menu">
+        <i data-lucide="x" style="width:18px; height:18px;"></i>
+      </button>
+
       <!-- Logo RAIZ com imagem nítida sobre fundo escuro -->
       <div class="sidebar-brand-container">
         <a href="#/dashboard" style="display: block; text-decoration: none;">
@@ -113,17 +119,17 @@ export function renderSidebar(currentPath) {
         <div class="bottom-profile-card">
           <div class="profile-avatar-vu">VU</div>
           <div class="profile-info-text">
-            <div class="farm-name">Vale das Uvas</div>
-            <div class="farm-sub">Petrolina - Setor 04</div>
+            <div class="farm-name">${profile.farm}</div>
+            <div class="farm-sub">${profile.farmSub}</div>
           </div>
-          <button id="logout-btn" style="margin-left: auto; color: #94A3B8; background: none; border: none; cursor: pointer; padding: 4px;" title="Sair do Sistema">
+          <button type="button" id="logout-btn" class="sidebar-logout-btn" style="margin-left: auto; color: #94A3B8; background: none; border: none; cursor: pointer; padding: 6px; border-radius: 8px;" title="Sair do Sistema">
             <i data-lucide="log-out" style="width: 18px; height: 18px;"></i>
           </button>
         </div>
 
-        <div class="gateway-status-pill">
+        <div class="gateway-status-pill" id="sidebar-gateway-pill" style="cursor:pointer;" title="Clique para verificar conectividade do Gateway">
           <span style="display: flex; align-items: center; gap: 6px; color: #1E293B; font-weight: 600; font-size: 11px;">
-            <span style="width: 7px; height: 7px; border-radius: 50%; background: #10B981; box-shadow: 0 0 6px rgba(16,185,129,0.7);"></span>
+            <span class="gateway-live-dot" style="width: 7px; height: 7px; border-radius: 50%; background: #10B981; box-shadow: 0 0 6px rgba(16,185,129,0.7);"></span>
             ${profile.gatewayPill}
           </span>
           <span style="color: #64748B; font-size: 11px; font-weight: 500;">${profile.gatewayStatus}</span>

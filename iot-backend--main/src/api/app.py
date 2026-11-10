@@ -5,9 +5,10 @@ from src import config
 from src.api.deps_auth import ADMIN, PRODUTOR_EXPORTADOR, require_role
 from src.api.routers import (alertas, alertas_preditivos, auditoria, auth, clima,
                              config_parametros, dados_mercado, dashboard, frutas, ia,
-                             leituras, leituras_rejeitadas, lotes, perfis, previsoes,
-                             previsoes_ia, recomendacoes, relatorios, relatorios_gerados,
-                             risco, sensor_leituras, sensores, usuarios, viagens)
+                             leituras, leituras_rejeitadas, lotes, perfis, preferencias,
+                             previsoes, previsoes_ia, recomendacoes, relatorios,
+                             relatorios_gerados, risco, sensor_leituras, sensores,
+                             usuarios, viagens)
 
 admin = [Depends(require_role(ADMIN))]
 produtor = [Depends(require_role(PRODUTOR_EXPORTADOR, ADMIN))]  # já inclui o Admin
@@ -25,8 +26,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# público (login, refresh, 2FA)
+# público (login, refresh, 2FA e sincronização de preferências por usuário)
 app.include_router(auth.router)
+app.include_router(preferencias.router)
 
 # só Administrador
 for r in (perfis, usuarios):

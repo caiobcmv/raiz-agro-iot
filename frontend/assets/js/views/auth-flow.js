@@ -634,7 +634,7 @@ export function setupVerificacaoEvents() {
       submitBtn.textContent = 'VALIDANDO...';
 
       try {
-        await api.verify2FA(tokenTemporario, code);
+        const res2fa = await api.verify2FA(tokenTemporario, code);
         clearInterval(timerInterval);
 
         const usuario = USUARIOS[email];
@@ -647,10 +647,12 @@ export function setupVerificacaoEvents() {
           sessionStorage.removeItem('mfa_metodo');
 
           const profileKey = usuario ? usuario.profile : 'gestor';
-          api.setTokens('demo_jwt_token_' + profileKey, 'demo_refresh_' + profileKey);
-          auth.startSession(email);
+          const accessToken = (res2fa && res2fa.access_token) || api.getToken() || ('demo_jwt_token_' + profileKey);
+          const refreshToken = (res2fa && res2fa.refresh_token) || ('demo_refresh_' + profileKey);
+          api.setTokens(accessToken, refreshToken);
+          await auth.startSession(email);
 
-          toast.success('Autenticação Concluída', `Seja bem-vindo(a), ${usuario ? usuario.nome : 'Usuário'}!`);
+          toast.success('Autenticação Concluída', `Seja bem-vindo(a), ${auth.getProfileData().nome || (usuario ? usuario.nome : 'Usuário')}!`);
           window.location.hash = '#/dashboard';
         } else {
           // Contexto Recuperação: grava mfa_verificado = true e vai para #/redefinir-senha

@@ -569,7 +569,20 @@
 }
 
 @media (max-width: 860px) {
-  .sidebar { display: none; }
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 280px;
+    min-width: 280px;
+    z-index: 100;
+    transform: translateX(-105%);
+    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .sidebar.mobile-open {
+    transform: translateX(0);
+  }
   .top-kpi-3col, .charts-4col-grid, .detailed-kpi-4col, .detailed-middle-grid {
     grid-template-columns: 1fr;
   }

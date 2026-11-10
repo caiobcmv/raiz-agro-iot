@@ -50,7 +50,7 @@ class ApiService {
   // Wrapper genérico para requisições com autenticação Bearer e Timeout resiliente para produção
   async request(endpoint, options = {}) {
     // Se já foi detectado que o backend está offline, retorna erro imediato para disparar mock sem delay
-    if (this.isBackendOnline === false && !endpoint.startsWith('/auth/')) {
+    if (this.isBackendOnline === false && !endpoint.startsWith('/auth/') && !endpoint.startsWith('/preferencias/')) {
       throw new Error('Backend offline (Modo Demonstração Ativo)');
     }
 
@@ -575,6 +575,57 @@ class ApiService {
         }
       ];
     }
+  }
+
+  // ==========================================
+  // PERSISTÊNCIA DE PERFIL E PREFERÊNCIAS (POSTGRESQL)
+  // ==========================================
+  async getPreferenciasUsuario(idUsuario) {
+    const storageKey = `raiz_prefs_user_${idUsuario}`;
+    try {
+      const data = await this.request(`/preferencias/usuario/${idUsuario}`);
+      if (data && typeof data === 'object') {
+        localStorage.setItem(storageKey, JSON.stringify(data));
+        return { ...data, _origem: 'database' };
+      }
+    } catch (err) {
+      console.warn(`Usando cache local de preferências para usuário ${idUsuario}:`, err.message);
+    }
+
+    try {
+      const cached = localStorage.getItem(storageKey);
+      if (cached) {
+        return { ...JSON.parse(cached), _origem: 'cache_local' };
+      }
+    } catch (e) {
+      // ignora erro de parse
+    }
+    return null;
+  }
+
+  async salvarPreferenciasUsuario(idUsuario, payload) {
+    const storageKey = `raiz_prefs_user_${idUsuario}`;
+    // Salva cópia otimista local imediatamente
+    try {
+      const prev = JSON.parse(localStorage.getItem(storageKey) || '{}');
+      localStorage.setItem(storageKey, JSON.stringify({
+        ...prev,
+        ...payload,
+        id_usuario: idUsuario,
+        data_atualizacao: new Date().toISOString()
+      }));
+    } catch (e) {
+      // ignora erro de quota
+    }
+
+    const saved = await this.request(`/preferencias/usuario/${idUsuario}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload)
+    });
+    if (saved && typeof saved === 'object') {
+      localStorage.setItem(storageKey, JSON.stringify(saved));
+    }
+    return { ...saved, _origem: 'database' };
   }
 }
 

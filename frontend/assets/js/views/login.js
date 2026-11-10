@@ -180,8 +180,8 @@ export function setupLoginEvents() {
         if (response.access_token) {
           limparTentativas(email);
           api.setTokens(response.access_token, response.refresh_token);
-          auth.startSession(email);
-          toast.success('Bem-vindo(a)!', `Acesso autorizado como ${usuarioAutorizado.nome}.`);
+          await auth.startSession(email);
+          toast.success('Bem-vindo(a)!', `Acesso autorizado como ${auth.getProfileData().nome || usuarioAutorizado.nome}.`);
           window.location.hash = '#/dashboard';
         } else if (response.requer_2fa) {
           // Salva estado para a tela #/verificacao
