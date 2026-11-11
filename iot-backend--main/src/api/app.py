@@ -19,6 +19,22 @@ app = FastAPI(title="API - Dashboard Climático e Logístico")
 def raiz():
     return {"status": "ok", "docs": "/docs"}
 
+@app.get("/api/diag", include_in_schema=False)
+def diag():
+    import traceback
+    try:
+        from src import database
+        conn = database.conectar()
+        with conn.cursor() as cur:
+            cur.execute("SELECT 1")
+            v = cur.fetchone()[0]
+            cur.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")
+            tables = [r[0] for r in cur.fetchall()]
+        conn.close()
+        return {"status": "connected", "select_1": v, "tables": tables}
+    except Exception as e:
+        return {"status": "db_error", "error": str(e), "traceback": traceback.format_exc()}
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=config.CORS_ORIGINS,

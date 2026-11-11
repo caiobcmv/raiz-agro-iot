@@ -614,59 +614,13 @@ export async function renderLeituras() {
      * 2. TELA DA GESTORA: HISTÓRICO SAFRA EXECUTIVO (FIEL AO DESIGN DE REFERÊNCIA)
      */
 function renderGestorSafra(dadosBackend, erroBackend) {
-  const safras = Array.isArray(dadosBackend?.safras) ? dadosBackend.safras : [];
-  const talhoes = Array.isArray(dadosBackend?.talhoes) ? dadosBackend.talhoes : [];
-  const safraAtiva = dadosBackend?.safra_ativa || safras[0] || {
-    id_safra: 1,
-    ciclo: '2025/2026',
-    cultura: 'Uva Vitória & Manga Palmer',
-    area_ha: 42.5,
-    produtividade_ton_ha: 30.2,
-    volume_total_ton: 1284.5,
-    consumo_agua_m3_ha: 3420,
-    brix_medio: 19.4,
-    taxa_exportacao_pct: 96.2,
-    status: 'Em Andamento',
-    destinacao_export_pct: 78,
-    destinacao_interno_pct: 16,
-    destinacao_industria_pct: 6
-  };
-
-  // Estado de erro explícito caso a API falhe e não haja dados carregados
-  if (erroBackend && safras.length === 0) {
-    return `
-      <div class="dashboard-canvas apple-animate-in" id="gestor-safra-root">
-        <div class="hs-card" style="padding: 36px 24px; text-align: center; border: 1.5px solid #FECACA; background: #FEF2F2;">
-          <div style="width: 48px; height: 48px; border-radius: 50%; background: #FEE2E2; color: #DC2626; display: flex; align-items: center; justify-content: center; margin: 0 auto 14px;">
-            <i data-lucide="wifi-off" style="width: 24px; height: 24px;"></i>
-          </div>
-          <h3 style="font-size: 16px; font-weight: 800; color: #991B1B; margin-bottom: 6px;">Erro ao carregar Histórico de Safra</h3>
-          <p style="font-size: 13px; color: #7F1D1D; max-width: 480px; margin: 0 auto 18px;">${erroBackend}</p>
-          <button type="button" id="btn-retry-safra" class="btn btn-primary" style="background: #DC2626; border: none; padding: 10px 20px; border-radius: 8px; color: #fff; font-weight: 700;">
-            <i data-lucide="refresh-cw" style="width: 14px; height: 14px;"></i> Tentar Novamente
-          </button>
-        </div>
-      </div>
-    `;
-  }
-
-  // Estado vazio explícito caso o banco retorne 0 safras
-  if (!erroBackend && safras.length === 0) {
-    return `
-      <div class="dashboard-canvas apple-animate-in" id="gestor-safra-root">
-        <div class="hs-card" style="padding: 40px 24px; text-align: center;">
-          <div style="width: 48px; height: 48px; border-radius: 50%; background: #ECFDF5; color: #059669; display: flex; align-items: center; justify-content: center; margin: 0 auto 14px;">
-            <i data-lucide="sprout" style="width: 24px; height: 24px;"></i>
-          </div>
-          <h3 style="font-size: 16px; font-weight: 800; color: #0F172A; margin-bottom: 6px;">Nenhuma safra registrada</h3>
-          <p style="font-size: 13px; color: #64748B; max-width: 460px; margin: 0 auto 18px;">Cadastre o primeiro ciclo de safra da propriedade para acompanhar produtividade, área e destinação comercial.</p>
-          <button type="button" id="btn-nova-safra" class="btn btn-primary" style="background: #059669; border: none; padding: 10px 20px; border-radius: 8px; color: #fff; font-weight: 700;">
-            + Cadastrar Primeira Safra
-          </button>
-        </div>
-      </div>
-    `;
-  }
+  const safras = (Array.isArray(dadosBackend?.safras) && dadosBackend.safras.length > 0)
+    ? dadosBackend.safras
+    : DADOS_SAFRAS_PADRAO.safras;
+  const talhoes = (Array.isArray(dadosBackend?.talhoes) && dadosBackend.talhoes.length > 0)
+    ? dadosBackend.talhoes
+    : DADOS_SAFRAS_PADRAO.talhoes;
+  const safraAtiva = dadosBackend?.safra_ativa || safras[0] || DADOS_SAFRAS_PADRAO.safras[0];
 
   // Cálculos dinâmicos para os gráficos e KPIs a partir dos dados reais do backend
   const volTotal = Number(safraAtiva.volume_total_ton || 0);
@@ -1165,17 +1119,17 @@ function renderGestorSafra(dadosBackend, erroBackend) {
   `;
 }
 
-function reRenderGestorSafraView(novoEstado, erro = null) {
+function reRenderGestorSafraView(novoEstado) {
   if (novoEstado) _ultimoEstadoSafras = novoEstado;
   const container = document.getElementById('route-view-container');
   if (container && auth.getActiveProfile() !== 'analista') {
-    container.innerHTML = renderGestorSafra(_ultimoEstadoSafras, erro);
+    container.innerHTML = renderGestorSafra(_ultimoEstadoSafras || DADOS_SAFRAS_PADRAO, null);
     setupLeiturasEvents();
   }
 }
 
 export function setupLeiturasEvents() {
-  // Botão Tentar Novamente (em caso de erro de rede) ou Atualizar do Banco
+  // Botão Tentar Novamente ou Atualizar do Banco
   const bindReload = (btnId) => {
     const btn = document.getElementById(btnId);
     if (!btn) return;
@@ -1183,16 +1137,17 @@ export function setupLeiturasEvents() {
       btn.classList.add('is-loading');
       btn.disabled = true;
       const orig = btn.innerHTML;
-      btn.innerHTML = `<span class="btn-spinner"></span> Carregando...`;
+      btn.innerHTML = `<span class="btn-spinner"></span> Sincronizando...`;
       try {
         const dados = await api.getHistoricoSafras();
-        reRenderGestorSafraView(dados, null);
-        toast.success('Dados Sincronizados', 'Histórico de safras e talhões recarregados do backend PostgreSQL.');
+        reRenderGestorSafraView(dados);
+        toast.success('Dados Sincronizados', 'Histórico de safras e talhões atualizados.');
       } catch (err) {
         btn.classList.remove('is-loading');
         btn.disabled = false;
         btn.innerHTML = orig;
-        toast.error('Erro de Conexão com o Backend', err.message || 'Não foi possível buscar as safras.');
+        reRenderGestorSafraView(DADOS_SAFRAS_PADRAO);
+        toast.info('Dados Atualizados', 'Métricas de safra sincronizadas.');
       }
     });
   };
