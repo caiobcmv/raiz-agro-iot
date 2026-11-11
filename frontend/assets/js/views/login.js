@@ -5,10 +5,10 @@
 import { api } from '../api.js';
 import { auth, USUARIOS } from '../auth.js';
 import { toast } from '../components/toast.js';
-import { isBloqueado, registrarFalha, limparTentativas } from './auth-flow.js';
+import { limparTentativas } from './auth-flow.js';
 
 export function renderLogin() {
-  const lastEmail = localStorage.getItem('pending_login_email') || 'maria.clara@raizagro.agr.br';
+  const lastEmail = localStorage.getItem('pending_login_email') || '';
 
   return `
     <div class="login-viewport">
@@ -26,31 +26,6 @@ export function renderLogin() {
           <div class="login-header">
             <div class="login-welcoming">Bem vindo (a)!</div>
             <h1 class="login-title">Acesse sua conta</h1>
-          </div>
-
-          <!-- Seleção Rápida de Perfis Homologados -->
-          <div class="login-profile-chips-group" style="display:flex; gap:8px; margin-bottom:18px; flex-wrap:wrap;">
-            <button type="button" class="login-profile-chip ${lastEmail.includes('maria') ? 'active' : ''}" data-email="maria.clara@raizagro.agr.br" data-pass="123456" style="flex:1; min-width:115px; display:flex; align-items:center; gap:8px; padding:8px 10px; background:${lastEmail.includes('maria') ? 'rgba(21,128,61,0.3)' : 'rgba(255,255,255,0.06)'}; border:1px solid ${lastEmail.includes('maria') ? '#10B981' : 'rgba(255,255,255,0.14)'}; border-radius:10px; color:#FFFFFF; font-size:12px; cursor:pointer; font-weight:600; transition:all 0.2s;">
-              <span style="width:8px; height:8px; border-radius:50%; background:#10B981; flex-shrink:0;"></span>
-              <div style="text-align:left; line-height:1.2;">
-                <div style="font-size:12px; font-weight:700;">Maria Clara</div>
-                <div style="font-size:10px; color:#A7F3D0;">Gestora</div>
-              </div>
-            </button>
-            <button type="button" class="login-profile-chip ${lastEmail.includes('luiz') ? 'active' : ''}" data-email="luiz.felipe@raizagro.agr.br" data-pass="123456" style="flex:1; min-width:115px; display:flex; align-items:center; gap:8px; padding:8px 10px; background:${lastEmail.includes('luiz') ? 'rgba(2,132,199,0.3)' : 'rgba(255,255,255,0.06)'}; border:1px solid ${lastEmail.includes('luiz') ? '#0284C7' : 'rgba(255,255,255,0.14)'}; border-radius:10px; color:#FFFFFF; font-size:12px; cursor:pointer; font-weight:600; transition:all 0.2s;">
-              <span style="width:8px; height:8px; border-radius:50%; background:#0284C7; flex-shrink:0;"></span>
-              <div style="text-align:left; line-height:1.2;">
-                <div style="font-size:12px; font-weight:700;">Luiz Felipe</div>
-                <div style="font-size:10px; color:#93C5FD;">Analista IoT</div>
-              </div>
-            </button>
-            <button type="button" class="login-profile-chip ${lastEmail.includes('lorena') ? 'active' : ''}" data-email="lorena.lira@raizagro.agr.br" data-pass="123456" style="flex:1; min-width:115px; display:flex; align-items:center; gap:8px; padding:8px 10px; background:${lastEmail.includes('lorena') ? 'rgba(139,92,246,0.3)' : 'rgba(255,255,255,0.06)'}; border:1px solid ${lastEmail.includes('lorena') ? '#8B5CF6' : 'rgba(255,255,255,0.14)'}; border-radius:10px; color:#FFFFFF; font-size:12px; cursor:pointer; font-weight:600; transition:all 0.2s;">
-              <span style="width:8px; height:8px; border-radius:50%; background:#8B5CF6; flex-shrink:0;"></span>
-              <div style="text-align:left; line-height:1.2;">
-                <div style="font-size:12px; font-weight:700;">Lorena Lira</div>
-                <div style="font-size:10px; color:#DDD6FE;">Administradora</div>
-              </div>
-            </button>
           </div>
 
           <form id="login-form" class="login-form">
@@ -90,7 +65,6 @@ export function renderLogin() {
                   id="login-password" 
                   class="login-input" 
                   placeholder="••••••••••••" 
-                  value="123456"
                   required
                 >
                 <button type="button" class="login-toggle-password" id="toggle-password" title="Alternar visibilidade">
@@ -144,34 +118,6 @@ export function setupLoginEvents() {
   const form = document.getElementById('login-form');
   const submitBtn = document.getElementById('login-submit-btn');
   const forgotLink = document.getElementById('forgot-password-link');
-  const profileChips = document.querySelectorAll('.login-profile-chip');
-
-  // Alternar perfis com um clique nos chips rápidos
-  profileChips.forEach(chip => {
-    chip.addEventListener('click', () => {
-      profileChips.forEach(c => {
-        c.classList.remove('active');
-        c.style.background = 'rgba(255,255,255,0.06)';
-        c.style.borderColor = 'rgba(255,255,255,0.14)';
-      });
-      chip.classList.add('active');
-      const email = chip.dataset.email;
-      const pass = chip.dataset.pass || '123456';
-      if (email.includes('maria')) {
-        chip.style.background = 'rgba(21,128,61,0.3)';
-        chip.style.borderColor = '#10B981';
-      } else if (email.includes('luiz')) {
-        chip.style.background = 'rgba(2,132,199,0.3)';
-        chip.style.borderColor = '#0284C7';
-      } else {
-        chip.style.background = 'rgba(139,92,246,0.3)';
-        chip.style.borderColor = '#8B5CF6';
-      }
-      if (emailInput) emailInput.value = email;
-      if (passwordInput) passwordInput.value = pass;
-      limparTentativas(email);
-    });
-  });
 
   // Alternar mostrar/ocultar senha
   if (toggleBtn && passwordInput) {
@@ -221,7 +167,6 @@ export function setupLoginEvents() {
         return;
       }
 
-      // Para usuários homologados, limpa qualquer trava prévia de tentativas
       limparTentativas(email);
 
       submitBtn.classList.add('loading');
@@ -230,35 +175,19 @@ export function setupLoginEvents() {
       try {
         const response = await api.login(email, senha);
 
-        if (response && response.access_token) {
-          limparTentativas(email);
-          api.setTokens(response.access_token, response.refresh_token);
-          await auth.startSession(email);
-          toast.success('Bem-vindo(a)!', `Acesso autorizado como ${auth.getProfileData().nome || usuarioAutorizado.nome}.`);
-          window.location.hash = '#/dashboard';
-        } else if (response && response.requer_2fa) {
-          // Salva estado para a tela #/verificacao
-          sessionStorage.setItem('mfa_contexto', 'login');
-          sessionStorage.setItem('mfa_email', email);
-          sessionStorage.setItem('mfa_token_temporario', response.token_temporario || ('demo_token_2fa_' + Date.now()));
-          sessionStorage.setItem('mfa_metodo', response.metodo || 'email');
-          window.location.hash = '#/verificacao';
-        } else {
-          // Fallback seguro caso responda com formato direto
-          const profileKey = usuarioAutorizado.profile || 'gestor';
-          api.setTokens('demo_jwt_token_' + profileKey, 'demo_refresh_' + profileKey);
-          await auth.startSession(email);
-          toast.success('Bem-vindo(a)!', `Acesso autorizado como ${auth.getProfileData().nome || usuarioAutorizado.nome}.`);
-          window.location.hash = '#/dashboard';
-        }
+        // Direciona sempre para os 2 Fatores (MFA / 2FA)
+        sessionStorage.setItem('mfa_contexto', 'login');
+        sessionStorage.setItem('mfa_email', email);
+        sessionStorage.setItem('mfa_token_temporario', (response && response.token_temporario) || ('demo_token_2fa_' + Date.now()));
+        sessionStorage.setItem('mfa_metodo', (response && response.metodo) || 'email');
+        window.location.hash = '#/verificacao';
       } catch (err) {
-        console.error('Erro durante login:', err);
-        // Fallback garantido para o usuário autorizado
-        const profileKey = usuarioAutorizado.profile || 'gestor';
-        api.setTokens('demo_jwt_token_' + profileKey, 'demo_refresh_' + profileKey);
-        await auth.startSession(email);
-        toast.success('Bem-vindo(a)!', `Acesso autorizado como ${auth.getProfileData().nome || usuarioAutorizado.nome}.`);
-        window.location.hash = '#/dashboard';
+        console.warn('Login direcionando para 2FA:', err);
+        sessionStorage.setItem('mfa_contexto', 'login');
+        sessionStorage.setItem('mfa_email', email);
+        sessionStorage.setItem('mfa_token_temporario', 'demo_token_2fa_' + Date.now());
+        sessionStorage.setItem('mfa_metodo', 'email');
+        window.location.hash = '#/verificacao';
       } finally {
         submitBtn.classList.remove('loading');
         submitBtn.textContent = 'ENTRAR';
