@@ -470,14 +470,6 @@ export function renderVerificacao() {
               Enviamos um código temporário de autenticação para o e-mail
               <u id="verif-email-display">${emailArmazenado}</u> e via SMS para o número com final <strong>(••• 9842)</strong>.
             </p>
-
-            <!-- Pill de auxílio com código de validação padrão -->
-            <div style="display:flex; justify-content:center; margin: 12px 0 6px 0;">
-              <div style="display:inline-flex; align-items:center; gap:8px; padding:6px 14px; background:rgba(16,185,129,0.15); border:1px solid #10B981; border-radius:20px; font-size:12px; color:#A7F3D0;">
-                <span>🔑 Código de acesso: <strong style="color:#FFFFFF; letter-spacing:1.5px;">123456</strong></span>
-                <button type="button" id="btn-preencher-codigo" style="background:#10B981; border:none; border-radius:6px; color:#064E3B; font-weight:700; font-size:11px; padding:3px 8px; cursor:pointer;">Preencher</button>
-              </div>
-            </div>
           </div>
 
           <form id="verificacao-form" class="login-form">
@@ -591,25 +583,8 @@ export function setupVerificacaoEvents() {
     });
   });
 
-  // Foco inicial e pré-preenchimento para agilidade no teste
-  const preencherBtn = document.getElementById('btn-preencher-codigo');
-  const preencherPadrao = () => {
-    const defaultDigits = ['1', '2', '3', '4', '5', '6'];
-    inputs.forEach((inp, idx) => {
-      inp.value = defaultDigits[idx] || '';
-    });
-    if (inputs[inputs.length - 1]) inputs[inputs.length - 1].focus();
-  };
-
-  if (preencherBtn) {
-    preencherBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      preencherPadrao();
-    });
-  }
-
-  // Pré-preenche o código padrão para que o usuário possa confirmar com apenas 1 clique
-  preencherPadrao();
+  // Foco inicial
+  if (inputs[0]) inputs[0].focus();
 
   // Contador regressivo de 10:00 (600 segundos)
   let timeLeft = 600;

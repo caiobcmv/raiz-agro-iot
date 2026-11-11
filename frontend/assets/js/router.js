@@ -10,7 +10,7 @@ import { Modal } from './components/modal.js';
 import { toast } from './components/toast.js';
 
 // Importação das Views
-import { renderLogin, setupLoginEvents } from './views/login.js?v=20261111-login2fa-1';
+import { renderLogin, setupLoginEvents } from './views/login.js?v=20261111-clean2fa-1';
 import {
   renderPrimeiroAcesso, setupPrimeiroAcessoEvents,
   renderRecuperarSenha, setupRecuperarSenhaEvents,
@@ -18,7 +18,7 @@ import {
   renderRedefinirSenha, setupRedefinirSenhaEvents,
   renderSenhaAlterada, setupSenhaAlteradaEvents,
   renderContaBloqueada, setupContaBloqueadaEvents
-} from './views/auth-flow.js?v=20261111-login2fa-1';
+} from './views/auth-flow.js?v=20261111-clean2fa-1';
 import { renderDashboard, setupDashboardEvents } from './views/dashboard.js';
 import { renderSensores, setupSensoresEvents } from './views/sensores.js';
 import { renderRedeEsp32, setupRedeEsp32Events } from './views/rede-esp32.js';

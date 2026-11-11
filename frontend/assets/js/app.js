@@ -3,7 +3,7 @@
  * Inicialização robusta contra problemas de tempo de carregamento do DOM
  */
 
-import { Router } from './router.js?v=20261111-login2fa-1';
+import { Router } from './router.js?v=20261111-clean2fa-1';
 
 let isAppStarted = false;
 
