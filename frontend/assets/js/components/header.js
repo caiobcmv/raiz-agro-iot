@@ -6,14 +6,14 @@
 import { auth } from '../auth.js';
 
 const PAGE_META_ADMIN = {
-  '#/dashboard':           { h2: 'Visão Geral do Sistema',          sub: 'Gerencie preferências da fazenda, parâmetros de sensores, notificações e acessos.' },
-  '#/usuarios':            { h2: 'Gerenciamento de Usuários',       sub: 'Gerencie os usuários cadastrados, perfis de acesso e permissões na plataforma.' },
-  '#/lotes':               { h2: 'Lotes e Safra',                   sub: 'Gerencie os lotes cadastrados, rastreabilidade e status de safra na plataforma.' },
-  '#/sensores':            { h2: 'Sensores & Telemetria de Campo',  sub: 'Gerencie os nós IoT cadastrados, calibração e status operacional em campo.' },
-  '#/relatorios':          { h2: 'Relatórios & Documentos Oficiais', sub: 'Gere laudos auditáveis, dossiês fitossanitários e exportações oficiais.' },
-  '#/regras-agronomicas':  { h2: 'Regras Agronômicas Vigentes',     sub: 'Definição de limiares bioclimáticos, faixas ótimas por cultura e gatilhos de acionamento.' },
-  '#/auditoria':           { h2: 'Auditoria & Logs Operacionais',   sub: 'Trilha de auditoria criptográfica, integridade cadastral e registros forenses de conformidade.' },
-  '#/configuracoes':       { h2: 'Configurações & Meu Perfil',      sub: 'Personalize seu perfil, tema, efeitos visuais e parâmetros sincronizados no banco de dados.' }
+  '#/dashboard':           { h2: 'Visão Geral do Sistema',                     sub: 'Gerencie os usuários cadastrados, perfis de acesso e permissões na plataforma.' },
+  '#/usuarios':            { h2: 'Gerenciamento de Usuários',                  sub: 'Gerencie os usuários cadastrados, perfis de acesso e permissões na plataforma.' },
+  '#/lotes':               { h2: 'Lotes e Safra',                              sub: 'Gerencie os usuários cadastrados, perfis de acesso e permissões na plataforma.' },
+  '#/sensores':            { h2: 'Sensores & Telemetria de Campo',             sub: 'Gerencie os usuários cadastrados, perfis de acesso e permissões na plataforma.' },
+  '#/relatorios':          { h2: 'Relatórios & Documentos Oficiais',           sub: 'Gerencie os usuários cadastrados, perfis de acesso e permissões na plataforma.' },
+  '#/regras-agronomicas':  { h2: 'Regras Agronômicas & Limiares Fisiológicos', sub: 'Gerencie os usuários cadastrados, perfis de acesso e permissões na plataforma.' },
+  '#/auditoria':           { h2: 'Auditoria & Logs do Sistema v4.2',           sub: 'Gerencie os usuários cadastrados, perfis de acesso e permissões na plataforma.' },
+  '#/configuracoes':       { h2: 'Configurações & Meu Perfil',                 sub: 'Gerencie preferências da fazenda, parâmetros de sensores, notificações e acessos.' }
 };
 
 const PAGE_META_GESTOR = {
@@ -65,11 +65,13 @@ export function renderHeader(title) {
       </div>
 
       <div class="header-right-controls">
-        <!-- Indicador de Atualização em Tempo Real -->
+        <!-- Indicador de Atualização em Tempo Real (oculto no Admin para fidelidade 100% ao Figma) -->
+        ${!isAdmin ? `
         <button type="button" class="live-sync-pill" id="header-live-sync-pill" title="Clique para sincronizar dados em tempo real agora">
           <span class="live-sync-dot"></span>
           <span class="live-sync-text" id="header-live-sync-text">Tempo Real</span>
         </button>
+        ` : ''}
 
         <!-- Toggle Resumido vs Detalhado (só no dashboard da Gestora) -->
         ${isDashboard && !isAnalista && !isAdmin ? `

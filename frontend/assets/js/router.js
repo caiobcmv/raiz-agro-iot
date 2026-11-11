@@ -404,8 +404,8 @@ export class Router {
       return;
     }
 
-    // Guarda de perfil ('#/leituras' é acessível tanto pela Produtora/Gestora quanto pelo Analista)
-    const ROTAS_ADMIN = ['#/usuarios', '#/auditoria', '#/lotes', '#/regras-agronomicas'];
+    // Guarda de perfil: apenas administradores acessam as áreas administrativas
+    const ROTAS_ADMIN = ['#/usuarios', '#/auditoria', '#/lotes', '#/regras-agronomicas', '#/relatorios'];
     const ROTAS_ANALISTA = ['#/rede-esp32'];
     const activeProfile = auth.getActiveProfile();
     if (ROTAS_ADMIN.includes(hash) && activeProfile !== 'admin') {
