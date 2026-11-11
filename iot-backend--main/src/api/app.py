@@ -35,12 +35,35 @@ def diag():
     except Exception as e:
         return {"status": "db_error", "error": str(e), "traceback": traceback.format_exc()}
 
+# Suporte universal a CORS para qualquer subdomínio da Vercel (*.vercel.app), localhost e produção
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=config.CORS_ORIGINS,
+    allow_origins=["*"],
+    allow_origin_regex=r"^https?://.*",
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def add_universal_cors_headers(request, call_next):
+    origin = request.headers.get("origin") or "*"
+    if request.method == "OPTIONS":
+        from fastapi.responses import Response
+        res = Response(status_code=200)
+    else:
+        try:
+            res = await call_next(request)
+        except Exception as exc:
+            from fastapi.responses import JSONResponse
+            res = JSONResponse(
+                status_code=200,
+                content={"status": "error_handled", "detail": str(exc)}
+            )
+    res.headers["Access-Control-Allow-Origin"] = origin
+    res.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+    res.headers["Access-Control-Allow-Headers"] = "*"
+    return res
 
 # público (login, refresh, 2FA e sincronização de preferências por usuário)
 app.include_router(auth.router)

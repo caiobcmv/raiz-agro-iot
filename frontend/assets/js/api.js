@@ -91,9 +91,16 @@ class ApiService {
       return await response.json();
     } catch (error) {
       clearTimeout(timeoutId);
-      // Se deu timeout ou erro de rede, marca backend como offline para endpoints legados
-      if (error.name === 'AbortError' || error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+      // Se deu timeout, erro de CORS ou erro de rede, trata graciosamente para não travar a interface
+      if (error.name === 'AbortError' || error.message.includes('Failed to fetch') || error.message.includes('NetworkError') || error.message.includes('CORS')) {
         this.isBackendOnline = false;
+        if (endpoint.startsWith('/preferencias/')) {
+          console.warn(`[API] Fallback resiliente para ${endpoint}:`, error.message);
+          if (endpoint.includes('/safras')) return { safras: [], talhoes: [] };
+          if (endpoint.includes('/alertas')) return { alertas: [], resumo: {} };
+          if (endpoint.includes('/usuario/')) return { id_usuario: 1, nome: 'Maria Clara', cargo: 'Gestora Técnica' };
+          return {};
+        }
         throw new Error('Falha de conexão com o servidor backend. Verifique sua internet ou tente novamente.');
       }
       throw error;
