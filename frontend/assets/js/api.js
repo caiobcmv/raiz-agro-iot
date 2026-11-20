@@ -1,4 +1,4 @@
-﻿/**
+/**
  * RAIZ AGRO IOT - CLIENTE API CENTRALIZADO
  * Conecta com o backend FastAPI (https://raiz-agro-iot.onrender.com) e possui fallback resiliente
  * para modo demonstração caso o banco ou backend estejam temporariamente offline.
@@ -530,35 +530,196 @@ class ApiService {
   }
 
   // Buscar detalhe dinâmico do alerta (GET /alertas/{id}/detalhe)
-  async getAlertaDetalhe(id) {
+  async getAlertaDetalhe(id, meta = {}) {
     try {
-      return await this.request(`/alertas/${id}/detalhe`);
+      const res = await this.request(`/alertas/${id}/detalhe`);
+      if (res && res.alerta && res.metricas) return res;
+      throw new Error('Formato inválido do endpoint de detalhe');
     } catch (err) {
-      console.warn(`[API] Fallback offline para detalhe do alerta #${id}:`, err.message);
+      console.warn(`[API] Gerando detalhe dinâmico por nível para o alerta #${id}:`, err.message);
+
+      const numId = Number(id);
+      const nivel = String(meta?.nivel || '').toUpperCase();
+
+      // 1. Alerta Moderado (ID 42 ou ID 2 ou nivel MODERADO / MEDIO / P2)
+      if (numId === 42 || numId === 2 || nivel === 'MODERADO' || nivel === 'MEDIO' || nivel === 'P2') {
+        return {
+          alerta: {
+            id_alerta: numId || 42,
+            tipo_alerta: meta?.tipo_alerta || 'Déficit de Umidade Relativa',
+            descricao: meta?.descricao || 'Queda acentuada da umidade do ar registrada no setor com vento moderado, elevando o risco de estresse evaporativo.',
+            nivel: 'MODERADO',
+            status: meta?.status || 'aberto',
+            data_hora: new Date(Date.now() - 40 * 60000).toISOString(),
+            id_sensor: 2,
+            id_lote: 15
+          },
+          layout: 'leitura',
+          resumo: 'Umidade do ar: 41,5% — 8,5% abaixo do limiar de segurança de 50,0%',
+          lote: {
+            id_lote: 15,
+            fruta: 'Uva Thompson',
+            quantidade: 3500,
+            unidade: 'kg',
+            etapa: 'frutificação',
+            destino: null
+          },
+          sensor: {
+            id_sensor: 2,
+            nome: 'S2-ENV',
+            localizacao: 'Talhão B2',
+            ambiente: 'ar',
+            status: 'ativo',
+            origem: 'lora',
+            ultima_leitura: new Date(Date.now() - 5 * 60000).toISOString(),
+            minutos_sem_leitura: 5,
+            sem_leitura: false
+          },
+          metricas: [
+            {
+              chave: 'umidade',
+              label: 'Umidade do ar',
+              unidade: '%',
+              valor: 41.5,
+              limite_min: 50.0,
+              limite_max: 90.0,
+              status: 'atencao',
+              desvio: -8.5
+            },
+            {
+              chave: 'temperatura',
+              label: 'Temperatura',
+              unidade: '°C',
+              valor: 29.8,
+              limite_min: 8.0,
+              limite_max: 32.0,
+              status: 'ok',
+              desvio: null
+            }
+          ],
+          limites: {
+            temp_min: 8.0,
+            temp_max: 32.0,
+            umidade_min: 50.0,
+            umidade_max: 90.0
+          },
+          serie: [
+            { t: new Date(Date.now() - 90 * 60000).toISOString(), temperatura: 28.5, umidade: 62.0 },
+            { t: new Date(Date.now() - 60 * 60000).toISOString(), temperatura: 29.0, umidade: 55.0 },
+            { t: new Date(Date.now() - 30 * 60000).toISOString(), temperatura: 29.4, umidade: 48.0 },
+            { t: new Date(Date.now() - 5 * 60000).toISOString(), temperatura: 29.8, umidade: 41.5 }
+          ],
+          leitura_gatilho: {
+            temperatura: 29.8,
+            umidade: 41.5,
+            data_hora: new Date(Date.now() - 40 * 60000).toISOString()
+          },
+          acoes: ['reconhecer', 'ver_historico']
+        };
+      }
+
+      // 2. Alerta Baixo / Informativo (ID 43 ou ID 3 ou nivel BAIXO / INFO)
+      if (numId === 43 || numId === 3 || nivel === 'BAIXO' || nivel === 'INFO') {
+        return {
+          alerta: {
+            id_alerta: numId || 43,
+            tipo_alerta: meta?.tipo_alerta || 'Oscilação Térmica Noturna',
+            descricao: meta?.descricao || 'Leitura dentro da faixa normalizada após aeração matinal do setor, operando em parâmetros de conforto fisiológico.',
+            nivel: 'BAIXO',
+            status: meta?.status || 'reconhecido',
+            data_hora: new Date(Date.now() - 180 * 60000).toISOString(),
+            id_sensor: 3,
+            id_lote: 18
+          },
+          layout: 'leitura',
+          resumo: 'Temperatura: 25,8°C — Parâmetros normalizados e estáveis no talhão',
+          lote: {
+            id_lote: 18,
+            fruta: 'Manga Palmer',
+            quantidade: 5000,
+            unidade: 'kg',
+            etapa: 'colheita',
+            destino: null
+          },
+          sensor: {
+            id_sensor: 3,
+            nome: 'S3-CLIM',
+            localizacao: 'Talhão C1',
+            ambiente: 'ar',
+            status: 'ativo',
+            origem: 'estacao',
+            ultima_leitura: new Date(Date.now() - 14 * 60000).toISOString(),
+            minutos_sem_leitura: 14,
+            sem_leitura: false
+          },
+          metricas: [
+            {
+              chave: 'temperatura',
+              label: 'Temperatura',
+              unidade: '°C',
+              valor: 25.8,
+              limite_min: 8.0,
+              limite_max: 32.0,
+              status: 'ok',
+              desvio: null
+            },
+            {
+              chave: 'umidade',
+              label: 'Umidade do ar',
+              unidade: '%',
+              valor: 65.0,
+              limite_min: 50.0,
+              limite_max: 90.0,
+              status: 'ok',
+              desvio: null
+            }
+          ],
+          limites: {
+            temp_min: 8.0,
+            temp_max: 32.0,
+            umidade_min: 50.0,
+            umidade_max: 90.0
+          },
+          serie: [
+            { t: new Date(Date.now() - 90 * 60000).toISOString(), temperatura: 24.5, umidade: 67.0 },
+            { t: new Date(Date.now() - 60 * 60000).toISOString(), temperatura: 25.1, umidade: 66.0 },
+            { t: new Date(Date.now() - 30 * 60000).toISOString(), temperatura: 25.5, umidade: 65.5 },
+            { t: new Date(Date.now() - 5 * 60000).toISOString(), temperatura: 25.8, umidade: 65.0 }
+          ],
+          leitura_gatilho: {
+            temperatura: 25.8,
+            umidade: 65.0,
+            data_hora: new Date(Date.now() - 180 * 60000).toISOString()
+          },
+          acoes: ['ver_historico']
+        };
+      }
+
+      // 3. Alerta Crítico P1 (Padrão para ID 41, ID 1 ou qualquer crítico)
       return {
         alerta: {
-          id_alerta: Number(id),
-          tipo_alerta: 'Temperatura Elevada no Pomar',
-          descricao: 'Sensor registrou temperatura acima do limiar fisiológico da cultura no talhão.',
-          nivel: Number(id) === 1 ? 'CRITICO' : (Number(id) === 2 ? 'MODERADO' : 'INFO'),
-          status: 'aberto',
+          id_alerta: numId || 41,
+          tipo_alerta: meta?.tipo_alerta || 'Temperatura Crítica no Pomar',
+          descricao: meta?.descricao || 'Temperatura atmosférica no dossel atingiu 34,1°C por mais de 25 minutos consecutivos, gerando estresse térmico agudo na cultura.',
+          nivel: 'CRITICO',
+          status: meta?.status || 'aberto',
           data_hora: new Date(Date.now() - 25 * 60000).toISOString(),
           id_sensor: 1,
           id_lote: 12
         },
         layout: 'leitura',
-        resumo: 'Temperatura: 34,1°C — 2,1°C acima do máximo de 32,0°C',
+        resumo: 'Temperatura: 34,1°C — 2,1°C acima do máximo permitido de 32,0°C',
         lote: {
           id_lote: 12,
-          fruta: 'Uva',
+          fruta: 'Uva Vitória',
           quantidade: 2000,
           unidade: 'kg',
-          etapa: 'campo',
+          etapa: 'maturação',
           destino: null
         },
         sensor: {
           id_sensor: 1,
-          nome: 'S1',
+          nome: 'S1-DHT',
           localizacao: 'Talhão A1',
           ambiente: 'ar',
           status: 'ativo',
@@ -582,7 +743,7 @@ class ApiService {
             chave: 'umidade',
             label: 'Umidade do ar',
             unidade: '%',
-            valor: 70.0,
+            valor: 68.0,
             limite_min: 50.0,
             limite_max: 90.0,
             status: 'ok',
@@ -599,7 +760,7 @@ class ApiService {
           { t: new Date(Date.now() - 90 * 60000).toISOString(), temperatura: 30.2, umidade: 72.0 },
           { t: new Date(Date.now() - 60 * 60000).toISOString(), temperatura: 31.8, umidade: 71.5 },
           { t: new Date(Date.now() - 30 * 60000).toISOString(), temperatura: 33.2, umidade: 70.8 },
-          { t: new Date(Date.now() - 5 * 60000).toISOString(), temperatura: 34.1, umidade: 70.0 }
+          { t: new Date(Date.now() - 5 * 60000).toISOString(), temperatura: 34.1, umidade: 68.0 }
         ],
         leitura_gatilho: {
           temperatura: 33.5,
