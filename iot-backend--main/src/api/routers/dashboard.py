@@ -121,8 +121,22 @@ def resumo(conn=Depends(get_conn)):
         """)
         ar = cur.fetchone()
 
+        # Área da propriedade (para converter mm de irrigação em litros: 1 mm em 1 ha = 10.000 L)
+        cur.execute("SELECT to_regclass('public.propriedade') IS NOT NULL AS existe")
+        area_ha = None
+        if cur.fetchone()["existe"]:
+            cur.execute("""
+                SELECT area_ha FROM propriedade
+                WHERE area_ha IS NOT NULL
+                ORDER BY id_propriedade
+                LIMIT 1
+            """)
+            prop = cur.fetchone()
+            area_ha = _arred(prop["area_ha"], 2) if prop else None
+
     total_monit = lotes["total"]
     return {
+        "propriedade": {"area_ha": area_ha},
         "lotes_monitorados": {
             "com_sensor_ativo": lotes["com_sensor_ativo"],
             "total": total_monit,

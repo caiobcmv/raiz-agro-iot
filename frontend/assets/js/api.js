@@ -251,6 +251,20 @@ class ApiService {
   }
 
   // ==========================================
+  // RECOMENDAÇÃO DE IRRIGAÇÃO (última previsão de cada lote)
+  // GET /previsoes/irrigacao -> [{ id_lote, necessita_irrigacao, quantidade_agua_mm, data_previsao, ... }]
+  // Sem fallback fictício: em falha retorna null para a UI mostrar "sem previsão".
+  // ==========================================
+  async getPrevisoesIrrigacao() {
+    try {
+      const res = await this.request('/previsoes/irrigacao');
+      return Array.isArray(res) ? res : null;
+    } catch (err) {
+      return null;
+    }
+  }
+
+  // ==========================================
   // SENSORES IOT
   // ==========================================
   async getSensores() {

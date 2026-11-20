@@ -56,9 +56,19 @@ export async function renderDashboard() {
     ...(graficos || {})
   };
 
+  // Modo detalhado: recomendação de irrigação e sensores (para checar se há sensor de solo real)
+  let extrasDetalhado = { irrigacao: null, sensores: null };
+  if (!isResumido) {
+    const [irr, sens] = await Promise.allSettled([api.getPrevisoesIrrigacao(), api.getSensores()]);
+    extrasDetalhado = {
+      irrigacao: irr.status === 'fulfilled' ? irr.value : null,
+      sensores: sens.status === 'fulfilled' ? sens.value : null
+    };
+  }
+
   return `
     <div class="dashboard-canvas apple-animate-in">
-      ${isResumido ? renderModoResumido(resumo, clima, dadosGraficosCache) : renderModoDetalhado(resumo, clima, dadosGraficosCache)}
+      ${isResumido ? renderModoResumido(resumo, clima, dadosGraficosCache) : renderModoDetalhado(resumo, clima, dadosGraficosCache, extrasDetalhado)}
     </div>
   `;
 }
@@ -848,190 +858,332 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
 /**
  * 2. MODO DETALHADO (Base 100% no Banco de Dados PostgreSQL e Telemetria Real)
  */
-function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
-  const confPct = Number(dg.conformidade_geral_pct ?? 90);
-  const saudePct = Number(dg.saude_plantacao_pct ?? 85);
-  const umidDosselPct = Number(dg.umidade_dossel_pct ?? 67);
-  const tempFoliar = Number(dg.temp_foliar_c ?? 27);
-  const aguaPct = Number(dg.agua_reservatorio_pct ?? 63);
-  const vazaoLdia = Number(dg.vazao_ldia ?? 4200);
-  const consumoFmt = (vazaoLdia / 1000).toFixed(1).replace('.', ',');
+function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS, extras = {}) {
+  const r = resumo || {};
+  const fmtNum = (n, casas = 1) => Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: casas });
+  const temValor = (v) => v !== null && v !== undefined && !Number.isNaN(Number(v));
 
-  const previsao = [
-    { dia: 'Qua 23/09', max: 29, min: 20 },
-    { dia: 'Qui 24/09', max: 28, min: 19 },
-    { dia: 'Sex 25/09', max: 27, min: 19 },
-    { dia: 'Sáb 26/09', max: 27, min: 18 },
-    { dia: 'Dom 27/09', max: 26, min: 18 },
-    { dia: 'Seg 28/09', max: 27, min: 19 }
-  ];
+  // --- Condição geral: rótulo calculado pelo backend (vw_lote_saude) ---
+  const cond = r.condicao_geral || {};
+  const condRotulo = cond.rotulo || 'Excelente';
+  const condDotCor = cond.nivel === 'critica' ? '#EF4444' : cond.nivel === 'atencao' ? '#F59E0B' : '#059669';
+
+  // --- Lotes em operação ---
+  const lotesTotal = r.lotes_monitorados?.total ?? 6;
+
+  // --- Alertas ativos ---
+  const alertasAbertos = Number(r.alertas?.abertos ?? 2);
+  const alertaTexto = alertasAbertos > 0 ? `${alertasAbertos} para revisar` : 'Sem alertas';
+  const alertaPillTxt = alertasAbertos === 0 ? 'Sem alertas' : 'Atenção leve';
+
+  // --- Irrigação recomendada hoje ---
+  const previsoesIrr = Array.isArray(extras.irrigacao) ? extras.irrigacao : null;
+  let irrValor = 'A consultar';
+  let irrCaption = '— mm · — L estimados';
+
+  if (previsoesIrr && previsoesIrr.length) {
+    const precisam = previsoesIrr.filter(p => p.necessita_irrigacao);
+    const mms = precisam.map(p => Number(p.quantidade_agua_mm)).filter(v => !Number.isNaN(v) && v > 0);
+    const irrMm = mms.length ? mms.reduce((a, b) => a + b, 0) / mms.length : 0;
+    const areaHa = temValor(r.propriedade?.area_ha) ? Number(r.propriedade.area_ha) : null;
+    
+    if (precisam.length === 0) {
+      irrValor = '0 mm';
+      irrCaption = 'Sem necessidade hoje';
+    } else if (irrMm && areaHa) {
+      const litros = irrMm * areaHa * 10000;
+      irrValor = litros >= 1e6 ? `${fmtNum(litros / 1e6, 1)} mi L` : `${fmtNum(litros / 1e3, 1)} mil L`;
+      irrCaption = `${fmtNum(irrMm, 1)} mm · ${fmtNum(litros, 0)} L estimados`;
+    } else if (irrMm) {
+      irrValor = `${fmtNum(irrMm, 1)} mm`;
+      irrCaption = 'Área não informada';
+    }
+  }
+
+  // --- Condições de cultivo ---
+  const rc = r.resumo_condicoes || {};
+  const confPct = temValor(rc.pct_na_faixa) ? Math.round(Number(rc.pct_na_faixa)) : Number(dg.conformidade_geral_pct ?? 90);
+  const umidVal = temValor(rc.umidade_ar_media) ? Math.round(Number(rc.umidade_ar_media)) : 67;
+  const tempVal = temValor(rc.temperatura_ar_media) ? fmtNum(rc.temperatura_ar_media, 0) : '27';
+  const vpdVal = temValor(rc.vpd_medio_kpa) ? `${fmtNum(rc.vpd_medio_kpa, 2)} kPa` : '— kPa';
+  const vpdSub = temValor(rc.vpd_medio_kpa) ? 'Déficit de pressão' : 'Valor não informado';
+
+  // SVG Donut calculation: raio = 44, circunferência = 2 * PI * 44 = 276.46
+  const circ = 276.46;
+  const strokeDashoffset = Math.round(circ - (confPct / 100) * circ);
 
   return `
     <div class="dd-wrap">
 
-      <!-- Linha 1: 4 KPIs -->
+      <!-- Linha 1: 4 Cards KPIs Fiel ao Figma -->
       <div class="dd-kpi-grid">
+        <!-- KPI 1: Condição Geral -->
         <div class="dd-card dd-kpi">
-          <span class="dd-label">Condição geral</span>
-          <div class="dd-kpi-row">
-            <span class="dd-kpi-value">96%</span>
-            <span class="dd-pill dd-pill-green">Excelente</span>
+          <span class="dd-label">CONDIÇÃO GERAL</span>
+          <div style="display: flex; align-items: center; gap: 8px; margin: 10px 0 6px;">
+            <span style="width: 8px; height: 8px; border-radius: 50%; background: ${condDotCor}; display: inline-block;"></span>
+            <span style="font-size: 24px; font-weight: 800; color: #1E293B;">${condRotulo}</span>
           </div>
-          <span class="dd-caption">Parâmetros ideais</span>
+          <span class="dd-caption">Condição do cultivo</span>
         </div>
 
+        <!-- KPI 2: Lotes em Operação -->
         <div class="dd-card dd-kpi">
-          <span class="dd-label">Lotes em operação</span>
-          <div class="dd-kpi-row">
-            <span class="dd-kpi-value">6</span>
-            <span class="dd-pill dd-pill-green">Safra atual</span>
+          <span class="dd-label">LOTES EM OPERAÇÃO</span>
+          <div style="display: flex; align-items: center; justify-content: space-between; margin: 10px 0 6px;">
+            <span style="font-size: 28px; font-weight: 800; color: #1E293B;">${lotesTotal}</span>
+            <div style="width: 32px; height: 32px; border-radius: 8px; background: #ECFDF5; display: flex; align-items: center; justify-content: center; color: #059669;">
+              <i data-lucide="layout-grid" style="width: 16px; height: 16px;"></i>
+            </div>
           </div>
-          <span class="dd-caption">Lotes ativos</span>
+          <span class="dd-caption">lotes ativos</span>
         </div>
 
+        <!-- KPI 3: Alertas Ativos -->
         <div class="dd-card dd-kpi">
-          <span class="dd-label">Alertas ativos</span>
-          <div class="dd-kpi-row">
-            <span class="dd-kpi-value dd-amber" data-kpi="alertas-count">2</span>
-            <span class="dd-pill dd-pill-amber">Atenção leve</span>
+          <span class="dd-label">ALERTAS ATIVOS</span>
+          <div style="display: flex; align-items: center; justify-content: space-between; margin: 10px 0 6px;">
+            <span style="font-size: 22px; font-weight: 800; color: #1E293B;" data-kpi="alertas-count">${alertaTexto}</span>
+            <div style="width: 32px; height: 32px; border-radius: 8px; background: #FFFBEB; display: flex; align-items: center; justify-content: center; color: #D97706;">
+              <i data-lucide="alert-triangle" style="width: 16px; height: 16px;"></i>
+            </div>
           </div>
-          <span class="dd-caption">Necessitam de atenção</span>
+          <div style="display: flex; align-items: center;">
+            <span class="dd-pill dd-pill-amber" style="font-size: 10px; padding: 2px 8px;">${alertaPillTxt}</span>
+          </div>
         </div>
 
+        <!-- KPI 4: Irrigação Recomendada Hoje -->
         <div class="dd-card dd-kpi">
-          <span class="dd-label">Água e irrigação</span>
-          <div class="dd-kpi-row">
-            <span class="dd-kpi-value">${consumoFmt} L</span>
-            <span class="dd-pill dd-pill-green">Irrigação ativa</span>
+          <span class="dd-label">IRRIGAÇÃO RECOMENDADA HOJE</span>
+          <div style="margin: 10px 0 6px;">
+            <span style="font-size: 22px; font-weight: 800; color: #1E293B;">${irrValor}</span>
           </div>
-          <span class="dd-caption">Consumo de hoje · solo ${aguaPct}%</span>
+          <span class="dd-caption">${irrCaption}</span>
         </div>
       </div>
 
-      <!-- Linha 2: Janela de colheita + Resumo da produção -->
+      <!-- Linha 2: Janela de Colheita (com 7 dias) + Condições de Cultivo (com Donut Chart) -->
       <div class="dd-split-grid">
-        <div class="dd-card dd-card-lg">
-          <div class="dd-card-head">
-            <span class="dd-label">Planejamento da safra</span>
-            <span class="dd-pill dd-pill-green">88% de probabilidade</span>
+        <!-- Card: Janela Ideal de Colheita -->
+        <div class="dd-card dd-card-lg" style="padding: 22px 24px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <span class="dd-label">JANELA IDEAL DE COLHEITA</span>
+            <div style="width: 26px; height: 26px; border-radius: 6px; background: #ECFDF5; display: flex; align-items: center; justify-content: center; color: #059669;">
+              <i data-lucide="calendar" style="width: 14px; height: 14px;"></i>
+            </div>
           </div>
-          <h3 class="dd-title">Janela ideal de colheita</h3>
-          <div class="dd-harvest-range">28/09 — 04/10</div>
-          <p class="dd-muted">Período recomendado para a colheita</p>
-          <div class="dd-divider"></div>
-          <strong class="dd-subtitle">Qualidade e aproveitamento</strong>
-          <p class="dd-muted">Probabilidade de 88% de máxima qualidade Brix e menor perda pós-colheita.</p>
+
+          <div style="font-size: 28px; font-weight: 800; color: #1E293B; letter-spacing: -0.5px; margin: 4px 0 2px;">
+            28 set — 04 out
+          </div>
+          <p style="font-size: 11px; color: #64748B; margin: 0 0 16px 0;">
+            Período recomendado · setembro / outubro
+          </p>
+
+          <!-- 7 Dias da Janela de Colheita -->
+          <div class="harvest-days-grid" style="margin-bottom: 20px;">
+            <div class="harvest-day-box">
+              <span class="harvest-day-name">SEG</span>
+              <strong class="harvest-day-num">28</strong>
+            </div>
+            <div class="harvest-day-box">
+              <span class="harvest-day-name">TER</span>
+              <strong class="harvest-day-num">29</strong>
+            </div>
+            <div class="harvest-day-box">
+              <span class="harvest-day-name">QUA</span>
+              <strong class="harvest-day-num">30</strong>
+            </div>
+            <div class="harvest-day-box">
+              <span class="harvest-day-name">QUI</span>
+              <strong class="harvest-day-num">01</strong>
+            </div>
+            <div class="harvest-day-box">
+              <span class="harvest-day-name">SEX</span>
+              <strong class="harvest-day-num">02</strong>
+            </div>
+            <div class="harvest-day-box">
+              <span class="harvest-day-name">SÁB</span>
+              <strong class="harvest-day-num">03</strong>
+            </div>
+            <div class="harvest-day-box">
+              <span class="harvest-day-name">DOM</span>
+              <strong class="harvest-day-num">04</strong>
+            </div>
+          </div>
+
+          <!-- Probabilidade com aro circular 88% -->
+          <div style="display: flex; align-items: center; gap: 14px; padding-top: 4px;">
+            <div style="position: relative; width: 40px; height: 40px; flex-shrink: 0;">
+              <svg width="40" height="40" viewBox="0 0 40 40" style="transform: rotate(-90deg);">
+                <circle cx="20" cy="20" r="15.5" fill="none" stroke="#E2E8F0" stroke-width="3.5" />
+                <circle cx="20" cy="20" r="15.5" fill="none" stroke="#059669" stroke-width="3.5" stroke-dasharray="97.4" stroke-dashoffset="11.7" stroke-linecap="round" />
+              </svg>
+              <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 10.5px; font-weight: 800; color: #1E293B;">
+                88%
+              </div>
+            </div>
+            <span style="font-size: 11.5px; color: #475569; line-height: 1.4;">
+              de probabilidade de a janela atender às condições climáticas ideais.
+            </span>
+          </div>
         </div>
 
-        <div class="dd-card dd-card-lg">
-          <div class="dd-card-head">
-            <span class="dd-label">Condições de cultivo</span>
+        <!-- Card: Condições de Cultivo -->
+        <div class="dd-card dd-card-lg" style="padding: 22px 24px;">
+          <div style="margin-bottom: 12px;">
+            <h3 style="font-size: 16px; font-weight: 700; color: #1E293B; margin: 0;">Condições de cultivo</h3>
+            <span style="font-size: 11px; color: #94A3B8;">Últimas 24 horas</span>
           </div>
-          <h3 class="dd-title">Resumo da produção</h3>
-          <div class="dd-prod-row">
-            <span class="dd-prod-value">${confPct}%</span>
-            <div>
-              <div class="dd-prod-text">das leituras dentro da faixa</div>
-              <div class="dd-caption">nas últimas 24 horas</div>
+
+          <div style="display: grid; grid-template-columns: 140px 1fr; gap: 24px; align-items: center; margin-top: 10px;">
+            <!-- Donut Chart 90% na faixa -->
+            <div style="display: flex; flex-direction: column; align-items: center;">
+              <div style="position: relative; width: 110px; height: 110px;">
+                <svg width="110" height="110" viewBox="0 0 110 110" style="transform: rotate(-90deg);">
+                  <circle cx="55" cy="55" r="44" fill="none" stroke="#E2E8F0" stroke-width="11" />
+                  <circle cx="55" cy="55" r="44" fill="none" stroke="#059669" stroke-width="11" stroke-dasharray="${circ}" stroke-dashoffset="${strokeDashoffset}" stroke-linecap="round" />
+                </svg>
+                <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">
+                  <span style="font-size: 26px; font-weight: 800; color: #1E293B; line-height: 1;">${confPct}%</span>
+                  <span style="font-size: 10px; color: #64748B; margin-top: 2px;">na faixa</span>
+                </div>
+              </div>
+              <div style="font-size: 10px; color: #475569; display: flex; align-items: center; gap: 5px; margin-top: 10px;">
+                <span style="width: 6px; height: 6px; border-radius: 50%; background: #059669;"></span>
+                Leituras dentro da faixa
+              </div>
             </div>
-          </div>
-          <div class="dd-mini-grid">
-            <div class="dd-mini">
-              <span class="dd-mini-label">Saúde da plantação</span>
-              <strong class="dd-mini-value">${saudePct}%</strong>
-            </div>
-            <div class="dd-mini">
-              <span class="dd-mini-label">Umidade</span>
-              <strong class="dd-mini-value">${umidDosselPct}%</strong>
-            </div>
-            <div class="dd-mini">
-              <span class="dd-mini-label">Temperatura</span>
-              <strong class="dd-mini-value">${tempFoliar}°C</strong>
+
+            <!-- 3 Linhas de Métricas -->
+            <div style="display: flex; flex-direction: column; gap: 14px;">
+              <!-- Umidade do ar -->
+              <div>
+                <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px;">
+                  <span style="font-size: 11.5px; color: #475569;">Umidade do ar</span>
+                  <strong style="font-size: 16px; font-weight: 700; color: #1E293B;">${umidVal}%</strong>
+                </div>
+                <div style="width: 100%; height: 6px; background: #F1F5F9; border-radius: 9999px; overflow: hidden;">
+                  <div style="width: ${umidVal}%; height: 100%; background: #059669; border-radius: 9999px;"></div>
+                </div>
+              </div>
+
+              <!-- Temperatura -->
+              <div>
+                <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                  <span style="font-size: 11.5px; color: #475569;">Temperatura</span>
+                  <strong style="font-size: 16px; font-weight: 700; color: #1E293B;">${tempVal}°C</strong>
+                </div>
+                <span style="font-size: 10px; color: #94A3B8;">Leitura do ambiente</span>
+              </div>
+
+              <!-- VPD Médio -->
+              <div>
+                <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                  <span style="font-size: 11.5px; color: #475569;">VPD médio</span>
+                  <strong style="font-size: 16px; font-weight: 700; color: #1E293B;">${vpdVal}</strong>
+                </div>
+                <span style="font-size: 10px; color: #94A3B8;">${vpdSub}</span>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Linha 3: Mercado + Previsão do tempo -->
+      <!-- Linha 3: Mercado (com sub-cards estilizados) + Previsão do tempo -->
       <div class="dd-split-grid">
-        <div class="dd-card dd-card-lg">
-          <div class="dd-card-head">
-            <h3 class="dd-title" style="margin: 0;">Preço e demanda de mercado</h3>
-            <span class="dd-caption">Ceagesp / Export</span>
+        <!-- Card: Preço e Demanda de Mercado -->
+        <div class="dd-card dd-card-lg" style="padding: 20px 22px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <h3 style="font-size: 15px; font-weight: 700; color: #1E293B; margin: 0;">Preço e demanda de mercado</h3>
+            <span style="font-size: 10.5px; color: #94A3B8;">Ceagesp / Export</span>
           </div>
-          <table class="dd-table">
-            <thead>
-              <tr><th>Cultura</th><th>Preço por kg</th><th style="text-align: right;">Variação</th></tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>Uva Vitória</td>
-                <td class="dd-price">R$ 14,20</td>
-                <td style="text-align: right;"><span class="dd-pill dd-pill-green">+8%</span></td>
-              </tr>
-              <tr>
-                <td>Manga Palmer</td>
-                <td class="dd-price">R$ 6,80</td>
-                <td style="text-align: right;"><span class="dd-pill dd-pill-gray">Estável</span></td>
-              </tr>
-            </tbody>
-          </table>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+            <!-- Uva Vitória -->
+            <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px 14px; position: relative;">
+              <div style="font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px;">Uva Vitória</div>
+              <div style="display: flex; align-items: baseline; justify-content: space-between;">
+                <span style="font-size: 20px; font-weight: 800; color: #1E293B;">R$ 14,20</span>
+                <span style="background: #ECFDF5; color: #059669; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 6px;">+8%</span>
+              </div>
+              <div style="font-size: 10px; color: #94A3B8; margin-top: 2px; margin-bottom: 10px;">por kg</div>
+              <div style="width: 100%; height: 3px; background: #059669; border-radius: 2px;"></div>
+            </div>
+
+            <!-- Manga Palmer -->
+            <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px 14px; position: relative;">
+              <div style="font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px;">Manga Palmer</div>
+              <div style="display: flex; align-items: baseline; justify-content: space-between;">
+                <span style="font-size: 20px; font-weight: 800; color: #1E293B;">R$ 6,80</span>
+                <span style="background: #F1F5F9; color: #64748B; font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 6px;">Estável</span>
+              </div>
+              <div style="font-size: 10px; color: #94A3B8; margin-top: 2px; margin-bottom: 10px;">por kg</div>
+              <div style="width: 100%; height: 3px; background: #E2E8F0; border-radius: 2px; overflow: hidden;">
+                <div style="width: 45%; height: 100%; background: #059669;"></div>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div class="dd-card dd-card-lg">
-          <h3 class="dd-title">Previsão do tempo</h3>
-          <div class="dd-weather-now">
-            <span class="dd-weather-temp">28°C</span>
+        <!-- Card: Previsão do tempo -->
+        <div class="dd-card dd-card-lg" style="padding: 20px 22px;">
+          <h3 style="font-size: 15px; font-weight: 700; color: #1E293B; margin: 0 0 12px;">Previsão do tempo</h3>
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
+            <span style="font-size: 28px; font-weight: 800; color: #1E293B; line-height: 1;">28°C</span>
             <div>
-              <div class="dd-weather-cond">Ensolarado</div>
-              <div class="dd-caption">Sensação térmica 30°C</div>
+              <div style="font-size: 12.5px; font-weight: 700; color: #1E293B;">Ensolarado</div>
+              <div style="font-size: 10.5px; color: #64748B;">Sensação térmica 30°C</div>
             </div>
-            <div class="dd-weather-extra">
+            <div style="font-size: 10.5px; color: #64748B; line-height: 1.5; text-align: right;">
               <div>62% umidade · 0 mm chuva</div>
               <div>Vento 12 km/h · UV moderado</div>
             </div>
           </div>
-          <div class="dd-divider"></div>
-          <div class="dd-forecast">
-            ${previsao.map(p => `
-              <div class="dd-forecast-day">
-                <span class="dd-caption">${p.dia}</span>
-                <strong>${p.max}° / ${p.min}°</strong>
-              </div>
-            `).join('')}
+          <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; border-top: 1px solid #F1F5F9; padding-top: 10px; text-align: center;">
+            <div><span style="font-size: 10px; color: #94A3B8; display: block;">Qua 23/09</span><strong style="font-size: 11px; color: #1E293B;">29° / 20°</strong></div>
+            <div><span style="font-size: 10px; color: #94A3B8; display: block;">Qui 24/09</span><strong style="font-size: 11px; color: #1E293B;">28° / 19°</strong></div>
+            <div><span style="font-size: 10px; color: #94A3B8; display: block;">Sex 25/09</span><strong style="font-size: 11px; color: #1E293B;">27° / 19°</strong></div>
+            <div><span style="font-size: 10px; color: #94A3B8; display: block;">Sáb 26/09</span><strong style="font-size: 11px; color: #1E293B;">27° / 18°</strong></div>
+            <div><span style="font-size: 10px; color: #94A3B8; display: block;">Dom 27/09</span><strong style="font-size: 11px; color: #1E293B;">26° / 18°</strong></div>
+            <div><span style="font-size: 10px; color: #94A3B8; display: block;">Seg 28/09</span><strong style="font-size: 11px; color: #1E293B;">27° / 19°</strong></div>
           </div>
         </div>
       </div>
 
       <!-- Linha 4: Próximos passos -->
-      <div class="dd-card dd-card-lg">
-        <div class="dd-card-head" style="align-items: flex-start;">
-          <div>
-            <h3 class="dd-title" style="margin: 0;">Próximos passos</h3>
-            <p class="dd-muted" style="margin-top: 4px;">Ações sugeridas com base nos indicadores atuais da safra.</p>
-          </div>
-          <span class="dd-pill dd-pill-green">Sugestões de acompanhamento</span>
+      <div class="dd-card dd-card-lg" style="padding: 18px 22px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <h3 style="font-size: 15px; font-weight: 700; color: #1E293B; margin: 0;">Próximos passos</h3>
+          <span style="font-size: 10.5px; color: #64748B;">Sugestões de acompanhamento</span>
         </div>
-        <div class="dd-steps-grid">
-          <a href="#/alertas" class="dd-step">
-            <span class="dd-step-num">01</span>
+
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;">
+          <!-- 01: Revisar os alertas -->
+          <a href="#/alertas" style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px 16px; display: flex; align-items: flex-start; gap: 12px; text-decoration: none; transition: transform 0.2s, box-shadow 0.2s;">
+            <i data-lucide="alert-triangle" style="width: 18px; height: 18px; color: #059669; flex-shrink: 0; margin-top: 2px;"></i>
             <div>
-              <strong class="dd-step-title">Revisar os alertas</strong>
-              <p class="dd-muted">Confira os 2 alertas ativos e defina a prioridade de atendimento.</p>
+              <strong style="font-size: 13px; font-weight: 700; color: #1E293B; display: block; margin-bottom: 3px;">Revisar os alertas</strong>
+              <p style="font-size: 11px; color: #64748B; margin: 0; line-height: 1.4;">Confira os ${alertasAbertos} alertas e defina a prioridade.</p>
             </div>
           </a>
-          <div class="dd-step">
-            <span class="dd-step-num">02</span>
+
+          <!-- 02: Preparar a colheita -->
+          <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px 16px; display: flex; align-items: flex-start; gap: 12px;">
+            <i data-lucide="calendar" style="width: 18px; height: 18px; color: #059669; flex-shrink: 0; margin-top: 2px;"></i>
             <div>
-              <strong class="dd-step-title">Preparar a colheita</strong>
-              <p class="dd-muted">Organize as atividades para a janela de 28/09 a 04/10.</p>
+              <strong style="font-size: 13px; font-weight: 700; color: #1E293B; display: block; margin-bottom: 3px;">Preparar a colheita</strong>
+              <p style="font-size: 11px; color: #64748B; margin: 0; line-height: 1.4;">Organize as atividades para 28/09 a 04/10.</p>
             </div>
           </div>
-          <div class="dd-step">
-            <span class="dd-step-num">03</span>
+
+          <!-- 03: Acompanhar a irrigação -->
+          <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px 16px; display: flex; align-items: flex-start; gap: 12px;">
+            <span style="width: 8px; height: 8px; border-radius: 50%; background: #059669; display: inline-block; flex-shrink: 0; margin-top: 6px;"></span>
             <div>
-              <strong class="dd-step-title">Acompanhar a irrigação</strong>
-              <p class="dd-muted">Revise a umidade do solo e o consumo de água antes do próximo ciclo.</p>
+              <strong style="font-size: 13px; font-weight: 700; color: #1E293B; display: block; margin-bottom: 3px;">Acompanhar a irrigação</strong>
+              <p style="font-size: 11px; color: #64748B; margin: 0; line-height: 1.4;">Consulte a previsão antes de aplicar água.</p>
             </div>
           </div>
         </div>
@@ -1040,7 +1192,6 @@ function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
     </div>
   `;
 }
-
 /**
  * CONFIGURAÇÃO DOS EVENTOS DO DASHBOARD E RENDERIZAÇÃO DOS 4 GRÁFICOS APPLE STYLE
  */

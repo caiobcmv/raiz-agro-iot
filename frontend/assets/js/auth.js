@@ -318,8 +318,8 @@ class AuthState {
         avatarBg: '#D1FAE5',
         avatarBorder: '#10B981',
         avatarColor: '#065F46',
-        gatewayPill: 'ESP32',
-        gatewayStatus: 'Conectado',
+        gatewayPill: 'Coleta de sensores',
+        gatewayStatus: 'Última leitura não informada',
         farm: 'Vale das Uvas',
         farmSub: 'Petrolina - Setor 04',
         bio: 'Gestão operacional de colheita, irrigação de precisão e logística de cadeia fria.'
