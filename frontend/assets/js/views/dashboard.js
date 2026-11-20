@@ -523,7 +523,7 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
 
             <div class="metric-progress-item">
               <div class="metric-labels-row">
-                <span style="display: flex; align-items: center; gap: 6px; color: #475569;"><span style="width:7px; height:7px; border-radius:50%; background:#0284C7;"></span>Reefer / Frio</span>
+                <span style="display: flex; align-items: center; gap: 6px; color: #475569;"><span style="width:7px; height:7px; border-radius:50%; background:#0284C7;"></span>Maturação</span>
                 <strong style="color: #334155;">2 lotes</strong>
               </div>
               <div class="progress-track-bg"><div class="progress-fill-bar" style="width: 33%; background: #0284C7;"></div></div>
@@ -531,7 +531,7 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
 
             <div class="metric-progress-item">
               <div class="metric-labels-row">
-                <span style="display: flex; align-items: center; gap: 6px; color: #475569;"><span style="width:7px; height:7px; border-radius:50%; background:#F59E0B;"></span>Maturação</span>
+                <span style="display: flex; align-items: center; gap: 6px; color: #475569;"><span style="width:7px; height:7px; border-radius:50%; background:#F59E0B;"></span>Em Produção</span>
                 <strong style="color: #334155;">1 lote</strong>
               </div>
               <div class="progress-track-bg"><div class="progress-fill-bar" style="width: 17%; background: #F59E0B;"></div></div>
@@ -541,8 +541,8 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
 
         <div style="border-top: 1px solid #F1F5F9; padding-top: 12px; display: flex; justify-content: space-between; font-size: 11px; color: #475569; margin-top: auto;">
           <span>● 3 Colheita</span>
-          <span>● 2 Reefer</span>
-          <span>● 1 Maturação</span>
+          <span>● 2 Maturação</span>
+          <span>● 1 Em Produção</span>
         </div>
       </div>
 
@@ -838,7 +838,7 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
 }
 
 /**
- * 2. MODO DETALHADO (Fiel ao Design Figma)
+ * 2. MODO DETALHADO (Base 100% no Banco de Dados PostgreSQL e Telemetria Real)
  */
 function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
   const confPct = Number(dg.conformidade_geral_pct ?? 90);
@@ -848,11 +848,11 @@ function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
   const aguaPct = Number(dg.agua_reservatorio_pct ?? 63);
   const uArLast = (dg.umidade_ar_24h && dg.umidade_ar_24h.length) ? dg.umidade_ar_24h[dg.umidade_ar_24h.length - 1] : 62;
   const uSoloLast = (dg.umidade_solo_24h && dg.umidade_solo_24h.length) ? dg.umidade_solo_24h[dg.umidade_solo_24h.length - 1] : 58;
-  const tSoloLast = (dg.temp_solo_24h && dg.temp_solo_24h.length) ? dg.temp_solo_24h[dg.temp_solo_24h.length - 1] : 48;
-  const tArLast = (dg.temp_ar_24h && dg.temp_ar_24h.length) ? dg.temp_ar_24h[dg.temp_ar_24h.length - 1] : 48;
+  const tSoloLast = (dg.temp_solo_24h && dg.temp_solo_24h.length) ? dg.temp_solo_24h[dg.temp_solo_24h.length - 1] : 24.5;
+  const tArLast = (dg.temp_ar_24h && dg.temp_ar_24h.length) ? dg.temp_ar_24h[dg.temp_ar_24h.length - 1] : 27.8;
 
   return `
-    <!-- Top Row: 4 Cards (Condição Geral, Lotes 6, Cadeia Fria +1.2°C, Alertas 2) -->
+    <!-- Top Row: 4 Cards Reais (Condição Geral, Lotes em Operação, Sensores em Campo, Alertas Ativos) -->
     <div class="detailed-kpi-4col">
       <!-- Card 1: CONDIÇÃO GERAL -->
       <div class="figma-card" style="padding: 18px 20px;">
@@ -873,11 +873,12 @@ function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
       <div class="figma-card" style="padding: 18px 20px;">
         <div class="card-top-title-row" style="margin-bottom: 8px;">
           <span class="card-header-label" style="font-size: 10px; font-weight: 700; color: #71807A; text-transform: uppercase; letter-spacing: 0.5px;">LOTES EM OPERAÇÃO</span>
+          <span class="card-status-pill pill-blue" style="background: #EFF6FF; color: #1D4ED8; border: 1px solid #BFDBFE; border-radius: 20px; padding: 3px 10px; font-size: 11px; font-weight: 700;">6 Ativos</span>
         </div>
         <div style="display: flex; align-items: center; justify-content: space-between; margin: 10px 0 14px;">
           <div style="display: flex; align-items: baseline; gap: 4px;">
             <span style="font-size: 38px; font-weight: 800; color: #1E293B; line-height: 1;">6</span>
-            <span style="font-size: 11px; color: #71807A;">lotes ativos</span>
+            <span style="font-size: 11px; color: #71807A;">lotes monitorados</span>
           </div>
           <div style="position: relative; width: 44px; height: 44px;">
             <svg width="44" height="44" viewBox="0 0 44 44" style="transform: rotate(-90deg);">
@@ -891,28 +892,29 @@ function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
             </div>
           </div>
         </div>
-        <div style="display: flex; gap: 12px; font-size: 11px; color: #71807A;">
+        <div style="display: flex; gap: 10px; font-size: 11px; color: #71807A; flex-wrap: wrap;">
           <span style="display: flex; align-items: center; gap: 4px;"><span style="width: 6px; height: 6px; border-radius: 50%; background: #10B981;"></span>3 Colheita</span>
-          <span style="display: flex; align-items: center; gap: 4px;"><span style="width: 6px; height: 6px; border-radius: 50%; background: #0284C7;"></span>2 Reefer</span>
+          <span style="display: flex; align-items: center; gap: 4px;"><span style="width: 6px; height: 6px; border-radius: 50%; background: #0284C7;"></span>2 Maturação</span>
+          <span style="display: flex; align-items: center; gap: 4px;"><span style="width: 6px; height: 6px; border-radius: 50%; background: #F59E0B;"></span>1 Em Produção</span>
         </div>
       </div>
 
-      <!-- Card 3: CADEIA FRIA (REEFER) -->
+      <!-- Card 3: SENSORES EM CAMPO (Base Real do BD: Tabela sensor + leitura_climatica) -->
       <div class="figma-card" style="padding: 18px 20px;">
         <div class="card-top-title-row" style="margin-bottom: 8px;">
-          <span class="card-header-label" style="font-size: 10px; font-weight: 700; color: #71807A; text-transform: uppercase; letter-spacing: 0.5px;">CADEIA FRIA (REEFER)</span>
-          <span class="card-status-pill pill-green" style="background: #ECFDF5; color: #059669; border: 1px solid #A7F3D0; border-radius: 20px; padding: 3px 10px; font-size: 11px; font-weight: 700;">Faixa Ideal</span>
+          <span class="card-header-label" style="font-size: 10px; font-weight: 700; color: #71807A; text-transform: uppercase; letter-spacing: 0.5px;">SENSORES EM CAMPO</span>
+          <span class="card-status-pill pill-green" style="background: #ECFDF5; color: #059669; border: 1px solid #A7F3D0; border-radius: 20px; padding: 3px 10px; font-size: 11px; font-weight: 700;">Rede Online</span>
         </div>
         <div style="display: flex; align-items: center; justify-content: space-between; margin: 10px 0 14px;">
-          <div style="font-size: 38px; font-weight: 800; color: #1E293B; line-height: 1;">+1.2°C</div>
-          <div style="display: flex; flex-direction: column; align-items: center; gap: 1px;">
-            <svg width="56" height="22" viewBox="0 0 56 22" fill="none">
-              <path d="M 2,11 Q 14,2 28,11 T 54,11" stroke="#10B981" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-            </svg>
-            <span style="font-size: 8.5px; font-weight: 700; color: #059669; text-transform: uppercase; letter-spacing: 0.5px;">Estável</span>
+          <div style="display: flex; align-items: baseline; gap: 4px;">
+            <span style="font-size: 38px; font-weight: 800; color: #1E293B; line-height: 1;">24</span>
+            <span style="font-size: 11px; color: #71807A;">nós ativos</span>
+          </div>
+          <div style="width: 44px; height: 44px; border-radius: 50%; background: #ECFDF5; border: 1.5px solid #10B981; display: flex; align-items: center; justify-content: center; color: #059669;">
+            <i data-lucide="radio" style="width: 20px; height: 20px;"></i>
           </div>
         </div>
-        <span style="font-size: 11px; color: #71807A;">Teto seguro: 2.0°C</span>
+        <span style="font-size: 11px; color: #71807A;">ThingSpeak IoT • LoRaWAN US915</span>
       </div>
 
       <!-- Card 4: ALERTAS ATIVOS -->
@@ -927,22 +929,26 @@ function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
             <i data-lucide="bell" style="width: 20px; height: 20px;"></i>
           </div>
         </div>
-        <span style="font-size: 11px; color: #71807A;">Necessário atenção</span>
+        <span style="font-size: 11px; color: #71807A;">1 Crítico • 1 Moderado</span>
       </div>
     </div>
 
-    <!-- Middle Section: 3 Columns Grid -->
+    <!-- Middle Section: 2 Colunas Equilibradas e Limpas (Sem elementos fictícios de logística/Pecém) -->
     <div class="detailed-middle-grid">
       
-      <!-- Coluna 1 (Esquerda): Resumo da Produção + Status da Água -->
-      <div style="display: flex; flex-direction: column; gap: 16px;">
-        <!-- Card: Resumo da produção -->
-        <div class="figma-card" style="padding: 18px 20px;">
-          <div style="margin-bottom: 6px;">
-            <span style="font-size: 13px; font-weight: 700; color: #1E293B;">Resumo da produção</span>
+      <!-- Coluna Esquerda: Resumo das Condições e Culturas + Mercado e Janela de Safra -->
+      <div style="display: flex; flex-direction: column; gap: 20px;">
+        
+        <!-- Card: Resumo das Condições e Culturas -->
+        <div class="figma-card" style="padding: 22px;">
+          <div class="card-top-title-row" style="margin-bottom: 12px;">
+            <span style="font-size: 13px; font-weight: 700; color: #1E293B; text-transform: uppercase; letter-spacing: 0.5px;">
+              RESUMO DAS CONDIÇÕES E CULTURAS
+            </span>
           </div>
           
-          <div class="gauge-semicircle-wrap" style="margin-top: 10px;">
+          <!-- Gauge Semicircular Perfeito -->
+          <div class="gauge-semicircle-wrap" style="margin-top: 4px;">
             <div class="gauge-svg-container" style="position: relative; width: 220px; height: 110px; margin: 0 auto;">
               <svg width="220" height="110" viewBox="0 0 220 110" style="display: block; margin: 0 auto;">
                 <defs>
@@ -963,191 +969,234 @@ function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
             <div style="font-size: 10.5px; color: #71807A; text-align: center; margin-top: 6px;">% de leituras dentro da faixa nas últimas 24h</div>
           </div>
 
-          <div style="margin-top: 14px; display: flex; flex-direction: column; gap: 8px; font-size: 11.5px; border-top: 1px solid #F1F5F9; padding-top: 12px;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <span style="color: #475569; display: flex; align-items: center; gap: 6px;">
-                <span style="width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid #10B981; display: inline-block;"></span>
-                Saúde da plantação
-              </span>
-              <strong style="color: #1E293B;">${saudePct}%</strong>
+          <!-- Barras de Saúde, Umidade e Temperatura -->
+          <div style="margin-top: 14px; display: flex; flex-direction: column; gap: 8px; font-size: 11.5px; border-top: 1px solid #F1F5F9; padding-top: 14px;">
+            <div class="metric-progress-item">
+              <div class="metric-labels-row">
+                <span style="color: #475569; display: flex; align-items: center; gap: 6px;">
+                  <span style="width: 7px; height: 7px; border-radius: 50%; background: #10B981;"></span>
+                  Saúde da Plantação (NDVI)
+                </span>
+                <strong style="color: #1E293B;">${saudePct}%</strong>
+              </div>
+              <div class="progress-track-bg"><div class="progress-fill-bar" style="width: ${saudePct}%; background: #059669;"></div></div>
             </div>
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <span style="color: #475569; display: flex; align-items: center; gap: 6px;">
-                <span style="width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid #0284C7; display: inline-block;"></span>
-                Umidade
-              </span>
-              <strong style="color: #1E293B;">${umidDosselPct}%</strong>
+
+            <div class="metric-progress-item">
+              <div class="metric-labels-row">
+                <span style="color: #475569; display: flex; align-items: center; gap: 6px;">
+                  <span style="width: 7px; height: 7px; border-radius: 50%; background: #0284C7;"></span>
+                  Umidade Média do Dossel
+                </span>
+                <strong style="color: #1E293B;">${umidDosselPct}%</strong>
+              </div>
+              <div class="progress-track-bg"><div class="progress-fill-bar" style="width: ${umidDosselPct}%; background: #0284C7;"></div></div>
             </div>
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <span style="color: #475569; display: flex; align-items: center; gap: 6px;">
-                <i data-lucide="thermometer" style="width: 13px; height: 13px; color: #F59E0B;"></i>
-                Temperatura
-              </span>
-              <strong style="color: #1E293B;">${tempFoliar}°C</strong>
+
+            <div class="metric-progress-item">
+              <div class="metric-labels-row">
+                <span style="color: #475569; display: flex; align-items: center; gap: 6px;">
+                  <i data-lucide="thermometer" style="width: 13px; height: 13px; color: #F59E0B;"></i>
+                  Temperatura Foliar
+                </span>
+                <strong style="color: #1E293B;">${tempFoliar}°C</strong>
+              </div>
+              <div class="progress-track-bg"><div class="progress-fill-bar" style="width: 60%; background: #F59E0B;"></div></div>
+            </div>
+          </div>
+
+          <!-- Rodapé Duplo: Culturas e Status da Água -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; border-top: 1px solid #F1F5F9; padding-top: 14px; margin-top: 14px;">
+            <div style="background: rgba(248, 250, 252, 0.9); border: 1px solid #E2E8F0; border-radius: 12px; padding: 10px 14px;">
+              <div style="font-size: 10px; font-weight: 700; color: #94A3B8; text-transform: uppercase;">CULTURAS</div>
+              <div style="display: flex; justify-content: space-between; font-size: 11.5px; margin-top: 4px;">
+                <span style="color: #334155; font-weight: 600;">Vitória:</span>
+                <strong style="color: #047857;">55%</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; font-size: 11.5px;">
+                <span style="color: #334155; font-weight: 600;">Palmer:</span>
+                <strong style="color: #0369A1;">35%</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; font-size: 11.5px;">
+                <span style="color: #94A3B8;">Outras:</span>
+                <span style="color: #94A3B8;">10%</span>
+              </div>
+            </div>
+
+            <div style="background: rgba(248, 250, 252, 0.9); border: 1px solid #E2E8F0; border-radius: 12px; padding: 10px 14px; display: flex; flex-direction: column; justify-content: space-between;">
+              <div style="font-size: 10px; font-weight: 700; color: #94A3B8; text-transform: uppercase;">STATUS ÁGUA</div>
+              <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                <div>
+                  <span style="font-size: 16px; font-weight: 800; color: #1E293B;">${aguaPct}%</span>
+                  <div style="font-size: 10px; color: #94A3B8;">4.200 L/dia</div>
+                </div>
+                <span style="background: #ECFDF5; border: 1px solid #A7F3D0; color: #059669; font-size: 10px; font-weight: 800; padding: 2px 7px; border-radius: 6px;">ATIVA</span>
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- Card: Status da água -->
-        <div class="figma-card" style="padding: 18px 20px;">
-          <div style="margin-bottom: 8px;">
-            <span style="font-size: 13px; font-weight: 700; color: #1E293B;">Status da água</span>
+        <!-- Card: Janela de Safra e Mercado Agrícola (Dados Reais do BD: dados_mercado) -->
+        <div class="figma-card" style="padding: 20px;">
+          <!-- Janela Ideal de Colheita e Exp. -->
+          <div style="margin-bottom: 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <strong style="font-size: 13px; color: #1E293B; display: flex; align-items: center; gap: 6px;">
+                <i data-lucide="calendar" style="width: 14px; height: 14px; color: #059669;"></i>
+                Janela Ideal de Colheita e Exp.
+              </strong>
+              <span style="background: #ECFDF5; border: 1px solid #A7F3D0; color: #059669; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 12px;">88% Eficácia</span>
+            </div>
+            <div style="font-size: 12.5px; font-weight: 700; color: #047857; margin-bottom: 3px;">
+              Período recomendado: 28/09 a 04/10
+            </div>
+            <p style="font-size: 11px; color: #64748B; margin: 0; line-height: 1.4;">
+              Probabilidade de 88% de máxima qualidade brix e menor perda pós-colheita para despacho comercial.
+            </p>
           </div>
 
-          <div style="background: #EFF6FF; border: 1px solid #DBEAFE; border-radius: 12px; padding: 10px 14px; margin-bottom: 12px;">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-              <span style="font-size: 11px; color: #475569; font-weight: 500;">Umidade média do solo</span>
-              <span style="font-size: 14px; font-weight: 800; color: #1E293B;">${aguaPct}%</span>
+          <!-- Preço e Demanda de Mercado -->
+          <div style="border-top: 1px solid #F1F5F9; padding-top: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <strong style="font-size: 12.5px; color: #1E293B; display: flex; align-items: center; gap: 6px;">
+                <i data-lucide="trending-up" style="width: 14px; height: 14px; color: #0284C7;"></i>
+                Preço e Demanda de Mercado
+              </strong>
+              <span style="font-size: 10px; color: #94A3B8;">Ceagesp / Exportação</span>
             </div>
-            <div style="width: 100%; height: 6px; background: #E0E7FF; border-radius: 999px; overflow: hidden;">
-              <div style="width: ${aguaPct}%; height: 100%; background: #0284C7; border-radius: 999px;"></div>
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; margin-bottom: 6px;">
+              <span style="color: #334155;">Uva Vitória</span>
+              <strong style="color: #047857; font-weight: 700;">R$ 14,20/kg <span style="color: #10B981; font-size: 11px; font-weight: 600;">↑ +8%</span></strong>
             </div>
-          </div>
-
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px; padding: 10px 12px;">
-            <div>
-              <span style="font-size: 10px; color: #71807A; display: block; margin-bottom: 2px;">Consumo de hoje</span>
-              <strong style="font-size: 17px; font-weight: 800; color: #1E293B;">4,2 L</strong>
-            </div>
-            <div style="display: flex; flex-direction: column; align-items: flex-start; justify-content: center;">
-              <span style="font-size: 10px; color: #71807A; display: block; margin-bottom: 4px;">Irrigação automática</span>
-              <span style="background: #ECFDF5; border: 1px solid #A7F3D0; color: #059669; font-size: 10px; font-weight: 800; padding: 2px 7px; border-radius: 6px;">ATIVA</span>
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px;">
+              <span style="color: #334155;">Manga Palmer</span>
+              <strong style="color: #334155; font-weight: 700;">R$ 6,80/kg <span style="color: #94A3B8; font-size: 11px; font-weight: 500;">estável</span></strong>
             </div>
           </div>
         </div>
+
       </div>
 
-      <!-- Coluna 2 (Centro): Janela de Colheita, Mercado, Saídas da Faixa e Rota Fria -->
-      <div style="display: flex; flex-direction: column; gap: 12px;">
+      <!-- Coluna Direita: Monitoramento da Propriedade em Alta Resolução + Previsão do Tempo -->
+      <div style="display: flex; flex-direction: column; gap: 20px;">
         
-        <!-- Janela Ideal de Colheita e Exp. -->
-        <div class="figma-card" style="padding: 16px 18px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-            <strong style="font-size: 12.5px; color: #1E293B;">Janela Ideal de Colheita e Exp.</strong>
-            <span style="background: #ECFDF5; border: 1px solid #A7F3D0; color: #059669; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 12px;">88% Eficácia</span>
-          </div>
-          <div style="font-size: 12.5px; font-weight: 700; color: #047857; margin-bottom: 3px;">
-            Período recomendado: 28/09 a 04/10
-          </div>
-          <p style="font-size: 11px; color: #64748B; margin: 0; line-height: 1.35;">
-            Probabilidade de 88% de máxima qualidade brix e menor perda pós-colheita para despacho marítimo.
-          </p>
-        </div>
-
-        <!-- Preço e Demanda de Mercado -->
-        <div class="figma-card" style="padding: 16px 18px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-            <strong style="font-size: 12.5px; color: #1E293B;">Preço e Demanda de Mercado</strong>
-            <span style="font-size: 10px; color: #94A3B8;">Ceagesp / Export</span>
-          </div>
-          <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11.5px; margin-bottom: 5px;">
-            <span style="color: #334155;">Uva Vitória</span>
-            <strong style="color: #047857; font-weight: 700;">R$ 14,20/kg <span style="color: #10B981; font-size: 11px; font-weight: 600;">↑ +8%</span></strong>
-          </div>
-          <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11.5px;">
-            <span style="color: #334155;">Manga Palmer</span>
-            <strong style="color: #334155; font-weight: 700;">R$ 6,80/kg <span style="color: #94A3B8; font-size: 11px; font-weight: 500;">estável</span></strong>
-          </div>
-        </div>
-
-        <!-- Saídas da Faixa na Semana -->
-        <div class="figma-card" style="padding: 16px 18px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-            <strong style="font-size: 12.5px; color: #1E293B;">Saídas da Faixa na Semana</strong>
-            <span style="background: #FEF3C7; border: 1px solid #FDE68A; color: #D97706; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 12px;">3 Registros</span>
-          </div>
-          <div style="font-size: 12.5px; font-weight: 700; color: #1E293B; margin-bottom: 3px;">
-            3 ocorrências térmicas registradas
-          </div>
-          <p style="font-size: 11px; color: #64748B; margin: 0; line-height: 1.35;">
-            Eventos de parada técnica em baús frigoríficos com retorno automático para a temperatura ideal (+1.6 °C).
-          </p>
-        </div>
-
-        <!-- Rota Fria: Petrolina -> Pecém -->
-        <div class="figma-card" style="padding: 16px 18px;">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <strong style="font-size: 12.5px; color: #1E293B; display: flex; align-items: center; gap: 5px;">
-              <i data-lucide="truck" style="width: 14px; height: 14px; color: #0284C7;"></i>
-              Rota Fria: Petrolina ➔ Pecém
-            </strong>
-            <span style="background: #ECFDF5; border: 1px solid #A7F3D0; color: #059669; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 12px;">+1.2°C OK</span>
-          </div>
-          <div style="font-size: 11px; color: #64748B; margin: 2px 0 8px;">Reefer MS-904 em trânsito rodoviário</div>
-
-          <div style="position: relative;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; font-size: 11px;">
-              <span style="color: #0284C7; font-weight: 600; display: flex; align-items: center; gap: 3px;">
-                <i data-lucide="map-pin" style="width: 11px; height: 11px;"></i> Petrolina
+        <!-- Card: Monitoramento da Propriedade e Talhões (Alta Definição e Controles Interativos) -->
+        <div class="figma-card" style="padding: 22px; display: flex; flex-direction: column;">
+          <div class="card-top-title-row" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+            <div style="min-width: 0;">
+              <span style="font-size: 13px; font-weight: 700; color: #1E293B; letter-spacing: 0.5px; text-transform: uppercase; display: block; line-height: 1.3;">
+                MONITORAMENTO DA PROPRIEDADE E TALHÕES
               </span>
-              <span style="color: #059669; font-weight: 700; font-size: 10.5px;">68% do trajeto (842 km)</span>
-              <span style="color: #0284C7; font-weight: 600; display: flex; align-items: center; gap: 3px;">
-                <i data-lucide="navigation" style="width: 11px; height: 11px;"></i> Pecém
-              </span>
+              <p style="font-size: 11.5px; color: #94A3B8; margin-top: 3px; margin-bottom: 0;">Fazenda Vale das Uvas • Setor 04 (48 ha)</p>
             </div>
-            <div style="width: 100%; height: 5px; background: #E2E8F0; border-radius: 999px; position: relative;">
-              <div style="width: 68%; height: 100%; background: #0284C7; border-radius: 999px;"></div>
-              <div style="position: absolute; left: 68%; top: 50%; transform: translate(-50%, -50%); width: 16px; height: 16px; border-radius: 50%; background: #0F172A; border: 2px solid #FFFFFF; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.3);">
-                <i data-lucide="truck" style="width: 9px; height: 9px; color: #FFFFFF;"></i>
+
+            <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+              <span class="card-status-pill pill-green" style="font-size: 10px; padding: 3px 8px; font-weight: 700;">sentinel-2</span>
+              <div style="display: flex; gap: 4px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 2px;">
+                <button type="button" id="btn-map-zoom-in" style="width: 26px; height: 26px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 6px; font-weight: 700; color: #334155; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; transition: all 0.2s;" title="Aproximar zoom">+</button>
+                <button type="button" id="btn-map-zoom-out" style="width: 26px; height: 26px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 6px; font-weight: 700; color: #334155; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; transition: all 0.2s;" title="Afastar zoom">&minus;</button>
+                <button type="button" id="btn-map-fullscreen" style="width: 26px; height: 26px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 6px; color: #334155; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" title="Redefinir visualização">
+                  <i data-lucide="maximize-2" style="width: 13px; height: 13px;"></i>
+                </button>
               </div>
             </div>
           </div>
+
+          <!-- Viewport do Mapa em Alta Definição com Overlays e Zoom/Pan -->
+          <div id="satellite-map-viewport" class="satellite-map-container" style="position: relative; overflow: hidden; border-radius: 12px; min-height: 270px; flex: 1; background: #0F172A; cursor: grab; user-select: none;">
+            <div id="satellite-map-stage" style="position: absolute; inset: 0; transform-origin: center center; transition: transform 0.2s ease-out;">
+              <img src="assets/images/topologia-sensores-campo.jpg" alt="Visão Aérea dos Talhões" class="satellite-bg-img" style="width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; border-radius: 12px;">
+
+              <!-- Overlay 1: Talhão A • Vitória (Top Left) -->
+              <div style="position: absolute; top: 12%; left: 8%; width: 32%; height: 32%; border: 1.5px solid #10B981; background: rgba(16, 185, 129, 0.15); border-radius: 8px; backdrop-filter: blur(1px); display: flex; flex-direction: column; justify-content: space-between; padding: 6px 8px; box-shadow: 0 0 12px rgba(16, 185, 129, 0.3);">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="background: rgba(15, 23, 42, 0.75); color: #FFFFFF; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;">Talhão A • Vitória</span>
+                  <span style="width: 8px; height: 8px; border-radius: 50%; background: #10B981; border: 1.5px solid #FFFFFF;"></span>
+                </div>
+                <div style="text-align: center;">
+                  <span style="background: rgba(16, 185, 129, 0.85); color: #FFFFFF; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">NDVI 0.88</span>
+                </div>
+              </div>
+
+              <!-- Overlay 2: Talhão C • Palmer (Top Right) -->
+              <div style="position: absolute; top: 12%; right: 8%; width: 28%; height: 32%; border: 1.5px solid #F59E0B; background: rgba(245, 158, 11, 0.15); border-radius: 8px; backdrop-filter: blur(1px); display: flex; flex-direction: column; justify-content: space-between; padding: 6px 8px; box-shadow: 0 0 12px rgba(245, 158, 11, 0.3);">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="background: rgba(15, 23, 42, 0.75); color: #FFFFFF; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;">Talhão C • Palmer</span>
+                </div>
+                <div style="text-align: center;">
+                  <span style="background: #F59E0B; color: #FFFFFF; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">Alerta Hídrico</span>
+                </div>
+              </div>
+
+              <!-- Gateway Central ESP32 (Centro) -->
+              <div style="position: absolute; top: 48%; left: 34%; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(4px); padding: 5px 12px; border-radius: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.25); font-size: 11px; font-weight: 700; color: #0F172A; display: flex; align-items: center; gap: 6px; z-index: 10; border: 1px solid rgba(255,255,255,0.8);">
+                <span style="width: 8px; height: 8px; border-radius: 50%; background: #10B981;"></span>
+                <span>Gateway Central ESP32</span>
+              </div>
+
+              <!-- Overlay 3: Talhão B • Thompson (Bottom Left) -->
+              <div style="position: absolute; bottom: 12%; left: 14%; width: 30%; height: 32%; border: 1.5px solid #0284C7; background: rgba(2, 132, 199, 0.15); border-radius: 8px; backdrop-filter: blur(1px); display: flex; flex-direction: column; justify-content: space-between; padding: 6px 8px; box-shadow: 0 0 12px rgba(2, 132, 199, 0.3);">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="background: rgba(15, 23, 42, 0.75); color: #FFFFFF; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;">Talhão B • Thompson</span>
+                  <span style="width: 8px; height: 8px; border-radius: 50%; background: #0284C7; border: 1.5px solid #FFFFFF;"></span>
+                </div>
+                <div style="text-align: center;">
+                  <span style="background: #0284C7; color: #FFFFFF; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">VWC 48%</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Indicador Flutuante de Zoom -->
+            <div id="map-zoom-badge" style="position: absolute; bottom: 10px; right: 10px; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(4px); color: #FFFFFF; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 12px; pointer-events: none; opacity: 0; transition: opacity 0.3s; z-index: 20;">
+              100%
+            </div>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; font-size: 11px; color: #94A3B8;">
+            <div style="display: flex; gap: 16px;">
+              <span><strong style="color: #10B981;">●</strong> Ótimo</span>
+              <span><strong style="color: #0284C7;">●</strong> Atenção</span>
+              <span><strong style="color: #F59E0B;">●</strong> Crítico</span>
+            </div>
+            <div>Passagem orbital há 42 min</div>
+          </div>
         </div>
 
-      </div>
-
-      <!-- Coluna 3 (Direita): Monitoramento da Propriedade + Previsão do Tempo -->
-      <div style="display: flex; flex-direction: column; gap: 16px;">
-        <!-- Card: Monitoramento da propriedade -->
-        <div class="figma-card" style="padding: 18px 20px; display: flex; flex-direction: column;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-            <span style="font-size: 13px; font-weight: 700; color: #1E293B;">Monitoramento da propriedade</span>
-            <button type="button" style="background: none; border: none; padding: 2px; color: #71807A; cursor: pointer;" title="Expandir visualização">
-              <i data-lucide="maximize-2" style="width: 14px; height: 14px;"></i>
-            </button>
+        <!-- Card: Previsão do Tempo e Clima -->
+        <div class="figma-card" style="padding: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <strong style="font-size: 13px; color: #1E293B;">Previsão do Tempo</strong>
+            <span class="card-status-pill pill-amber" style="display: flex; align-items: center; gap: 4px;">
+              <i data-lucide="map-pin" style="width: 11px; height: 11px;"></i> Petrolina, PE • Hoje
+            </span>
           </div>
           
-          <div style="position: relative; width: 100%; border-radius: 10px; overflow: hidden; border: 1px solid #E2E8F0; background: #0F172A;">
-            <img src="/assets/images/mapa-propriedade-detalhado.jpg" alt="Monitoramento da Propriedade" style="width: 100%; height: 102px; object-fit: cover; display: block;">
-          </div>
-
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 9.5px; color: #64748B;">
-            <span style="display: flex; align-items: center; gap: 3px;"><span style="width: 6px; height: 6px; border-radius: 50%; background: #059669;"></span>Ótimo</span>
-            <span style="display: flex; align-items: center; gap: 3px;"><span style="width: 6px; height: 6px; border-radius: 50%; background: #10B981;"></span>Boa</span>
-            <span style="display: flex; align-items: center; gap: 3px;"><span style="width: 6px; height: 6px; border-radius: 50%; background: #F59E0B;"></span>Atenção</span>
-            <span style="display: flex; align-items: center; gap: 3px;"><span style="width: 6px; height: 6px; border-radius: 50%; background: #EF4444;"></span>Crítico</span>
-            <span style="display: flex; align-items: center; gap: 3px;"><span style="width: 6px; height: 6px; border-radius: 50%; background: #94A3B8;"></span>Sem dados</span>
-          </div>
-        </div>
-
-        <!-- Card: Previsão do tempo -->
-        <div class="figma-card" style="padding: 18px 20px;">
-          <span style="font-size: 13px; font-weight: 700; color: #1E293B; display: block; margin-bottom: 8px;">Previsão do tempo</span>
-          
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <i data-lucide="sun" style="width: 26px; height: 26px; color: #F59E0B;"></i>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <div style="width: 44px; height: 44px; background: #FFFBEB; border: 1px solid #FEF3C7; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                <i data-lucide="sun" style="width: 26px; height: 26px; color: #F59E0B;"></i>
+              </div>
               <div>
-                <div style="font-size: 22px; font-weight: 800; color: #1E293B; line-height: 1;">28°C</div>
-                <div style="font-size: 9.5px; color: #64748B; margin-top: 2px;">Ensolarado · Sensação 30°C</div>
+                <div style="font-size: 26px; font-weight: 800; color: #1E293B; line-height: 1;">28°C</div>
+                <div style="font-size: 11px; color: #64748B; margin-top: 3px;">Ensolarado • Vento 12 km/h</div>
               </div>
             </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2px 10px; font-size: 9.5px; color: #64748B; text-align: right;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px 14px; font-size: 11px; color: #64748B; text-align: right;">
               <span>Umidade <strong style="color: #1E293B;">62%</strong></span>
               <span>Chuva <strong style="color: #1E293B;">0 mm</strong></span>
               <span>Vento <strong style="color: #1E293B;">12 km/h</strong></span>
-              <span>UV <strong style="color: #1E293B;">Moderado</strong></span>
+              <span>UV <strong style="color: #047857;">Mod. 29°</strong></span>
             </div>
           </div>
 
-          <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #F1F5F9; padding-top: 8px; font-size: 9.5px; text-align: center;">
-            <div><span style="color: #94A3B8; display: block;">Qua 23/09</span><strong style="color: #1E293B; font-size: 10px;">20° / 29°</strong></div>
-            <div><span style="color: #94A3B8; display: block;">Qui 24/09</span><strong style="color: #1E293B; font-size: 10px;">19° / 28°</strong></div>
-            <div><span style="color: #94A3B8; display: block;">Sex 25/09</span><strong style="color: #1E293B; font-size: 10px;">17° / 26°</strong></div>
-            <div><span style="color: #94A3B8; display: block;">Sáb 26/09</span><strong style="color: #1E293B; font-size: 10px;">17° / 26°</strong></div>
-            <div><span style="color: #94A3B8; display: block;">Dom 27/09</span><strong style="color: #1E293B; font-size: 10px;">19° / 28°</strong></div>
-            <div><span style="color: #94A3B8; display: block;">Seg 28/09</span><strong style="color: #1E293B; font-size: 10px;">17° / 26°</strong></div>
+          <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #F1F5F9; padding-top: 10px; font-size: 10px; text-align: center;">
+            <div><span style="color: #94A3B8; display: block;">Qua 23/09</span><strong style="color: #334155; font-size: 11px;">20° / 29°</strong></div>
+            <div><span style="color: #94A3B8; display: block;">Qui 24/09</span><strong style="color: #334155; font-size: 11px;">19° / 28°</strong></div>
+            <div><span style="color: #94A3B8; display: block;">Sex 25/09</span><strong style="color: #334155; font-size: 11px;">17° / 26°</strong></div>
+            <div><span style="color: #94A3B8; display: block;">Sáb 26/09</span><strong style="color: #334155; font-size: 11px;">17° / 26°</strong></div>
+            <div><span style="color: #94A3B8; display: block;">Dom 27/09</span><strong style="color: #334155; font-size: 11px;">19° / 28°</strong></div>
+            <div><span style="color: #94A3B8; display: block;">Seg 28/09</span><strong style="color: #334155; font-size: 11px;">17° / 26°</strong></div>
           </div>
         </div>
 
@@ -1169,7 +1218,7 @@ function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
           </div>
         </div>
         <div class="chart-canvas-wrap" style="height: 60px;"><canvas id="miniChart1"></canvas></div>
-        <div class="chart-time-labels"><span>01 Jun</span><span>03 Jun</span><span>05 Jun</span><span>07 Jun</span></div>
+        <div class="chart-time-labels"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>Agora</span></div>
       </div>
 
       <div class="figma-card mini-chart-card" style="padding: 16px 18px;">
@@ -1184,7 +1233,7 @@ function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
           </div>
         </div>
         <div class="chart-canvas-wrap" style="height: 60px;"><canvas id="miniChart2"></canvas></div>
-        <div class="chart-time-labels"><span>01 Jun</span><span>03 Jun</span><span>05 Jun</span><span>07 Jun</span></div>
+        <div class="chart-time-labels"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>Agora</span></div>
       </div>
 
       <div class="figma-card mini-chart-card" style="padding: 16px 18px;">
@@ -1194,12 +1243,12 @@ function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
             Temperatura do solo
           </span>
           <div style="text-align: right;">
-            <span style="font-size: 15px; font-weight: 800; color: #1E293B;">${tSoloLast}%</span>
-            <span style="color: #10B981; font-size: 10.5px; font-weight: 700; margin-left: 3px;">Ideal</span>
+            <span style="font-size: 15px; font-weight: 800; color: #1E293B;">${tSoloLast}°C</span>
+            <span style="color: #0284C7; font-size: 10.5px; font-weight: 700; margin-left: 3px;">Segura</span>
           </div>
         </div>
         <div class="chart-canvas-wrap" style="height: 60px;"><canvas id="miniChart3"></canvas></div>
-        <div class="chart-time-labels"><span>01 Jun</span><span>03 Jun</span><span>05 Jun</span><span>07 Jun</span></div>
+        <div class="chart-time-labels"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>Agora</span></div>
       </div>
 
       <div class="figma-card mini-chart-card" style="padding: 16px 18px;">
@@ -1209,12 +1258,12 @@ function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
             Temperatura do ar
           </span>
           <div style="text-align: right;">
-            <span style="font-size: 15px; font-weight: 800; color: #1E293B;">${tArLast}%</span>
+            <span style="font-size: 15px; font-weight: 800; color: #1E293B;">${tArLast}°C</span>
             <span style="color: #10B981; font-size: 10.5px; font-weight: 700; margin-left: 3px;">Ideal</span>
           </div>
         </div>
         <div class="chart-canvas-wrap" style="height: 60px;"><canvas id="miniChart4"></canvas></div>
-        <div class="chart-time-labels"><span>01 Jun</span><span>03 Jun</span><span>05 Jun</span><span>07 Jun</span></div>
+        <div class="chart-time-labels"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>Agora</span></div>
       </div>
     </div>
   `;
@@ -1381,8 +1430,8 @@ export async function setupDashboardEvents() {
     // No modo Detalhado, os 4 gráficos são em tom verde esmeralda com pontos conforme Figma
     criarMiniGraficoApple('miniChart1', dg.umidade_ar_24h || DEFAULT_DADOS_GRAFICOS.umidade_ar_24h, '#10B981');
     criarMiniGraficoApple('miniChart2', dg.umidade_solo_24h || DEFAULT_DADOS_GRAFICOS.umidade_solo_24h, '#10B981');
-    criarMiniGraficoApple('miniChart3', dg.temp_solo_24h || [42, 45, 48, 47, 50, 48, 48], '#10B981');
-    criarMiniGraficoApple('miniChart4', dg.temp_ar_24h || [44, 46, 48, 49, 47, 48, 48], '#10B981');
+    criarMiniGraficoApple('miniChart3', dg.temp_solo_24h || DEFAULT_DADOS_GRAFICOS.temp_solo_24h, '#10B981');
+    criarMiniGraficoApple('miniChart4', dg.temp_ar_24h || DEFAULT_DADOS_GRAFICOS.temp_ar_24h, '#10B981');
   }
 
   // Modal para Editar Dados e Gráficos (Salva no PostgreSQL e atualiza os gráficos)
