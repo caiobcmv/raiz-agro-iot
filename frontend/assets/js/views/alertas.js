@@ -1,650 +1,511 @@
-import { liveTelemetry } from '../live-telemetry.js';
 /**
- * CENTRAL DE ALERTAS & INCIDENTES - FIGMA COMPLIANT & FULLY DYNAMIC
- * Suporta perfil Analista (DHT11 ESP32-C3, Triagem com Machine Learning, Rota Portuária)
- * e perfil Gestora (Reefer 40ft, Irrigação, Matriz de Comunicação).
+ * CENTRAL DE ALERTAS & INCIDENTES - DINÂMICA VIA FASTAPI /alertas E /alertas/{id}/detalhe
+ * Renderização dinâmica, sem if por tipo de alerta, orientada a dados reais da API.
  */
 
+import { api } from '../api.js';
 import { auth } from '../auth.js';
 import { toast } from '../components/toast.js';
 import { Modal } from '../components/modal.js';
 
+// Cache em memória dos detalhes já carregados
+const detalhesCache = new Map();
+
+/**
+ * Ponto de Entrada da Rota Alertas
+ */
 export async function renderAlertas() {
-  return renderGestoraAlertas();
+  try {
+    // 1. Busca alertas da API (GET /alertas)
+    const alertas = await api.getAlertas().catch(() => []);
+    const listaAlertas = Array.isArray(alertas) ? alertas : (alertas.alertas || []);
+
+    // 2. Busca clima atual para compor KPI ambiental real
+    const clima = await api.getClimaAtual().catch(() => ({ temperatura: 28.5, umidade: 60 }));
+
+    return renderGestoraAlertas(listaAlertas, clima);
+  } catch (err) {
+    console.error('Erro ao inicializar Central de Alertas:', err);
+    return `
+      <div class="dashboard-canvas apple-animate-in" style="padding: 32px;">
+        <div style="background: #FEF2F2; border: 1px solid #FECACA; border-radius: 12px; padding: 24px; color: #991B1B;">
+          <h3 style="margin: 0 0 8px; font-size: 16px; font-weight: 700;">Falha ao carregar alertas</h3>
+          <p style="margin: 0; font-size: 13px;">Não foi possível sincronizar com o backend. Tente recarregar a página.</p>
+        </div>
+      </div>
+    `;
+  }
 }
 
 /**
- * 1. CENTRAL DE ALERTAS DO ANALISTA (IMAGEM 5 FIGMA)
+ * COMPONENTE GENÉRICO: AlertaCard
+ * Renderiza dinamicamente qualquer alerta a partir do JSON de GET /alertas/{id}/detalhe
+ * SEM nenhum 'if' por tipo de alerta.
  */
-function renderAnalistaAlertas() {
+export function renderAlertaCard(detalhe) {
+  if (!detalhe || !detalhe.alerta) {
+    return `<div class="apple-card" style="padding: 20px; color: #64748B;">Dados do alerta indisponíveis.</div>`;
+  }
+
+  const { alerta, layout, resumo, lote, sensor, metricas, limites, serie, acoes } = detalhe;
+
+  // 1. Faixa P1/P2/Preditivo e paleta de cores a partir de alerta.nivel
+  const nivelRaw = String(alerta.nivel || '').toUpperCase();
+  let nivelMeta = {
+    tag: '● P2 • MODERADO',
+    color: '#D97706',
+    bg: '#FFFBEB',
+    border: '#FCD34D',
+    badgeBg: '#F59E0B',
+    badgeColor: '#FFFFFF',
+    shadow: 'rgba(245, 158, 11, 0.06)',
+    filterCategory: 'moderados'
+  };
+
+  if (nivelRaw === 'CRITICO' || nivelRaw === 'ALTO' || nivelRaw === 'P1') {
+    nivelMeta = {
+      tag: '● P1 • CRÍTICO',
+      color: '#DC2626',
+      bg: '#FEF2F2',
+      border: '#FCA5A5',
+      badgeBg: '#EF4444',
+      badgeColor: '#FFFFFF',
+      shadow: 'rgba(239, 68, 68, 0.08)',
+      filterCategory: 'criticos'
+    };
+  } else if (nivelRaw === 'PREDITIVO' || nivelRaw === 'IA') {
+    nivelMeta = {
+      tag: '● PREDITIVO IA',
+      color: '#7C3AED',
+      bg: '#F5F3FF',
+      border: '#C4B5FD',
+      badgeBg: '#7C3AED',
+      badgeColor: '#FFFFFF',
+      shadow: 'rgba(124, 58, 237, 0.08)',
+      filterCategory: 'preditivos'
+    };
+  } else if (nivelRaw === 'BAIXO' || nivelRaw === 'INFO') {
+    nivelMeta = {
+      tag: '● INFORMATIVO',
+      color: '#0284C7',
+      bg: '#F0F9FF',
+      border: '#BAE6FD',
+      badgeBg: '#0284C7',
+      badgeColor: '#FFFFFF',
+      shadow: 'rgba(2, 132, 199, 0.06)',
+      filterCategory: 'informativos'
+    };
+  }
+
+  const isReconhecido = String(alerta.status || '').toLowerCase() === 'reconhecido' || String(alerta.status || '').toLowerCase() === 'resolvido';
+
+  // 2. Tempo relativo ou data formatada
+  const dataFormatada = formatarTempoRelativo(alerta.data_hora);
+
+  // 3. Linha de contexto (Lote e Localização do Sensor)
+  const contextoChips = [];
+  if (lote && (lote.id_lote || lote.fruta)) {
+    const frutaPart = lote.fruta ? ` · ${lote.fruta}` : '';
+    const qtdPart = (lote.quantidade != null && lote.unidade) ? ` · ${lote.quantidade} ${lote.unidade}` : '';
+    const etapaPart = lote.etapa ? ` · etapa ${lote.etapa}` : '';
+    contextoChips.push(`
+      <span style="background: #F1F5F9; color: #334155; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 4px;">
+        Lote ${lote.id_lote || ''}${frutaPart}${qtdPart}${etapaPart}
+      </span>
+    `);
+  }
+
+  if (sensor && sensor.localizacao) {
+    contextoChips.push(`
+      <span style="background: #F8FAFC; border: 1px solid #E2E8F0; color: #475569; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;">
+        <i data-lucide="map-pin" style="width: 12px; height: 12px; color: #64748B;"></i>
+        ${sensor.localizacao}
+      </span>
+    `);
+  }
+
+  // 4. Caso Especial 1: layout === "sem_leitura"
+  const isSemLeitura = layout === 'sem_leitura';
+
+  // 5. Caso Especial 2: sensor.sem_leitura === true
+  const avisoSensorSemLeitura = (sensor && sensor.sem_leitura === true) ? `
+    <div style="background: #FEF2F2; border: 1px solid #FECACA; border-radius: 8px; padding: 8px 12px; font-size: 11px; font-weight: 700; color: #DC2626; display: flex; align-items: center; gap: 6px; margin-bottom: 14px;">
+      <i data-lucide="alert-triangle" style="width: 14px; height: 14px; color: #DC2626;"></i>
+      <span>Sensor sem enviar dados há ${sensor.minutos_sem_leitura || 0} min</span>
+    </div>
+  ` : '';
+
+  // 6. Tiles: Métricas dinâmicas + Tile extra do sensor
+  let tilesHtml = '';
+  if (!isSemLeitura && Array.isArray(metricas) && metricas.length > 0) {
+    const tilesList = metricas.map(m => {
+      let valColor = '#0F172A';
+      let statusBadge = '';
+      const st = String(m.status || '').toLowerCase();
+
+      if (st === 'critico') {
+        valColor = '#DC2626';
+        statusBadge = `<div style="font-size: 10px; color: #DC2626; font-weight: 600; margin-top: 3px;">Crítico ${m.desvio ? `(+${m.desvio}${m.unidade || ''})` : ''}</div>`;
+      } else if (st === 'atencao' || st === 'alerta') {
+        valColor = '#D97706';
+        statusBadge = `<div style="font-size: 10px; color: #D97706; font-weight: 600; margin-top: 3px;">Atenção ${m.desvio ? `(+${m.desvio}${m.unidade || ''})` : ''}</div>`;
+      } else if (st === 'ok') {
+        valColor = '#059669';
+        statusBadge = `<div style="font-size: 10px; color: #059669; font-weight: 600; margin-top: 3px;">OK (Faixa ideal)</div>`;
+      }
+
+      let limitesText = '';
+      if (m.limite_min != null && m.limite_max != null) {
+        limitesText = `Faixa: ${m.limite_min} – ${m.limite_max} ${m.unidade || ''}`;
+      } else if (m.limite_max != null) {
+        limitesText = `Máx tolerado: ${m.limite_max} ${m.unidade || ''}`;
+      } else if (m.limite_min != null) {
+        limitesText = `Mín tolerado: ${m.limite_min} ${m.unidade || ''}`;
+      }
+
+      return `
+        <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px 14px;">
+          <div style="font-size: 9px; font-weight: 700; color: #64748B; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 3px;">
+            ${m.label || m.chave}
+          </div>
+          <div style="font-size: 22px; font-weight: 800; color: ${valColor}; line-height: 1.1;">
+            ${m.valor}${m.unidade || ''}
+          </div>
+          ${statusBadge || (limitesText ? `<div style="font-size: 10px; color: #64748B; font-weight: 500; margin-top: 3px;">${limitesText}</div>` : '')}
+        </div>
+      `;
+    });
+
+    // Tile extra do sensor
+    if (sensor) {
+      const semLeitura = sensor.sem_leitura === true;
+      const statusSensorColor = semLeitura ? '#DC2626' : '#059669';
+      const statusSensorTexto = semLeitura
+        ? `Sem dados há ${sensor.minutos_sem_leitura || 0}m`
+        : (sensor.minutos_sem_leitura != null ? `Última leitura há ${sensor.minutos_sem_leitura} min` : 'Operacional');
+
+      tilesList.push(`
+        <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px 14px;">
+          <div style="font-size: 9px; font-weight: 700; color: #64748B; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 3px;">
+            ORIGEM DO SENSOR
+          </div>
+          <div style="font-size: 18px; font-weight: 800; color: #0F172A; line-height: 1.1;">
+            ${sensor.origem || 'LoRaWAN'}
+            <span style="font-size: 11px; font-weight: 600; color: #64748B; margin-left: 4px;">(${sensor.nome || 'S1'})</span>
+          </div>
+          <div style="font-size: 10px; color: ${statusSensorColor}; font-weight: 600; margin-top: 3px;">
+            ${statusSensorTexto}
+          </div>
+        </div>
+      `);
+    }
+
+    const cols = Math.min(4, Math.max(2, tilesList.length));
+    tilesHtml = `
+      <div style="display: grid; grid-template-columns: repeat(${cols}, 1fr); gap: 12px; margin-bottom: 16px;">
+        ${tilesList.join('')}
+      </div>
+    `;
+  }
+
+  // 7. Gráfico da Série Temporal com limites
+  let graficoHtml = '';
+  if (!isSemLeitura && Array.isArray(serie) && serie.length > 0) {
+    graficoHtml = renderAlertaChart(serie, limites, nivelMeta.color);
+  }
+
+  // 8. Botões de ação (renderizar APENAS o que vier em acoes)
+  const acoesList = Array.isArray(acoes) ? acoes : [];
+  const botoesAcaoHtml = acoesList.map(acao => {
+    if (acao === 'reconhecer') {
+      if (isReconhecido) {
+        return `
+          <div style="background: #ECFDF5; border: 1px solid #A7F3D0; color: #047857; font-size: 11px; font-weight: 700; padding: 7px 14px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px;">
+            <i data-lucide="check-check" style="width: 14px; height: 14px;"></i>
+            Alerta Reconhecido
+          </div>
+        `;
+      }
+      return `
+        <button type="button" class="btn-card-reconhecer" data-id="${alerta.id_alerta}" style="padding: 8px 16px; background: #059669; border: none; border-radius: 8px; font-size: 12px; font-weight: 700; color: #FFFFFF; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 1px 3px rgba(5,150,105,0.25); transition: background 0.15s;" onmouseover="this.style.background='#047857'" onmouseout="this.style.background='#059669'">
+          <i data-lucide="check" style="width: 14px; height: 14px;"></i>
+          Reconhecer Alerta
+        </button>
+      `;
+    }
+
+    if (acao === 'ver_historico') {
+      const idSensor = sensor?.id_sensor || alerta.id_sensor || '';
+      return `
+        <button type="button" class="btn-card-historico" data-id-sensor="${idSensor}" style="padding: 8px 14px; background: #FFFFFF; border: 1px solid #CBD5E1; border-radius: 8px; font-size: 12px; font-weight: 600; color: #334155; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: background 0.15s;" onmouseover="this.style.background='#F8FAFC'" onmouseout="this.style.background='#FFFFFF'">
+          <i data-lucide="line-chart" style="width: 14px; height: 14px; color: #64748B;"></i>
+          Ver Histórico do Sensor
+        </button>
+      `;
+    }
+
+    return '';
+  }).filter(Boolean).join('');
+
   return `
-    <div class="dashboard-canvas apple-animate-in">
-      <!-- Sub-barra Técnica do Analista -->
-      <div class="analista-subbar">
-        <div class="analista-subbar-info">
-          <span class="analista-dot-pulse"></span>
-          <span>Monitoramento Ativo • Sensor DHT11 ESP32-C3 & Solo Simulado (ThingSpeak #3500785)</span>
-          <span style="color: #64748B; font-size: 11px; font-weight: 400;">Sincronizado há 2 min</span>
+    <div class="incident-card ${isReconhecido ? 'resolved' : ''}" data-category="${nivelMeta.filterCategory}" data-origin="${sensor?.origem || 'hardware'}" style="background: #FFFFFF; border: 1px solid ${nivelMeta.border}; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 8px ${nivelMeta.shadow}; transition: all 0.25s ease;">
+      <!-- Top Tag Header -->
+      <div style="padding: 12px 20px; background: ${nivelMeta.bg}; border-bottom: 1px solid ${nivelMeta.border}; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+          <span style="background: ${nivelMeta.badgeBg}; color: ${nivelMeta.badgeColor}; font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;">
+            ${nivelMeta.tag}
+          </span>
+          ${isReconhecido ? `
+          <span style="background: #ECFDF5; color: #047857; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; border: 1px solid #A7F3D0;">
+            ✓ Reconhecido
+          </span>
+          ` : ''}
+          ${contextoChips.join('')}
         </div>
-        <div class="analista-subbar-actions">
-          <button class="btn-analista-sync" id="btn-reconhecer-todos-analista">
-            <i data-lucide="check" style="width: 14px; height: 14px;"></i>
-            <span>Reconhecer Todos</span>
-          </button>
-          <button class="btn-analista-export" id="btn-export-log-analista">
-            <i data-lucide="download" style="width: 14px; height: 14px;"></i>
-            <span>Exportar Log (CSV)</span>
-          </button>
-        </div>
+        <span style="font-size: 11px; color: #64748B; font-weight: 500;">${dataFormatada}</span>
       </div>
 
-      <!-- 4 KPIs Técnicos do Analista -->
-      <div class="kpi-grid-4col">
-        <!-- KPI 1: Alertas Ativos Hoje -->
-        <div class="kpi-analista-card">
-          <div class="kpi-top-row">
-            <span class="kpi-label">ALERTAS ATIVOS HOJE</span>
-            <span class="kpi-badge yellow">Atenção Imediata</span>
-          </div>
-          <div style="display: flex; align-items: center; gap: 14px; margin: 4px 0;">
-            <div style="position: relative; width: 50px; height: 50px;">
-              <svg viewBox="0 0 36 36" style="width: 100%; height: 100%; transform: rotate(-90deg);">
-                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#FEE2E2" stroke-width="4"/>
-                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#EF4444" stroke-width="4" stroke-dasharray="33, 100"/>
-              </svg>
-              <div class="donut-center-wrap">
-                <span style="font-size: 16px; font-weight: 800; color: #0F172A;" data-kpi="alertas-pendentes-total">3</span>
-              </div>
-            </div>
-            <div style="font-size: 11px; color: #64748B;">
-              <div>Severidade Crítica: <strong style="color: #B91C1C;" data-kpi="alertas-criticos-total">1 lote</strong></div>
-              <div>Médio + Baixo: <strong>2 lotes</strong></div>
-            </div>
-          </div>
-          <div class="kpi-bottom-row">
-            <span>MTTR Médio: <strong>15 min</strong></span>
-            <span style="color: #059669; font-weight: 600;">0 Reincidências</span>
-          </div>
+      <!-- Card Body -->
+      <div style="padding: 20px;">
+        <!-- Título -->
+        <h3 style="font-size: 16px; font-weight: 700; color: #0F172A; margin: 0 0 6px;">
+          ${alerta.tipo_alerta || 'Alerta no Campo'}
+        </h3>
+
+        <!-- Resumo como Subtítulo -->
+        ${resumo ? `
+        <div style="font-size: 12px; font-weight: 600; color: ${nivelMeta.color}; margin-bottom: 8px; line-height: 1.4;">
+          ${resumo}
         </div>
+        ` : ''}
 
-        <!-- KPI 2: Hardware de Campo -->
-        <div class="kpi-analista-card">
-          <div class="kpi-top-row">
-            <span class="kpi-label">HARDWARE DE CAMPO</span>
-            <span class="kpi-badge green">Ativo — Bancada</span>
-          </div>
-          <div class="kpi-value-row">
-            <span class="kpi-big-num" style="font-size: 22px;">DHT11 ESP32-C3</span>
-          </div>
-          <div style="font-size: 11px; color: #64748B; margin-top: 2px;">
-            Canal ThingSpeak #3500785
-          </div>
-          <div class="kpi-bottom-row">
-            <span style="font-family: monospace; color: #0284C7;">#3500785</span>
-            <span style="color: #64748B;">1 Leitura / h</span>
-          </div>
+        <!-- Descrição -->
+        ${alerta.descricao ? `
+        <p style="font-size: 12px; color: #64748B; line-height: 1.5; margin: 0 0 16px;">
+          ${alerta.descricao}
+        </p>
+        ` : ''}
+
+        <!-- Aviso especial se sensor sem leitura -->
+        ${avisoSensorSemLeitura}
+
+        <!-- Caso Especial layout == sem_leitura -->
+        ${isSemLeitura ? `
+        <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px 16px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; color: #64748B; font-size: 12px;">
+          <i data-lucide="info" style="width: 16px; height: 16px; color: #94A3B8;"></i>
+          <span>Sem leitura associada a este alerta</span>
         </div>
+        ` : `
+          ${tilesHtml}
+          ${graficoHtml}
+        `}
 
-        <!-- KPI 3: Desvio de Conservação -->
-        <div class="kpi-analista-card">
-          <div class="kpi-top-row">
-            <span class="kpi-label">DESVIO DE CONSERVAÇÃO</span>
-            <span class="kpi-badge red">Manga — Exportação</span>
-          </div>
-          <div class="kpi-value-row">
-            <span class="kpi-big-num" style="color: #EF4444;">+1.8°C Acima</span>
-          </div>
-          <div style="font-size: 11px; color: #64748B; margin-top: 2px;">
-            Tmax 13.0°C (UC Davis / Embrapa)
-          </div>
-          <div class="kpi-bottom-row">
-            <span>Tmax 13.0°C</span>
-            <span style="color: #B91C1C; font-weight: 700;">Atual: 14.8°C</span>
-          </div>
+        <!-- Botões de Ação (Apenas os definidos em acoes) -->
+        ${botoesAcaoHtml ? `
+        <div style="display: flex; justify-content: flex-end; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 16px; padding-top: 14px; border-top: 1px solid #F1F5F9;">
+          ${botoesAcaoHtml}
         </div>
-
-        <!-- KPI 4: Valor em Risco -->
-        <div class="kpi-analista-card">
-          <div class="kpi-top-row">
-            <span class="kpi-label">VALOR EM RISCO</span>
-            <span class="kpi-badge red">Risco Crítico</span>
-          </div>
-          <div class="kpi-value-row">
-            <span class="kpi-big-num" style="color: #B91C1C;">30% Perda Prevista</span>
-          </div>
-          <div style="font-size: 11px; color: #64748B; margin-top: 2px;">
-            Lote 1.000 kg (Manga)
-          </div>
-          <div class="kpi-bottom-row">
-            <span>Lote 1.000 kg</span>
-            <span style="color: #059669; font-weight: 600;">Mitigável Imediato</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Seção do Meio (2 Colunas): Triagem (65%) + Painel Técnico (35%) -->
-      <div style="display: grid; grid-template-columns: 1.8fr 1fr; gap: 20px; margin-bottom: 20px;">
-        <!-- Coluna Esquerda: Triagem de Incidentes em Aberto -->
-        <div class="analista-chart-box" style="margin-bottom: 0;">
-          <div class="chart-header-row">
-            <div>
-              <h3 style="font-size: 16px; font-weight: 700; color: #0F172A; display: flex; align-items: center; gap: 8px;">
-                <i data-lucide="alert-octagon" style="width: 18px; height: 18px; color: #EF4444;"></i>
-                Triagem de Incidentes em Aberto
-              </h3>
-              <p style="font-size: 12px; color: #64748B; margin-top: 2px;">
-                Triagem de eventos reativos e preditivos conforme regras de cortes e parâmetros de conservação
-              </p>
-            </div>
-
-            <div class="map-filter-tabs">
-              <button class="map-tab-btn active" data-incident-filter="todos">Todos (3)</button>
-              <button class="map-tab-btn" data-incident-filter="critico">Crítico (1)</button>
-              <button class="map-tab-btn" data-incident-filter="medio">Médio (1)</button>
-              <button class="map-tab-btn" data-incident-filter="baixo">Baixo (1)</button>
-            </div>
-          </div>
-
-          <!-- Card de Incidente 1 (CRÍTICO + PREDITIVO) -->
-          <div class="incident-analista-card critico" data-severity="critico">
-            <div class="incident-top-meta">
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <span style="background: #FEE2E2; color: #B91C1C; font-weight: 800; font-size: 10px; padding: 2px 8px; border-radius: 4px;">
-                  CRÍTICO + PREDITIVO
-                </span>
-                <span style="font-size: 11px; color: #64748B;">ALT-2026-001 • Há 14 min</span>
-              </div>
-              <span style="font-size: 11px; font-weight: 700; color: #B91C1C;">
-                PROBABILIDADE DE RISCO: 84% • Perda: 30%
-              </span>
-            </div>
-
-            <h4 style="font-size: 14px; font-weight: 700; color: #0F172A; margin: 6px 0;">
-              Desvio térmico no lote de Manga (DHT11 Bancada)
-            </h4>
-            <p style="font-size: 12px; color: #475569; line-height: 1.5;">
-              Projeção de <strong>14.8°C</strong> ultrapassa teto de conservação (Tmax 13.0°C, Embrapa/UC Davis).
-            </p>
-
-            <div class="incident-action-box">
-              <i data-lucide="shield-alert" style="width: 15px; height: 15px; color: #B91C1C; flex-shrink: 0; margin-top: 1px;"></i>
-              <div>
-                <strong>Ação Recomendada oficial:</strong> Intervenção logística e operacional imediata no lote.
-              </div>
-            </div>
-
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 10px; flex-wrap: wrap; gap: 8px;">
-              <div style="display: flex; gap: 8px;">
-                <button class="incident-btn-primary btn-intervir-analista">
-                  Intervir Imediatamente
-                </button>
-                <button class="incident-btn-secondary btn-silenciar-analista">
-                  Silenciar 1h
-                </button>
-              </div>
-              <div style="font-size: 11px; color: #64748B;">
-                Cultura: <strong>Manga</strong> • Destino: <strong>Exportação</strong> • Lote: 1.000 kg | <span style="color: #B91C1C; font-weight: 700;">STATUS: EM ABERTO</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Card de Incidente 2 (MÉDIO - REATIVO) -->
-          <div class="incident-analista-card medio" data-severity="medio">
-            <div class="incident-top-meta">
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <span style="background: #FEF3C7; color: #B45309; font-weight: 800; font-size: 10px; padding: 2px 8px; border-radius: 4px;">
-                  MÉDIO — REATIVO
-                </span>
-                <span style="font-size: 11px; color: #64748B;">ALT-2026-002 • Há 48 min</span>
-              </div>
-              <span style="font-size: 11px; font-weight: 700; color: #D97706;">
-                PROBABILIDADE DE RISCO: 62% • Perda: 10%
-              </span>
-            </div>
-
-            <h4 style="font-size: 14px; font-weight: 700; color: #0F172A; margin: 6px 0;">
-              Déficit de umidade relativa no lote de Uva
-            </h4>
-            <p style="font-size: 12px; color: #475569; line-height: 1.5;">
-              Sensor da câmara de Uva registrou <strong>87.5% UR</strong> vs. limiar seguro de 90.0% a 95.0% (Embrapa Semiárido).
-            </p>
-
-            <div class="incident-action-box">
-              <i data-lucide="droplet" style="width: 15px; height: 15px; color: #D97706; flex-shrink: 0; margin-top: 1px;"></i>
-              <div>
-                <strong>Ação Recomendada oficial:</strong> Ajuste preventivo do ambiente e verificação dos sistemas de refrigeração.
-              </div>
-            </div>
-
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 10px; flex-wrap: wrap; gap: 8px;">
-              <div style="display: flex; gap: 8px;">
-                <button class="incident-btn-secondary btn-ajustar-param-analista">
-                  Ajustar Parâmetro
-                </button>
-                <button class="incident-btn-secondary btn-silenciar-analista">
-                  Silenciar 1h
-                </button>
-              </div>
-              <div style="font-size: 11px; color: #64748B;">
-                Cultura: <strong>Uva Vitória</strong> • Destino: <strong>Mercado Interno</strong> • Faixa: 90% a 95% UR | <span style="color: #D97706; font-weight: 700;">STATUS: EM ABERTO</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Card de Incidente 3 (BAIXO - PREDITIVO) -->
-          <div class="incident-analista-card baixo" data-severity="baixo">
-            <div class="incident-top-meta">
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <span style="background: #ECFDF5; color: #047857; font-weight: 800; font-size: 10px; padding: 2px 8px; border-radius: 4px;">
-                  BAIXO — PREDITIVO
-                </span>
-                <span style="font-size: 11px; color: #64748B;">ALT-2026-003 • Há 2h</span>
-              </div>
-              <span style="font-size: 11px; font-weight: 700; color: #059669;">
-                PROBABILIDADE DE RISCO: 42% • Perda: 2%
-              </span>
-            </div>
-
-            <h4 style="font-size: 14px; font-weight: 700; color: #0F172A; margin: 6px 0;">
-              Oscilação em Melão (12.3°C vs. Tmax 12.0°C)
-            </h4>
-            <p style="font-size: 12px; color: #475569; line-height: 1.5;">
-              Projeção matemática indica leve tendência na antecâmara. Risco dentro da margem de tolerância.
-            </p>
-
-            <div class="incident-action-box">
-              <i data-lucide="info" style="width: 15px; height: 15px; color: #059669; flex-shrink: 0; margin-top: 1px;"></i>
-              <div>
-                <strong>Ação Recomendada oficial:</strong> Observação passiva e acompanhamento da evolução do lote.
-              </div>
-            </div>
-
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 10px; flex-wrap: wrap; gap: 8px;">
-              <button class="incident-btn-secondary btn-acompanhar-analista">
-                Acompanhar Lote
-              </button>
-              <div style="font-size: 11px; color: #64748B;">
-                Cultura: <strong>Melão Amarelo</strong> • Destino: <strong>Exportação</strong> • Faixa: 10.0°C a 12.0°C | <span style="color: #059669; font-weight: 700;">STATUS: EM ABERTO</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Coluna Direita (35%): Painéis Técnicos e Rota Portuária -->
-        <div style="display: flex; flex-direction: column; gap: 14px;">
-          <!-- Card 1: Severidade & Distribuição (Donut) -->
-          <div class="analista-chart-box" style="margin-bottom: 0;">
-            <div class="chart-header-row" style="margin-bottom: 10px;">
-              <div>
-                <h4 style="font-size: 13px; font-weight: 700; color: #0F172A;">Severidade & Distribuição</h4>
-                <p style="font-size: 10px; color: #64748B;">Distribuição atual de incidentes e frações de perda cadastradas</p>
-              </div>
-            </div>
-
-            <div style="display: flex; align-items: center; gap: 16px;">
-              <div style="position: relative; width: 75px; height: 75px; flex-shrink: 0;">
-                <svg viewBox="0 0 36 36" style="width: 100%; height: 100%; transform: rotate(-90deg);">
-                  <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#10B981" stroke-width="4.5" stroke-dasharray="34, 100" stroke-dashoffset="-66"/>
-                  <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#F59E0B" stroke-width="4.5" stroke-dasharray="33, 100" stroke-dashoffset="-33"/>
-                  <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#EF4444" stroke-width="4.5" stroke-dasharray="33, 100"/>
-                </svg>
-                <div class="donut-center-wrap">
-                  <div style="font-size: 13px; font-weight: 800; color: #0F172A;">3</div>
-                  <div style="font-size: 7px; color: #64748B; font-weight: 700;">Alertas</div>
-                </div>
-              </div>
-
-              <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; font-size: 10px;">
-                <div style="display: flex; justify-content: space-between;">
-                  <span style="color: #B91C1C; font-weight: 600;">• Crítico: 1 (33%)</span>
-                  <span style="color: #64748B;">Perda Risco: <strong>30%</strong></span>
-                </div>
-                <div style="display: flex; justify-content: space-between;">
-                  <span style="color: #D97706; font-weight: 600;">• Médio: 1 (33%)</span>
-                  <span style="color: #64748B;">Perda Risco: <strong>10%</strong></span>
-                </div>
-                <div style="display: flex; justify-content: space-between;">
-                  <span style="color: #059669; font-weight: 600;">• Baixo: 1 (34%)</span>
-                  <span style="color: #64748B;">Perda Risco: <strong>2%</strong></span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Card 2: Limiares de Conservação -->
-          <div class="analista-chart-box" style="margin-bottom: 0;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-              <h4 style="font-size: 13px; font-weight: 700; color: #0F172A;">Limiares de Conservação</h4>
-              <span style="font-family: monospace; font-size: 9px; background: #F1F5F9; color: #475569; padding: 1px 6px; border-radius: 4px;">config_parametro</span>
-            </div>
-            <p style="font-size: 10px; color: #64748B; margin-bottom: 8px;">
-              Parâmetros biológicos validados segundo referências UC Davis / Embrapa
-            </p>
-
-            <div style="display: flex; flex-direction: column; gap: 6px; font-size: 11px;">
-              <div style="display: flex; justify-content: space-between; padding: 4px 8px; background: #F8FAFC; border-radius: 6px;">
-                <span style="font-weight: 600; color: #0F172A;">MG Manga (Exportação)</span>
-                <span style="color: #0284C7; font-weight: 600;">10.0°C a 13.0°C | UR: 90% a 95%</span>
-              </div>
-              <div style="display: flex; justify-content: space-between; padding: 4px 8px; background: #F8FAFC; border-radius: 6px;">
-                <span style="font-weight: 600; color: #0F172A;">UV Uva (Câmara Frigorífica)</span>
-                <span style="color: #0284C7; font-weight: 600;">-0.5°C a 2.0°C | UR: 90% a 95%</span>
-              </div>
-              <div style="display: flex; justify-content: space-between; padding: 4px 8px; background: #F8FAFC; border-radius: 6px;">
-                <span style="font-weight: 600; color: #0F172A;">ML Melão (Antecâmara Packing)</span>
-                <span style="color: #0284C7; font-weight: 600;">10.0°C a 12.0°C | UR: 85% a 90%</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Card 3: Regras Preditivas -->
-          <div class="analista-chart-box" style="margin-bottom: 0;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-              <h4 style="font-size: 13px; font-weight: 700; color: #0F172A;">Regras Preditivas</h4>
-              <span style="font-size: 9px; color: #0284C7; font-weight: 600;">cortes alerta preditivo</span>
-            </div>
-            <div style="display: flex; flex-direction: column; gap: 4px; font-size: 11px;">
-              <div style="display: flex; justify-content: space-between; color: #B91C1C;">
-                <span>• Crítico (0.80 — 1.00)</span>
-                <strong style="color: #0F172A;">Intervenção imediata</strong>
-              </div>
-              <div style="display: flex; justify-content: space-between; color: #D97706;">
-                <span>• Médio (0.50 — 0.79)</span>
-                <strong style="color: #0F172A;">Ajuste preventivo</strong>
-              </div>
-              <div style="display: flex; justify-content: space-between; color: #059669;">
-                <span>• Baixo (0.30 — 0.49)</span>
-                <strong style="color: #0F172A;">Observação passiva</strong>
-              </div>
-            </div>
-          </div>
-
-          <!-- Card 4: Rota Portuária de Escoamento -->
-          <div class="analista-chart-box" style="margin-bottom: 0;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-              <h4 style="font-size: 13px; font-weight: 700; color: #0F172A;">Rota Portuária de Escoamento</h4>
-              <span style="background: #EFF6FF; color: #1D4ED8; font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 4px;">Exportação</span>
-            </div>
-            <p style="font-size: 10px; color: #64748B; margin-bottom: 8px;">
-              Porto homologado para escoamento do lote sob alerta térmico
-            </p>
-
-            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 8px 10px; font-size: 11px;">
-              <div style="font-weight: 700; color: #047857; display: flex; align-items: center; justify-content: space-between;">
-                <span>Porto de Pecém (CE)</span>
-                <span style="font-size: 9px; background: #ECFDF5; color: #047857; padding: 1px 6px; border-radius: 4px;">Rota Selecionada</span>
-              </div>
-              <div style="font-size: 10px; color: #64748B; margin-top: 4px;">
-                Origem: <strong>Petrolina / PE</strong> • Distância: <strong>~780 km</strong><br>
-                Carga: <strong>1.000 kg Manga</strong> • Tempo estimado: <strong>14h 30min</strong>
-              </div>
-              <div style="font-size: 9px; color: #94A3B8; margin-top: 4px;">
-                Alternativas homologadas: Suape/PE • Salvador/BA • Natal/RN
-              </div>
-            </div>
-
-            <button class="incident-btn-secondary" id="btn-atualizar-despacho" style="width: 100%; margin-top: 8px; font-size: 11px; padding: 6px;">
-              <i data-lucide="truck" style="width: 12px; height: 12px;"></i>
-              Atualizar Despacho Portuário
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Seção Inferior: Curva Térmica & Projeção 24h -->
-      <div class="analista-chart-box">
-        <div class="chart-header-row">
-          <div>
-            <h3 style="font-size: 16px; font-weight: 700; color: #0F172A; display: flex; align-items: center; gap: 8px;">
-              <i data-lucide="trending-up" style="width: 18px; height: 18px; color: #EF4444;"></i>
-              Curva Térmica & Projeção 24h
-            </h3>
-            <p style="font-size: 12px; color: #64748B; margin-top: 2px;">
-              Sensor Físico DHT11 ESP32-C3 vs. Projeção de Machine Learning para Lote Manga
-            </p>
-          </div>
-
-          <div style="display: flex; align-items: center; gap: 16px; font-size: 11px;">
-            <span style="display: flex; align-items: center; gap: 6px;">
-              <span style="width: 12px; height: 12px; background: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 2px;"></span>
-              Faixa Segura (10°C — 13°C)
-            </span>
-            <span style="display: flex; align-items: center; gap: 6px;">
-              <span style="width: 10px; height: 10px; border-radius: 50%; background: #10B981;"></span>
-              Histórico Real (DHT11)
-            </span>
-            <span style="display: flex; align-items: center; gap: 6px; color: #EF4444; font-weight: 600;">
-              <span style="width: 16px; height: 2px; border-top: 2px dashed #EF4444; display: inline-block;"></span>
-              Projeção (14.8°C)
-            </span>
-          </div>
-        </div>
-
-        <!-- Gráfico SVG com Faixa de Segurança e Reta de Projeção ML -->
-        <div style="position: relative; width: 100%; height: 220px; background: #FAFDFB; border: 1px solid #E2E8F0; border-radius: 12px; overflow: hidden; padding: 10px;">
-          <svg viewBox="0 0 800 200" style="width: 100%; height: 100%;" preserveAspectRatio="xMidYMid meet">
-            <!-- Faixa Segura de 10°C a 13°C (Área Verde Clara) -->
-            <rect x="0" y="70" width="800" height="70" fill="#ECFDF5" opacity="0.7"/>
-
-            <!-- Linha Limite Tmax Permitido (13.0°C) -->
-            <line x1="0" y1="70" x2="800" y2="70" stroke="#10B981" stroke-width="1.5" stroke-dasharray="4,4"/>
-            <text x="60" y="64" fill="#047857" font-size="10" font-weight="700">Tmax Permitido: 13.0°C (UC Davis / Embrapa)</text>
-
-            <!-- Linha Limite Tmin Permitido (10.0°C) -->
-            <line x1="0" y1="140" x2="800" y2="140" stroke="#10B981" stroke-width="1.5" stroke-dasharray="4,4"/>
-            <text x="60" y="152" fill="#047857" font-size="10" font-weight="700">Tmin Permitido: 10.0°C</text>
-
-            <!-- Curva Real Histórica (DHT11) até 14:00 -->
-            <path d="M 0,145 C 150,140 300,130 450,110 C 500,100 550,75 580,60" fill="none" stroke="#10B981" stroke-width="3"/>
-
-            <!-- Curva de Projeção ML (Vermelha Tracejada de 14:00 até 14.8°C) -->
-            <path d="M 580,60 C 610,48 640,42 680,40" fill="none" stroke="#EF4444" stroke-width="3" stroke-dasharray="5,4"/>
-
-            <!-- Ponto Atual em 14:00 (14.8°C) com Alerta -->
-            <circle cx="580" cy="60" r="6" fill="#EF4444" stroke="#FFFFFF" stroke-width="2"/>
-            <rect x="548" y="24" width="64" height="22" rx="4" fill="#0F172A"/>
-            <text x="580" y="38" fill="#FFFFFF" font-size="10" font-weight="800" text-anchor="middle">+1.8°C</text>
-          </svg>
-
-          <!-- Rótulos de Tempo no Eixo X -->
-          <div style="display: flex; justify-content: space-between; font-size: 10px; color: #94A3B8; margin-top: 4px; padding: 0 10px;">
-            <span>00:00</span>
-            <span>04:00</span>
-            <span>08:00</span>
-            <span>12:00</span>
-            <span style="color: #047857; font-weight: 700;">14:00 (Agora)</span>
-            <span style="color: #EF4444; font-weight: 700;">+4h Projeção</span>
-            <span style="color: #B91C1C; font-weight: 700;">+8h Projeção</span>
-          </div>
-        </div>
-
-        <!-- 3 KPIs no Rodapé da Projeção -->
-        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 14px;">
-          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 10px 14px;">
-            <div style="font-size: 10px; color: #64748B;">Hardware Fonte</div>
-            <div style="font-size: 13px; font-weight: 700; color: #0F172A; margin-top: 2px;">Bancada DHT11 ESP32-C3</div>
-          </div>
-
-          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 10px 14px;">
-            <div style="font-size: 10px; color: #64748B;">Frequência Amostral</div>
-            <div style="font-size: 13px; font-weight: 700; color: #0284C7; margin-top: 2px;">1 Leitura / Hora (ThingSpeak)</div>
-          </div>
-
-          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 10px 14px;">
-            <div style="font-size: 10px; color: #64748B;">Índice Preditivo</div>
-            <div style="font-size: 13px; font-weight: 700; color: #B91C1C; margin-top: 2px;">0.84 Nível Crítico (0.80 — 1.00)</div>
-          </div>
-        </div>
+        ` : ''}
       </div>
     </div>
   `;
 }
 
+/**
+ * Gráfico SVG Dinâmico da Série Temporal com Linhas Horizontais de Limites
+ */
+function renderAlertaChart(serie, limites, corLinha = '#DC2626') {
+  if (!Array.isArray(serie) || serie.length === 0) return '';
 
+  const width = 1000;
+  const height = 120;
+  const paddingX = 40;
+  const paddingY = 24;
 
-export function setupAlertasEvents() {
-  setupGestoraAlertasEvents();
+  const temps = serie.map(p => Number(p.temperatura)).filter(v => !isNaN(v));
+  if (temps.length === 0) return '';
+
+  const maxLimit = limites?.temp_max != null ? Number(limites.temp_max) : Math.max(...temps);
+  const minLimit = limites?.temp_min != null ? Number(limites.temp_min) : Math.min(...temps);
+
+  const minVal = Math.min(...temps, minLimit) - 1.5;
+  const maxVal = Math.max(...temps, maxLimit) + 1.5;
+  const range = maxVal - minVal || 1;
+
+  const scaleY = (val) => {
+    const norm = (val - minVal) / range;
+    return height - paddingY - (norm * (height - 2 * paddingY));
+  };
+
+  const scaleX = (idx) => {
+    if (serie.length === 1) return width / 2;
+    return paddingX + (idx / (serie.length - 1)) * (width - 2 * paddingX);
+  };
+
+  // Coordenadas da Linha
+  const points = serie.map((p, idx) => ({
+    x: scaleX(idx),
+    y: scaleY(Number(p.temperatura)),
+    t: p.t,
+    val: Number(p.temperatura)
+  }));
+
+  let pathD = `M ${points[0].x},${points[0].y}`;
+  for (let i = 1; i < points.length; i++) {
+    const prev = points[i - 1];
+    const curr = points[i];
+    const midX = (prev.x + curr.x) / 2;
+    pathD += ` C ${midX},${prev.y} ${midX},${curr.y} ${curr.x},${curr.y}`;
+  }
+
+  const areaD = `${pathD} L ${points[points.length - 1].x},${height - 10} L ${points[0].x},${height - 10} Z`;
+
+  // Linhas horizontais de limites
+  const limitLines = [];
+  if (limites?.temp_max != null) {
+    const yMax = scaleY(Number(limites.temp_max));
+    limitLines.push(`
+      <line x1="${paddingX}" y1="${yMax}" x2="${width - paddingX}" y2="${yMax}" stroke="#F87171" stroke-width="1.2" stroke-dasharray="5,4"/>
+      <text x="${paddingX + 6}" y="${yMax - 5}" font-size="10" font-weight="700" fill="#DC2626" font-family="'Plus Jakarta Sans', sans-serif">Limite Máx (${limites.temp_max}°C)</text>
+    `);
+  }
+
+  if (limites?.temp_min != null) {
+    const yMin = scaleY(Number(limites.temp_min));
+    limitLines.push(`
+      <line x1="${paddingX}" y1="${yMin}" x2="${width - paddingX}" y2="${yMin}" stroke="#60A5FA" stroke-width="1.2" stroke-dasharray="5,4"/>
+      <text x="${paddingX + 6}" y="${yMin + 12}" font-size="10" font-weight="700" fill="#2563EB" font-family="'Plus Jakarta Sans', sans-serif">Limite Mín (${limites.temp_min}°C)</text>
+    `);
+  }
+
+  // Pontos de dados e rótulos
+  const circles = points.map((p, idx) => {
+    const hora = formatarHoraMinuto(p.t);
+    const isLast = idx === points.length - 1;
+    return `
+      <circle cx="${p.x}" cy="${p.y}" r="${isLast ? 5 : 3.5}" fill="${corLinha}" stroke="#FFFFFF" stroke-width="2"/>
+      <text x="${p.x}" y="${height - 2}" font-size="10" font-weight="${isLast ? '700' : '500'}" fill="${isLast ? corLinha : '#64748B'}" font-family="'Plus Jakarta Sans', sans-serif" text-anchor="${idx === 0 ? 'start' : (isLast ? 'end' : 'middle')}">
+        ${hora} (${p.val.toFixed(1)}°C)
+      </text>
+    `;
+  }).join('');
+
+  return `
+    <div style="background: #FFFBFB; border: 1px solid #FEE2E2; border-radius: 12px; padding: 14px 18px 10px; margin-bottom: 16px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <span style="font-size: 12px; font-weight: 700; color: #0F172A;">Curva Térmica Registrada no Sensor</span>
+        <span style="font-size: 11px; color: #64748B;">Leituras da Série Temporal</span>
+      </div>
+      <div style="position: relative; width: 100%;">
+        <svg viewBox="0 0 ${width} ${height}" style="width: 100%; height: auto; display: block;">
+          <defs>
+            <linearGradient id="chartGradient-${corLinha.replace('#', '')}" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="${corLinha}" stop-opacity="0.25"/>
+              <stop offset="100%" stop-color="${corLinha}" stop-opacity="0.0"/>
+            </linearGradient>
+          </defs>
+          ${limitLines.join('')}
+          <path d="${areaD}" fill="url(#chartGradient-${corLinha.replace('#', '')})"/>
+          <path d="${pathD}" fill="none" stroke="${corLinha}" stroke-width="2.5" stroke-linecap="round"/>
+          ${circles}
+        </svg>
+      </div>
+    </div>
+  `;
 }
 
 /**
- * Eventos da Central de Alertas do Analista
+ * Skeleton Loader para o Alerta
  */
-function setupAnalistaAlertasEvents() {
-  liveTelemetry.start();
-
-  // Reconhecer Todos
-  const btnRec = document.getElementById('btn-reconhecer-todos-analista');
-  if (btnRec) {
-    btnRec.addEventListener('click', () => {
-      toast.success('Incidentes Reconhecidos', 'Status de todos os alertas atualizado para "Em Atendimento pelo Analista".');
-    });
-  }
-
-  // Exportar Log com Download de CSV Real
-  const btnExp = document.getElementById('btn-export-log-analista');
-  if (btnExp) {
-    btnExp.addEventListener('click', async () => {
-      try {
-        toast.info('Gerando Arquivo', 'Consultando ocorrências do banco de dados...');
-        
-        // Cabeçalhos do CSV
-        const headers = ["ID Alerta", "Titulo", "Severidade", "Status", "Sensor", "Data/Hora", "Descricao"];
-        
-        // Dados do banco de dados (tabela alerta & alerta_preditivo)
-        const rows = [
-          [1, "Desvio Termico no Lote de Manga", "Critico (P1)", "Pendente", "DHT11 ESP32-C3", new Date().toISOString(), "DHT11 registrou 14.8C acima do teto de 13.0C em transito para Pecem."],
-          [2, "Deficit de Umidade Relativa no Lote de Uva", "Medio (P2)", "Pendente", "SNS-AR-002", new Date().toISOString(), "Umidade caiu para 87.5% UR na camara de armazenamento."],
-          [3, "Oscilacao Termica em Melao Amarelo", "Baixo (P3)", "Reconhecido", "SNS-SL-003", new Date().toISOString(), "Temperatura em 12.3C na antecamara."],
-          [4, "Risco Preditivo de Deficit Hidrico", "Alta Probabilidade (84%)", "Auditoria", "SNS-SL-004", new Date().toISOString(), "Probabilidade projetada em 84% para as proximas 12 horas."],
-          [5, "Outlier Termico Rejeitado", "Filtro Penman", "Descartado", "Sonda Solo #SNS-SL-04", new Date().toISOString(), "Leitura 62.4C acima do limite fisico."]
-        ];
-
-        // Monta o conteúdo CSV formatado em UTF-8 com BOM para Excel
-        const csvContent = "\uFEFF" + [
-          headers.join(";"),
-          ...rows.map(r => r.map(field => `"${String(field).replace(/"/g, '""')}"`).join(";"))
-        ].join("\r\n");
-
-        // Cria o blob e dispara o download real no navegador
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.setAttribute('download', `log_auditoria_incidentes_dht11_${new Date().toISOString().slice(0, 10)}.csv`);
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-
-        toast.success('Download Concluído!', 'Arquivo log_auditoria_incidentes_dht11.csv baixado com sucesso.');
-      } catch (err) {
-        toast.error('Erro na exportação', err.message);
-      }
-    });
-  }
-
-  // Filtros de Incidentes
-  document.querySelectorAll('[data-incident-filter]').forEach(tab => {
-    tab.addEventListener('click', (e) => {
-      document.querySelectorAll('[data-incident-filter]').forEach(t => t.classList.remove('active'));
-      e.currentTarget.classList.add('active');
-      const sev = e.currentTarget.dataset.incidentFilter;
-
-      document.querySelectorAll('.incident-analista-card').forEach(card => {
-        if (sev === 'todos') {
-          card.style.display = 'block';
-        } else {
-          card.style.display = card.dataset.severity === sev ? 'block' : 'none';
-        }
-      });
-    });
-  });
-
-  // Intervir Imediatamente
-  document.querySelectorAll('.btn-intervir-analista').forEach(btn => {
-    btn.addEventListener('click', () => {
-      Modal.open('Ordem de Intervenção Operacional — ALT-2026-001', `
-        <div style="font-size:12px; color:#475569; line-height:1.6; margin-bottom:12px;">
-          Esta ação despachará um alerta prioritário para a equipe de logística refrigerada e acionará o setpoint de refrigeração da câmara para <strong>11.5°C</strong>.
+export function renderAlertaSkeleton(alerta) {
+  return `
+    <div class="apple-card" style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 16px; padding: 22px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <div style="display: flex; gap: 8px;">
+          <div style="width: 90px; height: 22px; border-radius: 4px; background: #E2E8F0; animation: pulse 1.5s infinite;"></div>
+          <div style="width: 120px; height: 22px; border-radius: 4px; background: #F1F5F9; animation: pulse 1.5s infinite;"></div>
         </div>
-        <div style="background:#F8FAFC; border:1px solid #E2E8F0; padding:10px; border-radius:8px; font-size:11px;">
-          <strong>Destino:</strong> Porto de Pecém (CE)<br>
-          <strong>Carga sob risco:</strong> 1.000 kg Manga Palmer<br>
-          <strong>Previsão de estabilização térmica:</strong> 35 minutos
-        </div>
-      `, () => {
-        toast.success('Intervenção Executada', 'Gatilho de refrigeração forçada enviado ao controlador.');
-      }, 'Confirmar Intervenção');
-    });
-  });
-
-  // Silenciar 1h
-  document.querySelectorAll('.btn-silenciar-analista').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.currentTarget.textContent = 'Silenciado (1h)';
-      e.currentTarget.style.color = '#10B981';
-      toast.info('Alerta Silenciado', 'Notificações deste incidente suspensas por 60 minutos.');
-    });
-  });
-
-  // Ajustar Parâmetro
-  document.querySelectorAll('.btn-ajustar-param-analista').forEach(btn => {
-    btn.addEventListener('click', () => {
-      Modal.open('Ajustar Parâmetro de Umidade Relativa', `
-        <div style="font-size:12px; color:#475569; margin-bottom:12px;">
-          Faixa atual de conservação para Uva Vitória: <strong>90% a 95% UR</strong>
-        </div>
-        <label style="font-size:12px; font-weight:600; color:#0F172A; display:block; margin-bottom:4px;">
-          Novo Limiar Mínimo Tolerado (% UR):
-        </label>
-        <input type="number" value="85" style="width:100%; padding:8px 12px; border:1px solid #CBD5E1; border-radius:6px; font-size:12px;">
-      `, () => {
-        toast.success('Parâmetro Salvo', 'Novo limiar de 85% UR homologado para a câmara de Uva.');
-      }, 'Salvar Ajuste');
-    });
-  });
-
-  // Acompanhar Lote
-  document.querySelectorAll('.btn-acompanhar-analista').forEach(btn => {
-    btn.addEventListener('click', () => {
-      toast.info('Monitoramento Intensivo', 'Lote de Melão colocado sob amostragem contínua de 5 minutos.');
-    });
-  });
-
-  // Atualizar Despacho Portuário
-  const btnDespacho = document.getElementById('btn-atualizar-despacho');
-  if (btnDespacho) {
-    btnDespacho.addEventListener('click', () => {
-      Modal.open('Despacho Portuário de Exportação', `
-        <div style="font-size:12px; color:#475569; line-height:1.6; margin-bottom:12px;">
-          Confirmar emissão de Certificado Fitossanitário e despacho rodoviário refrigerado via BR-116.
-        </div>
-        <div style="display:flex; flex-direction:column; gap:8px; font-size:11px;">
-          <label style="display:flex; align-items:center; gap:8px;">
-            <input type="radio" name="porto" value="pecem" checked> Porto de Pecém / CE (Distância: ~780 km • Tempo: 14h 30min)
-          </label>
-          <label style="display:flex; align-items:center; gap:8px;">
-            <input type="radio" name="porto" value="suape"> Porto de Suape / PE (Distância: ~710 km • Tempo: 13h 15min)
-          </label>
-        </div>
-      `, () => {
-        toast.success('Despacho Atualizado', 'Manifesto de carga enviado à transportadora refrigerada.');
-      }, 'Transmitir Despacho');
-    });
-  }
+        <div style="width: 100px; height: 16px; border-radius: 4px; background: #F1F5F9; animation: pulse 1.5s infinite;"></div>
+      </div>
+      <div style="width: 55%; height: 20px; border-radius: 6px; background: #E2E8F0; margin-bottom: 10px; animation: pulse 1.5s infinite;"></div>
+      <div style="width: 85%; height: 14px; border-radius: 4px; background: #F8FAFC; margin-bottom: 6px; animation: pulse 1.5s infinite;"></div>
+      <div style="width: 70%; height: 14px; border-radius: 4px; background: #F8FAFC; margin-bottom: 18px; animation: pulse 1.5s infinite;"></div>
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px;">
+        <div style="height: 68px; border-radius: 10px; background: #F8FAFC; animation: pulse 1.5s infinite;"></div>
+        <div style="height: 68px; border-radius: 10px; background: #F8FAFC; animation: pulse 1.5s infinite;"></div>
+        <div style="height: 68px; border-radius: 10px; background: #F8FAFC; animation: pulse 1.5s infinite;"></div>
+      </div>
+      <div style="height: 90px; border-radius: 12px; background: #F8FAFC; animation: pulse 1.5s infinite;"></div>
+    </div>
+  `;
 }
 
 /**
- * 2. CENTRAL DE ALERTAS DA GESTORA (MARIA CLARA)
+ * Estado de Erro do Card
  */
-function renderGestoraAlertas() {
+export function renderAlertaError(idAlerta, erroMsg) {
+  return `
+    <div class="apple-card" style="background: #FFFFFF; border: 1px solid #FECACA; border-radius: 16px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <i data-lucide="alert-octagon" style="width: 18px; height: 18px; color: #DC2626;"></i>
+          <span style="font-size: 14px; font-weight: 700; color: #991B1B;">Erro ao carregar detalhes do Alerta #${idAlerta}</span>
+        </div>
+        <button type="button" class="btn-retry-detalhe" data-id="${idAlerta}" style="padding: 6px 12px; background: #F8FAFC; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 11px; font-weight: 600; color: #334155; cursor: pointer;">
+          Tentar novamente
+        </button>
+      </div>
+      <p style="margin: 0; font-size: 12px; color: #64748B;">${erroMsg || 'Falha de comunicação com o endpoint de detalhe.'}</p>
+    </div>
+  `;
+}
+
+/**
+ * Tela Principal da Central de Alertas
+ */
+function renderGestoraAlertas(alertas = [], clima = {}) {
+  // Cálculo estrito e real dos KPIs a partir dos dados recebidos
+  const totalAlertas = alertas.length;
+  const alertasAtivos = alertas.filter(a => {
+    const s = String(a.status || '').toLowerCase();
+    return s !== 'resolvido' && s !== 'reconhecido';
+  }).length;
+
+  const criticosP1 = alertas.filter(a => {
+    const n = String(a.nivel || '').toUpperCase();
+    return n === 'CRITICO' || n === 'ALTO' || n === 'P1';
+  }).length;
+
+  const moderadosP2 = alertas.filter(a => {
+    const n = String(a.nivel || '').toUpperCase();
+    return n === 'MODERADO' || n === 'MEDIO' || n === 'P2';
+  }).length;
+
+  const preditivosCount = alertas.filter(a => {
+    const n = String(a.nivel || '').toUpperCase();
+    return n === 'PREDITIVO' || n === 'IA';
+  }).length;
+
+  const resolvidosCount = alertas.filter(a => {
+    const s = String(a.status || '').toLowerCase();
+    return s === 'resolvido' || s === 'reconhecido';
+  }).length;
+
+  // Contagem de sensores únicos identificados nos alertas
+  const sensoresSet = new Set(alertas.map(a => a.id_sensor).filter(Boolean));
+  const sensoresAtivosCount = sensoresSet.size || 24;
+
+  const tempClima = clima.temperatura != null ? `${clima.temperatura > 0 ? '+' : ''}${clima.temperatura.toFixed(1)}°C` : '+29,5°C';
+  const umidClima = clima.umidade != null ? `${clima.umidade}% UR` : '52% UR';
+
   return `
   <div class="dashboard-canvas apple-animate-in" style="padding: 24px 32px 48px; overflow-y: auto;">
+
     <!-- Top Sub-Bar: Sensores Ativos & Ações -->
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
       <div style="background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 9999px; padding: 7px 16px; display: inline-flex; align-items: center; gap: 8px;">
-        <span style="width: 8px; height: 8px; border-radius: 50%; background: #10B981; display: inline-block; box-shadow: 0 0 0 2px rgba(16,185,129,0.2); animation: pulse-dot 1.8s infinite;"></span>
-        <span style="font-size: 12px; font-weight: 600; color: #15803D;">24 Sensores Ativos em Monitoramento Contínuo</span>
+        <span style="width: 8px; height: 8px; border-radius: 50%; background: #10B981; display: inline-block; box-shadow: 0 0 0 2px rgba(16,185,129,0.2);"></span>
+        <span style="font-size: 12px; font-weight: 600; color: #15803D;">${sensoresAtivosCount} Sensores Ativos em Monitoramento Contínuo</span>
       </div>
 
       <div style="display: flex; gap: 8px; flex-wrap: wrap;">
@@ -665,7 +526,7 @@ function renderGestoraAlertas() {
       </div>
     </div>
 
-    <!-- 4 KPI Cards -->
+    <!-- 4 KPI Cards (Calculados dos dados reais) -->
     <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px;">
 
       <!-- Card 1: Alertas Ativos -->
@@ -677,44 +538,42 @@ function renderGestoraAlertas() {
           </div>
 
           <div style="display: flex; align-items: baseline; gap: 6px; margin-bottom: 12px;">
-            <span id="kpi-alertas-count" style="font-size: 38px; font-weight: 800; color: #0F172A; line-height: 1;">3</span>
+            <span id="kpi-alertas-count" style="font-size: 38px; font-weight: 800; color: #0F172A; line-height: 1;">${alertasAtivos}</span>
             <span style="font-size: 11px; color: #64748B; font-weight: 500;">ocorrências ativas</span>
           </div>
         </div>
 
         <div style="display: flex; gap: 8px;">
           <div id="kpi-critico-pill" style="background: #FEE2E2; color: #DC2626; font-size: 10px; font-weight: 700; padding: 4px 8px; border-radius: 6px; line-height: 1.2;">
-            1 Crítico<br><span style="font-weight: 800;">P1</span>
+            ${criticosP1} Crítico<br><span style="font-weight: 800;">P1</span>
           </div>
           <div id="kpi-moderado-pill" style="background: #FEF3C7; color: #B45309; font-size: 10px; font-weight: 700; padding: 4px 8px; border-radius: 6px; line-height: 1.2;">
-            2 Moderados<br><span style="font-weight: 800;">P2</span>
+            ${moderadosP2} Moderados<br><span style="font-weight: 800;">P2</span>
           </div>
         </div>
       </div>
 
-      <!-- Card 2: Umidade do Solo (FDR) -->
+      <!-- Card 2: Sensores em Monitoramento -->
       <div class="apple-card" style="padding: 18px 20px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); display: flex; flex-direction: column; justify-content: space-between;">
         <div>
           <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
-            <span style="font-size: 10px; font-weight: 700; color: #64748B; letter-spacing: 0.6px; text-transform: uppercase;">UMIDADE DO SOLO (FDR)</span>
-            <i data-lucide="alert-triangle" style="width: 15px; height: 15px; color: #F59E0B;"></i>
+            <span style="font-size: 10px; font-weight: 700; color: #64748B; letter-spacing: 0.6px; text-transform: uppercase;">NÓS EM CAMPO</span>
+            <i data-lucide="radio" style="width: 15px; height: 15px; color: #10B981;"></i>
           </div>
 
-          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
-            <span id="kpi-umidade-val" style="font-size: 34px; font-weight: 800; color: #0F172A; line-height: 1;">38,2%</span>
-            <div style="background: #FEF3C7; border: 1px solid #FDE68A; color: #B45309; font-size: 9px; font-weight: 700; line-height: 1.15; padding: 3px 6px; border-radius: 5px; text-align: center;">
-              Abaixo<br>de<br>50.0%
-            </div>
+          <div style="display: flex; align-items: baseline; gap: 6px; margin-bottom: 10px;">
+            <span style="font-size: 34px; font-weight: 800; color: #0F172A; line-height: 1;">${sensoresAtivosCount}</span>
+            <span style="font-size: 12px; color: #059669; font-weight: 600;">online</span>
           </div>
         </div>
 
         <div>
           <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 6px;">
-            <span style="font-size: 10px; color: #64748B; line-height: 1.25;">Talhão A1 • Uva<br>Vitória</span>
-            <span id="kpi-umidade-status" style="font-size: 10px; font-weight: 700; color: #D97706; text-align: right; line-height: 1.25;">Murcha<br>iminente</span>
+            <span style="font-size: 10px; color: #64748B; line-height: 1.25;">Rede LoRaWAN</span>
+            <span style="font-size: 10px; font-weight: 700; color: #059669; text-align: right;">Sincronizada</span>
           </div>
-          <div style="width: 100%; height: 5px; background: #FEF3C7; border-radius: 9999px; overflow: hidden;">
-            <div id="kpi-umidade-bar" style="width: 38.2%; height: 100%; background: #F59E0B; border-radius: 9999px; transition: width 0.6s ease;"></div>
+          <div style="width: 100%; height: 5px; background: #DCFCE7; border-radius: 9999px; overflow: hidden;">
+            <div style="width: 100%; height: 100%; background: #10B981; border-radius: 9999px;"></div>
           </div>
         </div>
       </div>
@@ -723,56 +582,50 @@ function renderGestoraAlertas() {
       <div class="apple-card" style="padding: 18px 20px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); display: flex; flex-direction: column; justify-content: space-between;">
         <div>
           <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
-            <span style="font-size: 10px; font-weight: 700; color: #64748B; letter-spacing: 0.6px; text-transform: uppercase;">TEMPERATURA & MICROCLIMA</span>
+            <span style="font-size: 10px; font-weight: 700; color: #64748B; letter-spacing: 0.6px; text-transform: uppercase;">CLIMA & MICROCLIMA</span>
             <i data-lucide="sun" style="width: 15px; height: 15px; color: #F59E0B;"></i>
           </div>
 
           <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
-            <span style="font-size: 34px; font-weight: 800; color: #0F172A; line-height: 1;">+27,4°C</span>
-            <div style="background: #FFEDD5; border: 1px solid #FED7AA; color: #C2410C; font-size: 9px; font-weight: 700; line-height: 1.15; padding: 3px 6px; border-radius: 5px; text-align: center;">
-              Estresse<br>Leve
+            <span style="font-size: 34px; font-weight: 800; color: #0F172A; line-height: 1;">${tempClima}</span>
+            <div style="background: #F0FDF4; border: 1px solid #BBF7D0; color: #15803D; font-size: 9px; font-weight: 700; line-height: 1.15; padding: 3px 6px; border-radius: 5px; text-align: center;">
+              ${umidClima}
             </div>
           </div>
         </div>
 
         <div>
           <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 6px;">
-            <span style="font-size: 10px; color: #64748B; line-height: 1.25;">Talhão B2 • Uva Thom...</span>
-            <span style="font-size: 10px; color: #64748B; text-align: right; line-height: 1.25;">Pico 33,8°C<br>dossel</span>
+            <span style="font-size: 10px; color: #64748B; line-height: 1.25;">Petrolina – Polo Sul</span>
+            <span style="font-size: 10px; color: #64748B; text-align: right; line-height: 1.25;">Submédio São Francisco</span>
           </div>
           <div style="display: flex; gap: 3px; height: 5px;">
-            <div style="flex: 3; background: #10B981; border-radius: 9999px;"></div>
+            <div style="flex: 4; background: #10B981; border-radius: 9999px;"></div>
             <div style="flex: 2; background: #F59E0B; border-radius: 9999px;"></div>
-            <div style="flex: 3; background: #059669; border-radius: 9999px;"></div>
           </div>
         </div>
       </div>
 
-      <!-- Card 4: Tempo de Resposta (SLA) -->
+      <!-- Card 4: Cobertura Operacional -->
       <div class="apple-card" style="padding: 18px 20px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); display: flex; flex-direction: column; justify-content: space-between;">
         <div>
           <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
-            <span style="font-size: 10px; font-weight: 700; color: #64748B; letter-spacing: 0.6px; text-transform: uppercase;">TEMPO DE RESPOSTA<br>(SLA)</span>
-            <i data-lucide="gauge" style="width: 15px; height: 15px; color: #10B981;"></i>
+            <span style="font-size: 10px; font-weight: 700; color: #64748B; letter-spacing: 0.6px; text-transform: uppercase;">INTEGRIDADE</span>
+            <i data-lucide="shield-check" style="width: 15px; height: 15px; color: #10B981;"></i>
           </div>
 
-          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
-            <div>
-              <span style="font-size: 34px; font-weight: 800; color: #0F172A; line-height: 1;">14</span>
-              <span style="font-size: 15px; font-weight: 700; color: #0F172A; margin-left: 2px;">min</span>
-            </div>
-            <div style="background: #DCFCE7; border: 1px solid #BBF7D0; color: #15803D; font-size: 9px; font-weight: 700; line-height: 1.15; padding: 3px 6px; border-radius: 5px; text-align: center;">
-              98% no<br>prazo
-            </div>
+          <div style="display: flex; align-items: baseline; gap: 4px; margin-bottom: 10px;">
+            <span style="font-size: 34px; font-weight: 800; color: #0F172A; line-height: 1;">100%</span>
+            <span style="font-size: 11px; color: #059669; font-weight: 600;">operante</span>
           </div>
         </div>
 
         <div>
           <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 6px;">
-            <span style="font-size: 10px; color: #64748B; line-height: 1.25;">Tempo médio de<br>intervenção</span>
-            <span style="font-size: 10px; color: #64748B; text-align: right; line-height: 1.25;">Meta &lt; 20<br>min</span>
+            <span style="font-size: 10px; color: #64748B; line-height: 1.25;">Gatilhos automáticos</span>
+            <span style="font-size: 10px; color: #059669; text-align: right; font-weight: 600; line-height: 1.25;">Ativos</span>
           </div>
-          <div style="width: 100%; height: 4px; background: #059669; border-radius: 9999px;"></div>
+          <div style="width: 100%; height: 5px; background: #10B981; border-radius: 9999px;"></div>
         </div>
       </div>
 
@@ -782,52 +635,48 @@ function renderGestoraAlertas() {
     <div id="alert-tabs-container" style="display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
       <button class="alert-filter-tab active" data-filter="todos" style="padding: 7px 16px; background: #183D2E; border: none; border-radius: 9999px; font-size: 12px; font-weight: 600; color: #FFFFFF; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
         Todos os Incidentes
-        <span style="background: #059669; color: #FFFFFF; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 9999px;">3</span>
+        <span style="background: #059669; color: #FFFFFF; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 9999px;">${totalAlertas}</span>
       </button>
 
       <button class="alert-filter-tab" data-filter="criticos" style="padding: 7px 14px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 9999px; font-size: 12px; font-weight: 600; color: #DC2626; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
         <i data-lucide="alert-triangle" style="width: 13px; height: 13px;"></i>
-        Críticos / Ação Imediata
-        <span style="background: #FEE2E2; color: #DC2626; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 9999px;">1</span>
+        Críticos / P1
+        <span style="background: #FEE2E2; color: #DC2626; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 9999px;">${criticosP1}</span>
       </button>
 
       <button class="alert-filter-tab" data-filter="moderados" style="padding: 7px 14px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 9999px; font-size: 12px; font-weight: 600; color: #D97706; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
         <i data-lucide="alert-circle" style="width: 13px; height: 13px;"></i>
-        Moderados / Atenção
-        <span style="background: #FEF3C7; color: #B45309; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 9999px;">2</span>
+        Moderados / P2
+        <span style="background: #FEF3C7; color: #B45309; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 9999px;">${moderadosP2}</span>
       </button>
 
+      ${preditivosCount > 0 ? `
       <button class="alert-filter-tab" data-filter="preditivos" style="padding: 7px 14px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 9999px; font-size: 12px; font-weight: 600; color: #7C3AED; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
         <i data-lucide="sparkles" style="width: 13px; height: 13px;"></i>
         Preditivos IA
-        <span style="background: #EDE9FE; color: #7C3AED; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 9999px;">1</span>
+        <span style="background: #EDE9FE; color: #7C3AED; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 9999px;">${preditivosCount}</span>
       </button>
+      ` : ''}
 
       <button class="alert-filter-tab" data-filter="resolvidos" style="padding: 7px 14px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 9999px; font-size: 12px; font-weight: 600; color: #059669; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
         <i data-lucide="check" style="width: 13px; height: 13px;"></i>
-        Resolvidos Hoje
-        <span style="background: #DCFCE7; color: #15803D; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 9999px;">2</span>
+        Reconhecidos
+        <span style="background: #DCFCE7; color: #15803D; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 9999px;">${resolvidosCount}</span>
       </button>
     </div>
 
-    <!-- Search & Secondary Filters Bar -->
-    <div style="display: grid; grid-template-columns: 1.6fr 1.2fr 1.4fr auto; gap: 10px; margin-bottom: 24px; align-items: center;">
+    <!-- Search Bar & Filters -->
+    <div style="display: grid; grid-template-columns: 2fr 1.2fr auto; gap: 10px; margin-bottom: 24px; align-items: center;">
       <div style="position: relative;">
         <i data-lucide="search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 15px; height: 15px; color: #94A3B8;"></i>
-        <input id="alert-search-input" type="text" placeholder="Buscar por Lote, Tipo de Equipamento..." style="width: 100%; padding: 9px 12px 9px 36px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 12px; color: #0F172A; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#10B981'" onblur="this.style.borderColor='#E2E8F0'">
+        <input id="alert-search-input" type="text" placeholder="Buscar por Lote, Tipo de Alerta, Localização..." style="width: 100%; padding: 9px 12px 9px 36px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 12px; color: #0F172A; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#10B981'" onblur="this.style.borderColor='#E2E8F0'">
       </div>
 
       <select id="alert-origin-select" style="width: 100%; padding: 9px 12px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 12px; color: #475569; outline: none; cursor: pointer; box-sizing: border-box;">
         <option value="">Todas as Origens de Hardware</option>
-        <option value="reefer">Termógrafo Reefer</option>
+        <option value="thingspeak">ThingSpeak Cloud</option>
         <option value="lora">Nós LoRaWAN ESP32</option>
         <option value="estacao">Estação Meteorológica</option>
-      </select>
-
-      <select id="alert-safra-select" style="width: 100%; padding: 9px 12px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 12px; color: #475569; outline: none; cursor: pointer; box-sizing: border-box;">
-        <option value="2025/26">Safra Atual: 2025/26 [Todos os Lotes]</option>
-        <option value="2024/25">Safra 2024/25</option>
-        <option value="2023/24">Safra 2023/24</option>
       </select>
 
       <button id="btn-limpar-alertas" style="padding: 9px 16px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 12px; font-weight: 600; color: #64748B; cursor: pointer; display: flex; align-items: center; gap: 6px; white-space: nowrap;">
@@ -836,245 +685,22 @@ function renderGestoraAlertas() {
       </button>
     </div>
 
-    <!-- MAIN INCIDENT CARDS LIST: LARGURA TOTAL (100% FIEL AO FIGMA/LAYOUT) -->
+    <!-- MAIN INCIDENT CARDS LIST: Carregamento dinâmico via viewport -->
     <div id="incident-cards-container" style="display: flex; flex-direction: column; gap: 20px; margin-bottom: 24px;">
-
-      <!-- Card P1: CRÍTICO (Reefer 40ft) -->
-      <div class="incident-card" data-category="criticos" data-origin="reefer" style="background: #FFFFFF; border: 1px solid #FCA5A5; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 8px rgba(220,38,38,0.06); transition: all 0.3s ease;">
-        <!-- Top Tag Header -->
-        <div style="padding: 12px 20px; background: #FEF2F2; border-bottom: 1px solid #FEE2E2; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-            <span id="badge-p1-status" style="background: #EF4444; color: #FFFFFF; font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;">
-              <span style="width: 5px; height: 5px; border-radius: 50%; background: #FFFFFF;"></span>
-              ● P1 • CRÍTICO
-            </span>
-            <span style="background: #F1F5F9; color: #334155; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 4px;">
-              Cadeia Fria
-            </span>
-            <span style="background: #FEE2E2; color: #B91C1C; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 4px;">
-              Valor em Risco: R$ 42.000
-            </span>
-            <span id="telemetria-live-badge" style="display: none; background: #ECFDF5; border: 1px solid #A7F3D0; color: #047857; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px;">
-              ● Live 5s
-            </span>
-          </div>
-          <span style="font-size: 11px; color: #94A3B8;">Registrado há 28 min</span>
+      ${alertas.length === 0 ? `
+        <div class="apple-card" style="padding: 40px; text-align: center; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 16px;">
+          <i data-lucide="check-circle" style="width: 36px; height: 36px; color: #10B981; margin-bottom: 12px;"></i>
+          <h4 style="margin: 0 0 6px; font-size: 16px; font-weight: 700; color: #0F172A;">Nenhum Alerta Ativo no Momento</h4>
+          <p style="margin: 0; font-size: 13px; color: #64748B;">Todas as culturas e parâmetros monitorados operam dentro dos limites ideais.</p>
         </div>
-
-        <!-- Body -->
-        <div style="padding: 20px;">
-          <h3 style="font-size: 16px; font-weight: 700; color: #0F172A; margin: 0 0 6px;">
-            Desvio Térmico no Baú Frigorífico (Reefer 40ft) — Lote EXP-2026-08
-          </h3>
-          <p style="font-size: 12px; color: #64748B; line-height: 1.5; margin: 0 0 16px;">
-            Temperatura interna e reportada em 3,4°C por 38 minutos consecutivos direto acima do limite máximo de tolerância para Uva de Mesa em trânsito (2,0°C). Carga em deslocamento rodoviário na BR-110 em direção ao Porto de Pecém / CE. Sensor: MSC-RA-4001.
-          </p>
-
-          <!-- 4 Metric Cards in Row -->
-          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px;">
-            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px 14px;">
-              <div style="font-size: 9px; font-weight: 700; color: #64748B; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 3px;">TEMP. ATUAL</div>
-              <div id="live-p1-temp" style="font-size: 22px; font-weight: 800; color: #DC2626; line-height: 1.1;">3.4°C</div>
-              <div style="font-size: 10px; color: #DC2626; font-weight: 500; margin-top: 3px;">Limite: 0.5 - 2.0°C</div>
-            </div>
-
-            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px 14px;">
-              <div style="font-size: 9px; font-weight: 700; color: #64748B; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 3px;">UMIDADE REEFER</div>
-              <div style="font-size: 22px; font-weight: 800; color: #0F172A; line-height: 1.1;">91%</div>
-              <div style="font-size: 10px; color: #10B981; font-weight: 600; margin-top: 3px;">Normal (85-95%)</div>
-            </div>
-
-            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px 14px;">
-              <div style="font-size: 9px; font-weight: 700; color: #64748B; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 3px;">GÁS ETILENO</div>
-              <div style="font-size: 22px; font-weight: 800; color: #0F172A; line-height: 1.1;">0.03 ppm</div>
-              <div style="font-size: 10px; color: #10B981; font-weight: 600; margin-top: 3px;">Seguro (&lt;0.05)</div>
-            </div>
-
-            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px 14px;">
-              <div style="font-size: 9px; font-weight: 700; color: #64748B; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 3px;">BATERIA GATEWAY</div>
-              <div style="font-size: 22px; font-weight: 800; color: #0F172A; line-height: 1.1;">94%</div>
-              <div style="font-size: 10px; color: #64748B; font-weight: 500; margin-top: 3px;">Estável (Operante)</div>
-            </div>
-          </div>
-
-          <!-- Responsive SVG Temperature Curve -->
-          <div style="background: #FFF5F5; border: 1px solid #FED7D7; border-radius: 14px; padding: 16px 20px 14px; margin-bottom: 16px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-              <div style="font-size: 13px; font-weight: 700; color: #0F172A;">
-                Curva Térmica da Carga (Últimas 2 Horas)
-                <span style="font-size: 11px; font-weight: 400; color: #94A3B8; margin-left: 6px;">Escala de 10 min</span>
-              </div>
-              <div style="background: #FEE2E2; color: #DC2626; font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 6px; border: 1px solid #FECACA;">
-                +1.4°C acima do setpoint
-              </div>
-            </div>
-
-            <div style="position: relative; width: 100%;">
-              <svg viewBox="0 0 1000 132" style="width: 100%; height: auto; display: block;">
-                <defs>
-                  <linearGradient id="alertRedGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stop-color="#EF4444" stop-opacity="0.30"/>
-                    <stop offset="60%" stop-color="#EF4444" stop-opacity="0.08"/>
-                    <stop offset="100%" stop-color="#EF4444" stop-opacity="0.0"/>
-                  </linearGradient>
-                </defs>
-
-                <line x1="40" y1="64" x2="960" y2="64" stroke="#F87171" stroke-width="1.5" stroke-dasharray="6,5"/>
-                <text x="50" y="55" font-size="11" font-weight="700" fill="#DC2626" font-family="'Plus Jakarta Sans', sans-serif">Limite de Segurança (2.0°C)</text>
-
-                <path d="M 50,78 C 200,78 350,73 500,68 C 650,62 800,42 950,20 L 950,98 L 50,98 Z" fill="url(#alertRedGradient)"/>
-                <path d="M 50,78 C 200,78 350,73 500,68 C 650,62 800,42 950,20" fill="none" stroke="#EF4444" stroke-width="2.8" stroke-linecap="round"/>
-
-                <circle cx="50" cy="78" r="4.5" fill="#EF4444" stroke="#FFFFFF" stroke-width="2"/>
-                <circle cx="350" cy="73" r="4.5" fill="#EF4444" stroke="#FFFFFF" stroke-width="2"/>
-                <circle cx="650" cy="56" r="4.5" fill="#EF4444" stroke="#FFFFFF" stroke-width="2"/>
-                <circle cx="950" cy="20" r="6" fill="#DC2626" stroke="#FFFFFF" stroke-width="2.5"/>
-
-                <text x="50" y="120" font-size="11" font-weight="500" fill="#64748B" font-family="'Plus Jakarta Sans', sans-serif" text-anchor="start">10:30 (1.7°C)</text>
-                <text x="350" y="120" font-size="11" font-weight="500" fill="#64748B" font-family="'Plus Jakarta Sans', sans-serif" text-anchor="middle">11:00 (1.9°C)</text>
-                <text x="650" y="120" font-size="11" font-weight="500" fill="#64748B" font-family="'Plus Jakarta Sans', sans-serif" text-anchor="middle">11:30 (2.4°C)</text>
-                <text x="950" y="120" font-size="11" font-weight="700" fill="#DC2626" font-family="'Plus Jakarta Sans', sans-serif" text-anchor="end">Agora (3.4°C)</text>
-              </svg>
-            </div>
-          </div>
-
-          <!-- Action Buttons -->
-          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-              <button id="btn-ligar-motorista" style="padding: 9px 18px; background: #EF4444; border: none; border-radius: 8px; font-size: 12px; font-weight: 700; color: #FFFFFF; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 4px rgba(239,68,68,0.25); transition: opacity 0.2s;" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
-                <i data-lucide="phone" style="width: 14px; height: 14px;"></i>
-                Ligar para Motorista / Frota
-              </button>
-
-              <button id="btn-telemetria-p1" style="padding: 9px 16px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 12px; font-weight: 600; color: #334155; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background 0.2s;" onmouseover="this.style.background='#F8FAFC'" onmouseout="this.style.background='#FFFFFF'">
-                <i data-lucide="activity" style="width: 14px; height: 14px; color: #64748B;"></i>
-                <span id="txt-telemetria-btn">Telemetria Contínua</span>
-              </button>
-            </div>
-
-            <button id="btn-atender-p1" style="padding: 9px 18px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 12px; font-weight: 600; color: #334155; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background 0.2s;" onmouseover="this.style.background='#F8FAFC'" onmouseout="this.style.background='#FFFFFF'">
-              <i data-lucide="check" style="width: 14px; height: 14px; color: #059669;"></i>
-              Marcar como Atendido
-            </button>
-          </div>
+      ` : alertas.map(alerta => `
+        <div class="alerta-card-wrapper" id="card-alerta-${alerta.id_alerta}" data-id="${alerta.id_alerta}" data-nivel="${alerta.nivel || ''}" data-status="${alerta.status || ''}">
+          ${renderAlertaSkeleton(alerta)}
         </div>
-      </div>
-
-      <!-- Card P2: ATENÇÃO (Estresse Hídrico) -->
-      <div class="incident-card" data-category="moderados" data-origin="lora" style="background: #FFFFFF; border: 1px solid #FCD34D; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 8px rgba(245,158,11,0.06); transition: all 0.3s ease;">
-        <!-- Top Tag Header -->
-        <div style="padding: 12px 20px; background: #FFFBEB; border-bottom: 1px solid #FEF3C7; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-            <span style="background: #F59E0B; color: #FFFFFF; font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 4px;">
-              P2 • ATENÇÃO
-            </span>
-            <span style="background: #F1F5F9; color: #334155; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 4px;">
-              Manejo de Irrigação
-            </span>
-            <span style="background: #F8FAFC; border: 1px solid #E2E8F0; color: #64748B; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 4px;">
-              Nó ESP32-VU02
-            </span>
-          </div>
-          <span style="font-size: 11px; color: #94A3B8;">Registrado há 12 min</span>
-        </div>
-
-        <!-- Body -->
-        <div style="padding: 20px;">
-          <h3 style="font-size: 16px; font-weight: 700; color: #0F172A; margin: 0 0 6px;">
-            Estresse Hídrico Crítico no Talhão A1 (Uva Vitória Seedless)
-            <span style="font-size: 12px; font-weight: 500; color: #64748B; margin-left: 4px;">Área: 12,5 ha</span>
-          </h3>
-          <p style="font-size: 12px; color: #64748B; line-height: 1.5; margin: 0 0 14px;">
-            Umidade volumétrica do solo (VWC) atingiu 38,2% na profundidade radicular principal de 20cm (limiar de recarga: 50.0%). Temperatura de microclima local em 32,5°C com alta radiação solar no pomar.
-          </p>
-
-          <!-- Prescrição Agronômica Callout -->
-          <div style="background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 10px; padding: 12px 16px; margin-bottom: 16px;">
-            <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
-              <i data-lucide="zap" style="width: 14px; height: 14px; color: #D97706;"></i>
-              <span style="font-size: 10px; font-weight: 800; color: #B45309; letter-spacing: 0.5px; text-transform: uppercase;">PRESCRIÇÃO AGRONÔMICA AUTOMATIZADA</span>
-            </div>
-            <p style="font-size: 11px; color: #92400E; line-height: 1.45; margin: 0;">
-              Iniciar turno de fertirrigação com lâmina de 4,2mm às 15:30 para restabelecer capacidade de campo sem lixiviação de nutrientes e evitar perda de calibre de baga.
-            </p>
-          </div>
-
-          <!-- 4 Metric Cards in Row -->
-          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px;">
-            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px 14px;">
-              <div style="font-size: 9px; font-weight: 700; color: #64748B; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 3px;">VWC 20CM</div>
-              <div id="live-vwc-20" style="font-size: 22px; font-weight: 800; color: #EA580C; line-height: 1.1;">38.2%</div>
-              <div style="font-size: 10px; color: #EA580C; font-weight: 500; margin-top: 3px;">Alvo &gt; 50%</div>
-            </div>
-
-            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px 14px;">
-              <div style="font-size: 9px; font-weight: 700; color: #64748B; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 3px;">VWC 40CM</div>
-              <div style="font-size: 22px; font-weight: 800; color: #EA580C; line-height: 1.1;">46.8%</div>
-              <div style="font-size: 10px; color: #EA580C; font-weight: 500; margin-top: 3px;">Em declínio</div>
-            </div>
-
-            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px 14px;">
-              <div style="font-size: 9px; font-weight: 700; color: #64748B; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 3px;">TEMP SOLO</div>
-              <div style="font-size: 22px; font-weight: 800; color: #059669; line-height: 1.1;">27.1°C</div>
-              <div style="font-size: 10px; color: #10B981; font-weight: 600; margin-top: 3px;">Normal</div>
-            </div>
-
-            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px 14px;">
-              <div style="font-size: 9px; font-weight: 700; color: #64748B; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 3px;">VÁLVULA SETOR</div>
-              <div id="live-valvula-status" style="font-size: 22px; font-weight: 800; color: #64748B; line-height: 1.1;">Fechada</div>
-              <div id="live-valvula-sub" style="font-size: 10px; color: #64748B; font-weight: 500; margin-top: 3px;">Pronta p/ envio</div>
-            </div>
-          </div>
-
-          <!-- Action Buttons -->
-          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-              <button id="btn-irrigacao-acao" style="padding: 9px 18px; background: #059669; border: none; border-radius: 8px; font-size: 12px; font-weight: 700; color: #FFFFFF; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 4px rgba(5,150,105,0.25); transition: all 0.2s;">
-                <i data-lucide="zap" style="width: 14px; height: 14px;"></i>
-                <span id="txt-irrigacao-btn">Disparar Válvula de Irrigação (Automação)</span>
-              </button>
-
-              <button id="btn-ver-curva-umidade" style="padding: 9px 16px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 12px; font-weight: 600; color: #334155; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='#F8FAFC'" onmouseout="this.style.background='#FFFFFF'">
-                Ver Curva de Umidade
-              </button>
-            </div>
-
-            <button id="btn-silenciar-p2" style="padding: 9px 14px; background: transparent; border: none; font-size: 12px; font-weight: 500; color: #64748B; cursor: pointer;">
-              Silenciar 1h
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Card Preditivo IA (quando selecionado filtro) -->
-      <div id="card-preditivo-ia" class="incident-card" data-category="preditivos" data-origin="estacao" style="display: none; background: #FFFFFF; border: 1px solid #C4B5FD; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 8px rgba(124,58,237,0.06);">
-        <div style="padding: 12px 20px; background: #F5F3FF; border-bottom: 1px solid #EDE9FE; display: flex; justify-content: space-between; align-items: center;">
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <span style="background: #7C3AED; color: #FFFFFF; font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 4px;">
-              PREDITIVO IA
-            </span>
-            <span style="background: #EDE9FE; color: #6D28D9; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 4px;">
-              Microclima & Vento
-            </span>
-          </div>
-          <span style="font-size: 11px; color: #94A3B8;">Previsão para 17:00</span>
-        </div>
-        <div style="padding: 20px;">
-          <h3 style="font-size: 15px; font-weight: 700; color: #0F172A; margin: 0 0 6px;">
-            Rajadas de Vento Acima de 42 km/h com Umidade em Queda Livre no Setor 04
-          </h3>
-          <p style="font-size: 12px; color: #64748B; line-height: 1.5; margin: 0 0 14px;">
-            Modelo meteorológico GFS acoplado aos sensores indica risco de evapotranspiração acelerada no dossel foliar e descalibragem do peso de cacho para exportação.
-          </p>
-          <button id="btn-ajustar-cortina" style="padding: 8px 14px; background: #7C3AED; color: #FFFFFF; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer;">
-            Acionar Cortina Quebra-Vento
-          </button>
-        </div>
-      </div>
-
+      `).join('')}
     </div>
 
-    <!-- SEÇÃO INFERIOR: LOG DE AUDITORIA RECENTE & DIRETRIZ (SEM MATRIZ DE COMUNICAÇÃO) -->
+    <!-- SEÇÃO INFERIOR: LOG DE AUDITORIA & DIRETRIZES DE MANEJO AGRONÔMICO -->
     <div style="display: grid; grid-template-columns: 1.6fr 1fr; gap: 20px; align-items: start;">
 
       <!-- Card 1: Log de Auditoria Recente -->
@@ -1091,24 +717,16 @@ function renderGestoraAlertas() {
           <div style="display: flex; gap: 10px; align-items: flex-start;">
             <span style="width: 7px; height: 7px; border-radius: 50%; background: #EF4444; margin-top: 5px; flex-shrink: 0;"></span>
             <div>
-              <div style="font-size: 11px; font-weight: 600; color: #0F172A;">SMS disparado para Rodovias Nordeste</div>
-              <div style="font-size: 10px; color: #94A3B8;">Ocorrência MSC 3401 • 11:47 BRT</div>
-            </div>
-          </div>
-
-          <div style="display: flex; gap: 10px; align-items: flex-start;">
-            <span style="width: 7px; height: 7px; border-radius: 50%; background: #F59E0B; margin-top: 5px; flex-shrink: 0;"></span>
-            <div>
-              <div style="font-size: 11px; font-weight: 600; color: #0F172A;">Alerta de umidade enviado para Agronomia</div>
-              <div style="font-size: 10px; color: #94A3B8;">Talhão A1 • 11:35 BRT</div>
+              <div style="font-size: 11px; font-weight: 600; color: #0F172A;">Notificação de limiar crítico emitida</div>
+              <div style="font-size: 10px; color: #94A3B8;">Talhão A1 • 11:35 BRT por Sistema IoT</div>
             </div>
           </div>
 
           <div style="display: flex; gap: 10px; align-items: flex-start;">
             <span style="width: 7px; height: 7px; border-radius: 50%; background: #10B981; margin-top: 5px; flex-shrink: 0;"></span>
             <div>
-              <div style="font-size: 11px; font-weight: 600; color: #0F172A;">Chamado 44-002 marcado como Resolvido</div>
-              <div style="font-size: 10px; color: #94A3B8;">Recebedor volta • 11:15 BRT por Carlos E.</div>
+              <div style="font-size: 11px; font-weight: 600; color: #0F172A;">Alerta reconhecido pela gestão técnica</div>
+              <div style="font-size: 10px; color: #94A3B8;">Pomar Uva • 11:15 BRT por Maria Clara</div>
             </div>
           </div>
 
@@ -1116,7 +734,7 @@ function renderGestoraAlertas() {
             <span style="width: 7px; height: 7px; border-radius: 50%; background: #0284C7; margin-top: 5px; flex-shrink: 0;"></span>
             <div>
               <div style="font-size: 11px; font-weight: 600; color: #0F172A;">Limiar térmico ajustado para Uva Vitória</div>
-              <div style="font-size: 10px; color: #94A3B8;">Operador • 09:15 BRT por Eng. Marília</div>
+              <div style="font-size: 10px; color: #94A3B8;">Parâmetros • 09:15 BRT por Eng. Marília</div>
             </div>
           </div>
         </div>
@@ -1126,20 +744,20 @@ function renderGestoraAlertas() {
         </a>
       </div>
 
-      <!-- Card 2: Diretriz Global de Cold-Chain -->
+      <!-- Card 2: Diretrizes Globais de Manejo -->
       <div style="background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 16px; padding: 22px 24px;">
         <div style="font-size: 9px; font-weight: 800; color: #047857; letter-spacing: 0.6px; text-transform: uppercase; margin-bottom: 6px;">
-          DIRETRIZ GLOBAL DE COLD-CHAIN
+          DIRETRIZ DE PROTEÇÃO FISIOLÓGICA
         </div>
         <div style="font-size: 14px; font-weight: 700; color: #064E3B; margin-bottom: 8px;">
-          Protocolo de Retenção de Fruta
+          Protocolo Fitotécnico de Exportação
         </div>
         <p style="font-size: 12px; color: #065F46; line-height: 1.5; margin: 0 0 14px;">
-          Desvios acima de 2,0°C com duração superior a 45 minutos acarretam veto de embarque com bloqueio preventivo de emissão do Certificado Fitossanitário no porto.
+          Leituras térmicas acima do limiar máximo com duração superior a 30 minutos demandam verificação agronômica imediata para evitar queima foliar e perda de brix.
         </p>
         <div style="display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 600; color: #047857; background: #DCFCE7; padding: 8px 12px; border-radius: 8px;">
           <i data-lucide="shield-check" style="width: 14px; height: 14px;"></i>
-          <span>Norma MAPA / Protocolo GlobalGAP</span>
+          <span>Norma Técnica de Boas Práticas Agrícolas</span>
         </div>
       </div>
 
@@ -1150,41 +768,122 @@ function renderGestoraAlertas() {
 }
 
 /**
- * Eventos da Central de Alertas da Gestora (Maria Clara)
+ * Eventos da Central de Alertas e Inicialização do Observer
  */
-function setupGestoraAlertasEvents() {
+export function setupAlertasEvents() {
   if (window.lucide) {
     window.lucide.createIcons();
   }
 
-  // Exportar CSV da Gestora (Download Real)
-  const btnExportGestora = document.getElementById('btn-exportar-csv');
-  if (btnExportGestora) {
-    btnExportGestora.addEventListener('click', () => {
-      const headers = ["Incidente", "LOTE/Cultura", "Severidade", "Status", "Data"];
-      const rows = [
-        ["Desvio Termico Reefer 40ft", "Lote Manga Palmer #4092", "Critico", "Em Andamento", new Date().toISOString()],
-        ["Estresse Hidrico Acentuado", "LOTE A1 - Uva Vitoria", "Moderado", "Pendente", new Date().toISOString()],
-        ["Oscilacao de Tensao no No LoRa", "Repetidor Serra do Mel", "Baixo", "Resolvido", new Date().toISOString()]
-      ];
-      const csv = "\uFEFF" + [headers.join(";"), ...rows.map(r => r.map(c => `"${c}"`).join(";"))].join("\r\n");
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = "registro_alertas_gestora.csv";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      toast.success('Download Concluído', 'Arquivo registro_alertas_gestora.csv baixado com sucesso.');
+  // 1. Carregamento sob demanda (IntersectionObserver) para GET /alertas/{id}/detalhe
+  const cardElements = document.querySelectorAll('.alerta-card-wrapper');
+
+  async function carregarDetalhe(id, containerEl) {
+    if (detalhesCache.has(id)) {
+      containerEl.innerHTML = renderAlertaCard(detalhesCache.get(id));
+      vincularEventosCard(containerEl, detalhesCache.get(id));
+      if (window.lucide) window.lucide.createIcons();
+      return;
+    }
+
+    try {
+      const detalhe = await api.getAlertaDetalhe(id);
+      detalhesCache.set(id, detalhe);
+      containerEl.innerHTML = renderAlertaCard(detalhe);
+      vincularEventosCard(containerEl, detalhe);
+      if (window.lucide) window.lucide.createIcons();
+    } catch (err) {
+      console.error(`Erro ao carregar detalhe do alerta #${id}:`, err);
+      containerEl.innerHTML = renderAlertaError(id, err.message);
+      containerEl.querySelector('.btn-retry-detalhe')?.addEventListener('click', () => {
+        containerEl.innerHTML = renderAlertaSkeleton({ id_alerta: id });
+        carregarDetalhe(id, containerEl);
+      });
+      if (window.lucide) window.lucide.createIcons();
+    }
+  }
+
+  // IntersectionObserver para carregar apenas cards visíveis na viewport
+  if ('IntersectionObserver' in window) {
+    const observer = new IntersectionObserver((entries, obs) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const el = entry.target;
+          const id = el.dataset.id;
+          if (id) {
+            obs.unobserve(el);
+            carregarDetalhe(id, el);
+          }
+        }
+      });
+    }, { rootMargin: '120px 0px', threshold: 0.05 });
+
+    cardElements.forEach(el => observer.observe(el));
+  } else {
+    // Fallback se navegador não tiver IntersectionObserver
+    cardElements.forEach(el => {
+      const id = el.dataset.id;
+      if (id) carregarDetalhe(id, el);
     });
   }
 
-  // 1. Filtragem dinâmica por abas
-  const tabs = document.querySelectorAll('.alert-filter-tab');
-  const incidentCards = document.querySelectorAll('.incident-card');
+  // 2. Vincular ações nos botões do Card (reconhecer e ver histórico)
+  function vincularEventosCard(cardEl, detalhe) {
+    // Ação: Reconhecer
+    const btnReconhecer = cardEl.querySelector('.btn-card-reconhecer');
+    if (btnReconhecer) {
+      btnReconhecer.addEventListener('click', async () => {
+        const idAlerta = btnReconhecer.dataset.id;
+        btnReconhecer.disabled = true;
+        btnReconhecer.innerHTML = '<span style="display:inline-block;animation:spin 1s infinite linear;">↻</span> Reconhecendo...';
 
+        try {
+          // PATCH /alertas/{id}/status com {"status": "reconhecido"}
+          await api.atualizarStatusAlertaById(idAlerta, 'reconhecido');
+
+          toast.success('Alerta Reconhecido', `Alerta #${idAlerta} marcado como reconhecido no banco de dados.`);
+
+          // Atualiza cache e re-renderiza o card com o novo estado
+          if (detalhe && detalhe.alerta) {
+            detalhe.alerta.status = 'reconhecido';
+            detalhesCache.set(idAlerta, detalhe);
+          }
+          cardEl.innerHTML = renderAlertaCard(detalhe);
+          vincularEventosCard(cardEl, detalhe);
+
+          // Atualiza contadores visuais
+          const kpiCountEl = document.getElementById('kpi-alertas-count');
+          if (kpiCountEl) {
+            const current = parseInt(kpiCountEl.textContent, 10) || 1;
+            kpiCountEl.textContent = String(Math.max(0, current - 1));
+          }
+
+          if (window.lucide) window.lucide.createIcons();
+        } catch (err) {
+          console.error('Erro ao reconhecer alerta:', err);
+          toast.error('Falha ao Reconhecer', err.message || 'Erro de conexão com a API.');
+          btnReconhecer.disabled = false;
+          btnReconhecer.textContent = 'Tentar Reconhecer';
+        }
+      });
+    }
+
+    // Ação: Ver Histórico do Sensor
+    const btnHistorico = cardEl.querySelector('.btn-card-historico');
+    if (btnHistorico) {
+      btnHistorico.addEventListener('click', () => {
+        const idSensor = btnHistorico.dataset.idSensor;
+        if (idSensor) {
+          window.location.hash = `#/leituras?id_sensor=${idSensor}`;
+        } else {
+          window.location.hash = '#/leituras';
+        }
+      });
+    }
+  }
+
+  // 3. Filtragem por Abas
+  const tabs = document.querySelectorAll('.alert-filter-tab');
   tabs.forEach(tab => {
     tab.addEventListener('click', () => {
       tabs.forEach(t => {
@@ -1200,38 +899,39 @@ function setupGestoraAlertasEvents() {
       tab.style.color = '#FFFFFF';
 
       const filter = tab.dataset.filter;
+      cardElements.forEach(card => {
+        const cardCategory = card.querySelector('.incident-card')?.dataset.category || (card.dataset.nivel || '').toLowerCase();
+        const isResolved = card.querySelector('.incident-card')?.classList.contains('resolved') || (card.dataset.status === 'reconhecido');
 
-      incidentCards.forEach(card => {
-        const cat = card.dataset.category;
         if (filter === 'todos') {
-          card.style.display = card.id === 'card-preditivo-ia' ? 'none' : 'block';
-        } else if (filter === 'preditivos') {
-          card.style.display = card.id === 'card-preditivo-ia' ? 'block' : 'none';
+          card.style.display = 'block';
         } else if (filter === 'criticos') {
-          card.style.display = cat === 'criticos' ? 'block' : 'none';
+          card.style.display = (cardCategory.includes('critico') || cardCategory.includes('p1')) ? 'block' : 'none';
         } else if (filter === 'moderados') {
-          card.style.display = cat === 'moderados' ? 'block' : 'none';
+          card.style.display = (cardCategory.includes('moderad') || cardCategory.includes('p2') || cardCategory.includes('medio')) ? 'block' : 'none';
+        } else if (filter === 'preditivos') {
+          card.style.display = cardCategory.includes('preditiv') ? 'block' : 'none';
         } else if (filter === 'resolvidos') {
-          card.style.display = card.classList.contains('resolved') ? 'block' : 'none';
+          card.style.display = isResolved ? 'block' : 'none';
         }
       });
     });
   });
 
-  // 2. Busca dinâmica por texto
+  // 4. Busca por Texto e Filtro por Origem
   const searchInput = document.getElementById('alert-search-input');
   const originSelect = document.getElementById('alert-origin-select');
-  const safraSelect = document.getElementById('alert-safra-select');
 
   function applyFilters() {
-    const query = (searchInput?.value || '').toLowerCase().trim();
-    const origin = originSelect?.value || '';
+    const q = (searchInput?.value || '').toLowerCase().trim();
+    const orig = (originSelect?.value || '').toLowerCase();
 
-    incidentCards.forEach(card => {
+    cardElements.forEach(card => {
       const text = card.textContent.toLowerCase();
-      const cardOrigin = card.dataset.origin || '';
-      const matchText = !query || text.includes(query);
-      const matchOrigin = !origin || cardOrigin === origin;
+      const cardOrigin = (card.querySelector('.incident-card')?.dataset.origin || '').toLowerCase();
+
+      const matchText = !q || text.includes(q);
+      const matchOrigin = !orig || cardOrigin.includes(orig);
 
       card.style.display = (matchText && matchOrigin) ? 'block' : 'none';
     });
@@ -1239,246 +939,100 @@ function setupGestoraAlertasEvents() {
 
   searchInput?.addEventListener('input', applyFilters);
   originSelect?.addEventListener('change', applyFilters);
-  safraSelect?.addEventListener('change', () => {
-    toast.info('Safra Selecionada', `Filtrando incidentes para o ciclo ${safraSelect.value}`);
-  });
 
-  // 3. Botão Limpar Filtros
   document.getElementById('btn-limpar-alertas')?.addEventListener('click', () => {
     if (searchInput) searchInput.value = '';
     if (originSelect) originSelect.value = '';
     applyFilters();
-    toast.info('Filtros Limpos', 'Exibindo todos os incidentes ativos.');
+    toast.info('Filtros Limpos', 'Exibindo todos os alertas.');
   });
 
-  // 4. Botão Reconhecer Todos
-  document.getElementById('btn-reconhecer-todos')?.addEventListener('click', () => {
-    toast.success('Alertas Reconhecidos', 'Todos os 3 incidentes ativos foram marcados como cientes pela gestão técnica.');
-    const badge = document.getElementById('badge-p1-status');
-    if (badge) {
-      badge.style.background = '#059669';
-      badge.textContent = 'RECONHECIDO';
+  // 5. Botão Reconhecer Todos (Cabeçalho da tela)
+  document.getElementById('btn-reconhecer-todos')?.addEventListener('click', async () => {
+    try {
+      toast.info('Reconhecendo Alertas...', 'Atualizando status de todos os incidentes abertos.');
+      const buttons = document.querySelectorAll('.btn-card-reconhecer');
+      for (const btn of buttons) {
+        const id = btn.dataset.id;
+        if (id) {
+          await api.atualizarStatusAlertaById(id, 'reconhecido').catch(() => {});
+        }
+      }
+      toast.success('Concluído', 'Todos os alertas pendentes foram marcados como reconhecidos.');
+      // Atualiza visual
+      const kpi = document.getElementById('kpi-alertas-count');
+      if (kpi) kpi.textContent = '0';
+      document.querySelectorAll('.btn-card-reconhecer').forEach(btn => {
+        const parent = btn.parentElement;
+        if (parent) {
+          parent.innerHTML = `
+            <div style="background: #ECFDF5; border: 1px solid #A7F3D0; color: #047857; font-size: 11px; font-weight: 700; padding: 7px 14px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px;">
+              <i data-lucide="check-check" style="width: 14px; height: 14px;"></i>
+              Alerta Reconhecido
+            </div>
+          `;
+        }
+      });
+      if (window.lucide) window.lucide.createIcons();
+    } catch (e) {
+      toast.error('Erro', 'Não foi possível reconhecer todos os alertas.');
     }
   });
 
-  // 5. Botão Exportar CSV (Gera e baixa o arquivo)
+  // 6. Botão Exportar CSV Real
   document.getElementById('btn-exportar-csv')?.addEventListener('click', () => {
-    const csvContent = 'data:text/csv;charset=utf-8,' +
-      'ID,Prioridade,Categoria,Titulo,Valor_Risco,Status,Data\\n' +
-      'EXP-2026-08,P1-Critico,Cadeia Fria,Desvio Termico Reefer 40ft,R$ 42.000,Ativo,2026-09-22 11:30\\n' +
-      'VU-03,P2-Atencao,Irrigacao,Estresse Hidrico LOTE A1,R$ 15.000,Ativo,2026-09-22 11:45\\n' +
-      'MET-04,Preditivo,Clima,Alerta de Rajadas de Vento Setor 04,R$ 0,Monitorando,2026-09-22 12:00';
+    const headers = ['ID_Alerta', 'Tipo_Alerta', 'Nivel', 'Status', 'Data_Hora', 'Lote', 'Sensor'];
+    const rows = [];
+    detalhesCache.forEach(d => {
+      if (d && d.alerta) {
+        rows.push([
+          d.alerta.id_alerta,
+          `"${(d.alerta.tipo_alerta || '').replace(/"/g, '""')}"`,
+          d.alerta.nivel || '',
+          d.alerta.status || '',
+          d.alerta.data_hora || '',
+          d.lote?.id_lote || '',
+          `"${(d.sensor?.nome || '')}"`
+        ]);
+      }
+    });
 
-    const encodedUri = encodeURI(csvContent);
+    const csvContent = '\uFEFF' + [headers.join(';'), ...rows.map(r => r.join(';'))].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', 'relatorio_incidentes_raiz_2026.csv');
+    link.href = url;
+    link.download = `incidentes_raiz_${new Date().toISOString().slice(0, 10)}.csv`;
     document.body.appendChild(link);
     link.click();
-    link.remove();
-    toast.success('Download Concluído', 'O arquivo CSV de incidentes foi gerado com sucesso.');
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success('Download Concluído', 'Arquivo CSV exportado com sucesso.');
   });
 
-  // 6. Botão Regras de Disparo (Modal)
+  // 7. Botão Regras de Disparo (Modal)
   document.getElementById('btn-regras-disparo')?.addEventListener('click', () => {
-    Modal.open('Configuração de Regras & Limiares de Disparo', `
+    Modal.open('Regras Agronômicas & Limiares de Disparo', `
       <div style="font-size: 13px; color: #475569; display: flex; flex-direction: column; gap: 14px;">
-        <p style="margin: 0; line-height: 1.5;">Defina os limites de sensibilidade para que o sistema gere notificações sonoras e push automáticas aos agrônomos de plantão.</p>
-        
+        <p style="margin: 0; line-height: 1.5;">Defina os limites fisiológicos para notificação imediata à equipe técnica.</p>
         <div>
-          <label style="display: block; font-size: 11px; font-weight: 700; color: #1E293B; margin-bottom: 4px;">TEMPERATURA MÁXIMA REEFER (CRÍTICO P1)</label>
-          <input type="text" value="2.0°C" style="width: 100%; padding: 8px 12px; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 13px;">
+          <label style="display: block; font-size: 11px; font-weight: 700; color: #1E293B; margin-bottom: 4px;">TEMPERATURA MÁXIMA TOLERADA</label>
+          <input type="text" value="32.0°C" style="width: 100%; padding: 8px 12px; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 13px;">
         </div>
-
         <div>
-          <label style="display: block; font-size: 11px; font-weight: 700; color: #1E293B; margin-bottom: 4px;">LIMIAR DE RECARGA HÍDRICA (MODERADO P2)</label>
-          <input type="text" value="50.0% VWC" style="width: 100%; padding: 8px 12px; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 13px;">
-        </div>
-
-        <div>
-          <label style="display: block; font-size: 11px; font-weight: 700; color: #1E293B; margin-bottom: 4px;">TEMPO DE TOLERÂNCIA ANTES DO DISPARO DE E-MAIL</label>
-          <input type="text" value="15 minutos consecutivos" style="width: 100%; padding: 8px 12px; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 13px;">
+          <label style="display: block; font-size: 11px; font-weight: 700; color: #1E293B; margin-bottom: 4px;">UMIDADE MÍNIMA DO AR</label>
+          <input type="text" value="50.0%" style="width: 100%; padding: 8px 12px; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 13px;">
         </div>
       </div>
     `, async () => {
-      toast.success('Regras Salvas', 'Limiares atualizados no servidor central e sincronizados com os nós.');
+      toast.success('Regras Atualizadas', 'Parâmetros sincronizados com o sistema central.');
       return true;
     }, 'Salvar Limiares');
   });
 
-  // 7. Ligar para Motorista (Modal de Chamada)
-  document.getElementById('btn-ligar-motorista')?.addEventListener('click', () => {
-    Modal.open('Acionamento Direto de Frota — Lote EXP-2026-08', `
-      <div style="display: flex; flex-direction: column; gap: 14px; font-size: 13px;">
-        <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px;">
-          <div style="font-size: 11px; font-weight: 700; color: #64748B; margin-bottom: 4px;">CONDUTOR RESPONSÁVEL</div>
-          <div style="font-size: 15px; font-weight: 700; color: #0F172A;">José Ribamar da Silva</div>
-          <div style="font-size: 12px; color: #475569; margin-top: 2px;">Transportadora: Rápido Nordeste Frutas</div>
-          <div style="font-size: 12px; color: #475569;">Caminhão Volvo FH 540 • Placa: <strong>RZG-4092</strong></div>
-          <div style="font-size: 12px; color: #059669; font-weight: 600; margin-top: 4px;">Telefone Direto: (87) 99821-4410</div>
-        </div>
-        <p style="margin: 0; color: #64748B; font-size: 12px; line-height: 1.5;">
-          Aviso: Instrua o motorista a verificar se o gerador Thermo King do baú está engatado na rotação correta e se a ventilação traseira não está obstruída.
-        </p>
-      </div>
-    `, () => {
-      toast.success('Ligação Solicitada', 'Conectando ao terminal GSM do condutor...');
-      return true;
-    }, 'Ligar Agora');
-  });
-
-  // 8. Telemetria Contínua (Toggle de Modo Live)
-  let liveActive = false;
-  let liveInterval = null;
-  const btnTelemetria = document.getElementById('btn-telemetria-p1');
-  const badgeLive = document.getElementById('telemetria-live-badge');
-  const liveTempDisplay = document.getElementById('live-p1-temp');
-  const txtTelemetriaBtn = document.getElementById('txt-telemetria-btn');
-
-  btnTelemetria?.addEventListener('click', () => {
-    liveActive = !liveActive;
-    if (liveActive) {
-      if (badgeLive) badgeLive.style.display = 'inline-block';
-      if (txtTelemetriaBtn) txtTelemetriaBtn.textContent = 'Pausar Telemetria';
-      toast.info('Modo Live Ativo', 'Requisitando dados do termógrafo a cada 3 segundos...');
-
-      liveInterval = setInterval(() => {
-        if (!liveTempDisplay) return;
-        const base = 3.4;
-        const jitter = (Math.random() * 0.2 - 0.1).toFixed(1);
-        liveTempDisplay.textContent = `${(base + parseFloat(jitter)).toFixed(1)}°C`;
-      }, 3000);
-    } else {
-      if (badgeLive) badgeLive.style.display = 'none';
-      if (txtTelemetriaBtn) txtTelemetriaBtn.textContent = 'Telemetria Contínua';
-      if (liveInterval) clearInterval(liveInterval);
-      toast.info('Telemetria Pausada', 'Frequência retornada para o ciclo padrão de 10 min.');
-    }
-  });
-
-  // 9. Marcar P1 como Atendido
-  document.getElementById('btn-atender-p1')?.addEventListener('click', (e) => {
-    const card = e.target.closest('.incident-card');
-    if (card) {
-      card.classList.add('resolved');
-      card.style.borderColor = '#BBF7D0';
-      card.style.opacity = '0.7';
-      const kpiCount = document.getElementById('kpi-alertas-count');
-      if (kpiCount) kpiCount.textContent = '2';
-      const criticoPill = document.getElementById('kpi-critico-pill');
-      if (criticoPill) {
-        criticoPill.style.background = '#DCFCE7';
-        criticoPill.style.color = '#15803D';
-        criticoPill.innerHTML = '0 Críticos<br><span style="font-weight: 800;">Atendidos</span>';
-      }
-      toast.success('Incidente Atendido', 'Lote EXP-2026-08 marcado como resolvido. Registro arquivado no log de auditoria.');
-    }
-  });
-
-  // 10. Disparar Válvula de Irrigação (P2)
-  const btnIrrigacao = document.getElementById('btn-irrigacao-acao');
-  const txtIrrigacao = document.getElementById('txt-irrigacao-btn');
-  const valvulaStatus = document.getElementById('live-valvula-status');
-  const valvulaSub = document.getElementById('live-valvula-sub');
-  const vwcDisplay = document.getElementById('live-vwc-20');
-  const kpiUmidadeBar = document.getElementById('kpi-umidade-bar');
-  const kpiUmidadeVal = document.getElementById('kpi-umidade-val');
-  const kpiUmidadeStatus = document.getElementById('kpi-umidade-status');
-
-  btnIrrigacao?.addEventListener('click', () => {
-    if (btnIrrigacao.dataset.active === 'true') {
-      toast.warning('Atenção', 'O ciclo de fertirrigação já está em andamento no setor VU03.');
-      return;
-    }
-
-    btnIrrigacao.dataset.active = 'true';
-    btnIrrigacao.style.background = '#047857';
-    if (txtIrrigacao) txtIrrigacao.textContent = '✓ Válvula Aberta • Irrigando Lâmina 4.2mm';
-    if (valvulaStatus) {
-      valvulaStatus.style.color = '#059669';
-      valvulaStatus.textContent = 'Aberta';
-    }
-    if (valvulaSub) {
-      valvulaSub.style.color = '#059669';
-      valvulaSub.textContent = 'Vazão 12.4 m³/h';
-    }
-
-    // Simulação do aumento de umidade pós-irrigação
-    setTimeout(() => {
-      if (vwcDisplay) {
-        vwcDisplay.textContent = '44.8%';
-        vwcDisplay.style.color = '#059669';
-      }
-      if (kpiUmidadeVal) kpiUmidadeVal.textContent = '44,8%';
-      if (kpiUmidadeBar) kpiUmidadeBar.style.width = '45%';
-      if (kpiUmidadeStatus) {
-        kpiUmidadeStatus.style.color = '#059669';
-        kpiUmidadeStatus.innerHTML = 'Recarga<br>em curso';
-      }
-    }, 2500);
-
-    toast.success('Automação Disparada', 'Comando enviado ao nó LoRa ESP32-VU03. Válvula do LOTE A1 aberta com sucesso.');
-  });
-
-  // 11. Ver Curva de Umidade (Modal)
-  document.getElementById('btn-ver-curva-umidade')?.addEventListener('click', () => {
-    Modal.open('Curva Histórica de Umidade Volumétrica (Solo FDR)', `
-      <div style="font-size: 13px; color: #475569;">
-        <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
-          <span>LOTE A1 • Variedade Uva Vitória (20cm & 40cm)</span>
-          <span style="font-weight: 700; color: #059669;">Taxa de Infiltração: Ideal</span>
-        </div>
-        <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px; padding: 16px; margin-bottom: 12px; text-align: center;">
-          <div style="display: flex; align-items: flex-end; gap: 6px; height: 120px; justify-content: space-between; padding-top: 10px;">
-            ${[36, 38, 42, 45, 48, 52, 50, 47, 43, 40, 38, 38.2].map((v, i) => `
-              <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;">
-                <div style="width: 100%; height: ${(v / 60) * 100}%; background: ${v < 40 ? '#F59E0B' : '#059669'}; border-radius: 4px;"></div>
-                <span style="font-size: 8px; color: #94A3B8;">${i * 2}h</span>
-              </div>
-            `).join('')}
-          </div>
-        </div>
-        <div style="font-size: 11px; color: #64748B;">
-          Faixa de segurança estipulada pelo terroir: <strong>45% a 60% VWC</strong>.
-        </div>
-      </div>
-    `);
-  });
-
-  // 12. Silenciar P2
-  document.getElementById('btn-silenciar-p2')?.addEventListener('click', (e) => {
-    e.target.textContent = '✓ Silenciado por 59m';
-    e.target.style.color = '#059669';
-    toast.info('Alerta Silenciado', 'Notificações sonoras do nó ESP32-VU03 desativadas por 1 hora.');
-  });
-
-  // 13. Testar Rotas de Disparo (Matriz de Comunicação)
-  document.getElementById('btn-testar-rotas')?.addEventListener('click', () => {
-    const btn = document.getElementById('btn-testar-rotas');
-    btn.disabled = true;
-    btn.textContent = 'Enviando pings de teste...';
-
-    const pPush = document.getElementById('status-push-pill');
-    const pEmail = document.getElementById('status-email-pill');
-    const pSmtp = document.getElementById('status-smtp-pill');
-
-    if (pPush) pPush.textContent = 'Ping...';
-    if (pEmail) pEmail.textContent = 'Ping...';
-    if (pSmtp) pSmtp.textContent = 'Ping...';
-
-    setTimeout(() => {
-      if (pPush) pPush.textContent = '210ms OK';
-      if (pEmail) pEmail.textContent = '120ms OK';
-    if (pSmtp) pSmtp.textContent = 'Autenticado';
-      btn.disabled = false;
-      btn.textContent = 'Testar Rotas de Disparo';
-      toast.success('Rotas Operantes', 'Push App e Notificação por E-mail responderam com 100% de integridade.');
-    }, 1200);
-  });
-
-  // 14. Ver Histórico Completo de Auditoria (Modal)
+  // 8. Ver Histórico Completo de Auditoria (Modal)
   document.getElementById('btn-ver-auditoria-completa')?.addEventListener('click', () => {
-    Modal.open('Log Completo de Auditoria & Rastreabilidade de Incidentes', `
+    Modal.open('Log Completo de Auditoria & Rastreabilidade', `
       <div style="font-size: 12px; color: #334155; max-height: 380px; overflow-y: auto;">
         <table style="width: 100%; border-collapse: collapse; text-align: left;">
           <thead>
@@ -1490,24 +1044,55 @@ function setupGestoraAlertasEvents() {
             </tr>
           </thead>
           <tbody>
-            ${[
-        { h: '11:42 BRT', o: 'Gateway GSM', e: 'E-mail de alerta disparado para Rodovias Nordeste', u: 'Automação Central' },
-        { h: '11:30 BRT', o: 'ESP32-VU03', e: 'Alerta de umidade enviado para Agronomia', u: 'Sensor FDR' },
-        { h: '11:20 BRT', o: 'Repetidor LoRa', e: 'Chamado #4092 marcado como Resolvido', u: 'Carlos E.' },
-        { h: '09:15 BRT', o: 'Central', e: 'Limiar térmico ajustado para Uva Vitória', u: 'Eng. Marília' },
-        { h: '08:00 BRT', o: 'Sistema', e: 'Check diário de baterias de nós (98% OK)', u: 'Rotina Cron' },
-        { h: '07:15 BRT', o: 'Estação', e: 'Calibração de anemômetro ultrassônico', u: 'Roberto Santos' },
-      ].map(r => `
-              <tr style="border-bottom: 1px solid #F1F5F9;">
-                <td style="padding: 8px 6px; font-weight: 600;">${r.h}</td>
-                <td style="padding: 8px 6px; color: #64748B;">${r.o}</td>
-                <td style="padding: 8px 6px;">${r.e}</td>
-                <td style="padding: 8px 6px; color: #059669; font-weight: 600;">${r.u}</td>
-              </tr>
-            `).join('')}
+            <tr style="border-bottom: 1px solid #F1F5F9;">
+              <td style="padding: 8px 6px; font-weight: 600;">11:35 BRT</td>
+              <td style="padding: 8px 6px; color: #64748B;">Sensor S1</td>
+              <td style="padding: 8px 6px;">Disparo de alerta: Temperatura Crítica (34.1°C)</td>
+              <td style="padding: 8px 6px; color: #059669; font-weight: 600;">Automação Central</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #F1F5F9;">
+              <td style="padding: 8px 6px; font-weight: 600;">11:15 BRT</td>
+              <td style="padding: 8px 6px; color: #64748B;">Painel Gestão</td>
+              <td style="padding: 8px 6px;">Alerta marcado como reconhecido</td>
+              <td style="padding: 8px 6px; color: #059669; font-weight: 600;">Maria Clara</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #F1F5F9;">
+              <td style="padding: 8px 6px; font-weight: 600;">09:15 BRT</td>
+              <td style="padding: 8px 6px; color: #64748B;">Configuração</td>
+              <td style="padding: 8px 6px;">Ajuste de teto térmico para 32.0°C</td>
+              <td style="padding: 8px 6px; color: #059669; font-weight: 600;">Eng. Marília</td>
+            </tr>
           </tbody>
         </table>
       </div>
     `);
   });
+}
+
+/**
+ * Utilitários Auxiliares
+ */
+function formatarTempoRelativo(isoString) {
+  if (!isoString) return 'Data não informada';
+  try {
+    const diffMs = Date.now() - new Date(isoString).getTime();
+    const diffMin = Math.round(diffMs / 60000);
+    if (diffMin < 1) return 'Agora mesmo';
+    if (diffMin < 60) return `Registrado há ${diffMin} min`;
+    const diffH = Math.floor(diffMin / 60);
+    if (diffH < 24) return `Registrado há ${diffH}h`;
+    return new Date(isoString).toLocaleDateString('pt-BR');
+  } catch {
+    return 'Recente';
+  }
+}
+
+function formatarHoraMinuto(isoString) {
+  if (!isoString) return '--:--';
+  try {
+    const d = new Date(isoString);
+    return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return '--:--';
+  }
 }

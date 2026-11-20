@@ -485,34 +485,34 @@ class ApiService {
     } catch (err) {
       return [
         {
-          id_alerta: 1,
-          tipo_alerta: 'Temperatura Elevada',
-          descricao: 'Container Reefer 40 registrou 13.8°C (limite máx: 13.0°C para Manga)',
-          nivel: 'alto',
+          id_alerta: 41,
+          tipo_alerta: 'Temperatura Crítica no Pomar',
+          descricao: 'Temperatura de 34.1°C ultrapassou o teto fisiológico de 32.0°C para uva em fase de maturação.',
+          nivel: 'CRITICO',
           status: 'aberto',
-          data_hora: new Date(Date.now() - 35 * 60000).toISOString(),
-          id_sensor: 3,
-          id_lote: 3
+          data_hora: new Date(Date.now() - 25 * 60000).toISOString(),
+          id_sensor: 1,
+          id_lote: 12
         },
         {
-          id_alerta: 2,
-          tipo_alerta: 'Previsão Térmica na Rota',
-          descricao: 'Onda de calor prevista na BR-232 nas próximas 4h (elevação de 3.2°C externa)',
-          nivel: 'médio',
+          id_alerta: 42,
+          tipo_alerta: 'Umidade do Ar em Declínio',
+          descricao: 'Umidade atmosférica em 48% com vento moderado gerando alta demanda evaporativa.',
+          nivel: 'MODERADO',
           status: 'aberto',
-          data_hora: new Date(Date.now() - 90 * 60000).toISOString(),
-          id_sensor: null,
-          id_lote: 3
-        },
-        {
-          id_alerta: 3,
-          tipo_alerta: 'Umidade Abaixo da Faixa',
-          descricao: 'Sensor Solo Umidade B1 registrou umidade 58% (recomendado mínimo: 65%)',
-          nivel: 'baixo',
-          status: 'resolvido',
-          data_hora: new Date(Date.now() - 360 * 60000).toISOString(),
+          data_hora: new Date(Date.now() - 40 * 60000).toISOString(),
           id_sensor: 2,
-          id_lote: 2
+          id_lote: 12
+        },
+        {
+          id_alerta: 43,
+          tipo_alerta: 'Oscilação Térmica Noturna',
+          descricao: 'Leitura dentro da faixa normalizada após ajuste de ventilação no setor.',
+          nivel: 'BAIXO',
+          status: 'resolvido',
+          data_hora: new Date(Date.now() - 180 * 60000).toISOString(),
+          id_sensor: 3,
+          id_lote: 14
         }
       ];
     }
@@ -526,6 +526,101 @@ class ApiService {
       });
     } catch (err) {
       return { success: true, id_alerta: id, status: 'resolvido' };
+    }
+  }
+
+  // Buscar detalhe dinâmico do alerta (GET /alertas/{id}/detalhe)
+  async getAlertaDetalhe(id) {
+    try {
+      return await this.request(`/alertas/${id}/detalhe`);
+    } catch (err) {
+      console.warn(`[API] Fallback offline para detalhe do alerta #${id}:`, err.message);
+      return {
+        alerta: {
+          id_alerta: Number(id),
+          tipo_alerta: 'Temperatura Elevada no Pomar',
+          descricao: 'Sensor registrou temperatura acima do limiar fisiológico da cultura no talhão.',
+          nivel: Number(id) === 1 ? 'CRITICO' : (Number(id) === 2 ? 'MODERADO' : 'INFO'),
+          status: 'aberto',
+          data_hora: new Date(Date.now() - 25 * 60000).toISOString(),
+          id_sensor: 1,
+          id_lote: 12
+        },
+        layout: 'leitura',
+        resumo: 'Temperatura: 34,1°C — 2,1°C acima do máximo de 32,0°C',
+        lote: {
+          id_lote: 12,
+          fruta: 'Uva',
+          quantidade: 2000,
+          unidade: 'kg',
+          etapa: 'campo',
+          destino: null
+        },
+        sensor: {
+          id_sensor: 1,
+          nome: 'S1',
+          localizacao: 'Talhão A1',
+          ambiente: 'ar',
+          status: 'ativo',
+          origem: 'thingspeak',
+          ultima_leitura: new Date(Date.now() - 3 * 60000).toISOString(),
+          minutos_sem_leitura: 3,
+          sem_leitura: false
+        },
+        metricas: [
+          {
+            chave: 'temperatura',
+            label: 'Temperatura',
+            unidade: '°C',
+            valor: 34.1,
+            limite_min: 8.0,
+            limite_max: 32.0,
+            status: 'critico',
+            desvio: 2.1
+          },
+          {
+            chave: 'umidade',
+            label: 'Umidade do ar',
+            unidade: '%',
+            valor: 70.0,
+            limite_min: 50.0,
+            limite_max: 90.0,
+            status: 'ok',
+            desvio: null
+          }
+        ],
+        limites: {
+          temp_min: 8.0,
+          temp_max: 32.0,
+          umidade_min: 50.0,
+          umidade_max: 90.0
+        },
+        serie: [
+          { t: new Date(Date.now() - 90 * 60000).toISOString(), temperatura: 30.2, umidade: 72.0 },
+          { t: new Date(Date.now() - 60 * 60000).toISOString(), temperatura: 31.8, umidade: 71.5 },
+          { t: new Date(Date.now() - 30 * 60000).toISOString(), temperatura: 33.2, umidade: 70.8 },
+          { t: new Date(Date.now() - 5 * 60000).toISOString(), temperatura: 34.1, umidade: 70.0 }
+        ],
+        leitura_gatilho: {
+          temperatura: 33.5,
+          umidade: 71.0,
+          data_hora: new Date(Date.now() - 25 * 60000).toISOString()
+        },
+        acoes: ['reconhecer', 'ver_historico']
+      };
+    }
+  }
+
+  // Atualizar status de um alerta específico (PATCH /alertas/{id}/status)
+  async atualizarStatusAlertaById(id, status = 'reconhecido') {
+    try {
+      return await this.request(`/alertas/${id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status })
+      });
+    } catch (err) {
+      console.warn(`[API] Erro ao atualizar status do alerta #${id}:`, err.message);
+      return { success: true, id_alerta: id, status };
     }
   }
 
