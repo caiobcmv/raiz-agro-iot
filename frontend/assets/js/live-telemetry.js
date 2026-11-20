@@ -103,8 +103,8 @@ class LiveTelemetryService {
       const items = [
         {
           id: 'SNS-SL-001',
-          subId: 'id_sensor: 1 • Sonda FDR Solo A1',
-          tipoPill: '<span style="background: #ECFDF5; color: #047857; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 11px; display: inline-flex; align-items: center; gap: 5px;"><i data-lucide="sprout" style="width: 13px; height: 13px;"></i> FDR Capacitivo • solo</span>',
+          subId: 'id_sensor: 1 • Sensor de Umidade do Solo A1',
+          tipoPill: '<span style="background: #ECFDF5; color: #047857; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 11px; display: inline-flex; align-items: center; gap: 5px;"><i data-lucide="sprout" style="width: 13px; height: 13px;"></i> Sensor Solo • solo</span>',
           lote: 'Lote 1 (LOTE A1)',
           fruta: 'Uva Niágara',
           channel: 'Ch 248901',
@@ -118,7 +118,7 @@ class LiveTelemetryService {
         {
           id: 'SNS-AR-002',
           subId: 'id_sensor: 2 • Estação Microclima A1',
-          tipoPill: '<span style="background: #EFF6FF; color: #1D4ED8; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 11px; display: inline-flex; align-items: center; gap: 5px;"><i data-lucide="cloud" style="width: 13px; height: 13px;"></i> DHT22/SHT31 • ar</span>',
+          tipoPill: '<span style="background: #EFF6FF; color: #1D4ED8; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 11px; display: inline-flex; align-items: center; gap: 5px;"><i data-lucide="cloud" style="width: 13px; height: 13px;"></i> DHT11 • ar</span>',
           lote: 'Lote 1 (LOTE A1)',
           fruta: 'Uva Niágara',
           channel: 'Ch 248901',
@@ -131,7 +131,7 @@ class LiveTelemetryService {
         },
         {
           id: 'SNS-SL-003',
-          subId: 'id_sensor: 3 • Sonda FDR Solo A2',
+          subId: 'id_sensor: 3 • Sensor de Umidade do Solo A2',
           tipoPill: '<span style="background: #ECFDF5; color: #047857; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 11px; display: inline-flex; align-items: center; gap: 5px;"><i data-lucide="sprout" style="width: 13px; height: 13px;"></i> TDR Analítico • solo</span>',
           lote: 'Lote 2 (LOTE A2)',
           fruta: 'Uva Crimson',
@@ -146,7 +146,7 @@ class LiveTelemetryService {
         {
           id: 'SNS-SL-025',
           subId: 'id_sensor: 25 • Sonda Bancada Teste',
-          tipoPill: '<span style="background: #FEF3C7; color: #B45309; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 11px; display: inline-flex; align-items: center; gap: 5px;"><i data-lucide="sprout" style="width: 13px; height: 13px;"></i> FDR Calibração • solo</span>',
+          tipoPill: '<span style="background: #FEF3C7; color: #B45309; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 11px; display: inline-flex; align-items: center; gap: 5px;"><i data-lucide="sprout" style="width: 13px; height: 13px;"></i> Sensor Solo • solo</span>',
           lote: 'Lote 3 (LOTE B1)',
           fruta: 'Thompson Seedless',
           channel: 'Ch 248903',
@@ -211,7 +211,7 @@ class LiveTelemetryService {
     this._setTextBySelector('[data-kpi="rede-disponibilidade"]', '96%');
     this._setTextBySelector('[data-kpi="rede-nos-ativos"]', `${ativos} de ${total} nós ativos`);
     this._setTextBySelector('[data-kpi="rede-sensores-amb"]', `${total}`);
-    this._setTextBySelector('[data-kpi="rede-amb-detalhes"]', `${soloCount} Solo (FDR) • ${arCount} Ar (Microclima)`);
+    this._setTextBySelector('[data-kpi="rede-amb-detalhes"]', `${soloCount} Umidade do Solo • ${arCount} DHT11 (Ar)`);
   }
 
   // 4. Atualiza Leituras Recentes e Séries Temporais do Gráfico

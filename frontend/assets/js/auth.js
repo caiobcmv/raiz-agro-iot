@@ -278,7 +278,7 @@ class AuthState {
         avatarBg: '#DCFCE7',
         avatarBorder: '#86EFAC',
         avatarColor: '#166534',
-        gatewayPill: 'LoRa Gateway',
+        gatewayPill: 'ESP32',
         gatewayStatus: 'Conectado',
         farm: 'Vale das Uvas',
         farmSub: 'Petrolina - Setor 04',
@@ -298,11 +298,11 @@ class AuthState {
         avatarBg: '#E0F2FE',
         avatarBorder: '#0284C7',
         avatarColor: '#0369A1',
-        gatewayPill: 'LoRa Gateway',
+        gatewayPill: 'ESP32',
         gatewayStatus: 'Conectado',
         farm: 'Vale das Uvas',
         farmSub: 'Petrolina - Setor 04',
-        bio: 'Especialista em telemetria LoRaWAN, calibração de nós ESP32 e análise preditiva.'
+        bio: 'Especialista em telemetria ESP32 (DHT11 e umidade do solo) e análise preditiva.'
       };
     } else {
       base = {

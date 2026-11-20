@@ -30,7 +30,7 @@ export async function renderConfiguracoes() {
   const userId = isAnalista ? '2' : '1';
   const telefone = isAnalista ? '(87) 99812-4420' : '(87) 99842-1104';
   const bio = isAnalista
-    ? 'Supervisão técnica de enlaces LoRaWAN, amostragem FDR e calibração de sensores IoT.'
+    ? 'Supervisão técnica de nós ESP32 (DHT11 e umidade do solo) e calibração de sensores IoT.'
     : 'Gestão operacional de colheita, irrigação de precisão e manejo integrado de campo.';
 
   return `

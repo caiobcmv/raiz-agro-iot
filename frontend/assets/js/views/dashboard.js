@@ -66,7 +66,7 @@ function renderAnalistaDashboard() {
       <div class="analista-subbar">
         <div class="analista-subbar-info">
           <span class="analista-dot-pulse"></span>
-          <span>GATEWAY PETROLINA-04 • US915 CONCENTRADOR ATIVO</span>
+          <span>GATEWAY PETROLINA-04 • CONCENTRADOR ESP32 ATIVO</span>
           <span class="analista-badge-tech">ESP-MESH v4.2.1-prod</span>
         </div>
         <div class="analista-subbar-actions">
@@ -113,7 +113,7 @@ function renderAnalistaDashboard() {
             <span class="kpi-sub-num">unidades ativas</span>
           </div>
           <div class="kpi-bottom-row" style="gap: 6px;">
-            <span style="background: #ECFDF5; color: #047857; padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 10px;">16 Solo (FDR)</span>
+            <span style="background: #ECFDF5; color: #047857; padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 10px;">16 Umidade do Solo</span>
             <span style="background: #EFF6FF; color: #1D4ED8; padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 10px;">8 Microclima (Ar)</span>
           </div>
         </div>
@@ -172,7 +172,7 @@ function renderAnalistaDashboard() {
           <!-- Filtros de Topologia -->
           <div class="map-filter-tabs">
             <button class="map-tab-btn active" data-filter="todos">Todos (24)</button>
-            <button class="map-tab-btn" data-filter="solo">Solo / FDR (16)</button>
+            <button class="map-tab-btn" data-filter="solo">Umidade do Solo (16)</button>
             <button class="map-tab-btn" data-filter="ar">Microclima / Ar (8)</button>
             <button class="map-tab-btn" data-filter="alerta">Em Alerta (2)</button>
           </div>
@@ -195,13 +195,13 @@ function renderAnalistaDashboard() {
           </div>
 
           <!-- Gateway Central ESP32 com Pulso Radar -->
-          <div class="gateway-center-marker" style="top: 42%; left: 58%;" title="Gateway Central ESP32 - US915 Concentrador Ativo" data-node="gateway">
+          <div class="gateway-center-marker" style="top: 42%; left: 58%;" title="Gateway Central ESP32 - Concentrador Ativo" data-node="gateway">
             <div class="gateway-pulse-ring"></div>
             <i data-lucide="radio" style="width: 22px; height: 22px;"></i>
           </div>
 
           <!-- Pinos de Sensores Interativos -->
-          <div class="sensor-pin-marker green" style="top: 36%; left: 44%;" data-node="03" data-tipo="solo" title="Nó 03: Sonda FDR Solo • 48% VWC">
+          <div class="sensor-pin-marker green" style="top: 36%; left: 44%;" data-node="03" data-tipo="solo" title="Nó 03: Sensor de Umidade do Solo • 48% VWC">
             03
           </div>
 
@@ -209,19 +209,19 @@ function renderAnalistaDashboard() {
             19
           </div>
 
-          <div class="sensor-pin-marker green" style="top: 48%; left: 48%;" data-node="01" data-tipo="solo" title="Nó 01: Sonda Solo A1 • 46.2% VWC">
+          <div class="sensor-pin-marker green" style="top: 48%; left: 48%;" data-node="01" data-tipo="solo" title="Nó 01: Sensor de Umidade do Solo A1 • 46.2% VWC">
             01
           </div>
 
-          <div class="sensor-pin-marker blue" style="top: 38%; left: 72%;" data-node="04" data-tipo="ar" title="Nó 04: Estação Ar • 27.8°C / 61% UR">
+          <div class="sensor-pin-marker blue" style="top: 38%; left: 72%;" data-node="04" data-tipo="ar" title="Nó 04: Sensor DHT11 Ar • 27.8°C / 61% UR">
             04
           </div>
 
-          <div class="sensor-pin-marker blue" style="top: 45%; left: 74%;" data-node="08" data-tipo="ar" title="Nó 08: Microclima Dossel • 26.5°C">
+          <div class="sensor-pin-marker blue" style="top: 45%; left: 74%;" data-node="08" data-tipo="ar" title="Nó 08: Sensor DHT11 Dossel • 26.5°C">
             08
           </div>
 
-          <div class="sensor-pin-marker blue" style="top: 50%; left: 70%;" data-node="07" data-tipo="ar" title="Nó 07: Estação Perimetral • 27.1°C">
+          <div class="sensor-pin-marker blue" style="top: 50%; left: 70%;" data-node="07" data-tipo="ar" title="Nó 07: Sensor DHT11 Perimetral • 27.1°C">
             07
           </div>
 
@@ -250,7 +250,7 @@ function renderAnalistaDashboard() {
             </span>
             <span style="display: flex; align-items: center; gap: 6px; color: #94A3B8;">
               <i data-lucide="radio" style="width: 12px; height: 12px;"></i>
-              ThingSpeak: 5 min (BW 125 kHz / US915)
+              ThingSpeak: 5 min (Wi-Fi ESP32)
             </span>
           </div>
 
@@ -299,7 +299,7 @@ function renderAnalistaDashboard() {
           <!-- Item 2 Rejeitado -->
           <div style="border-top: 1px solid #F1F5F9; padding: 12px 0;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-              <span style="font-size: 12px; font-weight: 700; color: #0F172A;">Sonda FDR #SNS-SL-07</span>
+              <span style="font-size: 12px; font-weight: 700; color: #0F172A;">Sensor de Umidade do Solo #SNS-SL-07</span>
               <span style="font-size: 10px; background: #EFF6FF; color: #1D4ED8; padding: 2px 6px; border-radius: 4px; font-weight: 600;">LOTE C2 • Manga Palmer</span>
             </div>
             <div style="font-size: 11px; color: #D97706; margin-bottom: 8px;">
@@ -361,14 +361,14 @@ function renderAnalistaDashboard() {
                 <div style="font-size: 10px; color: #64748B;">Balanço de energia solar vs transmissão de pacotes</div>
               </div>
               <button class="incident-btn-secondary" id="btn-freq-ingestao" style="font-size: 11px; padding: 4px 8px;">
-                A cada 5 min (US915)
+                A cada 5 min (Wi-Fi)
               </button>
             </div>
 
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: #F8FAFC; border-radius: 8px; border: 1px solid #E2E8F0;">
               <div>
-                <div style="font-size: 12px; font-weight: 600; color: #0F172A;">Filtro de Ruído e Auto-calibração FDR</div>
-                <div style="font-size: 10px; color: #64748B;">Compensação térmica e salinidade em ciclo de 7 dias</div>
+                <div style="font-size: 12px; font-weight: 600; color: #0F172A;">Filtro de Ruído e Auto-calibração do Solo</div>
+                <div style="font-size: 10px; color: #64748B;">Compensação de umidade e condutividade em ciclo de 7 dias</div>
               </div>
               <label style="position: relative; display: inline-block; width: 40px; height: 22px;">
                 <input type="checkbox" id="check-filtro-ruido" checked style="opacity: 0; width: 0; height: 0;">
@@ -761,7 +761,7 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
           <span style="font-size: 14px; font-weight: 700; color: #1E293B; letter-spacing: 0.5px; text-transform: uppercase;">
             TELEMETRIA DE CAMPO (24H)
           </span>
-          <p style="font-size: 12px; color: #94A3B8; margin-top: 2px;">Leituras em tempo real dos nós LoRaWAN distribuídos nos talhões</p>
+          <p style="font-size: 12px; color: #94A3B8; margin-top: 2px;">Leituras em tempo real via ESP32 (DHT11 e Sensor de Umidade do Solo)</p>
         </div>
 
         <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
@@ -914,7 +914,7 @@ function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
             <i data-lucide="radio" style="width: 20px; height: 20px;"></i>
           </div>
         </div>
-        <span style="font-size: 11px; color: #71807A;">ThingSpeak IoT • LoRaWAN US915</span>
+        <span style="font-size: 11px; color: #71807A;">ThingSpeak IoT • ESP32 Wi-Fi</span>
       </div>
 
       <!-- Card 4: ALERTAS ATIVOS -->
@@ -1660,7 +1660,7 @@ function setupAnalistaDashboardEvents() {
       setTimeout(() => {
         if (icon) icon.classList.remove('animate-spin');
         btnSync.style.opacity = '1';
-        toast.success('ThingSpeak Sincronizado', '24 nós da rede US915 atualizados em tempo real (Canal #248901).');
+        toast.success('ThingSpeak Sincronizado', '24 nós ESP32 atualizados em tempo real (Canal #248901).');
       }, 900);
     });
   }
@@ -1671,7 +1671,7 @@ function setupAnalistaDashboardEvents() {
     btnExport.addEventListener('click', () => {
       toast.info('Exportação Iniciada', 'Gerando arquivo CSV com telemetria dos 24 sensores do LOTE A1 e C2...');
       setTimeout(() => {
-        toast.success('Download Pronto', 'Arquivo telemetria_petrolina_us915.csv gerado com sucesso.');
+        toast.success('Download Pronto', 'Arquivo telemetria_petrolina_esp32.csv gerado com sucesso.');
       }, 1200);
     });
   }
@@ -1735,7 +1735,7 @@ function setupAnalistaDashboardEvents() {
             </div>
           </div>
           <div style="font-size:12px; color:#475569; line-height:1.6;">
-            <strong>Hardware:</strong> Sonda FDR Solo #SNS-SL-04<br>
+            <strong>Hardware:</strong> Sensor de Umidade do Solo #SNS-SL-04<br>
             <strong>Localização:</strong> LOTE A1 • Uva Vitória (Setor 4)<br>
             <strong>Canal ThingSpeak:</strong> #248901 (Entry #14.892)<br>
             <strong>Ação recomendada:</strong> Executar calibração de offset ou inspecionar cabeamento analógico.
@@ -1755,9 +1755,9 @@ function setupAnalistaDashboardEvents() {
             </div>
           </div>
           <div style="font-size:12px; color:#475569; line-height:1.6;">
-            <strong>Status de Radiofrequência:</strong> RSSI -81 dBm (Excelente)<br>
+            <strong>Status Wi-Fi ESP32:</strong> RSSI -68 dBm (Excelente)<br>
             <strong>Bateria:</strong> 96% (Painel Solar 5W)<br>
-            <strong>Último Pacote LoRa:</strong> há 42 segundos via US915
+            <strong>Último Pacote ESP32:</strong> há 42 segundos via Wi-Fi
           </div>
         `;
       }
@@ -1776,18 +1776,18 @@ function setupAnalistaDashboardEvents() {
         <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
           <div style="width:44px; height:44px; border-radius:50%; background:#183D2E; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800;">GW</div>
           <div>
-            <div style="font-weight:700; font-size:14px; color:#0F172A;">Gateway Concentrador LoRaWAN US915</div>
-            <div style="font-size:11px; color:#059669; font-weight:600;">Status: 100% Operacional • Latência: 124ms</div>
+            <div style="font-weight:700; font-size:14px; color:#0F172A;">Gateway Central ESP32 (Wi-Fi / ThingSpeak)</div>
+            <div style="font-size:11px; color:#059669; font-weight:600;">Status: 100% Operacional • Latência: 48ms</div>
           </div>
         </div>
         <div style="font-size:12px; color:#475569; line-height:1.6;">
-          <strong>Topologia:</strong> ESP-MESH v4.2.1-prod<br>
+          <strong>Topologia:</strong> Rede Wi-Fi ESP32 v4.2.1-prod<br>
           <strong>Nós Conectados:</strong> 24 de 25 nós operacionais<br>
           <strong>Canal ThingSpeak Primário:</strong> #248901 (Cadência 5 min)<br>
           <strong>Coordenadas:</strong> 09°23'34" S, 40°30'28" W (45.0 ha)
         </div>
       `, () => {
-        toast.info('Ping Gateway', 'Resposta recebida em 118ms do concentrador Petrolina-04.');
+        toast.info('Ping Gateway', 'Resposta recebida em 48ms do concentrador Petrolina-04.');
       }, 'Executar Ping');
     });
   }
@@ -1861,7 +1861,7 @@ function setupAnalistaDashboardEvents() {
             <input type="radio" name="cadencia" value="1min"> A cada 1 minuto (Modo Calibração / Alto consumo de bateria)
           </label>
           <label style="display:flex; align-items:center; gap:8px; font-size:12px; cursor:pointer;">
-            <input type="radio" name="cadencia" value="5min" checked> A cada 5 minutos (Padrão US915 / Equilíbrio Solar)
+            <input type="radio" name="cadencia" value="5min" checked> A cada 5 minutos (Padrão Wi-Fi / Equilíbrio Solar)
           </label>
           <label style="display:flex; align-items:center; gap:8px; font-size:12px; cursor:pointer;">
             <input type="radio" name="cadencia" value="15min"> A cada 15 minutos (Econômico / Safra Estabilizada)
@@ -1878,7 +1878,7 @@ function setupAnalistaDashboardEvents() {
   if (checkFiltro) {
     checkFiltro.addEventListener('change', (e) => {
       if (e.target.checked) {
-        toast.success('Filtro Habilitado', 'Compensação térmica e salinidade ativadas nos sensores FDR.');
+        toast.success('Filtro Habilitado', 'Compensação ativada nos sensores de umidade do solo.');
       } else {
         toast.warning('Filtro Desativado', 'Sensores transmitindo valores analógicos brutos.');
       }
@@ -1900,7 +1900,7 @@ function renderAdminDashboard() {
             <i data-lucide="map-pin" style="width: 12px; height: 12px;"></i> Polo Sertão São Francisco
           </span>
           <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: #0284C7; background: #F0F9FF; border: 1px solid #BAE6FD; padding: 4px 10px; border-radius: 20px;">
-            <i data-lucide="radio" style="width: 12px; height: 12px;"></i> Rede LoRaWAN + Gateway 4G Online
+            <i data-lucide="wifi" style="width: 12px; height: 12px;"></i> Rede ESP32 Wi-Fi + Gateway Online
           </span>
           <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: #475569; background: #F8FAFC; border: 1px solid #E2E8F0; padding: 4px 10px; border-radius: 20px;">
             <i data-lucide="file-check" style="width: 12px; height: 12px;"></i> 3 Regras Agronômicas Vigentes

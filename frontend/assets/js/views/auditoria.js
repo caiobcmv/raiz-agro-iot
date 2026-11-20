@@ -70,7 +70,7 @@ let _logsAuditoria = [
     codigo_ref: 'leitura_rejeitada',
     lote: 'Sonda #SNS-SL-019',
     data: '22/09/2026 10:15:02',
-    titulo: 'Descarte de Outlier Térmico — Sonda FDR Talhão C1 (Manga)',
+    titulo: 'Descarte de Outlier Térmico — Sensor de Umidade do Solo Talhão C1 (Manga)',
     origem: 'Valor Detectado: 62.4°C (Teto físico de 55.0°C excedido) • Canal ThingSpeak: #3500765',
     destino: 'Ação: Isolamento preventivo de registro',
     hash: '',

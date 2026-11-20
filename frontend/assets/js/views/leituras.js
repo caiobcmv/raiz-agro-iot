@@ -406,7 +406,7 @@ export function renderSafraFigmaLayout(dadosBackend) {
             </div>
             <div>
               <div style="font-size: 13px; font-weight: 800; color: #0F172A;">42 m³/ha Poupados</div>
-              <div style="font-size: 9px; font-weight: 700; color: #64748B; text-transform: uppercase;">GESTÃO IOT LORA</div>
+              <div style="font-size: 9px; font-weight: 700; color: #64748B; text-transform: uppercase;">GESTÃO IOT ESP32</div>
             </div>
           </div>
 
@@ -481,7 +481,7 @@ export function renderSafraFigmaLayout(dadosBackend) {
             <i data-lucide="shield-check" style="width: 18px; height: 18px; color: #16A34A;"></i>
             <div>
               <div style="font-size: 12px; font-weight: 700; color: #14532D;">GlobalG.A.P. Compliance</div>
-              <div style="font-size: 9px; font-weight: 700; color: #15803D; letter-spacing: 0.5px;">AUDITADO LORAWAN</div>
+              <div style="font-size: 9px; font-weight: 700; color: #15803D; letter-spacing: 0.5px;">AUDITADO ESP32</div>
             </div>
           </div>
           <span style="background: #16A34A; color: #FFFFFF; font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 4px;">100% OK</span>
@@ -587,7 +587,7 @@ export function renderSafraFigmaLayout(dadosBackend) {
               Correlação IoT
             </h3>
             <span style="background: #DCFCE7; color: #15803D; font-size: 9px; font-weight: 800; padding: 2px 8px; border-radius: 4px; letter-spacing: 0.5px;">
-              MESH ATIVA
+              ESP32 ATIVO
             </span>
           </div>
 
@@ -600,7 +600,7 @@ export function renderSafraFigmaLayout(dadosBackend) {
                 </div>
                 <div>
                   <div style="font-weight: 700; font-size: 12px; color: #0F172A;">Umidade Solo (VWC)</div>
-                  <div style="font-size: 10px; color: #64748B;">FDR 30cm e 60cm</div>
+                  <div style="font-size: 10px; color: #64748B;">Sensor de Umidade do Solo</div>
                 </div>
               </div>
               <span style="background: #ECFDF5; color: #047857; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;">+14% Brix</span>
@@ -635,7 +635,7 @@ export function renderSafraFigmaLayout(dadosBackend) {
                 </div>
                 <div>
                   <div style="font-weight: 700; font-size: 12px; color: #0F172A;">Risco Míldio e Molhamento</div>
-                  <div style="font-size: 10px; color: #64748B;">Sensor Dielétrico Foliar</div>
+                  <div style="font-size: 10px; color: #64748B;">Sensor DHT11 (Temp/Umid)</div>
                 </div>
               </div>
               <span style="background: #ECFDF5; color: #047857; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;">-92% Perdas</span>

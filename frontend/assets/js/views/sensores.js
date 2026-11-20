@@ -298,12 +298,12 @@ export async function renderSensores() {
               <tr style="border-bottom: 1px solid #F1F5F9; transition: background 0.15s;" class="tr-sensor-item">
                 <td style="padding: 12px 14px;">
                   <div style="font-weight: 700; color: #0F172A;">SNS-SL-001</div>
-                  <div style="font-size: 11px; color: #64748B;">id_sensor: 1 • Sonda FDR Solo A1</div>
+                  <div style="font-size: 11px; color: #64748B;">id_sensor: 1 • Sensor de Umidade do Solo A1</div>
                 </td>
                 <td style="padding: 12px 14px;">
                   <span style="background: #ECFDF5; color: #047857; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 11px; display: inline-flex; align-items: center; gap: 5px;">
                     <i data-lucide="sprout" style="width: 13px; height: 13px;"></i>
-                    FDR Capacitivo • solo
+                    Sensor Solo • solo
                   </span>
                 </td>
                 <td style="padding: 12px 14px;">
@@ -332,7 +332,7 @@ export async function renderSensores() {
                 <td style="padding: 12px 14px;">
                   <span style="background: #EFF6FF; color: #1D4ED8; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 11px; display: inline-flex; align-items: center; gap: 5px;">
                     <i data-lucide="cloud" style="width: 13px; height: 13px;"></i>
-                    DHT22/SHT31 • ar
+                    DHT11 • ar
                   </span>
                 </td>
                 <td style="padding: 12px 14px;">
@@ -356,7 +356,7 @@ export async function renderSensores() {
               <tr style="border-bottom: 1px solid #F1F5F9; transition: background 0.15s;" class="tr-sensor-item">
                 <td style="padding: 12px 14px;">
                   <div style="font-weight: 700; color: #0F172A;">SNS-SL-003</div>
-                  <div style="font-size: 11px; color: #64748B;">id_sensor: 3 • Sonda FDR Solo A2</div>
+                  <div style="font-size: 11px; color: #64748B;">id_sensor: 3 • Sensor de Umidade do Solo A2</div>
                 </td>
                 <td style="padding: 12px 14px;">
                   <span style="background: #ECFDF5; color: #047857; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 11px; display: inline-flex; align-items: center; gap: 5px;">
@@ -390,7 +390,7 @@ export async function renderSensores() {
                 <td style="padding: 12px 14px;">
                   <span style="background: #FEF3C7; color: #B45309; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 11px; display: inline-flex; align-items: center; gap: 5px;">
                     <i data-lucide="sprout" style="width: 13px; height: 13px;"></i>
-                    FDR Calibração • solo
+                    Sensor Solo • solo
                   </span>
                 </td>
                 <td style="padding: 12px 14px;">
@@ -576,7 +576,7 @@ export async function renderSensores() {
 
       <!-- Rodapé da página -->
       <div style="text-align: center; margin-top: 24px; margin-bottom: 8px; font-size: 11px; color: #94A3B8;">
-        Raíz - Plataforma de Inteligência Agro IoT e Logística de Exportação • Conectado via LoRaWAN E ESP32 • Vale do São Francisco
+        Raíz - Plataforma de Inteligência Agro IoT e Gestão de Safra • Conectado via ESP32 (DHT11 e Sensor de Umidade do Solo) • Vale do São Francisco
       </div>
     </div>
   `;
@@ -615,11 +615,11 @@ export function setupSensoresEvents() {
     btnExpSens.addEventListener('click', () => {
       const headers = ["ID Sensor", "Nome", "Tipo", "LOTE", "Canal ThingSpeak", "Bateria", "Status"];
       const rows = [
-        [1, "SNS-SL-001", "Solo (FDR)", "LOTE A1 - Uva Vitoria", 248901, "98%", "ativo"],
+        [1, "SNS-SL-001", "Umidade do Solo", "LOTE A1 - Uva Vitoria", 248901, "98%", "ativo"],
         [2, "SNS-AR-002", "Ar / Microclima", "LOTE A1 - Uva Vitoria", 248901, "95%", "ativo"],
-        [3, "SNS-SL-003", "Solo (FDR)", "LOTE B2 - Uva Thompson", 248902, "92%", "ativo"],
+        [3, "SNS-SL-003", "Umidade do Solo", "LOTE B2 - Uva Thompson", 248902, "92%", "ativo"],
         [4, "SNS-AR-004", "Ar / Microclima", "LOTE B2 - Uva Thompson", 248902, "90%", "ativo"],
-        [5, "SNS-SL-005", "Solo (FDR)", "LOTE C1 - Manga Palmer", 248903, "88%", "ativo"]
+        [5, "SNS-SL-005", "Umidade do Solo", "LOTE C1 - Manga Palmer", 248903, "88%", "ativo"]
       ];
       const csv = "\uFEFF" + [headers.join(";"), ...rows.map(r => r.join(";"))].join("\r\n");
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });

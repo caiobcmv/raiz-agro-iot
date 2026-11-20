@@ -8,10 +8,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/assets/css/design-system.css?v=20261120-live16">
-  <link rel="stylesheet" href="/assets/css/components.css?v=20261120-live16">
-  <link rel="stylesheet" href="/assets/css/layout.css?v=20261120-live16">
-  <link rel="stylesheet" href="/assets/css/analista.css?v=20261120-live16">
+  <link rel="stylesheet" href="/assets/css/design-system.css?v=20261120-live17">
+  <link rel="stylesheet" href="/assets/css/components.css?v=20261120-live17">
+  <link rel="stylesheet" href="/assets/css/layout.css?v=20261120-live17">
+  <link rel="stylesheet" href="/assets/css/analista.css?v=20261120-live17">
   
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -79,7 +79,7 @@
         <div class="gateway-status-pill">
           <span style="display: flex; align-items: center; gap: 6px; color: #1E293B; font-weight: 600; font-size: 11px;">
             <span style="width: 7px; height: 7px; border-radius: 50%; background: #10B981; box-shadow: 0 0 6px rgba(16,185,129,0.7);"></span>
-            LoRa Gateway
+            ESP32
           </span>
           <span style="color: #64748B; font-size: 11px; font-weight: 500;">Conectado</span>
         </div>
@@ -363,7 +363,7 @@
             </div>
             <div>
               <div style="font-size: 13px; font-weight: 800; color: #0F172A;">42 m³/ha Poupados</div>
-              <div style="font-size: 9px; font-weight: 700; color: #64748B; text-transform: uppercase;">GESTÃO IOT LORA</div>
+              <div style="font-size: 9px; font-weight: 700; color: #64748B; text-transform: uppercase;">GESTÃO IOT ESP32</div>
             </div>
           </div>
 
@@ -379,7 +379,7 @@
         </div>
       </div>
 
-      <!-- DIREITA: Classificação Comercial (Donut) e GlobalG.A.P. Compliance -->
+      <!-- DIREITA: Classificação Comercial (Donut) & GlobalG.A.P. Compliance -->
       <div class="apple-card" style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 14px; padding: 22px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); display: flex; flex-direction: column; justify-content: space-between;">
         <div>
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
@@ -441,7 +441,7 @@
             <i data-lucide="shield-check" style="width: 18px; height: 18px; color: #16A34A;"></i>
             <div>
               <div style="font-size: 12px; font-weight: 700; color: #14532D;">GlobalG.A.P. Compliance</div>
-              <div style="font-size: 9px; font-weight: 700; color: #15803D; letter-spacing: 0.5px;">AUDITADO LORAWAN</div>
+              <div style="font-size: 9px; font-weight: 700; color: #15803D; letter-spacing: 0.5px;">AUDITADO ESP32</div>
             </div>
           </div>
           <span style="background: #16A34A; color: #FFFFFF; font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 4px;">100% OK</span>
@@ -621,7 +621,7 @@
               Correlação IoT
             </h3>
             <span style="background: #DCFCE7; color: #15803D; font-size: 9px; font-weight: 800; padding: 2px 8px; border-radius: 4px; letter-spacing: 0.5px;">
-              MESH ATIVA
+              ESP32 ATIVO
             </span>
           </div>
 
@@ -634,7 +634,7 @@
                 </div>
                 <div>
                   <div style="font-weight: 700; font-size: 12px; color: #0F172A;">Umidade Solo (VWC)</div>
-                  <div style="font-size: 10px; color: #64748B;">FDR 30cm e 60cm</div>
+                  <div style="font-size: 10px; color: #64748B;">Sensor de Umidade do Solo</div>
                 </div>
               </div>
               <span style="background: #ECFDF5; color: #047857; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;">+14% Brix</span>
@@ -669,7 +669,7 @@
                 </div>
                 <div>
                   <div style="font-weight: 700; font-size: 12px; color: #0F172A;">Risco Míldio e Molhamento</div>
-                  <div style="font-size: 10px; color: #64748B;">Sensor Dielétrico Foliar</div>
+                  <div style="font-size: 10px; color: #64748B;">Sensor DHT11 (Temp e Umid)</div>
                 </div>
               </div>
               <span style="background: #ECFDF5; color: #047857; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;">-92% Perdas</span>
@@ -714,7 +714,7 @@
   <div id="modal-root"></div>
   <div id="toast-container" class="toast-container"></div>
   <script type="module">
-    import { setupLeiturasEvents } from '/assets/js/views/leituras.js?v=20261120-live16';
+    import { setupLeiturasEvents } from '/assets/js/views/leituras.js?v=20261120-live17';
     if (typeof setupLeiturasEvents === 'function') {
       try { setupLeiturasEvents(); } catch (err) { console.warn('Erro evento:', err); }
     }

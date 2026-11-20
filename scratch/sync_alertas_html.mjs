@@ -4,7 +4,7 @@ import path from 'path';
 const alertasJsPath = path.resolve('frontend/assets/js/views/alertas.js');
 const alertasJsContent = fs.readFileSync(alertasJsPath, 'utf8');
 
-const regex = /function renderGestoraAlertas\(\) \{\s*return `([\s\S]*?)`;\s*\}/;
+const regex = /function renderGestoraAlertas\([^)]*\)\s*\{[\s\S]*?return `([\s\S]*?)`;\s*\}/;
 const match = alertasJsContent.match(regex);
 
 if (!match) {

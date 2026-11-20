@@ -1,11 +1,10 @@
-
-  <div class="dashboard-canvas apple-animate-in" style="padding: 24px 32px 48px; overflow-y: auto;">
+<div class="dashboard-canvas apple-animate-in" style="padding: 24px 32px 48px; overflow-y: auto;">
 
     <!-- Top Sub-Bar: Sensores Ativos e Ações -->
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
       <div style="background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 9999px; padding: 7px 16px; display: inline-flex; align-items: center; gap: 8px;">
         <span style="width: 8px; height: 8px; border-radius: 50%; background: #10B981; display: inline-block; box-shadow: 0 0 0 2px rgba(16,185,129,0.2);"></span>
-        <span style="font-size: 12px; font-weight: 600; color: #15803D;">3 Sensores Ativos em Monitoramento Contínuo</span>
+        <span style="font-size: 12px; font-weight: 600; color: #15803D;">${sensoresAtivosCount} Sensores Ativos em Monitoramento Contínuo</span>
       </div>
 
       <div style="display: flex; gap: 8px; flex-wrap: wrap;">
@@ -33,17 +32,17 @@
           </div>
 
           <div style="display: flex; align-items: baseline; gap: 6px; margin-bottom: 12px;">
-            <span id="kpi-alertas-count" style="font-size: 38px; font-weight: 800; color: #0F172A; line-height: 1;">2</span>
+            <span id="kpi-alertas-count" style="font-size: 38px; font-weight: 800; color: #0F172A; line-height: 1;">${alertasAtivos}</span>
             <span style="font-size: 11px; color: #64748B; font-weight: 500;">ocorrências ativas</span>
           </div>
         </div>
 
         <div style="display: flex; gap: 8px;">
           <div id="kpi-critico-pill" style="background: #FEE2E2; color: #DC2626; font-size: 10px; font-weight: 700; padding: 4px 8px; border-radius: 6px; line-height: 1.2;">
-            1 Crítico<br><span style="font-weight: 800;">P1</span>
+            ${criticosP1} Crítico<br><span style="font-weight: 800;">P1</span>
           </div>
           <div id="kpi-moderado-pill" style="background: #FEF3C7; color: #B45309; font-size: 10px; font-weight: 700; padding: 4px 8px; border-radius: 6px; line-height: 1.2;">
-            1 Moderados<br><span style="font-weight: 800;">P2</span>
+            ${moderadosP2} Moderados<br><span style="font-weight: 800;">P2</span>
           </div>
         </div>
       </div>
@@ -57,14 +56,14 @@
           </div>
 
           <div style="display: flex; align-items: baseline; gap: 6px; margin-bottom: 10px;">
-            <span style="font-size: 34px; font-weight: 800; color: #0F172A; line-height: 1;">3</span>
+            <span style="font-size: 34px; font-weight: 800; color: #0F172A; line-height: 1;">${sensoresAtivosCount}</span>
             <span style="font-size: 12px; color: #059669; font-weight: 600;">online</span>
           </div>
         </div>
 
         <div>
           <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 6px;">
-            <span style="font-size: 10px; color: #64748B; line-height: 1.25;">Rede LoRaWAN</span>
+            <span style="font-size: 10px; color: #64748B; line-height: 1.25;">Rede ESP32 Wi-Fi</span>
             <span style="font-size: 10px; font-weight: 700; color: #059669; text-align: right;">Sincronizada</span>
           </div>
           <div style="width: 100%; height: 5px; background: #DCFCE7; border-radius: 9999px; overflow: hidden;">
@@ -82,9 +81,9 @@
           </div>
 
           <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
-            <span style="font-size: 34px; font-weight: 800; color: #0F172A; line-height: 1;">+29.5°C</span>
+            <span style="font-size: 34px; font-weight: 800; color: #0F172A; line-height: 1;">${tempClima}</span>
             <div style="background: #F0FDF4; border: 1px solid #BBF7D0; color: #15803D; font-size: 9px; font-weight: 700; line-height: 1.15; padding: 3px 6px; border-radius: 5px; text-align: center;">
-              52% UR
+              ${umidClima}
             </div>
           </div>
         </div>
@@ -130,27 +129,33 @@
     <div id="alert-tabs-container" style="display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
       <button class="alert-filter-tab active" data-filter="todos" style="padding: 7px 16px; background: #183D2E; border: none; border-radius: 9999px; font-size: 12px; font-weight: 600; color: #FFFFFF; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
         Todos os Incidentes
-        <span style="background: #059669; color: #FFFFFF; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 9999px;">3</span>
+        <span style="background: #059669; color: #FFFFFF; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 9999px;">${totalAlertas}</span>
       </button>
 
       <button class="alert-filter-tab" data-filter="criticos" style="padding: 7px 14px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 9999px; font-size: 12px; font-weight: 600; color: #DC2626; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
         <i data-lucide="alert-triangle" style="width: 13px; height: 13px;"></i>
         Críticos / P1
-        <span style="background: #FEE2E2; color: #DC2626; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 9999px;">1</span>
+        <span style="background: #FEE2E2; color: #DC2626; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 9999px;">${criticosP1}</span>
       </button>
 
       <button class="alert-filter-tab" data-filter="moderados" style="padding: 7px 14px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 9999px; font-size: 12px; font-weight: 600; color: #D97706; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
         <i data-lucide="alert-circle" style="width: 13px; height: 13px;"></i>
         Moderados / P2
-        <span style="background: #FEF3C7; color: #B45309; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 9999px;">1</span>
+        <span style="background: #FEF3C7; color: #B45309; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 9999px;">${moderadosP2}</span>
       </button>
 
-      
+      ${preditivosCount > 0 ? `
+      <button class="alert-filter-tab" data-filter="preditivos" style="padding: 7px 14px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 9999px; font-size: 12px; font-weight: 600; color: #7C3AED; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
+        <i data-lucide="sparkles" style="width: 13px; height: 13px;"></i>
+        Preditivos IA
+        <span style="background: #EDE9FE; color: #7C3AED; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 9999px;">${preditivosCount}</span>
+      </button>
+      ` : ''}
 
       <button class="alert-filter-tab" data-filter="resolvidos" style="padding: 7px 14px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 9999px; font-size: 12px; font-weight: 600; color: #059669; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
         <i data-lucide="check" style="width: 13px; height: 13px;"></i>
         Reconhecidos
-        <span style="background: #DCFCE7; color: #15803D; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 9999px;">1</span>
+        <span style="background: #DCFCE7; color: #15803D; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 9999px;">${resolvidosCount}</span>
       </button>
     </div>
 
@@ -164,7 +169,7 @@
       <select id="alert-origin-select" style="width: 100%; padding: 9px 12px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 12px; color: #475569; outline: none; cursor: pointer; box-sizing: border-box;">
         <option value="">Todas as Origens de Hardware</option>
         <option value="thingspeak">ThingSpeak Cloud</option>
-        <option value="lora">Nós LoRaWAN ESP32</option>
+        <option value="esp32">Nós ESP32 (DHT11 / Solo)</option>
         <option value="estacao">Estação Meteorológica</option>
       </select>
 
@@ -176,481 +181,17 @@
 
     <!-- MAIN INCIDENT CARDS LIST: Carregamento dinâmico via viewport -->
     <div id="incident-cards-container" style="display: flex; flex-direction: column; gap: 20px; margin-bottom: 24px;">
-
-  <div class="alerta-card-wrapper" id="card-alerta-41" data-id="41" data-nivel="CRITICO" data-status="aberto">
-    
-    <div class="incident-card " data-category="criticos" data-origin="thingspeak" style="background: #FFFFFF; border: 1px solid #FCA5A5; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 8px rgba(239, 68, 68, 0.08); transition: all 0.25s ease;">
-      <!-- Top Tag Header -->
-      <div style="padding: 12px 20px; background: #FEF2F2; border-bottom: 1px solid #FCA5A5; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-          <span style="background: #EF4444; color: #FFFFFF; font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;">
-            ● P1 • CRÍTICO
-          </span>
-          
-          
-      <span style="background: #F1F5F9; color: #334155; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 4px;">
-        Lote 12 · Uva Vitória · 2000 kg · etapa maturação
-      </span>
-    
-      <span style="background: #F8FAFC; border: 1px solid #E2E8F0; color: #475569; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;">
-        <i data-lucide="map-pin" style="width: 12px; height: 12px; color: #64748B;"></i>
-        Talhão A1
-      </span>
-    
+      ${alertas.length === 0 ? `
+        <div class="apple-card" style="padding: 40px; text-align: center; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 16px;">
+          <i data-lucide="check-circle" style="width: 36px; height: 36px; color: #10B981; margin-bottom: 12px;"></i>
+          <h4 style="margin: 0 0 6px; font-size: 16px; font-weight: 700; color: #0F172A;">Nenhum Alerta Ativo no Momento</h4>
+          <p style="margin: 0; font-size: 13px; color: #64748B;">Todas as culturas e parâmetros monitorados operam dentro dos limites ideais.</p>
         </div>
-        <span style="font-size: 11px; color: #64748B; font-weight: 500;">Registrado há 25 min</span>
-      </div>
-
-      <!-- Card Body -->
-      <div style="padding: 20px;">
-        <!-- Título -->
-        <h3 style="font-size: 16px; font-weight: 700; color: #0F172A; margin: 0 0 6px;">
-          Temperatura Crítica no Pomar
-        </h3>
-
-        <!-- Resumo como Subtítulo -->
-        
-        <div style="font-size: 12px; font-weight: 600; color: #DC2626; margin-bottom: 8px; line-height: 1.4;">
-          Temperatura: 34,1°C — 2,1°C acima do máximo permitido de 32,0°C
+      ` : alertas.map(alerta => `
+        <div class="alerta-card-wrapper" id="card-alerta-${alerta.id_alerta}" data-id="${alerta.id_alerta}" data-nivel="${alerta.nivel || ''}" data-status="${alerta.status || ''}">
+          ${renderAlertaSkeleton(alerta)}
         </div>
-        
-
-        <!-- Descrição -->
-        
-        <p style="font-size: 12px; color: #64748B; line-height: 1.5; margin: 0 0 16px;">
-          Temperatura atmosférica no dossel atingiu 34,1°C por mais de 25 minutos consecutivos, gerando estresse térmico agudo na cultura.
-        </p>
-        
-
-        <!-- Aviso especial se sensor sem leitura -->
-        
-
-        <!-- Caso Especial layout == sem_leitura -->
-        
-          
-      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px;">
-        
-        <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px 14px;">
-          <div style="font-size: 9px; font-weight: 700; color: #64748B; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 3px;">
-            Temperatura
-          </div>
-          <div style="font-size: 22px; font-weight: 800; color: #DC2626; line-height: 1.1;">
-            34.1°C
-          </div>
-          <div style="font-size: 10px; color: #DC2626; font-weight: 600; margin-top: 3px;">Crítico (+2.1°C)</div>
-        </div>
-      
-        <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px 14px;">
-          <div style="font-size: 9px; font-weight: 700; color: #64748B; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 3px;">
-            Umidade do ar
-          </div>
-          <div style="font-size: 22px; font-weight: 800; color: #059669; line-height: 1.1;">
-            68%
-          </div>
-          <div style="font-size: 10px; color: #059669; font-weight: 600; margin-top: 3px;">OK (Faixa ideal)</div>
-        </div>
-      
-        <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px 14px;">
-          <div style="font-size: 9px; font-weight: 700; color: #64748B; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 3px;">
-            ORIGEM DO SENSOR
-          </div>
-          <div style="font-size: 18px; font-weight: 800; color: #0F172A; line-height: 1.1;">
-            thingspeak
-            <span style="font-size: 11px; font-weight: 600; color: #64748B; margin-left: 4px;">(S1-DHT)</span>
-          </div>
-          <div style="font-size: 10px; color: #059669; font-weight: 600; margin-top: 3px;">
-            Última leitura há 3 min
-          </div>
-        </div>
-      
-      </div>
-    
-          
-    <div style="background: #FFFBFB; border: 1px solid #FEE2E2; border-radius: 12px; padding: 14px 18px 10px; margin-bottom: 16px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-        <span style="font-size: 12px; font-weight: 700; color: #0F172A;">Curva Térmica Registrada no Sensor</span>
-        <span style="font-size: 11px; color: #64748B;">Leituras da Série Temporal</span>
-      </div>
-      <div style="position: relative; width: 100%;">
-        <svg viewBox="0 0 1000 120" style="width: 100%; height: auto; display: block;">
-          <defs>
-            <linearGradient id="chartGradient-DC2626" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#DC2626" stop-opacity="0.25"/>
-              <stop offset="100%" stop-color="#DC2626" stop-opacity="0.0"/>
-            </linearGradient>
-          </defs>
-          
-      <line x1="40" y1="32.90721649484536" x2="960" y2="32.90721649484536" stroke="#F87171" stroke-width="1.2" stroke-dasharray="5,4"/>
-      <text x="46" y="27.907216494845358" font-size="10" font-weight="700" fill="#DC2626" font-family="'Plus Jakarta Sans', sans-serif">Limite Máx (32°C)</text>
-    
-      <line x1="40" y1="92.28865979381443" x2="960" y2="92.28865979381443" stroke="#60A5FA" stroke-width="1.2" stroke-dasharray="5,4"/>
-      <text x="46" y="104.28865979381443" font-size="10" font-weight="700" fill="#2563EB" font-family="'Plus Jakarta Sans', sans-serif">Limite Mín (8°C)</text>
-    
-          <path d="M 40,37.36082474226805 C 193.33333333333331,37.36082474226805 193.33333333333331,33.4020618556701 346.66666666666663,33.4020618556701 C 499.99999999999994,33.4020618556701 499.99999999999994,29.9381443298969 653.3333333333333,29.9381443298969 C 806.6666666666666,29.9381443298969 806.6666666666666,27.711340206185568 960,27.711340206185568 L 960,110 L 40,110 Z" fill="url(#chartGradient-DC2626)"/>
-          <path d="M 40,37.36082474226805 C 193.33333333333331,37.36082474226805 193.33333333333331,33.4020618556701 346.66666666666663,33.4020618556701 C 499.99999999999994,33.4020618556701 499.99999999999994,29.9381443298969 653.3333333333333,29.9381443298969 C 806.6666666666666,29.9381443298969 806.6666666666666,27.711340206185568 960,27.711340206185568" fill="none" stroke="#DC2626" stroke-width="2.5" stroke-linecap="round"/>
-          
-      <circle cx="40" cy="37.36082474226805" r="3.5" fill="#DC2626" stroke="#FFFFFF" stroke-width="2"/>
-      <text x="40" y="118" font-size="10" font-weight="500" fill="#64748B" font-family="'Plus Jakarta Sans', sans-serif" text-anchor="start">
-        08:41 (30.2°C)
-      </text>
-    
-      <circle cx="346.66666666666663" cy="33.4020618556701" r="3.5" fill="#DC2626" stroke="#FFFFFF" stroke-width="2"/>
-      <text x="346.66666666666663" y="118" font-size="10" font-weight="500" fill="#64748B" font-family="'Plus Jakarta Sans', sans-serif" text-anchor="middle">
-        09:11 (31.8°C)
-      </text>
-    
-      <circle cx="653.3333333333333" cy="29.9381443298969" r="3.5" fill="#DC2626" stroke="#FFFFFF" stroke-width="2"/>
-      <text x="653.3333333333333" y="118" font-size="10" font-weight="500" fill="#64748B" font-family="'Plus Jakarta Sans', sans-serif" text-anchor="middle">
-        09:41 (33.2°C)
-      </text>
-    
-      <circle cx="960" cy="27.711340206185568" r="5" fill="#DC2626" stroke="#FFFFFF" stroke-width="2"/>
-      <text x="960" y="118" font-size="10" font-weight="700" fill="#DC2626" font-family="'Plus Jakarta Sans', sans-serif" text-anchor="end">
-        10:06 (34.1°C)
-      </text>
-    
-        </svg>
-      </div>
-    </div>
-  
-        
-
-        <!-- Botões de Ação (Apenas os definidos em acoes) -->
-        
-        <div style="display: flex; justify-content: flex-end; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 16px; padding-top: 14px; border-top: 1px solid #F1F5F9;">
-          
-        <button type="button" class="btn-card-reconhecer" data-id="41" style="padding: 8px 16px; background: #059669; border: none; border-radius: 8px; font-size: 12px; font-weight: 700; color: #FFFFFF; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 1px 3px rgba(5,150,105,0.25); transition: background 0.15s;" onmouseover="this.style.background='#047857'" onmouseout="this.style.background='#059669'">
-          <i data-lucide="check" style="width: 14px; height: 14px;"></i>
-          Reconhecer Alerta
-        </button>
-      
-        <button type="button" class="btn-card-historico" data-id-sensor="1" style="padding: 8px 14px; background: #FFFFFF; border: 1px solid #CBD5E1; border-radius: 8px; font-size: 12px; font-weight: 600; color: #334155; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: background 0.15s;" onmouseover="this.style.background='#F8FAFC'" onmouseout="this.style.background='#FFFFFF'">
-          <i data-lucide="line-chart" style="width: 14px; height: 14px; color: #64748B;"></i>
-          Ver Histórico do Sensor
-        </button>
-      
-        </div>
-        
-      </div>
-    </div>
-  
-  </div>
-  <div class="alerta-card-wrapper" id="card-alerta-42" data-id="42" data-nivel="MODERADO" data-status="aberto">
-    
-    <div class="incident-card " data-category="moderados" data-origin="lora" style="background: #FFFFFF; border: 1px solid #FCD34D; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 8px rgba(245, 158, 11, 0.06); transition: all 0.25s ease;">
-      <!-- Top Tag Header -->
-      <div style="padding: 12px 20px; background: #FFFBEB; border-bottom: 1px solid #FCD34D; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-          <span style="background: #F59E0B; color: #FFFFFF; font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;">
-            ● P2 • MODERADO
-          </span>
-          
-          
-      <span style="background: #F1F5F9; color: #334155; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 4px;">
-        Lote 15 · Uva Thompson · 3500 kg · etapa frutificação
-      </span>
-    
-      <span style="background: #F8FAFC; border: 1px solid #E2E8F0; color: #475569; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;">
-        <i data-lucide="map-pin" style="width: 12px; height: 12px; color: #64748B;"></i>
-        Talhão B2
-      </span>
-    
-        </div>
-        <span style="font-size: 11px; color: #64748B; font-weight: 500;">Registrado há 40 min</span>
-      </div>
-
-      <!-- Card Body -->
-      <div style="padding: 20px;">
-        <!-- Título -->
-        <h3 style="font-size: 16px; font-weight: 700; color: #0F172A; margin: 0 0 6px;">
-          Déficit de Umidade Relativa
-        </h3>
-
-        <!-- Resumo como Subtítulo -->
-        
-        <div style="font-size: 12px; font-weight: 600; color: #D97706; margin-bottom: 8px; line-height: 1.4;">
-          Umidade do ar: 41,5% — 8,5% abaixo do limiar de segurança de 50,0%
-        </div>
-        
-
-        <!-- Descrição -->
-        
-        <p style="font-size: 12px; color: #64748B; line-height: 1.5; margin: 0 0 16px;">
-          Queda acentuada da umidade do ar registrada no setor com vento moderado, elevando o risco de estresse evaporativo.
-        </p>
-        
-
-        <!-- Aviso especial se sensor sem leitura -->
-        
-
-        <!-- Caso Especial layout == sem_leitura -->
-        
-          
-      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px;">
-        
-        <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px 14px;">
-          <div style="font-size: 9px; font-weight: 700; color: #64748B; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 3px;">
-            Umidade do ar
-          </div>
-          <div style="font-size: 22px; font-weight: 800; color: #D97706; line-height: 1.1;">
-            41.5%
-          </div>
-          <div style="font-size: 10px; color: #D97706; font-weight: 600; margin-top: 3px;">Atenção (+-8.5%)</div>
-        </div>
-      
-        <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px 14px;">
-          <div style="font-size: 9px; font-weight: 700; color: #64748B; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 3px;">
-            Temperatura
-          </div>
-          <div style="font-size: 22px; font-weight: 800; color: #059669; line-height: 1.1;">
-            29.8°C
-          </div>
-          <div style="font-size: 10px; color: #059669; font-weight: 600; margin-top: 3px;">OK (Faixa ideal)</div>
-        </div>
-      
-        <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px 14px;">
-          <div style="font-size: 9px; font-weight: 700; color: #64748B; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 3px;">
-            ORIGEM DO SENSOR
-          </div>
-          <div style="font-size: 18px; font-weight: 800; color: #0F172A; line-height: 1.1;">
-            lora
-            <span style="font-size: 11px; font-weight: 600; color: #64748B; margin-left: 4px;">(S2-ENV)</span>
-          </div>
-          <div style="font-size: 10px; color: #059669; font-weight: 600; margin-top: 3px;">
-            Última leitura há 5 min
-          </div>
-        </div>
-      
-      </div>
-    
-          
-    <div style="background: #FFFBFB; border: 1px solid #FEE2E2; border-radius: 12px; padding: 14px 18px 10px; margin-bottom: 16px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-        <span style="font-size: 12px; font-weight: 700; color: #0F172A;">Curva Térmica Registrada no Sensor</span>
-        <span style="font-size: 11px; color: #64748B;">Leituras da Série Temporal</span>
-      </div>
-      <div style="position: relative; width: 100%;">
-        <svg viewBox="0 0 1000 120" style="width: 100%; height: auto; display: block;">
-          <defs>
-            <linearGradient id="chartGradient-D97706" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#D97706" stop-opacity="0.25"/>
-              <stop offset="100%" stop-color="#D97706" stop-opacity="0.0"/>
-            </linearGradient>
-          </defs>
-          
-      <line x1="40" y1="28" x2="960" y2="28" stroke="#F87171" stroke-width="1.2" stroke-dasharray="5,4"/>
-      <text x="46" y="23" font-size="10" font-weight="700" fill="#DC2626" font-family="'Plus Jakarta Sans', sans-serif">Limite Máx (32°C)</text>
-    
-      <line x1="40" y1="92" x2="960" y2="92" stroke="#60A5FA" stroke-width="1.2" stroke-dasharray="5,4"/>
-      <text x="46" y="104" font-size="10" font-weight="700" fill="#2563EB" font-family="'Plus Jakarta Sans', sans-serif">Limite Mín (8°C)</text>
-    
-          <path d="M 40,37.333333333333336 C 193.33333333333331,37.333333333333336 193.33333333333331,36 346.66666666666663,36 C 499.99999999999994,36 499.99999999999994,34.93333333333334 653.3333333333333,34.93333333333334 C 806.6666666666666,34.93333333333334 806.6666666666666,33.86666666666666 960,33.86666666666666 L 960,110 L 40,110 Z" fill="url(#chartGradient-D97706)"/>
-          <path d="M 40,37.333333333333336 C 193.33333333333331,37.333333333333336 193.33333333333331,36 346.66666666666663,36 C 499.99999999999994,36 499.99999999999994,34.93333333333334 653.3333333333333,34.93333333333334 C 806.6666666666666,34.93333333333334 806.6666666666666,33.86666666666666 960,33.86666666666666" fill="none" stroke="#D97706" stroke-width="2.5" stroke-linecap="round"/>
-          
-      <circle cx="40" cy="37.333333333333336" r="3.5" fill="#D97706" stroke="#FFFFFF" stroke-width="2"/>
-      <text x="40" y="118" font-size="10" font-weight="500" fill="#64748B" font-family="'Plus Jakarta Sans', sans-serif" text-anchor="start">
-        08:41 (28.5°C)
-      </text>
-    
-      <circle cx="346.66666666666663" cy="36" r="3.5" fill="#D97706" stroke="#FFFFFF" stroke-width="2"/>
-      <text x="346.66666666666663" y="118" font-size="10" font-weight="500" fill="#64748B" font-family="'Plus Jakarta Sans', sans-serif" text-anchor="middle">
-        09:11 (29.0°C)
-      </text>
-    
-      <circle cx="653.3333333333333" cy="34.93333333333334" r="3.5" fill="#D97706" stroke="#FFFFFF" stroke-width="2"/>
-      <text x="653.3333333333333" y="118" font-size="10" font-weight="500" fill="#64748B" font-family="'Plus Jakarta Sans', sans-serif" text-anchor="middle">
-        09:41 (29.4°C)
-      </text>
-    
-      <circle cx="960" cy="33.86666666666666" r="5" fill="#D97706" stroke="#FFFFFF" stroke-width="2"/>
-      <text x="960" y="118" font-size="10" font-weight="700" fill="#D97706" font-family="'Plus Jakarta Sans', sans-serif" text-anchor="end">
-        10:06 (29.8°C)
-      </text>
-    
-        </svg>
-      </div>
-    </div>
-  
-        
-
-        <!-- Botões de Ação (Apenas os definidos em acoes) -->
-        
-        <div style="display: flex; justify-content: flex-end; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 16px; padding-top: 14px; border-top: 1px solid #F1F5F9;">
-          
-        <button type="button" class="btn-card-reconhecer" data-id="42" style="padding: 8px 16px; background: #059669; border: none; border-radius: 8px; font-size: 12px; font-weight: 700; color: #FFFFFF; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 1px 3px rgba(5,150,105,0.25); transition: background 0.15s;" onmouseover="this.style.background='#047857'" onmouseout="this.style.background='#059669'">
-          <i data-lucide="check" style="width: 14px; height: 14px;"></i>
-          Reconhecer Alerta
-        </button>
-      
-        <button type="button" class="btn-card-historico" data-id-sensor="2" style="padding: 8px 14px; background: #FFFFFF; border: 1px solid #CBD5E1; border-radius: 8px; font-size: 12px; font-weight: 600; color: #334155; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: background 0.15s;" onmouseover="this.style.background='#F8FAFC'" onmouseout="this.style.background='#FFFFFF'">
-          <i data-lucide="line-chart" style="width: 14px; height: 14px; color: #64748B;"></i>
-          Ver Histórico do Sensor
-        </button>
-      
-        </div>
-        
-      </div>
-    </div>
-  
-  </div>
-  <div class="alerta-card-wrapper" id="card-alerta-43" data-id="43" data-nivel="BAIXO" data-status="reconhecido">
-    
-    <div class="incident-card resolved" data-category="informativos" data-origin="estacao" style="background: #FFFFFF; border: 1px solid #BAE6FD; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 8px rgba(2, 132, 199, 0.06); transition: all 0.25s ease;">
-      <!-- Top Tag Header -->
-      <div style="padding: 12px 20px; background: #F0F9FF; border-bottom: 1px solid #BAE6FD; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-          <span style="background: #0284C7; color: #FFFFFF; font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;">
-            ● INFORMATIVO
-          </span>
-          
-          <span style="background: #ECFDF5; color: #047857; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; border: 1px solid #A7F3D0;">
-            ✓ Reconhecido
-          </span>
-          
-          
-      <span style="background: #F1F5F9; color: #334155; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 4px;">
-        Lote 18 · Manga Palmer · 5000 kg · etapa colheita
-      </span>
-    
-      <span style="background: #F8FAFC; border: 1px solid #E2E8F0; color: #475569; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;">
-        <i data-lucide="map-pin" style="width: 12px; height: 12px; color: #64748B;"></i>
-        Talhão C1
-      </span>
-    
-        </div>
-        <span style="font-size: 11px; color: #64748B; font-weight: 500;">Registrado há 3h</span>
-      </div>
-
-      <!-- Card Body -->
-      <div style="padding: 20px;">
-        <!-- Título -->
-        <h3 style="font-size: 16px; font-weight: 700; color: #0F172A; margin: 0 0 6px;">
-          Oscilação Térmica Noturna
-        </h3>
-
-        <!-- Resumo como Subtítulo -->
-        
-        <div style="font-size: 12px; font-weight: 600; color: #0284C7; margin-bottom: 8px; line-height: 1.4;">
-          Temperatura: 25,8°C — Parâmetros normalizados e estáveis no talhão
-        </div>
-        
-
-        <!-- Descrição -->
-        
-        <p style="font-size: 12px; color: #64748B; line-height: 1.5; margin: 0 0 16px;">
-          Leitura dentro da faixa normalizada após aeração matinal do setor, operando em parâmetros de conforto fisiológico.
-        </p>
-        
-
-        <!-- Aviso especial se sensor sem leitura -->
-        
-
-        <!-- Caso Especial layout == sem_leitura -->
-        
-          
-      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px;">
-        
-        <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px 14px;">
-          <div style="font-size: 9px; font-weight: 700; color: #64748B; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 3px;">
-            Temperatura
-          </div>
-          <div style="font-size: 22px; font-weight: 800; color: #059669; line-height: 1.1;">
-            25.8°C
-          </div>
-          <div style="font-size: 10px; color: #059669; font-weight: 600; margin-top: 3px;">OK (Faixa ideal)</div>
-        </div>
-      
-        <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px 14px;">
-          <div style="font-size: 9px; font-weight: 700; color: #64748B; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 3px;">
-            Umidade do ar
-          </div>
-          <div style="font-size: 22px; font-weight: 800; color: #059669; line-height: 1.1;">
-            65%
-          </div>
-          <div style="font-size: 10px; color: #059669; font-weight: 600; margin-top: 3px;">OK (Faixa ideal)</div>
-        </div>
-      
-        <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px 14px;">
-          <div style="font-size: 9px; font-weight: 700; color: #64748B; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 3px;">
-            ORIGEM DO SENSOR
-          </div>
-          <div style="font-size: 18px; font-weight: 800; color: #0F172A; line-height: 1.1;">
-            estacao
-            <span style="font-size: 11px; font-weight: 600; color: #64748B; margin-left: 4px;">(S3-CLIM)</span>
-          </div>
-          <div style="font-size: 10px; color: #059669; font-weight: 600; margin-top: 3px;">
-            Última leitura há 14 min
-          </div>
-        </div>
-      
-      </div>
-    
-          
-    <div style="background: #FFFBFB; border: 1px solid #FEE2E2; border-radius: 12px; padding: 14px 18px 10px; margin-bottom: 16px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-        <span style="font-size: 12px; font-weight: 700; color: #0F172A;">Curva Térmica Registrada no Sensor</span>
-        <span style="font-size: 11px; color: #64748B;">Leituras da Série Temporal</span>
-      </div>
-      <div style="position: relative; width: 100%;">
-        <svg viewBox="0 0 1000 120" style="width: 100%; height: auto; display: block;">
-          <defs>
-            <linearGradient id="chartGradient-0284C7" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#0284C7" stop-opacity="0.25"/>
-              <stop offset="100%" stop-color="#0284C7" stop-opacity="0.0"/>
-            </linearGradient>
-          </defs>
-          
-      <line x1="40" y1="28" x2="960" y2="28" stroke="#F87171" stroke-width="1.2" stroke-dasharray="5,4"/>
-      <text x="46" y="23" font-size="10" font-weight="700" fill="#DC2626" font-family="'Plus Jakarta Sans', sans-serif">Limite Máx (32°C)</text>
-    
-      <line x1="40" y1="92" x2="960" y2="92" stroke="#60A5FA" stroke-width="1.2" stroke-dasharray="5,4"/>
-      <text x="46" y="104" font-size="10" font-weight="700" fill="#2563EB" font-family="'Plus Jakarta Sans', sans-serif">Limite Mín (8°C)</text>
-    
-          <path d="M 40,48 C 193.33333333333331,48 193.33333333333331,46.39999999999999 346.66666666666663,46.39999999999999 C 499.99999999999994,46.39999999999999 499.99999999999994,45.33333333333333 653.3333333333333,45.33333333333333 C 806.6666666666666,45.33333333333333 806.6666666666666,44.53333333333333 960,44.53333333333333 L 960,110 L 40,110 Z" fill="url(#chartGradient-0284C7)"/>
-          <path d="M 40,48 C 193.33333333333331,48 193.33333333333331,46.39999999999999 346.66666666666663,46.39999999999999 C 499.99999999999994,46.39999999999999 499.99999999999994,45.33333333333333 653.3333333333333,45.33333333333333 C 806.6666666666666,45.33333333333333 806.6666666666666,44.53333333333333 960,44.53333333333333" fill="none" stroke="#0284C7" stroke-width="2.5" stroke-linecap="round"/>
-          
-      <circle cx="40" cy="48" r="3.5" fill="#0284C7" stroke="#FFFFFF" stroke-width="2"/>
-      <text x="40" y="118" font-size="10" font-weight="500" fill="#64748B" font-family="'Plus Jakarta Sans', sans-serif" text-anchor="start">
-        08:41 (24.5°C)
-      </text>
-    
-      <circle cx="346.66666666666663" cy="46.39999999999999" r="3.5" fill="#0284C7" stroke="#FFFFFF" stroke-width="2"/>
-      <text x="346.66666666666663" y="118" font-size="10" font-weight="500" fill="#64748B" font-family="'Plus Jakarta Sans', sans-serif" text-anchor="middle">
-        09:11 (25.1°C)
-      </text>
-    
-      <circle cx="653.3333333333333" cy="45.33333333333333" r="3.5" fill="#0284C7" stroke="#FFFFFF" stroke-width="2"/>
-      <text x="653.3333333333333" y="118" font-size="10" font-weight="500" fill="#64748B" font-family="'Plus Jakarta Sans', sans-serif" text-anchor="middle">
-        09:41 (25.5°C)
-      </text>
-    
-      <circle cx="960" cy="44.53333333333333" r="5" fill="#0284C7" stroke="#FFFFFF" stroke-width="2"/>
-      <text x="960" y="118" font-size="10" font-weight="700" fill="#0284C7" font-family="'Plus Jakarta Sans', sans-serif" text-anchor="end">
-        10:06 (25.8°C)
-      </text>
-    
-        </svg>
-      </div>
-    </div>
-  
-        
-
-        <!-- Botões de Ação (Apenas os definidos em acoes) -->
-        
-        <div style="display: flex; justify-content: flex-end; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 16px; padding-top: 14px; border-top: 1px solid #F1F5F9;">
-          
-        <button type="button" class="btn-card-historico" data-id-sensor="3" style="padding: 8px 14px; background: #FFFFFF; border: 1px solid #CBD5E1; border-radius: 8px; font-size: 12px; font-weight: 600; color: #334155; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: background 0.15s;" onmouseover="this.style.background='#F8FAFC'" onmouseout="this.style.background='#FFFFFF'">
-          <i data-lucide="line-chart" style="width: 14px; height: 14px; color: #64748B;"></i>
-          Ver Histórico do Sensor
-        </button>
-      
-        </div>
-        
-      </div>
-    </div>
-  
-  </div>
-
+      `).join('')}
     </div>
 
     <!-- SEÇÃO INFERIOR: LOG DE AUDITORIA E DIRETRIZES DE MANEJO AGRONÔMICO -->
@@ -717,4 +258,3 @@
     </div>
 
   </div>
-  

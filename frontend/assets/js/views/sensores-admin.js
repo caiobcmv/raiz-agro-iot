@@ -12,7 +12,7 @@ import { toast } from '../components/toast.js';
 let _sensoresList = [
   {
     id: 'SNS-SL-001',
-    tipo: 'FDR Solo Capacitivo',
+    tipo: 'Sensor de Umidade do Solo',
     status: 'Ativo',
     categoria: 'solo',
     talhao: 'Talhão A1 (Uva Vitória) • Lote #LT-2026-079 • Prof. 30cm',
@@ -27,7 +27,7 @@ let _sensoresList = [
   },
   {
     id: 'SNS-AR-002',
-    tipo: 'Microclima SHT31 (Ar)',
+    tipo: 'Sensor DHT11 (Temp/Umid Ar)',
     status: 'Ativo',
     categoria: 'microclima',
     talhao: 'Talhão A1 (Uva Vitória) • Torre Climatológica 2.0m • Mesh ID 3x4B',
@@ -57,7 +57,7 @@ let _sensoresList = [
   },
   {
     id: 'SNS-SL-019',
-    tipo: 'FDR Solo Multi-nível',
+    tipo: 'Sensor de Umidade do Solo',
     status: 'Atenção / Calibração',
     categoria: 'atencao',
     talhao: 'Talhão C1 (Manga Tommy) • Lote #LT-2026-054 • Leitura Isolada',
@@ -87,7 +87,7 @@ let _sensoresList = [
   },
   {
     id: 'SNS-SL-004',
-    tipo: 'FDR Solo Capacitivo',
+    tipo: 'Sensor de Umidade do Solo',
     status: 'Ativo',
     categoria: 'solo',
     talhao: 'Talhão B2 (Melão Amarelo) • Lote #LT-2026-068 • Prof. 30cm',
@@ -102,7 +102,7 @@ let _sensoresList = [
   },
   {
     id: 'SNS-AR-005',
-    tipo: 'Microclima SHT31 (Ar)',
+    tipo: 'Sensor DHT11 (Temp/Umid Ar)',
     status: 'Ativo',
     categoria: 'microclima',
     talhao: 'Talhão C2 (Manga Palmer) • Estação Secundária • Mesh ID 5x1C',
@@ -131,7 +131,7 @@ export async function renderSensoresAdmin() {
           <span style="font-weight: 700; color: #047857; background: #ECFDF5; border: 1px solid #A7F3D0; padding: 4px 10px; border-radius: 20px;">
             • Ambiente de Produção
           </span>
-          <span style="color: #475569;">• Rede Mesh LoRaWAN US915</span>
+          <span style="color: #475569;">• Rede Wi-Fi ESP32</span>
           <span style="color: #64748B;">• Gateway Central Petrolina</span>
           <span style="color: #0284C7; font-weight: 600;">• Broker ThingSpeak Sincronizado</span>
         </div>
@@ -184,16 +184,16 @@ export async function renderSensoresAdmin() {
             <div style="display: flex; justify-content: space-between; align-items: baseline;">
               <div>
                 <span style="font-size: 20px; font-weight: 800; color: #0F172A;">16</span>
-                <span style="font-size: 10px; color: #64748B;"> Solo (FDR/TDR 67%)</span>
+                <span style="font-size: 10px; color: #64748B;"> Umidade do Solo (67%)</span>
               </div>
               <div>
                 <span style="font-size: 20px; font-weight: 800; color: #0F172A;">8</span>
-                <span style="font-size: 10px; color: #64748B;"> Ar SHT31 (33%)</span>
+                <span style="font-size: 10px; color: #64748B;"> Ar DHT11 (33%)</span>
               </div>
             </div>
             <div style="width: 100%; height: 7px; background: #E2E8F0; border-radius: 4px; display: flex; overflow: hidden; margin-top: 8px;">
-              <div style="width: 67%; background: #10B981;" title="Solo FDR/TDR 67%"></div>
-              <div style="width: 33%; background: #0284C7;" title="Ar SHT31 33%"></div>
+              <div style="width: 67%; background: #10B981;" title="Umidade do Solo 67%"></div>
+              <div style="width: 33%; background: #0284C7;" title="Ar DHT11 33%"></div>
             </div>
           </div>
           <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px;">
@@ -266,7 +266,7 @@ export async function renderSensoresAdmin() {
           <div class="card-filtro-talhao-sensor" data-talhao="Talhão A2" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px; border-left: 3px solid #0284C7; cursor: pointer;">
             <strong style="font-size: 12px; color: #0F172A; display: block;">Talhão A2</strong>
             <span style="font-size: 10px; color: #64748B;">Uva Crimson • 6 Nós</span>
-            <div style="font-size: 10px; color: #047857; font-weight: 600; margin-top: 2px;">FDR 30/60cm (100% Online)</div>
+            <div style="font-size: 10px; color: #047857; font-weight: 600; margin-top: 2px;">Sensor de Solo (100% Online)</div>
           </div>
 
           <div class="card-filtro-talhao-sensor" data-talhao="Talhão B2" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px; border-left: 3px solid #F59E0B; cursor: pointer;">
@@ -399,14 +399,14 @@ export async function renderSensoresAdmin() {
           </div>
 
           <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; margin-bottom: 14px; background: #F8FAFC; border: 1px solid #E2E8F0; padding: 8px 12px; border-radius: 6px;">
-            <span style="font-weight: 600; color: #0F172A;">Auto-calibração FDR Ativada</span>
+            <span style="font-weight: 600; color: #0F172A;">Auto-calibração Sensor de Solo Ativada</span>
             <input type="checkbox" id="check-auto-calibracao" checked style="accent-color: #10B981; width: 16px; height: 16px; cursor: pointer;">
           </div>
 
           <div style="border-top: 1px solid #F1F5F9; padding-top: 10px; display: flex; flex-direction: column; gap: 6px; font-size: 11px;">
             <span style="font-weight: 800; color: #64748B; font-size: 10px; letter-spacing: 0.5px;">AÇÕES RÁPIDAS DE INFRAESTRUTURA</span>
             <button class="btn-infra-rapida" data-action="topologia" style="background: none; border: none; text-align: left; color: #0284C7; font-weight: 600; cursor: pointer; padding: 4px 0; display: flex; justify-content: space-between;">
-              <span>Topologia Espacial LoRaWAN</span> &rarr;
+              <span>Topologia Espacial ESP32</span> &rarr;
             </button>
             <button class="btn-infra-rapida" data-action="ota" style="background: none; border: none; text-align: left; color: #0284C7; font-weight: 600; cursor: pointer; padding: 4px 0; display: flex; justify-content: space-between;">
               <span>Firmware OTA v4.2.1 (Deploy Lote)</span> &rarr;
@@ -528,7 +528,7 @@ function vincularEventosSensores() {
       if (act === 'reset') {
         Modal.open(`Forçar Reset — Nó #${id}`, `
           <div style="font-size: 12px; color: #475569;">
-            <p>O gateway enviará um pacote downlink de reinicialização para o módulo ESP32 LoRaWAN.</p>
+            <p>O sistema enviará comando de reinicialização para o nó ESP32.</p>
             <div style="background: #FFF1F2; border: 1px solid #FECDD3; padding: 10px; border-radius: 6px; margin-top: 10px;">
               <strong>Aviso:</strong> O nó permanecerá offline por cerca de 15 segundos durante a autoverificação de memória e reconexão.
             </div>
@@ -542,7 +542,7 @@ function vincularEventosSensores() {
             sensor.corIcone = '#10B981';
           }
           atualizarTabelaSensores();
-          toast.success('Reset Concluído', `Nó #${id} reinicializado e reingressado na rede Mesh.`);
+          toast.success('Reset Concluído', `Nó #${id} reinicializado e reingressado na rede ESP32.`);
         }, 'Confirmar Reinicialização');
       } else if (act === 'offset') {
         Modal.open(`Recalibrar Offset — #${id}`, `
@@ -595,7 +595,7 @@ function vincularEventosSensores() {
       } else if (act === 'calibrar') {
         Modal.open(`Calibração Físico-Química — #${id}`, `
           <div style="font-size: 12px; color: #475569;">
-            <p>Selecione os pontos de calibração do sensor de solo (FDR):</p>
+            <p>Selecione os pontos de calibração do sensor de umidade do solo:</p>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
               <label>Ponto Seco (0% VWC):
                 <input type="number" value="1420" style="width: 100%; padding: 6px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
@@ -678,9 +678,9 @@ export function setupSensoresAdminEvents() {
   const btnSync = document.getElementById('btn-sync-esp32');
   if (btnSync) {
     btnSync.addEventListener('click', () => {
-      toast.info('Sincronizando Mesh LoRaWAN', 'Enviando comando de ping para os 25 nós...');
+      toast.info('Sincronizando Nós ESP32', 'Enviando comando de ping para os 25 nós...');
       setTimeout(() => {
-        toast.success('ESP32 Mesh Sincronizado', '25 nós responderam com telemetria e carga de bateria atualizadas.');
+        toast.success('ESP32 Sincronizado', '25 nós responderam com telemetria e carga de bateria atualizadas.');
       }, 1000);
     });
   }
@@ -710,7 +710,7 @@ export function setupSensoresAdminEvents() {
   const btnProvisionar = document.getElementById('btn-provisionar-sensor');
   if (btnProvisionar) {
     btnProvisionar.addEventListener('click', () => {
-      Modal.open('Provisionar Novo Sensor LoRaWAN (ESP32)', `
+      Modal.open('Provisionar Novo Nó ESP32 (DHT11 / Solo)', `
         <div style="font-size: 12px; color: #475569; display: flex; flex-direction: column; gap: 10px;">
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
             <label>Identificador (ID):
@@ -718,9 +718,8 @@ export function setupSensoresAdminEvents() {
             </label>
             <label>Tipo do Sensor:
               <select id="novo-sensor-tipo" style="width: 100%; padding: 7px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
-                <option value="FDR Solo Capacitivo">FDR Solo Capacitivo (30cm/60cm)</option>
-                <option value="Microclima SHT31 (Ar)">Microclima SHT31 (Ar)</option>
-                <option value="TDR Analítico Solo">TDR Analítico Solo</option>
+                <option value="Sensor de Umidade do Solo">Sensor de Umidade do Solo</option>
+                <option value="Sensor DHT11 (Temp/Umid Ar)">Sensor DHT11 (Temp/Umid Ar)</option>
               </select>
             </label>
           </div>
@@ -737,14 +736,14 @@ export function setupSensoresAdminEvents() {
             <label>Versão Firmware:
               <input type="text" id="novo-sensor-firmware" value="v4.2.1-prod" style="width: 100%; padding: 7px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
             </label>
-            <label>DevEUI LoRaWAN (Hex):
-              <input type="text" value="A840411F1820" style="width: 100%; padding: 7px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px; font-family: monospace;">
+            <label>MAC Address ESP32 (Wi-Fi):
+              <input type="text" value="A8:40:41:1F:18:20" style="width: 100%; padding: 7px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px; font-family: monospace;">
             </label>
           </div>
         </div>
       `, () => {
         const id = document.getElementById('novo-sensor-id')?.value || `SNS-SL-0${_sensoresList.length + 1}`;
-        const tipo = document.getElementById('novo-sensor-tipo')?.value || 'FDR Solo Capacitivo';
+        const tipo = document.getElementById('novo-sensor-tipo')?.value || 'Sensor de Umidade do Solo';
         const talhao = document.getElementById('novo-sensor-talhao')?.value || 'Talhão A1';
         const firmware = document.getElementById('novo-sensor-firmware')?.value || 'v4.2.1-prod';
         const isAr = tipo.includes('Ar');
@@ -868,14 +867,14 @@ export function setupSensoresAdminEvents() {
       } else if (act === 'ota') {
         Modal.open('Deploy OTA v4.2.1 em Lote', `
           <div style="font-size: 12px; color: #475569;">
-            <p>O pacote binário <code>firmware_raiz_v4.2.1.bin</code> será transmitido via multicast LoRaWAN para os 25 nós.</p>
+            <p>O pacote binário <code>firmware_raiz_v4.2.1.bin</code> será transmitido via Wi-Fi OTA para os 25 nós ESP32.</p>
             <div style="background: #F8FAFC; border: 1px solid #E2E8F0; padding: 10px; border-radius: 6px; margin-top: 10px;">
               <strong>Tempo estimado:</strong> 4 minutos e 20 segundos.<br>
               <strong>Bateria mínima requerida:</strong> 60%.
             </div>
           </div>
         `, () => {
-          toast.success('OTA Iniciado', 'Transmissão em lote iniciada nos canais 915.2 - 916.6 MHz.');
+          toast.success('OTA Iniciado', 'Transmissão Wi-Fi OTA em lote iniciada.');
         }, 'Iniciar Atualização OTA');
       } else {
         window.location.hash = '#/auditoria';

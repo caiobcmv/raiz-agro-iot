@@ -81,7 +81,7 @@ let _regrasFisiologicas = [
   {
     id: 'solo',
     categoria: 'solo',
-    titulo: 'Manejo de Solo e Umidade Radicular (Sondas FDR 30/60cm)',
+    titulo: 'Manejo de Solo e Umidade Radicular (Sensores de Umidade do Solo)',
     subtitulo: 'Cluster Solos: v01 • Curvas de Retenção Van Genuchten',
     badge: 'Fertirrigação Ativa',
     badgeClass: 'fertirrigacao',
@@ -122,7 +122,7 @@ export async function renderRegrasAgronomicas() {
             <span>•</span>
             <span>✓ Validação Cruzada: <strong>Embrapa Semiárido e UC Davis</strong></span>
             <span>•</span>
-            <span style="color: #059669; font-weight: 500;">⟳ Sincronização em Tempo Real com Nós LoRaWAN</span>
+            <span style="color: #059669; font-weight: 500;">⟳ Sincronização em Tempo Real com Nós ESP32</span>
           </div>
         </div>
 
@@ -254,7 +254,7 @@ export async function renderRegrasAgronomicas() {
 
           <div class="card-cadeia-protocolo" data-cat="solo" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px 12px; border-left: 3px solid #8B5CF6; cursor: pointer;">
             <div style="font-size: 11px; font-weight: 700; color: #0F172A;">4. Solo e Raízes</div>
-            <div style="font-size: 10px; color: #64748B;">Sondas FDR 30/60cm</div>
+            <div style="font-size: 10px; color: #64748B;">Sensores de Umidade do Solo</div>
             <div style="font-size: 10px; color: #7C3AED; font-weight: 600; margin-top: 4px;">4 Regras • Faixa VWC</div>
           </div>
 
@@ -554,14 +554,14 @@ function vincularEventosRegras() {
       const id = e.currentTarget.dataset.id;
       Modal.open('Sensores Vinculados à Cadeia Fisiológica', `
         <div style="font-size: 12px; color: #334155;">
-          <p>Nós IoT LoRaWAN transmitindo sob esta parametrização:</p>
+          <p>Nós IoT ESP32 (DHT11 / Umidade Solo) transmitindo sob esta parametrização:</p>
           <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 10px;">
             <div style="background: #F8FAFC; border: 1px solid #E2E8F0; padding: 8px 12px; border-radius: 6px; display: flex; justify-content: space-between;">
-              <strong>#SNS-SL-001 (FDR 30cm)</strong>
+              <strong>#SNS-SL-001 (Sensor Umidade Solo)</strong>
               <span style="color: #047857; font-weight: 700;">48.2% VWC • Operacional</span>
             </div>
             <div style="background: #F8FAFC; border: 1px solid #E2E8F0; padding: 8px 12px; border-radius: 6px; display: flex; justify-content: space-between;">
-              <strong>#SNS-AR-002 (SHT31 Microclima)</strong>
+              <strong>#SNS-AR-002 (Sensor DHT11 Temp/Umid)</strong>
               <span style="color: #0284C7; font-weight: 700;">28.1°C • 59.4% UR • Online</span>
             </div>
           </div>
@@ -686,7 +686,7 @@ export function setupRegrasAgronomicasEvents() {
           </div>
           <div>
             <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-              <span>Peso: Umidade Solo FDR (w2):</span>
+              <span>Peso: Umidade do Solo (w2):</span>
               <strong>0.35</strong>
             </div>
             <input type="range" min="0" max="1" step="0.05" value="0.35" style="width: 100%; accent-color: #10B981;">

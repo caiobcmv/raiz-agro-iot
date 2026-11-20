@@ -239,7 +239,7 @@ export function renderAlertaCard(detalhe) {
             ORIGEM DO SENSOR
           </div>
           <div style="font-size: 18px; font-weight: 800; color: #0F172A; line-height: 1.1;">
-            ${sensor.origem || 'LoRaWAN'}
+            ${sensor.origem || 'ESP32'}
             <span style="font-size: 11px; font-weight: 600; color: #64748B; margin-left: 4px;">(${sensor.nome || 'S1'})</span>
           </div>
           <div style="font-size: 10px; color: ${statusSensorColor}; font-weight: 600; margin-top: 3px;">
@@ -613,7 +613,7 @@ function renderGestoraAlertas(alertas = [], clima = {}) {
 
         <div>
           <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 6px;">
-            <span style="font-size: 10px; color: #64748B; line-height: 1.25;">Rede LoRaWAN</span>
+            <span style="font-size: 10px; color: #64748B; line-height: 1.25;">Rede ESP32 Wi-Fi</span>
             <span style="font-size: 10px; font-weight: 700; color: #059669; text-align: right;">Sincronizada</span>
           </div>
           <div style="width: 100%; height: 5px; background: #DCFCE7; border-radius: 9999px; overflow: hidden;">
@@ -719,7 +719,7 @@ function renderGestoraAlertas(alertas = [], clima = {}) {
       <select id="alert-origin-select" style="width: 100%; padding: 9px 12px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 12px; color: #475569; outline: none; cursor: pointer; box-sizing: border-box;">
         <option value="">Todas as Origens de Hardware</option>
         <option value="thingspeak">ThingSpeak Cloud</option>
-        <option value="lora">Nós LoRaWAN ESP32</option>
+        <option value="esp32">Nós ESP32 (DHT11 / Solo)</option>
         <option value="estacao">Estação Meteorológica</option>
       </select>
 

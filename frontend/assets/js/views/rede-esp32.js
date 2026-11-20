@@ -1,7 +1,7 @@
 ﻿import { liveTelemetry } from '../live-telemetry.js';
 /**
  * VIEW: REDE ESP32 E TOPOLOGIA - FIEL AO FIGMA (PERFIL ANALISTA)
- * Distribuição espacial dos nós LoRaWAN, topologia em malha e sinal RSSI/PDR 24h.
+ * Distribuição espacial dos nós ESP32, sensores DHT11 e umidade do solo 24h.
  */
 
 import { Modal } from '../components/modal.js';
@@ -14,7 +14,7 @@ export async function renderRedeEsp32() {
       <div class="analista-subbar">
         <div class="analista-subbar-info">
           <span class="analista-dot-pulse"></span>
-          <span>Gateway Petrolina-04 Conectado • US915 (Canal 915 MHz) • 24 Sensores Ativos</span>
+          <span>Gateway Petrolina-04 Conectado • Wi-Fi 2.4 GHz • 24 Sensores Ativos</span>
           <span style="color: #64748B; font-size: 11px; font-weight: 400;">Sincronizado há 2 min</span>
         </div>
         <div class="analista-subbar-actions">
@@ -58,7 +58,7 @@ export async function renderRedeEsp32() {
             <span class="kpi-sub-num">Instalados em campo</span>
           </div>
           <div class="kpi-bottom-row">
-            <span style="color: #047857; font-weight: 600;" data-kpi="rede-amb-detalhes">16 Solo (FDR) • 8 Ar (Microclima)</span>
+            <span style="color: #047857; font-weight: 600;" data-kpi="rede-amb-detalhes">16 Umidade do Solo • 8 DHT11 (Ar)</span>
           </div>
         </div>
 
@@ -97,17 +97,17 @@ export async function renderRedeEsp32() {
 
       <!-- Seção do Meio (2 Colunas): Topologia Espacial (65%) + Inventário Técnico (35%) -->
       <div style="display: grid; grid-template-columns: 1.8fr 1fr; gap: 20px; margin-bottom: 20px;">
-        <!-- Coluna Esquerda: Topologia Espacial dos Nós LoRaWAN -->
+        <!-- Coluna Esquerda: Topologia Espacial dos Nós ESP32 -->
         <div class="analista-chart-box" style="margin-bottom: 0;">
           <div class="chart-header-row">
             <div>
               <h3 style="font-size: 16px; font-weight: 700; color: #0F172A; display: flex; align-items: center; gap: 8px;">
                 <i data-lucide="share-2" style="width: 18px; height: 18px; color: #10B981;"></i>
-                Topologia Espacial dos Nós LoRaWAN
+                Topologia Espacial dos Nós ESP32
                 <span style="font-size: 11px; color: #64748B; font-weight: 400;">Petrolina 45.0 ha</span>
               </h3>
               <p style="font-size: 12px; color: #64748B; margin-top: 2px;">
-                Distribuição georreferenciada dos nós ESP32 e links de radiofrequência ao Gateway
+                Distribuição georreferenciada dos nós ESP32 e cobertura Wi-Fi ao Gateway
               </p>
             </div>
 
@@ -121,7 +121,7 @@ export async function renderRedeEsp32() {
           <!-- Mapa de Topologia com Imagem de Fundo e Enlaces Radiais SVG -->
           <div style="position: relative; width: 100%; height: 450px; border-radius: 12px; overflow: hidden; border: 1px solid #CBD5E1;">
             <!-- Imagem de Fundo da Topologia Espacial (Petrolina / Juazeiro) -->
-            <img src="assets/images/topologia-espacial-lora.png" alt="Topologia Espacial dos Nós LoRaWAN - Petrolina e Juazeiro"
+            <img src="assets/images/topologia-espacial-esp32.png" alt="Topologia Espacial dos Nós ESP32 - Petrolina e Juazeiro"
               style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1;">
 
             <!-- SVG com Enlaces Radiais Transparente por cima da imagem -->
@@ -208,11 +208,11 @@ export async function renderRedeEsp32() {
               </span>
               <span style="display: flex; align-items: center; gap: 6px;">
                 <span style="width: 8px; height: 8px; border-radius: 50%; background: #183D2E; border: 1px solid #10B981;"></span>
-                Gateway US915 Concentrador
+                Gateway Central ESP32
               </span>
             </div>
             <span style="color: #64748B; font-size: 10px; font-weight: 600;">
-              Banda US915 • SF7 • BW 125 kHz
+              Wi-Fi 802.11 b/g/n • ThingSpeak Ingest
             </span>
           </div>
         </div>
@@ -247,7 +247,7 @@ export async function renderRedeEsp32() {
               <div style="font-size: 11px; color: #334155; font-weight: 600;">#01 LOTE A1 • Uva Vitória</div>
               <div style="font-size: 10px; color: #64748B; margin-top: 2px;">id_lote: 1</div>
               <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B; margin-top: 6px; border-top: 1px solid #EDF2F7; padding-top: 4px;">
-                <span>Ambiente: <strong>Solo (FDR)</strong></span>
+                <span>Ambiente: <strong>Umidade do Solo</strong></span>
                 <span style="font-family: monospace; color: #0284C7;">channel_id: 248901</span>
               </div>
             </div>
@@ -275,7 +275,7 @@ export async function renderRedeEsp32() {
               <div style="font-size: 11px; color: #334155; font-weight: 600;">#03 LOTE B2 • Uva Thompson</div>
               <div style="font-size: 10px; color: #64748B; margin-top: 2px;">id_lote: 2</div>
               <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B; margin-top: 6px; border-top: 1px solid #EDF2F7; padding-top: 4px;">
-                <span>Ambiente: <strong>Solo (FDR)</strong></span>
+                <span>Ambiente: <strong>Umidade do Solo</strong></span>
                 <span style="font-family: monospace; color: #0284C7;">channel_id: 248905</span>
               </div>
             </div>
@@ -381,7 +381,7 @@ export function setupRedeEsp32Events() {
   const btnSync = document.getElementById('btn-sync-rede');
   if (btnSync) {
     btnSync.addEventListener('click', () => {
-      toast.info('Sincronização LoRaWAN', 'Consultando gateway concentrador Petrolina-04 na frequência 915 MHz...');
+      toast.info('Sincronização ESP32', 'Consultando nós ESP32 e canais ThingSpeak...');
       setTimeout(() => {
         toast.success('Rede Sincronizada', '24 nós responderam com ACK em menos de 120ms.');
       }, 900);
@@ -422,14 +422,14 @@ export function setupRedeEsp32Events() {
           </div>
         </div>
         <div style="font-size:12px; color:#475569; line-height:1.6;">
-          <strong>Hardware:</strong> ESP32-WROOM-32 com transceptor SX1262 LoRa<br>
-          <strong>Spreading Factor:</strong> SF7 • Largura de banda: 125 kHz<br>
+          <strong>Hardware:</strong> ESP32 com sensores DHT11 e Umidade do Solo<br>
+          <strong>Conectividade:</strong> Wi-Fi 2.4 GHz • Canal ThingSpeak<br>
           <strong>Pacotes Transmitidos (24h):</strong> 288 (1 a cada 5 min)<br>
           <strong>Taxa de Perda:</strong> 0.0%
         </div>
       `, () => {
-        toast.success('Teste de Enlace', `Comando ECHO enviado para ${node}. Tempo de resposta: 94ms.`);
-      }, 'Enviar Teste Ping LoRa');
+        toast.success('Teste de Enlace', `Comando ECHO enviado para ${node}. Tempo de resposta: 45ms.`);
+      }, 'Enviar Teste Ping ESP32');
     });
   });
 

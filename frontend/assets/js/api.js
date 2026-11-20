@@ -289,7 +289,7 @@ class ApiService {
         {
           id_sensor: 3,
           nome: 'Termohigro Container Reefer 40',
-          tipo_sensor: 'Sensirion SHT31',
+          tipo_sensor: 'DHT11',
           localizacao: 'Caminhão Scania Placa RZ-2026',
           channel_id: null,
           status: 'ativo',
@@ -303,7 +303,7 @@ class ApiService {
         {
           id_sensor: 4,
           nome: 'Câmara Fria Uva - Silo 2',
-          tipo_sensor: 'PT100 + DHT22',
+          tipo_sensor: 'DHT11',
           localizacao: 'Galpão Packing House Petrolina',
           channel_id: null,
           status: 'ativo',
@@ -570,7 +570,7 @@ class ApiService {
             localizacao: 'Talhão B2',
             ambiente: 'ar',
             status: 'ativo',
-            origem: 'lora',
+            origem: 'esp32',
             ultima_leitura: new Date(Date.now() - 5 * 60000).toISOString(),
             minutos_sem_leitura: 5,
             sem_leitura: false

@@ -26,7 +26,7 @@ const PAGE_META_GESTOR = {
 const PAGE_META_ANALISTA = {
   '#/dashboard':     { h2: 'Visão Geral do Sistema',          sub: 'Gerencie preferências da fazenda, parâmetros de sensores, notificações e acessos.' },
   '#/sensores':      { h2: 'Sensores e Telemetria de Campo <span class="badge-header-inline">ThingSpeak IoT: Sync a cada 5m • Tabela leitura_climatica</span>', sub: '' },
-  '#/rede-esp32':    { h2: 'Rede ESP32 e Topologia',          sub: 'Distribuição espacial dos nós LoRaWAN, enlaces de radiofrequência e telemetria US915.' },
+  '#/rede-esp32':    { h2: 'Rede ESP32 e Topologia',          sub: 'Distribuição espacial dos nós ESP32, telemetria DHT11 e sensores de umidade do solo.' },
   '#/leituras':      { h2: 'Histórico Safra',                 sub: 'Registro histórico de colheitas, rendimento por talhão e correlação com dados agroclimáticos.' },
   '#/alertas':       { h2: 'Central de Alertas e Incidentes', sub: 'Monitoramento em tempo real de desvios térmicos, estresse hídrico e gatilhos automatizados.' },
   '#/configuracoes': { h2: 'Configurações e Meu Perfil',      sub: 'Gerencie seu perfil, tema, dados da propriedade, padrões de qualidade e notificações.' },
