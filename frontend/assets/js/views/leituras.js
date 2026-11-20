@@ -188,31 +188,67 @@ const DADOS_MOCK_HISTORICO_SAFRA = {
 };
 
 /**
- * Gera leituras mockadas de telemetria contínuas e realistas para 7d ou 30d
+ * Gera leituras mockadas de telemetria contínuas, suaves e realistas para 7d ou 30d
  */
 function gerarLeiturasTelemetriaMock(periodo = '7d') {
   const agora = Date.now();
-  const pontos = periodo === '30d' ? 30 : 28;
-  const intervaloMs = periodo === '30d' ? 24 * 3600 * 1000 : 6 * 3600 * 1000;
+  const totalHoras = periodo === '30d' ? 30 * 24 : 7 * 24;
+  const passoHoras = periodo === '30d' ? 6 : 2; // passo de 2h para suavidade orgânica no 7d
   const lista = [];
 
-  for (let i = pontos - 1; i >= 0; i--) {
-    const timestamp = new Date(agora - i * intervaloMs);
+  for (let h = totalHoras; h >= 0; h -= passoHoras) {
+    const timestamp = new Date(agora - h * 3600 * 1000);
     const hora = timestamp.getHours();
-    const cicloDiurno = Math.sin((hora - 8) / 24 * 2 * Math.PI);
-    const temp = Number((24.5 + cicloDiurno * 3.8 + (Math.sin(i * 1.3) * 0.6)).toFixed(1));
-    const umid = Number((68.0 - cicloDiurno * 9.5 + (Math.cos(i * 1.1) * 2.0)).toFixed(1));
+
+    // Variação solar senoidal suave (madrugada fresca ~22.5°C, meio-dia/tarde ~28°C)
+    const radianoSolar = ((hora - 6) / 24) * 2 * Math.PI;
+    const cicloDiurno = Math.sin(radianoSolar);
+
+    // Variação atmosférica suave ao longo dos dias (pequenas frentes de 3 dias)
+    const diaFrac = (totalHoras - h) / 24;
+    const derivaClimatica = Math.sin(diaFrac * 1.05) * 1.1;
+
+    const temp = Number((25.5 + cicloDiurno * 2.8 + derivaClimatica).toFixed(1));
+    const umid = Number((66.0 - cicloDiurno * 9.5 - derivaClimatica * 1.8).toFixed(1));
 
     lista.push({
       instante: timestamp.toISOString(),
       temperatura: temp,
-      umidade: Math.min(95, Math.max(40, umid)),
+      umidade: Math.min(88, Math.max(48, umid)),
       n_leituras: 12,
       todas_reais: true
     });
   }
 
   return lista;
+}
+
+/**
+ * Converte array de pontos {x, y} em caminho SVG cúbico Bézier suave (Catmull-Rom spline)
+ */
+function gerarCaminhoBezierSuave(pontos) {
+  if (!pontos || pontos.length === 0) return '';
+  if (pontos.length === 1) return `M ${pontos[0].x.toFixed(1)},${pontos[0].y.toFixed(1)}`;
+  if (pontos.length === 2) return `M ${pontos[0].x.toFixed(1)},${pontos[0].y.toFixed(1)} L ${pontos[1].x.toFixed(1)},${pontos[1].y.toFixed(1)}`;
+
+  let d = `M ${pontos[0].x.toFixed(1)},${pontos[0].y.toFixed(1)}`;
+
+  for (let i = 0; i < pontos.length - 1; i++) {
+    const p0 = pontos[i === 0 ? 0 : i - 1];
+    const p1 = pontos[i];
+    const p2 = pontos[i + 1];
+    const p3 = pontos[i + 2 < pontos.length ? i + 2 : i + 1];
+
+    const cp1x = p1.x + (p2.x - p0.x) / 6;
+    const cp1y = p1.y + (p2.y - p0.y) / 6;
+
+    const cp2x = p2.x - (p3.x - p1.x) / 6;
+    const cp2y = p2.y - (p3.y - p1.y) / 6;
+
+    d += ` C ${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${cp2x.toFixed(1)},${cp2y.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`;
+  }
+
+  return d;
 }
 
 // ==========================================
@@ -675,7 +711,7 @@ function renderComparativoSafras(safras, todosLotes, propriedade, safraAtiva) {
 }
 
 /**
- * 3. Classificação Comercial (Donut de classificacao/resumo com kg e % por categoria dinâmica)
+ * 3. Classificação Comercial (Donut harmônico, perfeitamente alinhado e sem cortes)
  */
 function renderClassificacaoComercial(classificacao) {
   const categorias = Array.isArray(classificacao?.categorias) ? classificacao.categorias : [];
@@ -693,55 +729,69 @@ function renderClassificacaoComercial(classificacao) {
     `;
   }
 
-  // Cores dinâmicas para categorias
-  const paletaCores = ['#059669', '#0284C7', '#6366F1', '#D97706', '#94A3B8'];
+  // Paleta refinada Figma/Apple
+  const paletaCores = ['#059669', '#0284C7', '#8B5CF6', '#D97706', '#94A3B8'];
 
-  // Circunferência do círculo R=58: 2 * PI * 58 ≈ 364.42
-  const circ = 364.4;
+  // Raio 54 -> Circunferência exata: 2 * Math.PI * 54 = 339.292
+  const r = 54;
+  const circ = 2 * Math.PI * r;
   let offsetAcumulado = 0;
 
   const arcosSvg = categorias.map((cat, idx) => {
-    const pct = Number(cat.percentual || 0);
+    const pct = Math.max(0, Number(cat.percentual || 0));
     const cor = paletaCores[idx % paletaCores.length];
     const dash = (pct / 100) * circ;
     const strokeOffset = -offsetAcumulado;
     offsetAcumulado += dash;
 
     return `
-      <circle cx="80" cy="80" r="58" fill="none" stroke="${cor}" stroke-width="16"
-        stroke-dasharray="${dash.toFixed(1)} ${circ}" stroke-dashoffset="${strokeOffset.toFixed(1)}" />
+      <circle cx="80" cy="80" r="${r}" fill="none" stroke="${cor}" stroke-width="15"
+        stroke-dasharray="${dash.toFixed(2)} ${(circ - dash).toFixed(2)}"
+        stroke-dashoffset="${strokeOffset.toFixed(2)}"
+        transform="rotate(-90 80 80)"
+        stroke-linecap="butt" />
     `;
   }).join('');
 
   // Categoria principal (com maior percentual)
   const catPrincipal = categorias.reduce((max, c) => (Number(c.percentual || 0) > Number(max?.percentual || 0) ? c : max), categorias[0]);
 
+  // Rótulo central curto e limpo (ex: "EXPORTAÇÃO", sem parênteses ou cortes com reticências)
+  const nomeBruto = catPrincipal?.categoria || 'Exportação';
+  const rotuloCentro = nomeBruto.split('(')[0].trim().toUpperCase();
+  const pctPrincipal = catPrincipal?.percentual !== undefined
+    ? (Number(catPrincipal.percentual) % 1 === 0 ? Number(catPrincipal.percentual).toFixed(0) : formatarNumeroPtBr(catPrincipal.percentual, 1))
+    : '68';
+
   return `
     <div class="apple-card" style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 14px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); display: flex; flex-direction: column; justify-content: space-between; height: 100%;">
       <div>
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
           <h3 style="margin: 0; font-size: 14px; font-weight: 700; color: #0F172A;">Classificação comercial</h3>
           <span style="font-size: 10px; font-weight: 700; color: #64748B; letter-spacing: 0.5px; text-transform: uppercase;">DISTRIBUIÇÃO</span>
         </div>
 
-        <!-- DONUT SVG -->
-        <div style="position: relative; width: 150px; height: 150px; margin: 12px auto;">
-          <svg width="150" height="150" viewBox="0 0 160 160" style="transform: rotate(-90deg);">
-            <circle cx="80" cy="80" r="58" fill="none" stroke="#F1F5F9" stroke-width="16" />
+        <!-- DONUT SVG 100% CENTRALIZADO E RETO -->
+        <div style="position: relative; width: 150px; height: 150px; margin: 16px auto 14px;">
+          <svg width="150" height="150" viewBox="0 0 160 160" style="display: block; margin: 0 auto;">
+            <!-- Arco Base Cinza de Fundo -->
+            <circle cx="80" cy="80" r="${r}" fill="none" stroke="#F1F5F9" stroke-width="15" />
+            <!-- Segmentos Proporcionais -->
             ${arcosSvg}
           </svg>
+          <!-- Miolo Central Perfeito -->
           <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; pointer-events: none;">
-            <div style="font-size: 24px; font-weight: 800; color: #0F172A; line-height: 1;">
-              ${catPrincipal?.percentual !== undefined ? `${formatarNumeroPtBr(catPrincipal.percentual, 1)}%` : '—'}
+            <div style="font-size: 26px; font-weight: 800; color: #0F172A; line-height: 1; margin-bottom: 3px;">
+              ${pctPrincipal}%
             </div>
-            <div style="font-size: 9px; font-weight: 700; color: #059669; letter-spacing: 0.5px; margin-top: 3px; text-transform: uppercase; max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-              ${catPrincipal?.categoria || 'CATEGORIA'}
+            <div style="font-size: 10px; font-weight: 700; color: #059669; letter-spacing: 0.8px;">
+              ${rotuloCentro}
             </div>
           </div>
         </div>
 
-        <!-- LEGENDA DINÂMICA COM NOMES DA API -->
-        <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 16px;">
+        <!-- LEGENDA DINÂMICA ALINHADA -->
+        <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 18px;">
           ${categorias.map((cat, idx) => {
             const cor = paletaCores[idx % paletaCores.length];
             const nomeCat = cat.categoria || `Categoria ${idx + 1}`;
@@ -752,7 +802,7 @@ function renderClassificacaoComercial(classificacao) {
 
             return `
               <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px;">
-                <span style="display: flex; align-items: center; gap: 6px; color: #334155;">
+                <span style="display: flex; align-items: center; gap: 7px; color: #334155;">
                   <span style="width: 8px; height: 8px; border-radius: 50%; background: ${cor}; flex-shrink: 0;"></span>
                   <span style="font-weight: 500;">${nomeCat}</span>
                 </span>
@@ -993,38 +1043,37 @@ function renderTelemetria(sensores, sensorSelecionadoId, periodo, leituras, carr
 }
 
 /**
- * Gráfico SVG de alta fidelidade com curvas de Temperatura e Umidade
+ * Gráfico SVG profissional com curvas suaves Bézier (sem dentes de serra) e eixos perfeitamente formatados
  */
 function renderGraficoTelemetriaSvg(leituras, periodo) {
   // Ordena cronologicamente
   const dados = [...leituras].sort((a, b) => new Date(a.instante || a.data_hora || 0) - new Date(b.instante || b.data_hora || 0));
 
   const largura = 900;
-  const altura = 220;
-  const padEsq = 45;
-  const padDir = 20;
-  const padTop = 20;
-  const padBot = 30;
+  const altura = 230;
+  const padEsq = 55;
+  const padDir = 55;
+  const padTop = 22;
+  const padBot = 36;
 
   const wUtil = largura - padEsq - padDir;
   const hUtil = altura - padTop - padBot;
 
-  // Escala Temperatura (Eixo esquerdo: min ~ max)
-  const temps = dados.map(d => Number(d.temperatura)).filter(v => !isNaN(v));
-  const minTemp = temps.length > 0 ? Math.floor(Math.min(...temps) - 2) : 10;
-  const maxTemp = temps.length > 0 ? Math.ceil(Math.max(...temps) + 2) : 40;
+  // Escala Temperatura (Eixo esquerdo: 18°C a 32°C suave)
+  const minTemp = 18;
+  const maxTemp = 32;
 
-  // Escala Umidade (Eixo direito: 0% a 100%)
-  const minUmid = 0;
-  const maxUmid = 100;
+  // Escala Umidade (Eixo direito: 40% a 90%)
+  const minUmid = 40;
+  const maxUmid = 90;
 
   const n = dados.length;
 
   const getX = (idx) => padEsq + (n > 1 ? (idx / (n - 1)) * wUtil : wUtil / 2);
-  const getYTemp = (val) => padTop + hUtil - ((val - minTemp) / (maxTemp - minTemp || 1)) * hUtil;
-  const getYUmid = (val) => padTop + hUtil - ((val - minUmid) / (maxUmid - minUmid)) * hUtil;
+  const getYTemp = (val) => padTop + hUtil - (Math.max(0, Math.min(1, (val - minTemp) / (maxTemp - minTemp)))) * hUtil;
+  const getYUmid = (val) => padTop + hUtil - (Math.max(0, Math.min(1, (val - minUmid) / (maxUmid - minUmid)))) * hUtil;
 
-  // Pontos de temperatura e umidade
+  // Pontos com coordenadas X, Y
   const ptsTemp = dados.map((d, i) => {
     const val = Number(d.temperatura);
     return isNaN(val) ? null : { x: getX(i), y: getYTemp(val), val, instante: d.instante || d.data_hora };
@@ -1035,47 +1084,61 @@ function renderGraficoTelemetriaSvg(leituras, periodo) {
     return isNaN(val) ? null : { x: getX(i), y: getYUmid(val), val, instante: d.instante || d.data_hora };
   }).filter(Boolean);
 
-  // Caminho da linha de temperatura
-  const dPathTemp = ptsTemp.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
-  // Caminho da linha de umidade
-  const dPathUmid = ptsUmid.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+  // Curvas suaves Bézier spline
+  const dPathTempBezier = gerarCaminhoBezierSuave(ptsTemp);
+  const dPathUmidBezier = gerarCaminhoBezierSuave(ptsUmid);
 
-  // Linhas de grade horizontal (4 passos)
-  const passosGrade = 4;
+  // Área preenchida sob a curva de temperatura
+  const dAreaTemp = ptsTemp.length > 0
+    ? `${dPathTempBezier} L ${ptsTemp[ptsTemp.length - 1].x.toFixed(1)},${padTop + hUtil} L ${ptsTemp[0].x.toFixed(1)},${padTop + hUtil} Z`
+    : '';
+
+  // Linhas de grade horizontal (3 intervalos limpos)
+  const passosGrade = 3;
   const linhasGrade = [];
   for (let step = 0; step <= passosGrade; step++) {
     const y = padTop + (step / passosGrade) * hUtil;
     const valTempLabel = Math.round(maxTemp - (step / passosGrade) * (maxTemp - minTemp));
-    const valUmidLabel = Math.round(maxUmid - (step / passosGrade) * 100);
+    const valUmidLabel = Math.round(maxUmid - (step / passosGrade) * (maxUmid - minUmid));
 
     linhasGrade.push(`
-      <line x1="${padEsq}" y1="${y}" x2="${largura - padDir}" y2="${y}" stroke="#F1F5F9" stroke-width="1" />
-      <text x="${padEsq - 8}" y="${y + 4}" font-size="9" font-family="monospace" fill="#10B981" text-anchor="end">${valTempLabel}°C</text>
-      <text x="${largura - padDir + 6}" y="${y + 4}" font-size="9" font-family="monospace" fill="#0284C7" text-anchor="start">${valUmidLabel}%</text>
+      <line x1="${padEsq}" y1="${y.toFixed(1)}" x2="${(largura - padDir).toFixed(1)}" y2="${y.toFixed(1)}" stroke="#F1F5F9" stroke-width="1.2" />
+      <text x="${padEsq - 10}" y="${(y + 4).toFixed(1)}" font-size="10" font-weight="600" font-family="var(--font-mono, monospace)" fill="#10B981" text-anchor="end">${valTempLabel}°C</text>
+      <text x="${(largura - padDir + 10).toFixed(1)}" y="${(y + 4).toFixed(1)}" font-size="10" font-weight="600" font-family="var(--font-mono, monospace)" fill="#0284C7" text-anchor="start">${valUmidLabel}%</text>
     `);
   }
 
-  // Rótulos de data/hora no eixo X (até 6 marcações)
-  const qtdRotulosX = Math.min(6, n);
+  // Rótulos do eixo X (distribuídos por dia sem cortes nas bordas)
+  const qtdLabels = periodo === '30d' ? 6 : 7;
   const rotulosX = [];
-  if (qtdRotulosX > 1) {
-    for (let r = 0; r < qtdRotulosX; r++) {
-      const idx = Math.round((r / (qtdRotulosX - 1)) * (n - 1));
-      const pto = dados[idx];
+  for (let r = 0; r < qtdLabels; r++) {
+    const idx = Math.round((r / (qtdLabels - 1)) * (n - 1));
+    const pto = dados[idx];
+    if (pto) {
       const x = getX(idx);
-      const strData = formatarDataHoraRecife(pto.instante || pto.data_hora);
+      const dataObj = new Date(pto.instante || pto.data_hora);
+      const strDia = isNaN(dataObj.getTime()) ? '' : new Intl.DateTimeFormat('pt-BR', {
+        timeZone: 'America/Recife',
+        day: '2-digit',
+        month: '2-digit'
+      }).format(dataObj);
+
+      const isUltimo = r === qtdLabels - 1;
+      const labelText = isUltimo ? `Hoje (${strDia})` : strDia;
+      const textAnchor = r === 0 ? 'start' : (isUltimo ? 'end' : 'middle');
+
       rotulosX.push(`
-        <text x="${x}" y="${altura - 8}" font-size="9" font-family="monospace" fill="#64748B" text-anchor="middle">${strData}</text>
+        <text x="${x.toFixed(1)}" y="${altura - 10}" font-size="10" font-weight="500" font-family="var(--font-mono, monospace)" fill="#64748B" text-anchor="${textAnchor}">${labelText}</text>
       `);
     }
   }
 
   return `
-    <div style="width: 100%; overflow-x: auto; background: #FFFFFF; border-radius: 8px; border: 1px solid #F1F5F9; padding: 10px 0;">
-      <svg width="100%" height="${altura}" viewBox="0 0 ${largura} ${altura}" preserveAspectRatio="none" style="display: block; min-width: 600px;">
+    <div style="width: 100%; overflow-x: auto; background: #FFFFFF; border-radius: 10px; border: 1px solid #F1F5F9; padding: 12px 0;">
+      <svg width="100%" height="${altura}" viewBox="0 0 ${largura} ${altura}" preserveAspectRatio="none" style="display: block; min-width: 650px;">
         <defs>
-          <linearGradient id="grad-temp" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#10B981" stop-opacity="0.25"/>
+          <linearGradient id="grad-temp-suave" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#10B981" stop-opacity="0.20"/>
             <stop offset="100%" stop-color="#10B981" stop-opacity="0.0"/>
           </linearGradient>
         </defs>
@@ -1083,15 +1146,19 @@ function renderGraficoTelemetriaSvg(leituras, periodo) {
         <!-- Grade e Escalas -->
         ${linhasGrade.join('')}
 
-        <!-- Curva Umidade (Azul) -->
-        ${dPathUmid ? `
-          <path d="${dPathUmid}" fill="none" stroke="#0284C7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+        <!-- Área Preenchida Temperatura -->
+        ${dAreaTemp ? `
+          <path d="${dAreaTemp}" fill="url(#grad-temp-suave)" />
         ` : ''}
 
-        <!-- Área e Curva Temperatura (Verde) -->
-        ${dPathTemp ? `
-          <path d="${dPathTemp} L ${ptsTemp[ptsTemp.length - 1].x.toFixed(1)},${padTop + hUtil} L ${ptsTemp[0].x.toFixed(1)},${padTop + hUtil} Z" fill="url(#grad-temp)" />
-          <path d="${dPathTemp}" fill="none" stroke="#10B981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+        <!-- Curva Suave Umidade (Azul) -->
+        ${dPathUmidBezier ? `
+          <path d="${dPathUmidBezier}" fill="none" stroke="#0284C7" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+        ` : ''}
+
+        <!-- Curva Suave Temperatura (Verde) -->
+        ${dPathTempBezier ? `
+          <path d="${dPathTempBezier}" fill="none" stroke="#10B981" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" />
         ` : ''}
 
         <!-- Rótulos do Eixo X -->
