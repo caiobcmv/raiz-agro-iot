@@ -1097,7 +1097,7 @@ function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS, extras 
         <div class="dd-card dd-card-lg" style="padding: 20px 22px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
             <h3 style="font-size: 15px; font-weight: 700; color: #1E293B; margin: 0;">Preço e demanda de mercado</h3>
-            <span style="font-size: 10.5px; color: #94A3B8;">Ceagesp / Export</span>
+            <span style="font-size: 10.5px; color: #94A3B8;">Cadastro manual</span>
           </div>
 
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
