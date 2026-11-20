@@ -1,4 +1,4 @@
-﻿import { liveTelemetry } from '../live-telemetry.js';
+import { liveTelemetry } from '../live-telemetry.js';
 /**
  * VIEW: SENSORES E TELEMETRIA DE CAMPO - FIEL AO FIGMA (PERFIL ANALISTA)
  * Suporte a correlação multidimensional, canais ThingSpeak e auditoria de hardware.

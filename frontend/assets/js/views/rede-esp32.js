@@ -1,4 +1,4 @@
-﻿import { liveTelemetry } from '../live-telemetry.js';
+import { liveTelemetry } from '../live-telemetry.js';
 /**
  * VIEW: REDE ESP32 E TOPOLOGIA - FIEL AO FIGMA (PERFIL ANALISTA)
  * Distribuição espacial dos nós ESP32, sensores DHT11 e umidade do solo 24h.
