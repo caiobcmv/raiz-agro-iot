@@ -26,6 +26,14 @@ const DEFAULT_DADOS_GRAFICOS = {
 };
 
 export async function renderDashboard() {
+  const profileRole = auth.getActiveProfile();
+  if (profileRole === 'admin') {
+    return renderAdminDashboard();
+  }
+  if (profileRole === 'analista') {
+    return renderAnalistaDashboard();
+  }
+
   const isResumido = localStorage.getItem('DASHBOARD_MODE') !== 'detalhado';
   
   // Busca dados reais do PostgreSQL em paralelo (sem usar cache desatualizado)
@@ -1080,85 +1088,25 @@ function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
       <!-- Coluna Direita: Monitoramento da Propriedade em Alta Resolução + Previsão do Tempo -->
       <div style="display: flex; flex-direction: column; gap: 20px;">
         
-        <!-- Card: Monitoramento da Propriedade e Talhões (Alta Definição e Controles Interativos) -->
-        <div class="figma-card" style="padding: 22px; display: flex; flex-direction: column;">
-          <div class="card-top-title-row" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
-            <div style="min-width: 0;">
-              <span style="font-size: 13px; font-weight: 700; color: #1E293B; letter-spacing: 0.5px; text-transform: uppercase; display: block; line-height: 1.3;">
-                MONITORAMENTO DA PROPRIEDADE E TALHÕES
-              </span>
-              <p style="font-size: 11.5px; color: #94A3B8; margin-top: 3px; margin-bottom: 0;">Fazenda Vale das Uvas • Setor 04 (48 ha)</p>
-            </div>
-
-            <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
-              <span class="card-status-pill pill-green" style="font-size: 10px; padding: 3px 8px; font-weight: 700;">sentinel-2</span>
-              <div style="display: flex; gap: 4px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 2px;">
-                <button type="button" id="btn-map-zoom-in" style="width: 26px; height: 26px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 6px; font-weight: 700; color: #334155; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; transition: all 0.2s;" title="Aproximar zoom">+</button>
-                <button type="button" id="btn-map-zoom-out" style="width: 26px; height: 26px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 6px; font-weight: 700; color: #334155; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; transition: all 0.2s;" title="Afastar zoom">&minus;</button>
-                <button type="button" id="btn-map-fullscreen" style="width: 26px; height: 26px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 6px; color: #334155; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" title="Redefinir visualização">
-                  <i data-lucide="maximize-2" style="width: 13px; height: 13px;"></i>
-                </button>
-              </div>
-            </div>
+        <!-- Card: Monitoramento da propriedade -->
+        <div class="figma-card" style="padding: 18px 20px; display: flex; flex-direction: column;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <span style="font-size: 13px; font-weight: 700; color: #1E293B;">Monitoramento da propriedade</span>
+            <button type="button" style="background: none; border: none; padding: 2px; color: #71807A; cursor: pointer;" title="Expandir visualização">
+              <i data-lucide="maximize-2" style="width: 14px; height: 14px;"></i>
+            </button>
+          </div>
+          
+          <div style="position: relative; width: 100%; border-radius: 10px; overflow: hidden; border: 1px solid #E2E8F0; background: #0F172A; box-shadow: 0 1px 3px rgba(0,0,0,0.06);">
+            <img src="/assets/images/mapa-propriedade-detalhado.jpg" alt="Monitoramento da Propriedade" style="width: 100%; height: auto; max-height: 180px; object-fit: cover; display: block; border-radius: 10px;">
           </div>
 
-          <!-- Viewport do Mapa em Alta Definição com Overlays e Zoom/Pan -->
-          <div id="satellite-map-viewport" class="satellite-map-container" style="position: relative; overflow: hidden; border-radius: 12px; min-height: 270px; flex: 1; background: #0F172A; cursor: grab; user-select: none;">
-            <div id="satellite-map-stage" style="position: absolute; inset: 0; transform-origin: center center; transition: transform 0.2s ease-out;">
-              <img src="assets/images/topologia-sensores-campo.jpg" alt="Visão Aérea dos Talhões" class="satellite-bg-img" style="width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; border-radius: 12px;">
-
-              <!-- Overlay 1: Talhão A • Vitória (Top Left) -->
-              <div style="position: absolute; top: 12%; left: 8%; width: 32%; height: 32%; border: 1.5px solid #10B981; background: rgba(16, 185, 129, 0.15); border-radius: 8px; backdrop-filter: blur(1px); display: flex; flex-direction: column; justify-content: space-between; padding: 6px 8px; box-shadow: 0 0 12px rgba(16, 185, 129, 0.3);">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                  <span style="background: rgba(15, 23, 42, 0.75); color: #FFFFFF; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;">Talhão A • Vitória</span>
-                  <span style="width: 8px; height: 8px; border-radius: 50%; background: #10B981; border: 1.5px solid #FFFFFF;"></span>
-                </div>
-                <div style="text-align: center;">
-                  <span style="background: rgba(16, 185, 129, 0.85); color: #FFFFFF; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">NDVI 0.88</span>
-                </div>
-              </div>
-
-              <!-- Overlay 2: Talhão C • Palmer (Top Right) -->
-              <div style="position: absolute; top: 12%; right: 8%; width: 28%; height: 32%; border: 1.5px solid #F59E0B; background: rgba(245, 158, 11, 0.15); border-radius: 8px; backdrop-filter: blur(1px); display: flex; flex-direction: column; justify-content: space-between; padding: 6px 8px; box-shadow: 0 0 12px rgba(245, 158, 11, 0.3);">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                  <span style="background: rgba(15, 23, 42, 0.75); color: #FFFFFF; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;">Talhão C • Palmer</span>
-                </div>
-                <div style="text-align: center;">
-                  <span style="background: #F59E0B; color: #FFFFFF; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">Alerta Hídrico</span>
-                </div>
-              </div>
-
-              <!-- Gateway Central ESP32 (Centro) -->
-              <div style="position: absolute; top: 48%; left: 34%; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(4px); padding: 5px 12px; border-radius: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.25); font-size: 11px; font-weight: 700; color: #0F172A; display: flex; align-items: center; gap: 6px; z-index: 10; border: 1px solid rgba(255,255,255,0.8);">
-                <span style="width: 8px; height: 8px; border-radius: 50%; background: #10B981;"></span>
-                <span>Gateway Central ESP32</span>
-              </div>
-
-              <!-- Overlay 3: Talhão B • Thompson (Bottom Left) -->
-              <div style="position: absolute; bottom: 12%; left: 14%; width: 30%; height: 32%; border: 1.5px solid #0284C7; background: rgba(2, 132, 199, 0.15); border-radius: 8px; backdrop-filter: blur(1px); display: flex; flex-direction: column; justify-content: space-between; padding: 6px 8px; box-shadow: 0 0 12px rgba(2, 132, 199, 0.3);">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                  <span style="background: rgba(15, 23, 42, 0.75); color: #FFFFFF; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;">Talhão B • Thompson</span>
-                  <span style="width: 8px; height: 8px; border-radius: 50%; background: #0284C7; border: 1.5px solid #FFFFFF;"></span>
-                </div>
-                <div style="text-align: center;">
-                  <span style="background: #0284C7; color: #FFFFFF; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">VWC 48%</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Indicador Flutuante de Zoom -->
-            <div id="map-zoom-badge" style="position: absolute; bottom: 10px; right: 10px; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(4px); color: #FFFFFF; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 12px; pointer-events: none; opacity: 0; transition: opacity 0.3s; z-index: 20;">
-              100%
-            </div>
-          </div>
-
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; font-size: 11px; color: #94A3B8;">
-            <div style="display: flex; gap: 16px;">
-              <span><strong style="color: #10B981;">●</strong> Ótimo</span>
-              <span><strong style="color: #0284C7;">●</strong> Atenção</span>
-              <span><strong style="color: #F59E0B;">●</strong> Crítico</span>
-            </div>
-            <div>Passagem orbital há 42 min</div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; font-size: 10.5px; color: #64748B;">
+            <span style="display: flex; align-items: center; gap: 4px;"><span style="width: 7px; height: 7px; border-radius: 50%; background: #047857;"></span>Ótima</span>
+            <span style="display: flex; align-items: center; gap: 4px;"><span style="width: 7px; height: 7px; border-radius: 50%; background: #10B981;"></span>Boa</span>
+            <span style="display: flex; align-items: center; gap: 4px;"><span style="width: 7px; height: 7px; border-radius: 50%; background: #F59E0B;"></span>Atenção</span>
+            <span style="display: flex; align-items: center; gap: 4px;"><span style="width: 7px; height: 7px; border-radius: 50%; background: #EF4444;"></span>Crítica</span>
+            <span style="display: flex; align-items: center; gap: 4px;"><span style="width: 7px; height: 7px; border-radius: 50%; background: #94A3B8;"></span>Sem dados</span>
           </div>
         </div>
 
