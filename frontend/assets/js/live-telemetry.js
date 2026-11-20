@@ -1,5 +1,5 @@
 ﻿/**
- * SERVIÇO DE SINCRONIZAÇÃO EM TEMPO REAL FRONTEND <-> BACKEND & BANCO DE DADOS
+ * SERVIÇO DE SINCRONIZAÇÃO EM TEMPO REAL FRONTEND <-> BACKEND E BANCO DE DADOS
  * Atualiza dinamicamente as KPIs e Gráficos de todas as telas
  * com dados reais consultados no banco local database-local/raiz_agro.db
  */
@@ -73,7 +73,7 @@ class LiveTelemetryService {
     this._setTextBySelector('#kpi-rede-saude, [data-kpi="rede-saude"]', `${data.taxa_sucesso_mesh || 96}%`);
     this._setTextBySelector('#kpi-rede-status, [data-kpi="rede-status"]', `${data.sensores_ativos || 24} de ${data.sensores_total || 26} nós operacionais`);
     
-    // KPI Sensores & Sondas
+    // KPI Sensores e Sondas
     this._setTextBySelector('#kpi-sensores-total, [data-kpi="sensores-total"]', data.sensores_ativos || 24);
     
     // KPI Média Climática e Solo
@@ -201,7 +201,7 @@ class LiveTelemetryService {
     }
   }
 
-  // 3. Atualiza KPIs da Rede ESP32 & Topologia
+  // 3. Atualiza KPIs da Rede ESP32 e Topologia
   updateRedeEsp32View(sensores) {
     const ativos = sensores.filter(s => s.status === 'ativo').length;
     const total = sensores.length;

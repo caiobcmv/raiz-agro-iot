@@ -1,6 +1,6 @@
 /**
- * VIEW: RELATÓRIOS & DOCUMENTOS OFICIAIS (FIGMA MOCKUP 5)
- * KPIs de Conformidade & Auditoria, Formulário de Emissão Imediata (PDF, CSV, XLSX)
+ * VIEW: RELATÓRIOS E DOCUMENTOS OFICIAIS (FIGMA MOCKUP 5)
+ * KPIs de Conformidade e Auditoria, Formulário de Emissão Imediata (PDF, CSV, XLSX)
  * com compilação em tempo real e download imediato, Repositório de Documentos Oficiais
  * com busca em tempo real, abas de filtro e download real.
  */
@@ -23,7 +23,7 @@ let _relatoriosList = [
     data: 'Hoje, 22 de Set 10:45 BRT',
     formato: 'PDF',
     tamanho: '4.2 MB',
-    parametros: 'Talhões A1-B2 • VWC, Brix & ETo',
+    parametros: 'Talhões A1-B2 • VWC, Brix e ETo',
     badgeColor: '#EF4444',
     isGlobalGap: false,
     isPdf: true,
@@ -50,7 +50,7 @@ let _relatoriosList = [
   },
   {
     id: 3,
-    titulo: 'Auditoria Forense de Sensores & Rejeições ThingSpeak',
+    titulo: 'Auditoria Forense de Sensores e Rejeições ThingSpeak',
     tipo_label: 'auditoria_sensores',
     codigo_ref: 'Dump Diário Automatizado',
     gerado_por: 'Rotina Automática',
@@ -69,7 +69,7 @@ let _relatoriosList = [
   },
   {
     id: 4,
-    titulo: 'Relatório de Perda de Qualidade & Desvio Térmico',
+    titulo: 'Relatório de Perda de Qualidade e Desvio Térmico',
     tipo_label: 'perda_qualidade',
     codigo_ref: 'Lote Termo #T-481',
     gerado_por: 'Luiz Felipe',
@@ -117,7 +117,7 @@ export async function renderRelatorios() {
         <!-- KPI 2 -->
         <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
           <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 11px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">CONFORMIDADE &amp; AUDITORIA</span>
+            <span style="font-size: 11px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">CONFORMIDADE E AUDITORIA</span>
             <span style="width: 8px; height: 8px; border-radius: 50%; background: #10B981;"></span>
           </div>
           <div style="margin: 12px 0;">
@@ -166,8 +166,8 @@ export async function renderRelatorios() {
             <select id="relatorio-tipo" style="width: 100%; padding: 8px 12px; border: 1px solid #CBD5E1; border-radius: 8px; font-size: 12px; color: #0F172A; background: #FFFFFF; cursor: pointer;">
               <option value="Fechamento de Safra (Consolidado)">Fechamento de Safra (Consolidado)</option>
               <option value="Dossiê de Conformidade GlobalG.A.P.">Dossiê de Conformidade GlobalG.A.P.</option>
-              <option value="Auditoria Forense de Sensores & Rejeições">Auditoria Forense de Sensores &amp; Rejeições</option>
-              <option value="Relatório de Perda de Qualidade & Desvio Térmico">Relatório de Perda de Qualidade &amp; Desvio Térmico</option>
+              <option value="Auditoria Forense de Sensores e Rejeições">Auditoria Forense de Sensores e Rejeições</option>
+              <option value="Relatório de Perda de Qualidade e Desvio Térmico">Relatório de Perda de Qualidade e Desvio Térmico</option>
             </select>
           </div>
 
@@ -218,17 +218,17 @@ export async function renderRelatorios() {
             <span style="font-size: 10px; color: #64748B;">Processamento assíncrono via worker • Tempo médio estimado: ~4.8s</span>
             <button class="btn btn-primary" id="btn-compilar-relatorio" style="background: #183D2E; color: #FFFFFF; border: none; font-size: 12px; font-weight: 700; padding: 9px 18px; border-radius: 8px; display: flex; align-items: center; gap: 6px; cursor: pointer; transition: all 0.2s;">
               <i data-lucide="zap" style="width: 14px; height: 14px;"></i>
-              <span>Compilar &amp; Gerar Documento</span>
+              <span>Compilar e Gerar Documento</span>
             </button>
           </div>
         </div>
       </div>
 
-      <!-- Seção: Repositório de Relatórios & Arquivos Oficiais -->
+      <!-- Seção: Repositório de Relatórios e Arquivos Oficiais -->
       <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
           <div>
-            <h3 style="font-size: 15px; font-weight: 800; color: #0F172A; margin: 0;">Repositório de Relatórios &amp; Arquivos Oficiais</h3>
+            <h3 style="font-size: 15px; font-weight: 800; color: #0F172A; margin: 0;">Repositório de Relatórios e Arquivos Oficiais</h3>
             <p style="font-size: 11px; color: #64748B; margin: 2px 0 0 0;">Histórico auditável com rastreabilidade criptográfica de autoria</p>
           </div>
           <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
@@ -246,10 +246,10 @@ export async function renderRelatorios() {
           <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
             <thead>
               <tr style="background: #F8FAFC; border-bottom: 1px solid #E2E8F0; text-align: left; color: #64748B; font-size: 10px; font-weight: 800; letter-spacing: 0.5px;">
-                <th style="padding: 10px 14px;">TIPO &amp; IDENTIFICAÇÃO</th>
+                <th style="padding: 10px 14px;">TIPO E IDENTIFICAÇÃO</th>
                 <th style="padding: 10px 14px;">GERADO POR (RBAC)</th>
                 <th style="padding: 10px 14px;">DATA DE GERAÇÃO</th>
-                <th style="padding: 10px 14px;">FORMATO &amp; TAMANHO</th>
+                <th style="padding: 10px 14px;">FORMATO E TAMANHO</th>
                 <th style="padding: 10px 14px;">PARÂMETROS JSON</th>
                 <th style="padding: 10px 14px; text-align: right;">AÇÕES OFICIAIS</th>
               </tr>
@@ -400,7 +400,7 @@ function dispararDownloadReal(titulo, formato) {
               `% RELATÓRIO OFICIAL: ${titulo}\n` +
               `% DATA: 22 de setembro de 2026\n` +
               `% POLO: Sertão do São Francisco / Petrolina - Setor 04\n` +
-              `% AUDITORIA FORENSE: Homologado GlobalG.A.P. & MAPA Compliance v4\n` +
+              `% AUDITORIA FORENSE: Homologado GlobalG.A.P. e MAPA Compliance v4\n` +
               `% ASSINATURA DIGITAL: 0x9812A7C4B29E1084F\n` +
               `% STATUS: Persistido no Banco de Dados Relacional (PostgreSQL / raiz_agro.db)\n`;
   }
@@ -457,7 +457,7 @@ function vincularEventosTabelaRel() {
 }
 
 export function setupRelatoriosEvents() {
-  // Compilar & Gerar Documento
+  // Compilar e Gerar Documento
   const btnCompilar = document.getElementById('btn-compilar-relatorio');
   if (btnCompilar) {
     btnCompilar.addEventListener('click', () => {
@@ -470,7 +470,7 @@ export function setupRelatoriosEvents() {
 
       setTimeout(() => {
         btnCompilar.disabled = false;
-        btnCompilar.innerHTML = `<i data-lucide="zap" style="width: 14px; height: 14px;"></i><span>Compilar &amp; Gerar Documento</span>`;
+        btnCompilar.innerHTML = `<i data-lucide="zap" style="width: 14px; height: 14px;"></i><span>Compilar e Gerar Documento</span>`;
         if (window.lucide) window.lucide.createIcons();
 
         const novoDoc = {

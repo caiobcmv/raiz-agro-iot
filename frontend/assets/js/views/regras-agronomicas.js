@@ -1,5 +1,5 @@
 /**
- * VIEW: REGRAS AGRONÔMICAS & LIMIARES FISIOLÓGICOS (FIGMA PIXEL PERFECT)
+ * VIEW: REGRAS AGRONÔMICAS E LIMIARES FISIOLÓGICOS (FIGMA PIXEL PERFECT)
  * 100% IDÊNTICO À IMAGEM DE REFERÊNCIA.
  * Sub-barra técnica v4.2 com restauração, exportação e cadastro de regra,
  * 4 KPIs Superiores, Esteira de Protocolos Fenológicos Clicável,
@@ -15,7 +15,7 @@ let _regrasFisiologicas = [
   {
     id: 'uva',
     categoria: 'uva',
-    titulo: 'Uva de Mesa (Vitória / Crimson Seedless) — Câmara & Maturação',
+    titulo: 'Uva de Mesa (Vitória / Crimson Seedless) — Câmara e Maturação',
     subtitulo: 'Variedades: R102 • Embrapa Semiárido Doc. 144',
     badge: 'Suscetibilidade Alta',
     badgeClass: 'alta',
@@ -37,7 +37,7 @@ let _regrasFisiologicas = [
   {
     id: 'manga',
     categoria: 'manga',
-    titulo: 'Manga Tommy Atkins & Palmer — Conservação Pós-Colheita',
+    titulo: 'Manga Tommy Atkins e Palmer — Conservação Pós-Colheita',
     subtitulo: 'Variedades: R101 • UC Davis Postharvest Series',
     badge: 'Chilling Injury Watch',
     badgeClass: 'chilling',
@@ -54,12 +54,12 @@ let _regrasFisiologicas = [
     urPct: 88,
     brixFaixa: '< 0.2 µL/kg·h (Etileno)',
     brixPct: 40,
-    sensoresInfo: '10 Sensores Atrelados (Galpão 03 & Túnel 02)'
+    sensoresInfo: '10 Sensores Atrelados (Galpão 03 e Túnel 02)'
   },
   {
     id: 'melao',
     categoria: 'melao',
-    titulo: 'Melão Amarelo (Cantaloupe / AF-522) — Packing & Pós-Colheita',
+    titulo: 'Melão Amarelo (Cantaloupe / AF-522) — Packing e Pós-Colheita',
     subtitulo: 'Variedades: R103 • IAC Homologado',
     badge: 'Padrão Conab / Export',
     badgeClass: 'padrao',
@@ -81,7 +81,7 @@ let _regrasFisiologicas = [
   {
     id: 'solo',
     categoria: 'solo',
-    titulo: 'Manejo de Solo & Umidade Radicular (Sondas FDR 30/60cm)',
+    titulo: 'Manejo de Solo e Umidade Radicular (Sondas FDR 30/60cm)',
     subtitulo: 'Cluster Solos: v01 • Curvas de Retenção Van Genuchten',
     badge: 'Fertirrigação Ativa',
     badgeClass: 'fertirrigacao',
@@ -114,13 +114,13 @@ export async function renderRegrasAgronomicas() {
         <div style="display: flex; flex-direction: column; gap: 4px;">
           <div style="display: flex; align-items: center; gap: 8px;">
             <span style="font-size: 11px; font-weight: 700; color: #047857; background: #ECFDF5; border: 1px solid #A7F3D0; padding: 3px 10px; border-radius: 20px;">
-              • v4.2 - Governança Fisiológica &amp; Limiares de Decisão
+              • v4.2 - Governança Fisiológica e Limiares de Decisão
             </span>
           </div>
           <div style="display: flex; align-items: center; gap: 12px; font-size: 11px; color: #64748B; flex-wrap: wrap;">
             <span style="display: flex; align-items: center; gap: 4px;"><i data-lucide="shield" style="width: 12px; height: 12px; color: #64748B;"></i> Ambiente de Produção</span>
             <span>•</span>
-            <span>✓ Validação Cruzada: <strong>Embrapa Semiárido &amp; UC Davis</strong></span>
+            <span>✓ Validação Cruzada: <strong>Embrapa Semiárido e UC Davis</strong></span>
             <span>•</span>
             <span style="color: #059669; font-weight: 500;">⟳ Sincronização em Tempo Real com Nós LoRaWAN</span>
           </div>
@@ -197,7 +197,7 @@ export async function renderRegrasAgronomicas() {
             <span style="font-size: 11px; font-weight: 700; color: #047857; background: #DCFCE7; padding: 3px 7px; border-radius: 4px;">88.2%</span>
             <div>
               <div style="font-size: 13px; font-weight: 700; color: #0F172A;">Conformidade Alta</div>
-              <div style="font-size: 10px; color: #64748B;">Global G.A.P. &amp; MAPA</div>
+              <div style="font-size: 10px; color: #64748B;">Global G.A.P. e MAPA</div>
             </div>
           </div>
           <div style="font-size: 10px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px; margin-top: 12px;">
@@ -205,10 +205,10 @@ export async function renderRegrasAgronomicas() {
           </div>
         </div>
 
-        <!-- Card 4: DISPAROS & PROTOCOLOS -->
+        <!-- Card 4: DISPAROS E PROTOCOLOS -->
         <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); display: flex; flex-direction: column; justify-content: space-between;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-            <span style="font-size: 10px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">DISPAROS &amp; PROTOCOLOS</span>
+            <span style="font-size: 10px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">DISPAROS E PROTOCOLOS</span>
             <span style="font-size: 10px; font-weight: 600; color: #64748B; background: #F1F5F9; padding: 2px 8px; border-radius: 12px;">30 Dias</span>
           </div>
           <div>
@@ -229,7 +229,7 @@ export async function renderRegrasAgronomicas() {
       <!-- Barra Esteira de Protocolos Agronômicos -->
       <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 14px 20px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-          <span style="font-size: 10px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">ESTEIRA DE PROTOCOLOS AGRONÔMICOS POR CULTURA &amp; ESTÁGIO FENOLÓGICO</span>
+          <span style="font-size: 10px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">ESTEIRA DE PROTOCOLOS AGRONÔMICOS POR CULTURA E ESTÁGIO FENOLÓGICO</span>
           <span style="font-size: 10px; color: #64748B;">5 Cadeias Monitoradas</span>
         </div>
 
@@ -248,29 +248,29 @@ export async function renderRegrasAgronomicas() {
 
           <div class="card-cadeia-protocolo" data-cat="melao" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px 12px; border-left: 3px solid #F59E0B; cursor: pointer;">
             <div style="font-size: 11px; font-weight: 700; color: #0F172A;">3. Melão Amarelo</div>
-            <div style="font-size: 10px; color: #64748B;">Packing &amp; Maturação</div>
-            <div style="font-size: 10px; color: #D97706; font-weight: 600; margin-top: 4px;">3 Regras • Hídrico &amp; CE</div>
+            <div style="font-size: 10px; color: #64748B;">Packing e Maturação</div>
+            <div style="font-size: 10px; color: #D97706; font-weight: 600; margin-top: 4px;">3 Regras • Hídrico e CE</div>
           </div>
 
           <div class="card-cadeia-protocolo" data-cat="solo" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px 12px; border-left: 3px solid #8B5CF6; cursor: pointer;">
-            <div style="font-size: 11px; font-weight: 700; color: #0F172A;">4. Solo &amp; Raízes</div>
+            <div style="font-size: 11px; font-weight: 700; color: #0F172A;">4. Solo e Raízes</div>
             <div style="font-size: 10px; color: #64748B;">Sondas FDR 30/60cm</div>
             <div style="font-size: 10px; color: #7C3AED; font-weight: 600; margin-top: 4px;">4 Regras • Faixa VWC</div>
           </div>
 
           <div class="card-cadeia-protocolo" data-cat="todos" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px 12px; border-left: 3px solid #06B6D4; cursor: pointer;">
             <div style="font-size: 11px; font-weight: 700; color: #0F172A;">5. Microclima</div>
-            <div style="font-size: 10px; color: #64748B;">Estresse Térmico &amp; VWC</div>
+            <div style="font-size: 10px; color: #64748B;">Estresse Térmico e VWC</div>
             <div style="font-size: 10px; color: #0891B2; font-weight: 600; margin-top: 4px;">2 Regras • Molhamento</div>
           </div>
         </div>
       </div>
 
-      <!-- Seção Limiares Biológicos de Conservação & Maturação -->
+      <!-- Seção Limiares Biológicos de Conservação e Maturação -->
       <div style="margin-bottom: 24px;">
         <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
           <div>
-            <h3 style="font-size: 16px; font-weight: 800; color: #0F172A; margin: 0;">Limiares Biológicos de Conservação &amp; Maturação</h3>
+            <h3 style="font-size: 16px; font-weight: 800; color: #0F172A; margin: 0;">Limiares Biológicos de Conservação e Maturação</h3>
             <div style="font-size: 11px; color: #64748B; margin-top: 2px;">config_parametro • Mapeamento por cultura e sensor físico</div>
           </div>
           <span style="font-size: 11px; color: #64748B; font-weight: 600;">18 Regras Compiladas</span>
@@ -309,7 +309,7 @@ export async function renderRegrasAgronomicas() {
         </div>
       </div>
 
-      <!-- 2 Cards Inferiores: Cortes de Alerta Preditivo & Governança de Schema -->
+      <!-- 2 Cards Inferiores: Cortes de Alerta Preditivo e Governança de Schema -->
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
         <!-- Card 1: Cortes de Alerta Preditivo -->
         <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
@@ -443,7 +443,7 @@ function renderCardsRegrasHtml() {
       <!-- Faixa Térmica / Fisiológica -->
       <div style="margin-bottom: 14px;">
         <div style="display: flex; justify-content: space-between; font-size: 11px; color: #475569; margin-bottom: 5px;">
-          <span>${r.id === 'solo' ? 'Teor Volumétrico de Água no Solo (VWC)' : 'Temperatura de Polpa & Ambiente'}</span>
+          <span>${r.id === 'solo' ? 'Teor Volumétrico de Água no Solo (VWC)' : 'Temperatura de Polpa e Ambiente'}</span>
           <span style="font-weight: 600;">${r.tempLabel}</span>
         </div>
         <div style="width: 100%; height: 14px; background: #FEE2E2; border-radius: 7px; overflow: hidden; display: flex; position: relative;">
@@ -621,7 +621,7 @@ export function setupRegrasAgronomicasEvents() {
           Insira os limiares biológicos recomendados por instituição de pesquisa:
         </div>
         <div style="display: flex; flex-direction: column; gap: 10px; font-size: 12px;">
-          <label>Cultura &amp; Variedade:
+          <label>Cultura e Variedade:
             <input type="text" id="nova-regra-cultura" placeholder="Ex: Manga Palmer Pós-Colheita" style="width: 100%; padding: 8px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
           </label>
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">

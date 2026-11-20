@@ -550,7 +550,7 @@ function renderGestoraAlertas(alertas = [], clima = {}) {
   return `
   <div class="dashboard-canvas apple-animate-in" style="padding: 24px 32px 48px; overflow-y: auto;">
 
-    <!-- Top Sub-Bar: Sensores Ativos & Ações -->
+    <!-- Top Sub-Bar: Sensores Ativos e Ações -->
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
       <div style="background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 9999px; padding: 7px 16px; display: inline-flex; align-items: center; gap: 8px;">
         <span style="width: 8px; height: 8px; border-radius: 50%; background: #10B981; display: inline-block; box-shadow: 0 0 0 2px rgba(16,185,129,0.2);"></span>
@@ -622,11 +622,11 @@ function renderGestoraAlertas(alertas = [], clima = {}) {
         </div>
       </div>
 
-      <!-- Card 3: Temperatura & Microclima -->
+      <!-- Card 3: Temperatura e Microclima -->
       <div class="apple-card" style="padding: 18px 20px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); display: flex; flex-direction: column; justify-content: space-between;">
         <div>
           <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
-            <span style="font-size: 10px; font-weight: 700; color: #64748B; letter-spacing: 0.6px; text-transform: uppercase;">CLIMA & MICROCLIMA</span>
+            <span style="font-size: 10px; font-weight: 700; color: #64748B; letter-spacing: 0.6px; text-transform: uppercase;">CLIMA E MICROCLIMA</span>
             <i data-lucide="sun" style="width: 15px; height: 15px; color: #F59E0B;"></i>
           </div>
 
@@ -709,7 +709,7 @@ function renderGestoraAlertas(alertas = [], clima = {}) {
       </button>
     </div>
 
-    <!-- Search Bar & Filters -->
+    <!-- Search Bar e Filters -->
     <div style="display: grid; grid-template-columns: 2fr 1.2fr auto; gap: 10px; margin-bottom: 24px; align-items: center;">
       <div style="position: relative;">
         <i data-lucide="search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 15px; height: 15px; color: #94A3B8;"></i>
@@ -744,7 +744,7 @@ function renderGestoraAlertas(alertas = [], clima = {}) {
       `).join('')}
     </div>
 
-    <!-- SEÇÃO INFERIOR: LOG DE AUDITORIA & DIRETRIZES DE MANEJO AGRONÔMICO -->
+    <!-- SEÇÃO INFERIOR: LOG DE AUDITORIA E DIRETRIZES DE MANEJO AGRONÔMICO -->
     <div style="display: grid; grid-template-columns: 1.6fr 1fr; gap: 20px; align-items: start;">
 
       <!-- Card 1: Log de Auditoria Recente -->
@@ -1060,7 +1060,7 @@ export function setupAlertasEvents() {
 
   // 7. Ver Histórico Completo de Auditoria (Modal)
   document.getElementById('btn-ver-auditoria-completa')?.addEventListener('click', () => {
-    Modal.open('Log Completo de Auditoria & Rastreabilidade', `
+    Modal.open('Log Completo de Auditoria e Rastreabilidade', `
       <div style="font-size: 12px; color: #334155; max-height: 380px; overflow-y: auto;">
         <table style="width: 100%; border-collapse: collapse; text-align: left;">
           <thead>

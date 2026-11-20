@@ -330,7 +330,7 @@ class ApiService {
   }
 
   // ==========================================
-  // LEITURAS CLIMÁTICAS & VPD
+  // LEITURAS CLIMÁTICAS E VPD
   // ==========================================
   async getLeituras(limit = 50) {
     try {
@@ -421,7 +421,7 @@ class ApiService {
   }
 
   // ==========================================
-  // LOGÍSTICA & VIAGENS REFRIGERADAS
+  // LOGÍSTICA E VIAGENS REFRIGERADAS
   // ==========================================
   async getViagens() {
     try {
@@ -885,7 +885,7 @@ class ApiService {
   }
 
   // ==========================================
-  // HISTÓRICO DE SAFRA & TALHÕES (POSTGRESQL)
+  // HISTÓRICO DE SAFRA E TALHÕES (POSTGRESQL)
   // ==========================================
   async getHistoricoSafras() {
     try {
@@ -913,7 +913,7 @@ class ApiService {
         {
           id_safra: 1,
           ciclo: '2025/2026',
-          cultura: 'Uva Vitória & Manga Palmer',
+          cultura: 'Uva Vitória e Manga Palmer',
           area_ha: 42.5,
           produtividade_ton_ha: 30.2,
           volume_total_ton: 1284.5,
@@ -943,7 +943,7 @@ class ApiService {
         {
           id_safra: 3,
           ciclo: '2023/2024',
-          cultura: 'Manga Tommy & Uva Crimson',
+          cultura: 'Manga Tommy e Uva Crimson',
           area_ha: 38.0,
           produtividade_ton_ha: 24.8,
           volume_total_ton: 942.4,
@@ -1013,7 +1013,7 @@ class ApiService {
       safra_ativa: {
         id_safra: 1,
         ciclo: '2025/2026',
-        cultura: 'Uva Vitória & Manga Palmer',
+        cultura: 'Uva Vitória e Manga Palmer',
         area_ha: 42.5,
         produtividade_ton_ha: 30.2,
         volume_total_ton: 1284.5,

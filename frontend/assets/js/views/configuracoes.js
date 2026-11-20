@@ -1,5 +1,5 @@
 /**
- * CONFIGURAÇÕES & MEU PERFIL - RAIZ AGRO IOT
+ * CONFIGURAÇÕES E MEU PERFIL - RAIZ AGRO IOT
  * Suporta perfil Produtor/Exportador (Maria Clara) e Analista (Luiz Felipe).
  * Diretrizes de Governança: Parâmetros cadastrais e técnicos são de leitura operacional;
  * Usuários solicitam alterações através do botão dedicado "Solicitar Mudança ao Administrador".
@@ -36,7 +36,7 @@ export async function renderConfiguracoes() {
   return `
   <div class="dashboard-canvas" style="padding: 28px 36px 48px; overflow-y: auto;">
 
-    <!-- CARD 1: MEU PERFIL & PREFERÊNCIAS PESSOAIS -->
+    <!-- CARD 1: MEU PERFIL E PREFERÊNCIAS PESSOAIS -->
     <div class="apple-card" style="padding: 26px 28px; margin-bottom: 24px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
       
       <!-- Topo do Card: Avatar, Título, Badge e Subtítulo -->
@@ -47,7 +47,7 @@ export async function renderConfiguracoes() {
           </div>
           <div>
             <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-              <h3 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 17px; font-weight: 700; color: #0F172A;">Meu Perfil & Preferências Pessoais</h3>
+              <h3 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 17px; font-weight: 700; color: #0F172A;">Meu Perfil e Preferências Pessoais</h3>
               <span style="background: #ECFDF5; color: #065F46; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px;">
                 <span style="width: 6px; height: 6px; border-radius: 50%; background: #10B981;"></span>
                 Vinculado ao Usuário #${userId} (${emailUsuario})
@@ -74,7 +74,7 @@ export async function renderConfiguracoes() {
             <input id="cfg-profile-name" value="${nomeExibicao}" readonly style="width: 100%; padding: 10px 12px; border: 1px solid #E2E8F0; border-radius: 9px; font-size: 13px; color: #0F172A; outline: none; background: #F8FAFC; box-sizing: border-box; cursor: default;">
           </div>
 
-          <!-- Cargo & Iniciais -->
+          <!-- Cargo e Iniciais -->
           <div style="display: grid; grid-template-columns: 1fr 70px; gap: 10px; margin-bottom: 14px;">
             <div>
               <label style="display: block; font-size: 11px; font-weight: 600; color: #475569; margin-bottom: 6px;">Cargo / Função</label>
@@ -93,7 +93,7 @@ export async function renderConfiguracoes() {
           </div>
         </div>
 
-        <!-- Coluna 2: Biografia & Cor do Avatar -->
+        <!-- Coluna 2: Biografia e Cor do Avatar -->
         <div>
           <!-- Biografia / Escopo Operacional -->
           <div style="margin-bottom: 14px;">
@@ -124,7 +124,7 @@ export async function renderConfiguracoes() {
           </div>
         </div>
 
-        <!-- Coluna 3: Card de Tema Visual & Toggles -->
+        <!-- Coluna 3: Card de Tema Visual e Toggles -->
         <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px 20px;">
           <!-- Tema Visual da Plataforma -->
           <div style="margin-bottom: 18px;">
@@ -142,10 +142,10 @@ export async function renderConfiguracoes() {
             </div>
           </div>
 
-          <!-- Efeitos Visuais & Animações -->
+          <!-- Efeitos Visuais e Animações -->
           <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 14px; border-bottom: 1px solid #EEF2F6; margin-bottom: 14px;">
             <div>
-              <div style="font-size: 11px; font-weight: 700; color: #0F172A;">Efeitos Visuais & Animações</div>
+              <div style="font-size: 11px; font-weight: 700; color: #0F172A;">Efeitos Visuais e Animações</div>
               <div style="font-size: 10px; color: #94A3B8; margin-top: 1px;">Transições suaves, glassmorphism e micro-interações</div>
             </div>
             <div class="toggle-track active" style="width: 36px; height: 20px; background: #059669; border-radius: 10px; position: relative; cursor: pointer; flex-shrink: 0;">
@@ -223,7 +223,7 @@ export async function renderConfiguracoes() {
           <tbody>
             <tr style="border-bottom: 1px solid #F1F5F9;">
               <td style="padding: 14px; font-size: 13px; font-weight: 700; color: #0F172A;">Safra 2025/2026</td>
-              <td style="padding: 14px; font-size: 13px; color: #334155;">Uva Vitória & Manga Palmer</td>
+              <td style="padding: 14px; font-size: 13px; color: #334155;">Uva Vitória e Manga Palmer</td>
               <td style="padding: 14px; font-size: 13px; color: #475569;">42,5 ha</td>
               <td style="padding: 14px; font-size: 13px; font-weight: 700; color: #059669;">30,2 ton/ha</td>
               <td style="padding: 14px; font-size: 13px; color: #475569;">1.284,5 ton</td>
@@ -247,7 +247,7 @@ export async function renderConfiguracoes() {
             </tr>
             <tr>
               <td style="padding: 14px; font-size: 13px; font-weight: 700; color: #0F172A;">Safra 2023/2024</td>
-              <td style="padding: 14px; font-size: 13px; color: #334155;">Manga Tommy & Uva Crimson</td>
+              <td style="padding: 14px; font-size: 13px; color: #334155;">Manga Tommy e Uva Crimson</td>
               <td style="padding: 14px; font-size: 13px; color: #475569;">38 ha</td>
               <td style="padding: 14px; font-size: 13px; font-weight: 700; color: #059669;">24,8 ton/ha</td>
               <td style="padding: 14px; font-size: 13px; color: #475569;">942,4 ton</td>
@@ -266,7 +266,7 @@ export async function renderConfiguracoes() {
     <!-- 2-COL: INFORMAÇÕES DA PROPRIEDADE + PADRÕES DE QUALIDADE -->
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:24px;">
 
-      <!-- Informações & Cadastro da Propriedade -->
+      <!-- Informações e Cadastro da Propriedade -->
       <div class="apple-card" style="padding:24px 26px;">
         <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:18px;">
           <div style="display:flex; align-items:center; gap:10px;">
@@ -274,7 +274,7 @@ export async function renderConfiguracoes() {
               <i data-lucide="map-pin" style="width:16px;height:16px;color:#059669;"></i>
             </div>
             <div>
-              <div style="font-size:14px; font-weight:700; color:#0F172A;">Informações & Cadastro da Propriedade</div>
+              <div style="font-size:14px; font-weight:700; color:#0F172A;">Informações e Cadastro da Propriedade</div>
               <div style="font-size:11px; color:#94A3B8; margin-top:1px;">Dados cadastrais de infraestrutura física e territorial</div>
             </div>
           </div>
@@ -289,7 +289,7 @@ export async function renderConfiguracoes() {
 
         <!-- Localização -->
         <div style="margin-bottom:14px;">
-          <label style="display:block; font-size:11px; font-weight:600; color:#475569; margin-bottom:5px;">Localização & Coordenadas Geográficas</label>
+          <label style="display:block; font-size:11px; font-weight:600; color:#475569; margin-bottom:5px;">Localização e Coordenadas Geográficas</label>
           <div style="display:flex; gap:10px; align-items:flex-start; flex-wrap:wrap;">
             <input id="cfg-farm-coords" value="-21.177502, -47.616331" readonly style="flex:1; min-width:140px; padding:10px 12px; border:1px solid #E2E8F0; border-radius:9px; font-size:12px; color:#0F172A; outline:none; background:#F8FAFC; box-sizing:border-box; cursor:default;">
             <div style="background:#F0FDF4; border-radius:8px; padding:8px 12px; font-size:11px; font-weight:700; color:#065F46; min-width:160px;">
@@ -336,7 +336,7 @@ export async function renderConfiguracoes() {
         </div>
       </div>
 
-      <!-- Padrões de Qualidade & Brix de Embarque -->
+      <!-- Padrões de Qualidade e Brix de Embarque -->
       <div class="apple-card" style="padding:24px 26px;">
         <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:18px;">
           <div style="display:flex; align-items:center; gap:10px;">
@@ -344,14 +344,14 @@ export async function renderConfiguracoes() {
               <i data-lucide="award" style="width:16px;height:16px;color:#F59E0B;"></i>
             </div>
             <div>
-              <div style="font-size:14px; font-weight:700; color:#0F172A;">Padrões de Qualidade & Brix de Embarque</div>
+              <div style="font-size:14px; font-weight:700; color:#0F172A;">Padrões de Qualidade e Brix de Embarque</div>
               <div style="font-size:11px; color:#94A3B8; margin-top:1px;">Especificações físicas e químicas das frutas</div>
             </div>
           </div>
           <span style="font-size:11px; font-weight:600; color:#64748B; background:#F1F5F9; padding:4px 8px; border-radius:6px;">Homologado Embrapa</span>
         </div>
 
-        <div style="margin-bottom:10px; font-size:11px; font-weight:600; color:#475569;">Variedades Registradas & Padrão de Colheita:</div>
+        <div style="margin-bottom:10px; font-size:11px; font-weight:600; color:#475569;">Variedades Registradas e Padrão de Colheita:</div>
 
         <div id="variedades-list-container" style="display:flex; flex-direction:column; gap:8px;">
           ${VARIEDADES_LIST.map((v, i) => `
@@ -376,14 +376,14 @@ export async function renderConfiguracoes() {
 
     </div>
 
-    <!-- SEÇÃO: REGRAS DE DISPARO & NOTIFICAÇÕES (FULL WIDTH, SEM CADEIA FRIA) -->
+    <!-- SEÇÃO: REGRAS DE DISPARO E NOTIFICAÇÕES (FULL WIDTH, SEM CADEIA FRIA) -->
     <div class="apple-card" style="padding:24px 28px; margin-bottom:28px;">
       <div style="display:flex; align-items:center; gap:10px; margin-bottom:18px;">
         <div style="width:36px;height:36px; background:#FEF2F2; border-radius:10px; display:flex;align-items:center;justify-content:center;">
           <i data-lucide="bell" style="width:16px;height:16px;color:#DC2626;"></i>
         </div>
         <div>
-          <div style="font-size:14px; font-weight:700; color:#0F172A;">Regras de Disparo & Canais de Notificação</div>
+          <div style="font-size:14px; font-weight:700; color:#0F172A;">Regras de Disparo e Canais de Notificação</div>
           <div style="font-size:11px; color:#94A3B8; margin-top:1px;">Matriz de acionamento por e-mail para eventos críticos e operacionais</div>
         </div>
       </div>
@@ -476,7 +476,7 @@ export async function setupConfiguracoesEvents() {
   const perfilFormatado = isAnalista ? 'Analista' : 'Produtor / Exportador';
 
   // =========================================================================
-  // 1. PREFERÊNCIAS PESSOAIS & VISUAIS (LIVRES PARA USO)
+  // 1. PREFERÊNCIAS PESSOAIS E VISUAIS (LIVRES PARA USO)
   // =========================================================================
 
   // A) Mudança da Cor do Avatar
@@ -645,9 +645,9 @@ export async function setupConfiguracoesEvents() {
         <div>
           <label style="display:block; font-size:11px; font-weight:700; color:#1E293B; margin-bottom:5px;">CATEGORIA DA MUDANÇA</label>
           <select id="modal-solicitar-categoria" style="width:100%; padding:9px 12px; border:1px solid #CBD5E1; border-radius:8px; font-size:13px; color:#0F172A; background:#FFFFFF;">
-            <option>Dados Cadastrais & Perfil Pessoal</option>
+            <option>Dados Cadastrais e Perfil Pessoal</option>
             <option>Área, Localização ou Culturas da Propriedade</option>
-            <option>Padrões de Qualidade & Brix de Embarque</option>
+            <option>Padrões de Qualidade e Brix de Embarque</option>
             <option>Limiares de Alertas e Notificações</option>
             <option>Outras Solicitações Técnicas</option>
           </select>

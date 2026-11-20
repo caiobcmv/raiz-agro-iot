@@ -23,7 +23,7 @@ import {
 import { renderDashboard, setupDashboardEvents } from './views/dashboard.js';
 import { renderSensores, setupSensoresEvents } from './views/sensores.js';
 import { renderRedeEsp32, setupRedeEsp32Events } from './views/rede-esp32.js';
-import { renderLeituras, setupLeiturasEvents } from './views/leituras.js?v=20261120-live10';
+import { renderLeituras, setupLeiturasEvents } from './views/leituras.js?v=20261120-live11';
 import { renderLotes, setupLotesEvents } from './views/lotes.js';
 import { renderViagens, setupViagensEvents } from './views/viagens.js';
 import { renderAlertas, setupAlertasEvents } from './views/alertas.js?v=20261120-live9';
@@ -85,7 +85,7 @@ const routes = {
     authRequired: true
   },
   '#/sensores': {
-    title: 'Sensores & Telemetria de Campo',
+    title: 'Sensores e Telemetria de Campo',
     render: async () => {
       const isAdmin = auth.getActiveProfile() === 'admin';
       return isAdmin ? renderSensoresAdmin() : renderSensores();
@@ -97,7 +97,7 @@ const routes = {
     authRequired: true
   },
   '#/rede-esp32': {
-    title: 'Rede ESP32 & Topologia',
+    title: 'Rede ESP32 e Topologia',
     render: renderRedeEsp32,
     setup: setupRedeEsp32Events,
     authRequired: true
@@ -127,13 +127,13 @@ const routes = {
     authRequired: true
   },
   '#/previsoes': {
-    title: 'Modelos de IA & Mercado',
+    title: 'Modelos de IA e Mercado',
     render: renderPrevisoes,
     setup: () => { },
     authRequired: true
   },
   '#/relatorios': {
-    title: 'Relatórios & Auditoria',
+    title: 'Relatórios e Auditoria',
     render: renderRelatorios,
     setup: setupRelatoriosEvents,
     authRequired: true
@@ -157,7 +157,7 @@ const routes = {
     authRequired: true
   },
   '#/auditoria': {
-    title: 'Auditoria & Logs Operacionais',
+    title: 'Auditoria e Logs Operacionais',
     render: renderAuditoria,
     setup: setupAuditoriaEvents,
     authRequired: true
@@ -308,7 +308,7 @@ export class Router {
     if (dateSelectorBtn) {
       dateSelectorBtn.addEventListener('click', () => {
         const currentLabel = document.getElementById('header-date-label')?.textContent || '22 de setembro de 2026';
-        Modal.open('Período de Análise & Ciclo de Safra', `
+        Modal.open('Período de Análise e Ciclo de Safra', `
           <div style="display:flex; flex-direction:column; gap:14px; font-size:13px;">
             <p style="color:#64748B; margin:0; line-height:1.5;">Selecione a janela temporal para filtragem dinâmica dos indicadores:</p>
             <div style="display:flex; flex-direction:column; gap:8px;">

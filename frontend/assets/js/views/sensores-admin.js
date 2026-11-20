@@ -1,8 +1,8 @@
 /**
- * VIEW: SENSORES & TELEMETRIA DE CAMPO - FIEL AO FIGMA ADM
+ * VIEW: SENSORES E TELEMETRIA DE CAMPO - FIEL AO FIGMA ADM
  * Sub-barra técnica com Provisionamento, Ingestão ThingSpeak, 4 KPIs Superiores,
  * Filtros de Talhões e Culturas, Tabela Completa de Hardware com Ações Operacionais,
- * Paginação Interativa, e Gráfico de Correlação Térmica & Hídrica 24h.
+ * Paginação Interativa, e Gráfico de Correlação Térmica e Hídrica 24h.
  */
 
 import { api } from '../api.js';
@@ -246,12 +246,12 @@ export async function renderSensoresAdmin() {
         </div>
       </div>
 
-      <!-- Distribuição Operacional por Talhões & Culturas -->
+      <!-- Distribuição Operacional por Talhões e Culturas -->
       <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 16px 20px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
           <span style="font-size: 11px; font-weight: 800; color: #64748B; display: flex; align-items: center; gap: 6px; letter-spacing: 0.5px;">
             <i data-lucide="map" style="width: 14px; height: 14px; color: #10B981;"></i>
-            Distribuição Operacional por Talhões &amp; Culturas
+            Distribuição Operacional por Talhões e Culturas
           </span>
           <span style="font-size: 10px; font-weight: 700; color: #0284C7; letter-spacing: 0.5px;">TOPOLOGIA DE CAMPO ATIVA</span>
         </div>
@@ -272,7 +272,7 @@ export async function renderSensoresAdmin() {
           <div class="card-filtro-talhao-sensor" data-talhao="Talhão B2" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px; border-left: 3px solid #F59E0B; cursor: pointer;">
             <strong style="font-size: 12px; color: #0F172A; display: block;">Talhão B2</strong>
             <span style="font-size: 10px; color: #64748B;">Melão Amarelo • 4 Nós</span>
-            <div style="font-size: 10px; color: #047857; font-weight: 600; margin-top: 2px;">Umidade &amp; CE (100% Online)</div>
+            <div style="font-size: 10px; color: #047857; font-weight: 600; margin-top: 2px;">Umidade e CE (100% Online)</div>
           </div>
 
           <div class="card-filtro-talhao-sensor" data-talhao="Talhão C1" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px; border-left: 3px solid #EF4444; cursor: pointer;">
@@ -321,13 +321,13 @@ export async function renderSensoresAdmin() {
         </div>
       </div>
 
-      <!-- 2 Cards Inferiores: Correlação Térmica & Hídrica 24h + Filtro de Ruído & Sanitização -->
+      <!-- 2 Cards Inferiores: Correlação Térmica e Hídrica 24h + Filtro de Ruído e Sanitização -->
       <div style="display: grid; grid-template-columns: 1.4fr 1fr; gap: 20px;">
-        <!-- Card 1: Correlação Térmica & Hídrica (24h) -->
+        <!-- Card 1: Correlação Térmica e Hídrica (24h) -->
         <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
             <div>
-              <h4 style="font-size: 14px; font-weight: 800; color: #0F172A; margin: 0;">Correlação Térmica &amp; Hídrica (24h)</h4>
+              <h4 style="font-size: 14px; font-weight: 800; color: #0F172A; margin: 0;">Correlação Térmica e Hídrica (24h)</h4>
               <p style="font-size: 11px; color: #64748B; margin: 2px 0 0 0;">Dinâmica solo vs microclima em tempo real</p>
             </div>
             <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 3px 8px; border-radius: 4px;">Tempo Real</span>
@@ -378,11 +378,11 @@ export async function renderSensoresAdmin() {
           </div>
         </div>
 
-        <!-- Card 2: Filtro de Ruído & Sanitização -->
+        <!-- Card 2: Filtro de Ruído e Sanitização -->
         <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
             <div>
-              <h4 style="font-size: 14px; font-weight: 800; color: #0F172A; margin: 0;">Filtro de Ruído &amp; Sanitização</h4>
+              <h4 style="font-size: 14px; font-weight: 800; color: #0F172A; margin: 0;">Filtro de Ruído e Sanitização</h4>
               <p style="font-size: 10px; color: #64748B; margin: 2px 0 0 0; font-family: monospace;">tabela: leitura_rejeitada</p>
             </div>
             <i data-lucide="shield-alert" style="width: 18px; height: 18px; color: #EF4444;"></i>

@@ -110,10 +110,10 @@ function renderAnalistaDashboard() {
           </div>
         </div>
 
-        <!-- KPI 2: SENSORES & SONDAS -->
+        <!-- KPI 2: SENSORES E SONDAS -->
         <div class="kpi-analista-card">
           <div class="kpi-top-row">
-            <span class="kpi-label">SENSORES & SONDAS</span>
+            <span class="kpi-label">SENSORES E SONDAS</span>
             <span style="color: #0284C7;"><i data-lucide="cpu" style="width: 16px; height: 16px;"></i></span>
           </div>
           <div class="kpi-value-row">
@@ -126,10 +126,10 @@ function renderAnalistaDashboard() {
           </div>
         </div>
 
-        <!-- KPI 3: MÉDIA CLIMÁTICA & SOLO -->
+        <!-- KPI 3: MÉDIA CLIMÁTICA E SOLO -->
         <div class="kpi-analista-card">
           <div class="kpi-top-row">
-            <span class="kpi-label">MÉDIA CLIMÁTICA & SOLO</span>
+            <span class="kpi-label">MÉDIA CLIMÁTICA E SOLO</span>
             <span class="kpi-badge green">FAIXA ADEQUADA</span>
           </div>
           <div class="kpi-value-row" style="gap: 16px;">
@@ -268,15 +268,15 @@ function renderAnalistaDashboard() {
         </div>
       </div>
 
-      <!-- Grid Inferior (2 Cards): Auditoria de Ingestão & Modelos Preditivos -->
+      <!-- Grid Inferior (2 Cards): Auditoria de Ingestão e Modelos Preditivos -->
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-        <!-- Card Esquerda: Auditoria de Ingestão & Leituras Rejeitadas -->
+        <!-- Card Esquerda: Auditoria de Ingestão e Leituras Rejeitadas -->
         <div class="kpi-analista-card" style="min-height: auto; padding: 20px;">
           <div class="kpi-top-row">
             <div>
               <h4 style="font-size: 14px; font-weight: 700; color: #0F172A; display: flex; align-items: center; gap: 8px;">
                 <i data-lucide="shield-alert" style="width: 16px; height: 16px; color: #F59E0B;"></i>
-                Auditoria de Ingestão & Leituras Rejeitadas
+                Auditoria de Ingestão e Leituras Rejeitadas
               </h4>
               <p style="font-size: 11px; color: #64748B; margin-top: 2px;">
                 Filtragem de ruídos físicos da tabela <code style="background: #F1F5F9; padding: 1px 4px; border-radius: 4px;">leitura_rejeitada</code>
@@ -329,13 +329,13 @@ function renderAnalistaDashboard() {
           </div>
         </div>
 
-        <!-- Card Direita: Modelos Preditivos & Limiares de Alerta -->
+        <!-- Card Direita: Modelos Preditivos e Limiares de Alerta -->
         <div class="kpi-analista-card" style="min-height: auto; padding: 20px;">
           <div class="kpi-top-row">
             <div>
               <h4 style="font-size: 14px; font-weight: 700; color: #0F172A; display: flex; align-items: center; gap: 8px;">
                 <i data-lucide="sliders" style="width: 16px; height: 16px; color: #10B981;"></i>
-                Modelos Preditivos & Limiares de Alerta
+                Modelos Preditivos e Limiares de Alerta
               </h4>
               <p style="font-size: 11px; color: #64748B; margin-top: 2px;">
                 Regras automatizadas de estabilidade e provisão agronômica
@@ -375,7 +375,7 @@ function renderAnalistaDashboard() {
 
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: #F8FAFC; border-radius: 8px; border: 1px solid #E2E8F0;">
               <div>
-                <div style="font-size: 12px; font-weight: 600; color: #0F172A;">Filtro de Ruído & Auto-calibração FDR</div>
+                <div style="font-size: 12px; font-weight: 600; color: #0F172A;">Filtro de Ruído e Auto-calibração FDR</div>
                 <div style="font-size: 10px; color: #64748B;">Compensação térmica e salinidade em ciclo de 7 dias</div>
               </div>
               <label style="position: relative; display: inline-block; width: 40px; height: 22px;">
@@ -448,7 +448,7 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
           <div style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
             <div class="metric-progress-item">
               <div class="metric-labels-row">
-                <span style="color: #64748B;">Água & Solo</span>
+                <span style="color: #64748B;">Água e Solo</span>
                 <strong style="color: #1E293B;">${aguaPct}%</strong>
               </div>
               <div class="progress-track-bg">
@@ -541,7 +541,7 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
         </div>
       </div>
 
-      <!-- CARD 3: PREVISÃO DO TEMPO & CLIMA -->
+      <!-- CARD 3: PREVISÃO DO TEMPO E CLIMA -->
       <div class="figma-card">
         <div class="card-top-title-row">
           <span class="card-header-label">PREVISÃO DO TEMPO</span>
@@ -584,11 +584,11 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
     <!-- Middle Row: Resumo da Produção (Gauge Grande) + Monitoramento da Propriedade (Satélite) -->
     <div class="middle-split-row">
       
-      <!-- Card Esquerdo: Resumo das Condições & Culturas -->
+      <!-- Card Esquerdo: Resumo das Condições e Culturas -->
       <div class="figma-card">
         <div class="card-top-title-row">
           <span style="font-size: 14px; font-weight: 700; color: #1E293B; letter-spacing: 0.5px; text-transform: uppercase;">
-            RESUMO DAS CONDIÇÕES & CULTURAS
+            RESUMO DAS CONDIÇÕES E CULTURAS
           </span>
           <button class="btn-editar-dados-graficos" style="background: #ECFDF5; border: 1px solid #A7F3D0; color: #047857; padding: 4px 10px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
             <i data-lucide="edit-3" style="width: 12px; height: 12px;"></i> Editar Indicadores
@@ -669,13 +669,13 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
         </div>
       </div>
 
-      <!-- Card Direito: Monitoramento da Propriedade & LOTES (Foto de Satélite Limpa & Nítida) -->
+      <!-- Card Direito: Monitoramento da Propriedade e LOTES (Foto de Satélite Limpa e Nítida) -->
       <div class="figma-card" style="padding: 24px;">
         <div class="card-top-title-row" style="margin-bottom: 12px;">
           <div>
             <div style="display: flex; align-items: center; gap: 8px;">
               <span style="font-size: 14px; font-weight: 700; color: #1E293B; letter-spacing: 0.5px; text-transform: uppercase;">
-                MONITORAMENTO DA PROPRIEDADE & LOTES
+                MONITORAMENTO DA PROPRIEDADE E LOTES
               </span>
               <span class="card-status-pill pill-green" style="font-size: 10px;">sentinel-2</span>
             </div>
@@ -718,7 +718,7 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
 
         <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
           <button class="btn-editar-dados-graficos" id="btn-editar-dados-graficos" style="background: #183D2E; color: #FFFFFF; border: none; padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
-            <i data-lucide="sliders" style="width: 14px; height: 14px;"></i> Editar Dados & Gráficos
+            <i data-lucide="sliders" style="width: 14px; height: 14px;"></i> Editar Dados e Gráficos
           </button>
 
           <div class="telemetria-timeframe-selector" style="display: flex; gap: 4px; background: #F1F5F9; padding: 4px; border-radius: 10px;">
@@ -873,7 +873,7 @@ function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
       </div>
     </div>
 
-    <!-- Middle Row: Resumo da Produção & Janela Ideal de Colheita / Mercado / Rota Fria -->
+    <!-- Middle Row: Resumo da Produção e Janela Ideal de Colheita / Mercado / Rota Fria -->
     <div class="detailed-middle-grid">
       
       <!-- Coluna Esquerda: Gauge de Produção + Status da Água -->
@@ -927,10 +927,10 @@ function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
       <!-- Coluna Direita: Janela de Colheita, Mercado e Rota Fria -->
       <div style="display: flex; flex-direction: column; gap: 20px;">
         
-        <!-- Janela Ideal de Colheita & Exportação -->
+        <!-- Janela Ideal de Colheita e Exportação -->
         <div class="figma-card" style="padding: 22px;">
           <div style="display: flex; justify-content: space-between; align-items: center;">
-            <strong style="font-size: 13px; color: #1E293B;">Janela Ideal de Colheita & Exp.</strong>
+            <strong style="font-size: 13px; color: #1E293B;">Janela Ideal de Colheita e Exp.</strong>
             <span class="card-status-pill pill-green">88% Eficácia</span>
           </div>
           <div style="font-size: 13px; font-weight: 700; color: #047857; margin: 8px 0 2px;">
@@ -981,7 +981,7 @@ function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
     <div class="figma-card telemetry-4charts-container">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
         <span style="font-size: 13px; font-weight: 700; color: #1E293B; text-transform: uppercase;">Telemetria dos Gráficos (PostgreSQL)</span>
-        <button class="btn-editar-dados-graficos" style="background: #183D2E; color: #FFFFFF; border: none; padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer;">Editar Dados & Gráficos</button>
+        <button class="btn-editar-dados-graficos" style="background: #183D2E; color: #FFFFFF; border: none; padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer;">Editar Dados e Gráficos</button>
       </div>
       <div class="charts-4col-grid">
         <div class="mini-chart-card">
@@ -1059,11 +1059,11 @@ export async function setupDashboardEvents() {
   criarMiniGraficoApple('miniChart3', dg.temp_solo_24h || DEFAULT_DADOS_GRAFICOS.temp_solo_24h, '#0284C7');
   criarMiniGraficoApple('miniChart4', dg.temp_ar_24h || DEFAULT_DADOS_GRAFICOS.temp_ar_24h, '#16A34A');
 
-  // Modal para Editar Dados & Gráficos (Salva no PostgreSQL e atualiza os gráficos)
+  // Modal para Editar Dados e Gráficos (Salva no PostgreSQL e atualiza os gráficos)
   document.querySelectorAll('.btn-editar-dados-graficos').forEach(btn => {
     btn.addEventListener('click', () => {
       const cur = dadosGraficosCache || DEFAULT_DADOS_GRAFICOS;
-      Modal.open('Editar Dados & Séries dos Gráficos (Persistência PostgreSQL)', `
+      Modal.open('Editar Dados e Séries dos Gráficos (Persistência PostgreSQL)', `
         <div style="display:flex; flex-direction:column; gap:12px; font-size:12px; color:#334155;">
           <p style="margin:0; color:#64748B; line-height:1.4;">
             Altere os indicadores operacionais e os pontos das séries de telemetria (valores separados por vírgula). Tudo será salvo no banco de dados PostgreSQL e refletido imediatamente nos gráficos.
@@ -1580,10 +1580,10 @@ function renderAdminDashboard() {
           </div>
         </div>
 
-        <!-- Card 2: Lotes & Culturas -->
+        <!-- Card 2: Lotes e Culturas -->
         <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between;">
           <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 11px; font-weight: 700; color: #64748B; letter-spacing: 0.5px;">LOTES &amp; CULTURAS</span>
+            <span style="font-size: 11px; font-weight: 700; color: #64748B; letter-spacing: 0.5px;">LOTES E CULTURAS</span>
             <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 2px 8px; border-radius: 12px;">3 LOTES ATIVOS</span>
           </div>
           <div style="margin: 12px 0;">
@@ -1607,7 +1607,7 @@ function renderAdminDashboard() {
           </div>
           <div style="display: flex; justify-content: space-between; font-size: 11px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px;">
             <span>3 Setores</span>
-            <strong style="color: #0F172A;">Petrolina Setor 04 &amp; Vale</strong>
+            <strong style="color: #0F172A;">Petrolina Setor 04 e Vale</strong>
           </div>
         </div>
 
@@ -1637,10 +1637,10 @@ function renderAdminDashboard() {
           </div>
         </div>
 
-        <!-- Card 4: Alertas & Incidentes -->
+        <!-- Card 4: Alertas e Incidentes -->
         <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between;">
           <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 11px; font-weight: 700; color: #64748B; letter-spacing: 0.5px;">ALERTAS &amp; INCIDENTES</span>
+            <span style="font-size: 11px; font-weight: 700; color: #64748B; letter-spacing: 0.5px;">ALERTAS E INCIDENTES</span>
             <span style="font-size: 10px; font-weight: 700; color: #0284C7; background: #F0F9FF; padding: 2px 8px; border-radius: 12px;">OPERAÇÃO ESTÁVEL</span>
           </div>
           <div style="margin: 12px 0; display: flex; justify-content: space-between; align-items: center;">
@@ -1717,13 +1717,13 @@ function renderAdminDashboard() {
         </div>
       </div>
 
-      <!-- Seção: Gestão de Perfis & Acessos Recentes -->
+      <!-- Seção: Gestão de Perfis e Acessos Recentes -->
       <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
           <div>
             <div style="display: flex; align-items: center; gap: 8px;">
               <i data-lucide="users" style="width: 16px; height: 16px; color: #0F172A;"></i>
-              <h3 style="font-size: 14px; font-weight: 700; color: #0F172A; margin: 0;">Gestão de Perfis &amp; Acessos Recentes</h3>
+              <h3 style="font-size: 14px; font-weight: 700; color: #0F172A; margin: 0;">Gestão de Perfis e Acessos Recentes</h3>
               <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 2px 8px; border-radius: 12px;">4 MEMBROS ONLINE HOJE</span>
             </div>
             <p style="font-size: 12px; color: #64748B; margin: 4px 0 0 0;">Atividades operacionais em tempo real e sessões ativas da equipe de campo e gestão</p>
@@ -1808,13 +1808,13 @@ function renderAdminDashboard() {
         </div>
       </div>
 
-      <!-- 2 Cards Inferiores: Parâmetros Agronômicos & Regras Ativas + Conformidade & Despachos -->
+      <!-- 2 Cards Inferiores: Parâmetros Agronômicos e Regras Ativas + Conformidade e Despachos -->
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 16px;">
-        <!-- Card 1: Parâmetros Agronômicos & Regras Ativas -->
+        <!-- Card 1: Parâmetros Agronômicos e Regras Ativas -->
         <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
             <div>
-              <h3 style="font-size: 14px; font-weight: 700; color: #0F172A; margin: 0;">Parâmetros Agronômicos &amp; Regras Ativas</h3>
+              <h3 style="font-size: 14px; font-weight: 700; color: #0F172A; margin: 0;">Parâmetros Agronômicos e Regras Ativas</h3>
               <p style="font-size: 11px; color: #64748B; margin: 2px 0 0 0;">Faixas climáticas ideais validadas para as culturas da safra</p>
             </div>
             <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 3px 8px; border-radius: 6px;">3 REGRAS VIGENTES</span>
@@ -1870,11 +1870,11 @@ function renderAdminDashboard() {
           </div>
         </div>
 
-        <!-- Card 2: Conformidade, Despachos & Auditoria -->
+        <!-- Card 2: Conformidade, Despachos e Auditoria -->
         <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
             <div>
-              <h3 style="font-size: 14px; font-weight: 700; color: #0F172A; margin: 0;">Conformidade, Despachos &amp; Auditoria</h3>
+              <h3 style="font-size: 14px; font-weight: 700; color: #0F172A; margin: 0;">Conformidade, Despachos e Auditoria</h3>
               <p style="font-size: 11px; color: #64748B; margin: 2px 0 0 0;">Rastreabilidade portuária e certificação GlobalG.A.P.</p>
             </div>
             <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 3px 8px; border-radius: 6px;">GLOBALGAP 100%</span>

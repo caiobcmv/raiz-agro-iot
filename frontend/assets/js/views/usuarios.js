@@ -1,5 +1,5 @@
 /**
- * VIEW: GERENCIAMENTO DE USUÁRIOS & MATRIZ RBAC (FIGMA MOCKUP 2)
+ * VIEW: GERENCIAMENTO DE USUÁRIOS E MATRIZ RBAC (FIGMA MOCKUP 2)
  * Fiel ao design do Administrador com cards de KPIs, Matriz RBAC v2.4,
  * Tabela com filtros/pesquisa/paginação e Regra de Soft-Delete Ativa (fn_bloquear_delete_usuario).
  */
@@ -127,11 +127,11 @@ export async function renderUsuarios() {
         </div>
       </div>
 
-      <!-- Seção: Matriz de Perfis & Governança de Escopo (RBAC v2.4) -->
+      <!-- Seção: Matriz de Perfis e Governança de Escopo (RBAC v2.4) -->
       <div style="margin-bottom: 24px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
           <div>
-            <h3 style="font-size: 15px; font-weight: 700; color: #0F172A; margin: 0;">Matriz de Perfis &amp; Governança de Escopo</h3>
+            <h3 style="font-size: 15px; font-weight: 700; color: #0F172A; margin: 0;">Matriz de Perfis e Governança de Escopo</h3>
             <p style="font-size: 12px; color: #64748B; margin: 4px 0 0 0;">Definição dos níveis de privilégio estruturados conforme as diretrizes agrícolas e de telemetria.</p>
           </div>
           <span style="font-size: 11px; font-weight: 600; color: #64748B; background: #F1F5F9; padding: 4px 10px; border-radius: 6px;">Esquema RBAC v2.4</span>
@@ -153,13 +153,13 @@ export async function renderUsuarios() {
               </p>
               <div style="display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: #334155;">
                 <div style="display: flex; align-items: center; gap: 6px;">
-                  <i data-lucide="droplet" style="width: 12px; height: 12px; color: #10B981;"></i> Irrigação &amp; Telemetria Básica
+                  <i data-lucide="droplet" style="width: 12px; height: 12px; color: #10B981;"></i> Irrigação e Telemetria Básica
                 </div>
                 <div style="display: flex; align-items: center; gap: 6px;">
-                  <i data-lucide="layers" style="width: 12px; height: 12px; color: #10B981;"></i> Histórico de Safra &amp; Produtividade
+                  <i data-lucide="layers" style="width: 12px; height: 12px; color: #10B981;"></i> Histórico de Safra e Produtividade
                 </div>
                 <div style="display: flex; align-items: center; gap: 6px;">
-                  <i data-lucide="truck" style="width: 12px; height: 12px; color: #10B981;"></i> Cadeia de Frio &amp; Despachos Portuários
+                  <i data-lucide="truck" style="width: 12px; height: 12px; color: #10B981;"></i> Cadeia de Frio e Despachos Portuários
                 </div>
               </div>
             </div>
@@ -169,7 +169,7 @@ export async function renderUsuarios() {
             </div>
           </div>
 
-          <!-- Card Papel 2: Analista de Dados & IoT -->
+          <!-- Card Papel 2: Analista de Dados e IoT -->
           <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between;">
             <div>
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
@@ -177,20 +177,20 @@ export async function renderUsuarios() {
                 <span style="font-size: 11px; font-weight: 600; color: #64748B;">4 contas</span>
               </div>
               <h4 style="font-size: 14px; font-weight: 700; color: #0F172A; margin: 0 0 6px 0; display: flex; align-items: center; gap: 6px;">
-                <i data-lucide="cpu" style="width: 16px; height: 16px; color: #0284C7;"></i> Analista de Dados &amp; IoT
+                <i data-lucide="cpu" style="width: 16px; height: 16px; color: #0284C7;"></i> Analista de Dados e IoT
               </h4>
               <p style="font-size: 11px; color: #64748B; line-height: 1.4; margin: 0 0 12px 0;">
                 Parametrização técnica de telemetria, curadoria fenológica e modelos analíticos.
               </p>
               <div style="display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: #334155;">
                 <div style="display: flex; align-items: center; gap: 6px;">
-                  <i data-lucide="sliders" style="width: 12px; height: 12px; color: #0284C7;"></i> Calibração &amp; Offset de Sensores
+                  <i data-lucide="sliders" style="width: 12px; height: 12px; color: #0284C7;"></i> Calibração e Offset de Sensores
                 </div>
                 <div style="display: flex; align-items: center; gap: 6px;">
-                  <i data-lucide="radio" style="width: 12px; height: 12px; color: #0284C7;"></i> Ingestão ThingSpeak &amp; ESP32
+                  <i data-lucide="radio" style="width: 12px; height: 12px; color: #0284C7;"></i> Ingestão ThingSpeak e ESP32
                 </div>
                 <div style="display: flex; align-items: center; gap: 6px;">
-                  <i data-lucide="activity" style="width: 12px; height: 12px; color: #0284C7;"></i> Modelos Preditivos &amp; Laudos Fenológicos
+                  <i data-lucide="activity" style="width: 12px; height: 12px; color: #0284C7;"></i> Modelos Preditivos e Laudos Fenológicos
                 </div>
               </div>
             </div>
@@ -215,10 +215,10 @@ export async function renderUsuarios() {
               </p>
               <div style="display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: #334155;">
                 <div style="display: flex; align-items: center; gap: 6px;">
-                  <i data-lucide="users" style="width: 12px; height: 12px; color: #0F172A;"></i> Governança de Usuários &amp; Perfis
+                  <i data-lucide="users" style="width: 12px; height: 12px; color: #0F172A;"></i> Governança de Usuários e Perfis
                 </div>
                 <div style="display: flex; align-items: center; gap: 6px;">
-                  <i data-lucide="database" style="width: 12px; height: 12px; color: #0F172A;"></i> Triggers de Auditoria &amp; Schema
+                  <i data-lucide="database" style="width: 12px; height: 12px; color: #0F172A;"></i> Triggers de Auditoria e Schema
                 </div>
                 <div style="display: flex; align-items: center; gap: 6px;">
                   <i data-lucide="settings" style="width: 12px; height: 12px; color: #0F172A;"></i> Configurações Globais da Fazenda
@@ -392,7 +392,7 @@ export function setupUsuariosEvents() {
           <label>Perfil de Acesso (RBAC):
             <select id="novo-user-perfil" style="width: 100%; padding: 8px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
               <option value="1">Produtor / Exportador (Operação de Campo)</option>
-              <option value="2">Analista de Dados &amp; IoT (Telemetria &amp; MESH)</option>
+              <option value="2">Analista de Dados e IoT (Telemetria e MESH)</option>
               <option value="3">Administrador (Gestão Integral da Plataforma)</option>
             </select>
           </label>

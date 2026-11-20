@@ -1,6 +1,6 @@
 ﻿import { liveTelemetry } from '../live-telemetry.js';
 /**
- * VIEW: SENSORES & TELEMETRIA DE CAMPO - FIEL AO FIGMA (PERFIL ANALISTA)
+ * VIEW: SENSORES E TELEMETRIA DE CAMPO - FIEL AO FIGMA (PERFIL ANALISTA)
  * Suporte a correlação multidimensional, canais ThingSpeak e auditoria de hardware.
  */
 
@@ -72,7 +72,7 @@ export async function renderSensores() {
         <!-- KPI 3 -->
         <div class="kpi-analista-card">
           <div class="kpi-top-row">
-            <span class="kpi-label">TEMPERATURA (AR & SOLO)</span>
+            <span class="kpi-label">TEMPERATURA (AR E SOLO)</span>
             <div style="width: 32px; height: 32px; border-radius: 8px; background: #EFF6FF; display: flex; align-items: center; justify-content: center; color: #0284C7;">
               <i data-lucide="thermometer" style="width: 16px; height: 16px;"></i>
             </div>
@@ -95,7 +95,7 @@ export async function renderSensores() {
         <!-- KPI 4 -->
         <div class="kpi-analista-card">
           <div class="kpi-top-row">
-            <span class="kpi-label">INGESTÃO & REJEIÇÃO</span>
+            <span class="kpi-label">INGESTÃO E REJEIÇÃO</span>
             <div style="width: 32px; height: 32px; border-radius: 8px; background: #ECFDF5; display: flex; align-items: center; justify-content: center; color: #059669;">
               <i data-lucide="cloud-check" style="width: 16px; height: 16px;"></i>
             </div>
@@ -257,13 +257,13 @@ export async function renderSensores() {
         </div>
       </div>
 
-      <!-- Card Inventário de Sensores (Tabela sensor & lote) -->
+      <!-- Card Inventário de Sensores (Tabela sensor e lote) -->
       <div class="analista-chart-box">
         <div class="chart-header-row">
           <div>
             <h3 style="font-size: 16px; font-weight: 700; color: #0F172A; display: flex; align-items: center; gap: 8px;">
               <i data-lucide="layers" style="width: 18px; height: 18px; color: #10B981;"></i>
-              Inventário de Sensores (Tabela sensor &amp; lote)
+              Inventário de Sensores (Tabela sensor e lote)
             </h3>
             <p style="font-size: 12px; color: #64748B; margin-top: 2px;">
               Relação de nós cadastrados, canais ThingSpeak e últimas medições em leitura_climatica
@@ -425,7 +425,7 @@ export async function renderSensores() {
         </div>
       </div>
 
-      <!-- Grid Inferior (2 Colunas): Alertas Preditivos & Auditoria -->
+      <!-- Grid Inferior (2 Colunas): Alertas Preditivos e Auditoria -->
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
         <!-- Card Esquerda: Alertas Preditivos por Sensor -->
         <div class="analista-chart-box">
@@ -502,13 +502,13 @@ export async function renderSensores() {
           </div>
         </div>
 
-        <!-- Card Direita: Auditoria & Leituras Rejeitadas -->
+        <!-- Card Direita: Auditoria e Leituras Rejeitadas -->
         <div class="analista-chart-box">
           <div class="chart-header-row">
             <div>
               <h4 style="font-size: 14px; font-weight: 700; color: #0F172A; display: flex; align-items: center; gap: 8px;">
                 <i data-lucide="clipboard-x" style="width: 16px; height: 16px; color: #EF4444;"></i>
-                Auditoria &amp; Leituras Rejeitadas
+                Auditoria e Leituras Rejeitadas
               </h4>
               <p style="font-size: 11px; color: #64748B; margin-top: 2px;">
                 Descartes por inconsistência física ou falha de canal ThingSpeak
@@ -576,7 +576,7 @@ export async function renderSensores() {
 
       <!-- Rodapé da página -->
       <div style="text-align: center; margin-top: 24px; margin-bottom: 8px; font-size: 11px; color: #94A3B8;">
-        Raíz - Plataforma de Inteligência Agro IoT &amp; Logística de Exportação • Conectado via LoRaWAN &amp; ESP32 • Vale do São Francisco
+        Raíz - Plataforma de Inteligência Agro IoT e Logística de Exportação • Conectado via LoRaWAN E ESP32 • Vale do São Francisco
       </div>
     </div>
   `;
@@ -641,10 +641,10 @@ export function setupSensoresEvents() {
       Modal.open('Log Completo de Ingestão ThingSpeak', `
         <div style="font-family: monospace; font-size: 11px; background: #0F172A; color: #86EFAC; padding: 14px; border-radius: 8px; line-height: 1.7; max-height: 260px; overflow-y: auto;">
           [14:12:00] REJECTED - Outlier térmico 78.4°C descartado por filtro Penman (Sensor #02 • Ch 248901)<br>
-          [14:10:00] CHANNEL 248901 - POST /update ? api_key=THINGSPEAK_KEY &amp; field1=27.4 &amp; field2=46.8 - 200 OK<br>
-          [14:05:00] CHANNEL 248901 - POST /update ? api_key=THINGSPEAK_KEY &amp; field1=27.2 &amp; field2=46.7 - 200 OK<br>
-          [14:00:00] CHANNEL 248901 - POST /update ? api_key=THINGSPEAK_KEY &amp; field1=27.1 &amp; field2=46.8 - 200 OK<br>
-          [13:55:00] CHANNEL 248902 - POST /update ? api_key=THINGSPEAK_KEY &amp; field1=25.8 &amp; field2=37.8 - 200 OK<br>
+          [14:10:00] CHANNEL 248901 - POST /update ? api_key=THINGSPEAK_KEY e field1=27.4 e field2=46.8 - 200 OK<br>
+          [14:05:00] CHANNEL 248901 - POST /update ? api_key=THINGSPEAK_KEY e field1=27.2 e field2=46.7 - 200 OK<br>
+          [14:00:00] CHANNEL 248901 - POST /update ? api_key=THINGSPEAK_KEY e field1=27.1 e field2=46.8 - 200 OK<br>
+          [13:55:00] CHANNEL 248902 - POST /update ? api_key=THINGSPEAK_KEY e field1=25.8 e field2=37.8 - 200 OK<br>
           [Ontem 22:45] REJECTED - Leitura analógica corrompida -4.2% descartada (Sensor #14 • Ch 248905)
         </div>
       `, () => {

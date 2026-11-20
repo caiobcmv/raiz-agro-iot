@@ -1,6 +1,6 @@
 ﻿import { liveTelemetry } from '../live-telemetry.js';
 /**
- * VIEW: REDE ESP32 & TOPOLOGIA - FIEL AO FIGMA (PERFIL ANALISTA)
+ * VIEW: REDE ESP32 E TOPOLOGIA - FIEL AO FIGMA (PERFIL ANALISTA)
  * Distribuição espacial dos nós LoRaWAN, topologia em malha e sinal RSSI/PDR 24h.
  */
 
@@ -121,7 +121,7 @@ export async function renderRedeEsp32() {
           <!-- Mapa de Topologia com Imagem de Fundo e Enlaces Radiais SVG -->
           <div style="position: relative; width: 100%; height: 450px; border-radius: 12px; overflow: hidden; border: 1px solid #CBD5E1;">
             <!-- Imagem de Fundo da Topologia Espacial (Petrolina / Juazeiro) -->
-            <img src="assets/images/topologia-espacial-lora.png" alt="Topologia Espacial dos Nós LoRaWAN - Petrolina &amp; Juazeiro"
+            <img src="assets/images/topologia-espacial-lora.png" alt="Topologia Espacial dos Nós LoRaWAN - Petrolina e Juazeiro"
               style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1;">
 
             <!-- SVG com Enlaces Radiais Transparente por cima da imagem -->
@@ -283,13 +283,13 @@ export async function renderRedeEsp32() {
         </div>
       </div>
 
-      <!-- Seção Inferior: Histórico de Transmissão & Sinal 24h -->
+      <!-- Seção Inferior: Histórico de Transmissão e Sinal 24h -->
       <div class="analista-chart-box">
         <div class="chart-header-row">
           <div>
             <h3 style="font-size: 16px; font-weight: 700; color: #0F172A; display: flex; align-items: center; gap: 8px;">
               <i data-lucide="radio-tower" style="width: 18px; height: 18px; color: #10B981;"></i>
-              Histórico de Transmissão & Sinal 24h
+              Histórico de Transmissão e Sinal 24h
               <span style="font-size: 11px; color: #059669; font-weight: 600; background: #ECFDF5; padding: 2px 8px; border-radius: 4px;">Média Global do Enlace</span>
             </h3>
             <p style="font-size: 12px; color: #64748B; margin-top: 2px;">

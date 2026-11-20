@@ -2,7 +2,7 @@
  * GERENCIAMENTO DE ESTADO DE AUTENTICAÇÃO, SESSÃO MULTI-PERFIL E PREFERÊNCIAS PERSISTIDAS NO BANCO
  * Suporta 3 perfis dinâmicos vinculados ao PostgreSQL:
  * 1. Gestora de Operações: Maria Clara (id_usuario: 1)
- * 2. Analista IoT & Telemetria: Luiz Felipe (id_usuario: 2)
+ * 2. Analista IoT e Telemetria: Luiz Felipe (id_usuario: 2)
  * 3. Administradora da Plataforma: Lorena Lira (id_usuario: 3)
  */
 
@@ -28,7 +28,7 @@ export const USUARIOS = {
     id_usuario: 2,
     nome: 'Luiz Felipe',
     email: 'luiz.felipe@raizagro.agr.br',
-    perfil: 'Analista IoT & Telemetria',
+    perfil: 'Analista IoT e Telemetria',
     profile: 'analista'
   }
 };
@@ -291,7 +291,7 @@ class AuthState {
         nome: 'Luiz Felipe',
         sobrenome: 'Almeida',
         cargo: 'Analista',
-        tituloCompleto: 'Analista IoT & Telemetria',
+        tituloCompleto: 'Analista IoT e Telemetria',
         iniciais: 'LF',
         email: 'luiz.felipe@raizagro.agr.br',
         paletteKey: 'sky',

@@ -1,8 +1,8 @@
 /**
- * VIEW: AUDITORIA & LOGS DO SISTEMA v4.2 (FIGMA MOCKUP ADM)
- * Trilha Criptográfica Imutável, Sincronização em Tempo Real (Syslog & PostgreSQL),
+ * VIEW: AUDITORIA E LOGS DO SISTEMA v4.2 (FIGMA MOCKUP ADM)
+ * Trilha Criptográfica Imutável, Sincronização em Tempo Real (Syslog e PostgreSQL),
  * Hash SHA-256 Validado, 4 KPIs Superiores, Trilha de Eventos Auditados com busca e filtros,
- * Painel Lateral de Conformidade & LGPD e Ações Rápidas de Auditoria com download e modais funcionais.
+ * Painel Lateral de Conformidade e LGPD e Ações Rápidas de Auditoria com download e modais funcionais.
  */
 
 import { api } from '../api.js';
@@ -114,7 +114,7 @@ export async function renderAuditoria() {
             Ambiente de Produção • Petrolina / Juazeiro
           </span>
           <span style="color: #059669; font-weight: 600;">
-            ✓ Sincronização em Tempo Real (Syslog &amp; PostgreSQL)
+            ✓ Sincronização em Tempo Real (Syslog e PostgreSQL)
           </span>
           <span style="color: #0284C7; font-weight: 600;">
             ✓ Hash SHA-256 Validado
@@ -151,10 +151,10 @@ export async function renderAuditoria() {
           </div>
         </div>
 
-        <!-- KPI 2: ACESSOS & SESSÕES -->
+        <!-- KPI 2: ACESSOS E SESSÕES -->
         <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
           <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 10px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">ACESSOS &amp; SESSÕES (LOG_ACESSO)</span>
+            <span style="font-size: 10px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">ACESSOS E SESSÕES (LOG_ACESSO)</span>
             <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 2px 8px; border-radius: 12px;">+4.2%</span>
           </div>
           <div style="margin: 10px 0; display: flex; justify-content: space-between; align-items: flex-end;">
@@ -171,10 +171,10 @@ export async function renderAuditoria() {
           </div>
         </div>
 
-        <!-- KPI 3: PROTOCOLOS & ALERTAS -->
+        <!-- KPI 3: PROTOCOLOS E ALERTAS -->
         <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
           <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 10px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">PROTOCOLOS &amp; ALERTAS</span>
+            <span style="font-size: 10px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">PROTOCOLOS E ALERTAS</span>
             <i data-lucide="bell" style="width: 14px; height: 14px; color: #10B981;"></i>
           </div>
           <div style="margin: 10px 0;">
@@ -183,14 +183,14 @@ export async function renderAuditoria() {
           </div>
           <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px;">
             <span>Canais Notificados</span>
-            <strong>Push, SMS &amp; Webhook</strong>
+            <strong>Push, SMS e Webhook</strong>
           </div>
         </div>
 
-        <!-- KPI 4: GOVERNANÇA & REGRAS -->
+        <!-- KPI 4: GOVERNANÇA E REGRAS -->
         <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
           <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 10px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">GOVERNANÇA &amp; REGRAS</span>
+            <span style="font-size: 10px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">GOVERNANÇA E REGRAS</span>
             <i data-lucide="shield" style="width: 14px; height: 14px; color: #0284C7;"></i>
           </div>
           <div style="margin: 10px 0;">
@@ -208,11 +208,11 @@ export async function renderAuditoria() {
       <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 12px 20px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; font-size: 11px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
         <span class="cat-pill-audit" data-cat="acessos" style="font-weight: 700; color: #0284C7; display: flex; align-items: center; gap: 6px; cursor: pointer;">
           <span style="width: 6px; height: 6px; border-radius: 50%; background: #0284C7;"></span>
-          1. Acessos &amp; Sessões (log_acesso) • 1.248
+          1. Acessos e Sessões (log_acesso) • 1.248
         </span>
         <span class="cat-pill-audit" data-cat="disparos" style="font-weight: 600; color: #D97706; display: flex; align-items: center; gap: 6px; cursor: pointer;">
           <span style="width: 6px; height: 6px; border-radius: 50%; background: #D97706;"></span>
-          2. Disparos &amp; Protocolos • 142
+          2. Disparos e Protocolos • 142
         </span>
         <span class="cat-pill-audit" data-cat="agronomia" style="font-weight: 600; color: #0F172A; display: flex; align-items: center; gap: 6px; cursor: pointer;">
           <span style="width: 6px; height: 6px; border-radius: 50%; background: #0F172A;"></span>
@@ -224,7 +224,7 @@ export async function renderAuditoria() {
         </span>
         <span class="cat-pill-audit" data-cat="seguranca" style="font-weight: 600; color: #10B981; display: flex; align-items: center; gap: 6px; cursor: pointer;">
           <span style="width: 6px; height: 6px; border-radius: 50%; background: #10B981;"></span>
-          5. Governança RBAC &amp; Senhas • 14
+          5. Governança RBAC e Senhas • 14
         </span>
       </div>
 
@@ -265,21 +265,21 @@ export async function renderAuditoria() {
           </div>
         </div>
 
-        <!-- Coluna Direita: Conformidade & LGPD + Ações Rápidas -->
+        <!-- Coluna Direita: Conformidade e LGPD + Ações Rápidas -->
         <div style="display: flex; flex-direction: column; gap: 16px;">
-          <!-- Card: Conformidade & LGPD -->
+          <!-- Card: Conformidade e LGPD -->
           <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
               <h4 style="font-size: 13px; font-weight: 700; color: #0F172A; margin: 0; display: flex; align-items: center; gap: 6px;">
                 <i data-lucide="shield-check" style="width: 16px; height: 16px; color: #10B981;"></i>
-                Conformidade &amp; LGPD
+                Conformidade e LGPD
               </h4>
               <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 2px 8px; border-radius: 4px;">100% VÁLIDO</span>
             </div>
 
             <div style="display: flex; flex-direction: column; gap: 10px; font-size: 11px; color: #475569;">
               <div>
-                <strong style="color: #0F172A; display: block; margin-bottom: 2px;">Selo Fitossanitário &amp; Logístico</strong>
+                <strong style="color: #0F172A; display: block; margin-bottom: 2px;">Selo Fitossanitário e Logístico</strong>
                 <p style="margin: 0; font-size: 10px; color: #64748B;">Auditoria MAPA • GlobalG.A.P. Módulo Rastreabilidade Semiárido Exportação.</p>
               </div>
 
@@ -289,7 +289,7 @@ export async function renderAuditoria() {
               </div>
 
               <div>
-                <strong style="color: #0F172A; display: block; margin-bottom: 2px;">Criptografia &amp; Trânsito</strong>
+                <strong style="color: #0F172A; display: block; margin-bottom: 2px;">Criptografia e Trânsito</strong>
                 <p style="margin: 0; font-size: 10px; color: #64748B;">AES-256 em Repouso • TLS 1.3 ponta a ponta com certificados mTLS ativos.</p>
               </div>
 
@@ -317,7 +317,7 @@ export async function renderAuditoria() {
 
               <button class="btn-acao-rapida" id="btn-acao-retencao" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px 12px; text-align: left; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: all 0.2s;">
                 <div>
-                  <strong style="color: #0F172A; display: block;">Configurar Regras de Retenção &amp; Purge</strong>
+                  <strong style="color: #0F172A; display: block;">Configurar Regras de Retenção e Purge</strong>
                   <span style="font-size: 10px; color: #64748B;">Políticas de expurgo e arquivamento</span>
                 </div>
                 <i data-lucide="chevron-right" style="width: 14px; height: 14px; color: #94A3B8;"></i>
@@ -438,7 +438,7 @@ function vincularEventosLogs() {
       const l = _logsAuditoria.find(log => log.id === parseInt(id, 10));
 
       if (action === 'inspecionar') {
-        Modal.open(`Inspeção de Lote & Telemetria — Evento #${id}`, `
+        Modal.open(`Inspeção de Lote e Telemetria — Evento #${id}`, `
           <div style="font-size: 12px; color: #334155;">
             <p><strong>Evento:</strong> ${l?.titulo}</p>
             <div style="background: #F8FAFC; border: 1px solid #E2E8F0; padding: 10px; border-radius: 6px; margin-top: 8px;">
@@ -589,7 +589,7 @@ export function setupAuditoriaEvents() {
                     `EMITIDO EM: 22 de setembro de 2026\n` +
                     `CARIMBO DO TEMPO ICP-BRASIL: 2026-09-22T14:15:00-03:00\n` +
                     `CERTIFICADO DIGITAL: DPO Roberto Mendes CREA-PE 48291\n` +
-                    `CONFORMIDADE: GlobalG.A.P. IFA v6 & MAPA Compliance 100% Homologado\n` +
+                    `CONFORMIDADE: GlobalG.A.P. IFA v6 e MAPA Compliance 100% Homologado\n` +
                     `HASH SHA-256 DO RELATORIO: 8f4a10c283991abde37c7890123fabc109283\n`;
       const blob = new Blob([laudo], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
@@ -607,12 +607,12 @@ export function setupAuditoriaEvents() {
   const btnRetencao = document.getElementById('btn-acao-retencao');
   if (btnRetencao) {
     btnRetencao.addEventListener('click', () => {
-      Modal.open('Regras de Retenção WORM & Purge', `
+      Modal.open('Regras de Retenção WORM e Purge', `
         <div style="font-size: 12px; color: #475569; display: flex; flex-direction: column; gap: 10px;">
           <div>
             <strong>Período Mínimo de Retenção Imutável:</strong>
             <select style="width: 100%; padding: 8px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
-              <option value="5" selected>5 Anos (Exigência MAPA & GlobalG.A.P.)</option>
+              <option value="5" selected>5 Anos (Exigência MAPA e GlobalG.A.P.)</option>
               <option value="10">10 Anos (Auditoria Completa)</option>
             </select>
           </div>
@@ -630,7 +630,7 @@ export function setupAuditoriaEvents() {
   const btnSuspeitos = document.getElementById('btn-acao-suspeitos');
   if (btnSuspeitos) {
     btnSuspeitos.addEventListener('click', () => {
-      Modal.open('Monitor de Segurança & Acessos Suspeitos', `
+      Modal.open('Monitor de Segurança e Acessos Suspeitos', `
         <div style="font-size: 12px; color: #334155;">
           <div style="background: #ECFDF5; border: 1px solid #A7F3D0; color: #047857; padding: 12px; border-radius: 8px; margin-bottom: 12px;">
             <strong>Status do Cluster: Seguro</strong><br>

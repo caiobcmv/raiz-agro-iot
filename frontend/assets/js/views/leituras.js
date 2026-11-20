@@ -1,5 +1,5 @@
 /**
- * VIEW: HISTÓRICO SAFRA & CORRELAÇÃO - FIEL AO FIGMA
+ * VIEW: HISTÓRICO SAFRA E CORRELAÇÃO - FIEL AO FIGMA
  * Layout executivo de alto padrão conforme design system do projeto.
  */
 
@@ -15,7 +15,7 @@ const DADOS_SAFRAS_PADRAO = {
     {
       id_safra: 1,
       ciclo: '2025/2026',
-      cultura: 'Uva Vitória & Thompson',
+      cultura: 'Uva Vitória e Thompson',
       area_ha: 45.0,
       produtividade_ton_ha: 34.2,
       volume_total_ton: 1480.0,
@@ -45,7 +45,7 @@ const DADOS_SAFRAS_PADRAO = {
     {
       id_safra: 3,
       ciclo: '2023/2024',
-      cultura: 'Uva Crimson & Thompson',
+      cultura: 'Uva Crimson e Thompson',
       area_ha: 38.0,
       produtividade_ton_ha: 28.4,
       volume_total_ton: 1079.2,
@@ -422,7 +422,7 @@ export function renderSafraFigmaLayout(dadosBackend) {
         </div>
       </div>
 
-      <!-- DIREITA: Classificação Comercial (Donut) & GlobalG.A.P. Compliance -->
+      <!-- DIREITA: Classificação Comercial (Donut) e GlobalG.A.P. Compliance -->
       <div class="apple-card" style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 14px; padding: 22px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); display: flex; flex-direction: column; justify-content: space-between;">
         <div>
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
@@ -600,7 +600,7 @@ export function renderSafraFigmaLayout(dadosBackend) {
                 </div>
                 <div>
                   <div style="font-weight: 700; font-size: 12px; color: #0F172A;">Umidade Solo (VWC)</div>
-                  <div style="font-size: 10px; color: #64748B;">FDR 30cm & 60cm</div>
+                  <div style="font-size: 10px; color: #64748B;">FDR 30cm e 60cm</div>
                 </div>
               </div>
               <span style="background: #ECFDF5; color: #047857; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;">+14% Brix</span>
@@ -626,7 +626,7 @@ export function renderSafraFigmaLayout(dadosBackend) {
             </div>
           </div>
 
-          <!-- Sub-card 2: Risco Míldio & Molhamento -->
+          <!-- Sub-card 2: Risco Míldio e Molhamento -->
           <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px 14px;">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
               <div style="display: flex; align-items: center; gap: 8px;">
@@ -634,7 +634,7 @@ export function renderSafraFigmaLayout(dadosBackend) {
                   <i data-lucide="leaf" style="width: 14px; height: 14px;"></i>
                 </div>
                 <div>
-                  <div style="font-weight: 700; font-size: 12px; color: #0F172A;">Risco Míldio & Molhamento</div>
+                  <div style="font-weight: 700; font-size: 12px; color: #0F172A;">Risco Míldio e Molhamento</div>
                   <div style="font-size: 10px; color: #64748B;">Sensor Dielétrico Foliar</div>
                 </div>
               </div>

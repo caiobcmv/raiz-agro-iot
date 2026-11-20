@@ -9,27 +9,27 @@ const PAGE_META_ADMIN = {
   '#/dashboard':           { h2: 'Visão Geral do Sistema',                     sub: 'Gerencie os usuários cadastrados, perfis de acesso e permissões na plataforma.' },
   '#/usuarios':            { h2: 'Gerenciamento de Usuários',                  sub: 'Gerencie os usuários cadastrados, perfis de acesso e permissões na plataforma.' },
   '#/lotes':               { h2: 'Lotes e Safra',                              sub: 'Gerencie os usuários cadastrados, perfis de acesso e permissões na plataforma.' },
-  '#/sensores':            { h2: 'Sensores & Telemetria de Campo',             sub: 'Gerencie os usuários cadastrados, perfis de acesso e permissões na plataforma.' },
-  '#/relatorios':          { h2: 'Relatórios & Documentos Oficiais',           sub: 'Gerencie os usuários cadastrados, perfis de acesso e permissões na plataforma.' },
-  '#/regras-agronomicas':  { h2: 'Regras Agronômicas & Limiares Fisiológicos', sub: 'Gerencie os usuários cadastrados, perfis de acesso e permissões na plataforma.' },
-  '#/auditoria':           { h2: 'Auditoria & Logs do Sistema v4.2',           sub: 'Gerencie os usuários cadastrados, perfis de acesso e permissões na plataforma.' },
-  '#/configuracoes':       { h2: 'Configurações & Meu Perfil',                 sub: 'Gerencie preferências da fazenda, parâmetros de sensores, notificações e acessos.' }
+  '#/sensores':            { h2: 'Sensores e Telemetria de Campo',             sub: 'Gerencie os usuários cadastrados, perfis de acesso e permissões na plataforma.' },
+  '#/relatorios':          { h2: 'Relatórios e Documentos Oficiais',           sub: 'Gerencie os usuários cadastrados, perfis de acesso e permissões na plataforma.' },
+  '#/regras-agronomicas':  { h2: 'Regras Agronômicas e Limiares Fisiológicos', sub: 'Gerencie os usuários cadastrados, perfis de acesso e permissões na plataforma.' },
+  '#/auditoria':           { h2: 'Auditoria e Logs do Sistema v4.2',           sub: 'Gerencie os usuários cadastrados, perfis de acesso e permissões na plataforma.' },
+  '#/configuracoes':       { h2: 'Configurações e Meu Perfil',                 sub: 'Gerencie preferências da fazenda, parâmetros de sensores, notificações e acessos.' }
 };
 
 const PAGE_META_GESTOR = {
   '#/dashboard':     { h2: 'Visão Geral do Sistema',          sub: 'Monitoramento em tempo real dos talhões, culturas e condições agrometeorológicas.' },
   '#/leituras':      { h2: 'Histórico Safra',                 sub: 'Registro histórico de colheitas, rendimento por talhão e correlação com dados agroclimáticos.' },
   '#/alertas':       { h2: 'Central de Alertas e Incidentes', sub: 'Monitoramento em tempo real de microclima, estresse hídrico no campo e gatilhos automatizados.' },
-  '#/configuracoes': { h2: 'Configurações & Meu Perfil',      sub: 'Gerencie seu perfil, tema, dados da propriedade, padrões de qualidade e notificações.' },
+  '#/configuracoes': { h2: 'Configurações e Meu Perfil',      sub: 'Gerencie seu perfil, tema, dados da propriedade, padrões de qualidade e notificações.' },
 };
 
 const PAGE_META_ANALISTA = {
   '#/dashboard':     { h2: 'Visão Geral do Sistema',          sub: 'Gerencie preferências da fazenda, parâmetros de sensores, notificações e acessos.' },
-  '#/sensores':      { h2: 'Sensores & Telemetria de Campo <span class="badge-header-inline">ThingSpeak IoT: Sync a cada 5m • Tabela leitura_climatica</span>', sub: '' },
-  '#/rede-esp32':    { h2: 'Rede ESP32 & Topologia',          sub: 'Distribuição espacial dos nós LoRaWAN, enlaces de radiofrequência e telemetria US915.' },
+  '#/sensores':      { h2: 'Sensores e Telemetria de Campo <span class="badge-header-inline">ThingSpeak IoT: Sync a cada 5m • Tabela leitura_climatica</span>', sub: '' },
+  '#/rede-esp32':    { h2: 'Rede ESP32 e Topologia',          sub: 'Distribuição espacial dos nós LoRaWAN, enlaces de radiofrequência e telemetria US915.' },
   '#/leituras':      { h2: 'Histórico Safra',                 sub: 'Registro histórico de colheitas, rendimento por talhão e correlação com dados agroclimáticos.' },
   '#/alertas':       { h2: 'Central de Alertas e Incidentes', sub: 'Monitoramento em tempo real de desvios térmicos, estresse hídrico e gatilhos automatizados.' },
-  '#/configuracoes': { h2: 'Configurações & Meu Perfil',      sub: 'Gerencie seu perfil, tema, dados da propriedade, padrões de qualidade e notificações.' },
+  '#/configuracoes': { h2: 'Configurações e Meu Perfil',      sub: 'Gerencie seu perfil, tema, dados da propriedade, padrões de qualidade e notificações.' },
 };
 
 export function renderHeader(title) {

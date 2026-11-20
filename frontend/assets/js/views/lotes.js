@@ -3,7 +3,7 @@
  * Governança Agronômica, Ciclo Safra Vigente 25/26, 4 KPIs,
  * Esteira de Status Operacional (ENUM status_lote com 6 estágios),
  * Lotes Ativos em Monitoramento com busca, abas de filtro e inspeção completa,
- * e Régua de Qualidade & Brix Médio.
+ * e Régua de Qualidade e Brix Médio.
  */
 
 import { api } from '../api.js';
@@ -83,7 +83,7 @@ let _lotesData = [
     colheita: 'Frio: 12.0°C',
     volume: '320.000 kg',
     destino: 'Salvador Port',
-    rodape: 'GPS & Termo Ativo',
+    rodape: 'GPS e Termo Ativo',
     corRodape: '#0284C7',
     icone: 'truck',
     corIcone: '#8B5CF6',
@@ -210,10 +210,10 @@ export async function renderLotes() {
           </div>
         </div>
 
-        <!-- KPI 4: RITMO & CONFORMIDADE -->
+        <!-- KPI 4: RITMO E CONFORMIDADE -->
         <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
           <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 11px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">RITMO &amp; CONFORMIDADE</span>
+            <span style="font-size: 11px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">RITMO E CONFORMIDADE</span>
             <span style="font-size: 10px; font-weight: 700; color: #047857; background: #DCFCE7; padding: 2px 8px; border-radius: 12px;">99.8% MAPA</span>
           </div>
           <div style="margin: 10px 0;">
@@ -338,12 +338,12 @@ export async function renderLotes() {
         </div>
       </div>
 
-      <!-- Seção: Qualidade & Brix Médio -->
+      <!-- Seção: Qualidade e Brix Médio -->
       <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
           <h3 style="font-size: 14px; font-weight: 800; color: #0F172A; margin: 0; display: flex; align-items: center; gap: 8px;">
             <i data-lucide="bar-chart-2" style="width: 16px; height: 16px; color: #0F172A;"></i>
-            Qualidade &amp; Brix Médio
+            Qualidade e Brix Médio
           </h3>
           <span style="font-size: 10px; font-weight: 800; color: #047857; background: #D1FAE5; padding: 3px 8px; border-radius: 4px;">100% APROVADO</span>
         </div>
@@ -364,10 +364,10 @@ export async function renderLotes() {
             </div>
           </div>
 
-          <!-- Cultura 2: Manga Palmer & Tommy -->
+          <!-- Cultura 2: Manga Palmer e Tommy -->
           <div>
             <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
-              <strong style="color: #0F172A;">Manga Palmer &amp; Tommy</strong>
+              <strong style="color: #0F172A;">Manga Palmer e Tommy</strong>
               <span style="color: #047857; font-weight: 700;">13.8°Bx (+0.8) <span style="font-size: 10px; color: #94A3B8; font-weight: 400;">Mín: 13.0°Bx</span></span>
             </div>
             <div style="width: 100%; height: 8px; background: #E2E8F0; border-radius: 4px; overflow: hidden;">
@@ -681,7 +681,7 @@ export function setupLotesEvents() {
           <label>Cultura:
             <select id="filtro-modal-cultura" style="width: 100%; padding: 8px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
               <option value="todas">Todas as Culturas</option>
-              <option value="Manga">Manga (Tommy & Palmer)</option>
+              <option value="Manga">Manga (Tommy e Palmer)</option>
               <option value="Uva">Uva Vitória</option>
               <option value="Melão">Melão Amarelo</option>
             </select>

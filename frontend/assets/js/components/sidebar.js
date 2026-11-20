@@ -64,7 +64,7 @@ export function renderSidebar(currentPath) {
 
         <a href="#/auditoria" class="sidebar-menu-item ${currentPath === '#/auditoria' ? 'active' : ''}">
           <i data-lucide="shield-check"></i>
-          <span>Auditoria &amp; Logs</span>
+          <span>Auditoria e Logs</span>
         </a>
 
         <a href="#/configuracoes" class="sidebar-menu-item ${currentPath === '#/configuracoes' ? 'active' : ''}">
@@ -114,7 +114,7 @@ export function renderSidebar(currentPath) {
         `)}
       </nav>
 
-      <!-- Bottom Profile & Connectivity (Figma: Vale das Uvas / Petrolina - Setor 04) -->
+      <!-- Bottom Profile e Connectivity (Figma: Vale das Uvas / Petrolina - Setor 04) -->
       <div class="sidebar-bottom-profile">
         <div class="bottom-profile-card">
           <div class="profile-avatar-vu">VU</div>

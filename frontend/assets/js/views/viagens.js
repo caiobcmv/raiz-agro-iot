@@ -1,5 +1,5 @@
 /**
- * VIEW: LOGÍSTICA DE EXPORTAÇÃO & VIAGENS REFRIGERADAS (MAPA LEAFLET)
+ * VIEW: LOGÍSTICA DE EXPORTAÇÃO E VIAGENS REFRIGERADAS (MAPA LEAFLET)
  */
 
 import { api } from '../api.js';
@@ -15,7 +15,7 @@ export async function renderViagens() {
       
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 16px;">
         <div>
-          <h2 style="font-family: 'Space Grotesk', sans-serif; font-size: 26px; font-weight: 700;">Cadeia do Frio & Rotas de Exportação</h2>
+          <h2 style="font-family: 'Space Grotesk', sans-serif; font-size: 26px; font-weight: 700;">Cadeia do Frio e Rotas de Exportação</h2>
           <p style="color: #94A3B8; font-size: 14px;">Rastreamento de carretas frigoríficas em rota do Vale do São Francisco aos Portos (Pecém, Suape, Salvador, Natal).</p>
         </div>
 

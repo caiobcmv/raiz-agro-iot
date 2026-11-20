@@ -373,7 +373,7 @@ export function renderRecuperarSenha() {
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/>
               <path d="m9 12 2 2 4-4"/>
             </svg>
-            <span>Recuperação protegida por Token Criptográfico &amp; MFA</span>
+            <span>Recuperação protegida por Token Criptográfico e MFA</span>
           </div>
 
         </div>
@@ -463,7 +463,7 @@ export function renderVerificacao() {
           <div class="login-header">
             <div class="auth-pill-tag">
               <span class="auth-pill-dot"></span>
-              SEGURANÇA &amp; VALIDAÇÃO
+              SEGURANÇA E VALIDAÇÃO
             </div>
             <h1 class="auth-title">Digite o código de 6 dígitos</h1>
             <p class="auth-subtitle">
@@ -790,7 +790,7 @@ export function renderRedefinirSenha() {
             <div class="auth-pill-tag auth-pill-tag-dark">
               <span class="auth-pill-dot"></span>
               <span class="auth-pill-dot" style="margin-left: -3px;"></span>
-              SEGURANÇA &amp; CREDENCIAL
+              SEGURANÇA E CREDENCIAL
             </div>
             <h1 class="auth-title">Redefinir sua senha</h1>
             <p class="auth-subtitle">
