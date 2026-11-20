@@ -344,6 +344,60 @@ class ApiService {
   }
 
   // ==========================================
+  // CATÁLOGO, SAFRAS E PROPRIEDADES
+  // ==========================================
+  async getCatalogoSafras() {
+    try {
+      const res = await this.request('/catalogo/safras');
+      return Array.isArray(res) ? res : (res?.safras || []);
+    } catch (e) {
+      try {
+        const pref = await this.request('/preferencias/safras');
+        return Array.isArray(pref) ? pref : (pref?.safras || []);
+      } catch (err) {
+        console.warn('[API] Falha ao carregar safras:', err.message);
+        return [];
+      }
+    }
+  }
+
+  async getCatalogoPropriedades() {
+    try {
+      const res = await this.request('/catalogo/propriedades');
+      return Array.isArray(res) ? res : (res?.propriedades || (res ? [res] : []));
+    } catch (e) {
+      try {
+        const dash = await this.request('/dashboard/resumo');
+        if (dash?.propriedade) {
+          return [dash.propriedade];
+        }
+      } catch (err) {
+        console.warn('[API] Falha ao carregar propriedades:', err.message);
+      }
+      return [];
+    }
+  }
+
+  async getClassificacaoResumo(safraId = null) {
+    try {
+      const qs = safraId ? `?safra_id=${encodeURIComponent(safraId)}` : '';
+      return await this.request(`/catalogo/classificacao/resumo${qs}`);
+    } catch (e) {
+      console.warn('[API] Falha ao obter classificacao/resumo:', e.message);
+      return null;
+    }
+  }
+
+  async getSensorLeituras(idSensor, periodo = '7d') {
+    try {
+      return await this.request(`/sensores/${encodeURIComponent(idSensor)}/leituras?periodo=${encodeURIComponent(periodo)}`);
+    } catch (e) {
+      console.warn(`[API] Falha ao obter leituras do sensor ${idSensor}:`, e.message);
+      return [];
+    }
+  }
+
+  // ==========================================
   // LEITURAS CLIMÁTICAS E VPD
   // ==========================================
   async getLeituras(limit = 50) {
