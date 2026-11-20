@@ -1,5 +1,5 @@
 /**
- * CENTRAL DE ALERTAS & INCIDENTES - DINÂMICA VIA FASTAPI /alertas E /alertas/{id}/detalhe
+ * CENTRAL DE ALERTAS E INCIDENTES - DINÂMICA VIA FASTAPI /alertas E /alertas/{id}/detalhe
  * Renderização dinâmica, sem if por tipo de alerta, orientada a dados reais da API.
  */
 

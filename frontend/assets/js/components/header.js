@@ -19,7 +19,7 @@ const PAGE_META_ADMIN = {
 const PAGE_META_GESTOR = {
   '#/dashboard':     { h2: 'Visão Geral do Sistema',          sub: 'Monitoramento em tempo real dos talhões, culturas e condições agrometeorológicas.' },
   '#/leituras':      { h2: 'Histórico Safra',                 sub: 'Registro histórico de colheitas, rendimento por talhão e correlação com dados agroclimáticos.' },
-  '#/alertas':       { h2: 'Central de Alertas & Incidentes <span style="display:inline-block;width:7px;height:7px;background:#10B981;border-radius:2px;margin-left:6px;vertical-align:middle;"></span>', sub: 'Monitoramento em tempo real de microclima, estresse hídrico no campo e gatilhos automatizados.' },
+  '#/alertas':       { h2: 'Central de Alertas e Incidentes', sub: 'Monitoramento em tempo real de microclima, estresse hídrico no campo e gatilhos automatizados.' },
   '#/configuracoes': { h2: 'Configurações & Meu Perfil',      sub: 'Gerencie seu perfil, tema, dados da propriedade, padrões de qualidade e notificações.' },
 };
 
@@ -28,7 +28,7 @@ const PAGE_META_ANALISTA = {
   '#/sensores':      { h2: 'Sensores & Telemetria de Campo <span class="badge-header-inline">ThingSpeak IoT: Sync a cada 5m • Tabela leitura_climatica</span>', sub: '' },
   '#/rede-esp32':    { h2: 'Rede ESP32 & Topologia',          sub: 'Distribuição espacial dos nós LoRaWAN, enlaces de radiofrequência e telemetria US915.' },
   '#/leituras':      { h2: 'Histórico Safra & Correlação',    sub: 'Registro histórico de colheitas, rendimento por LOTE e correlação com dados agroclimáticos.' },
-  '#/alertas':       { h2: 'Central de Alertas & Incidentes', sub: 'Monitoramento em tempo real de desvios térmicos, estresse hídrico e gatilhos automatizados.' },
+  '#/alertas':       { h2: 'Central de Alertas e Incidentes', sub: 'Monitoramento em tempo real de desvios térmicos, estresse hídrico e gatilhos automatizados.' },
   '#/configuracoes': { h2: 'Configurações & Meu Perfil',      sub: 'Gerencie seu perfil, tema, dados da propriedade, padrões de qualidade e notificações.' },
 };
 
