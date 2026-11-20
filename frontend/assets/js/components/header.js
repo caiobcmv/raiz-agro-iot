@@ -72,7 +72,6 @@ export function renderHeader(title) {
           ${meta.sub ? `<p>${meta.sub}</p>` : ''}
         </div>
       </div>
-      </div>
 
       <div class="header-right-controls">
         <!-- Indicador de Atualização em Tempo Real (oculto no Admin para fidelidade 100% ao Figma) -->

@@ -5,7 +5,7 @@
 import { api } from './api.js';
 import { auth } from './auth.js';
 import { renderSidebar } from './components/sidebar.js';
-import { renderHeader } from './components/header.js';
+import { renderHeader } from './components/header.js?v=20261120-live4';
 import { Modal } from './components/modal.js';
 import { toast } from './components/toast.js';
 import { showAccessDeniedModal } from './components/access-denied-modal.js';
@@ -26,7 +26,7 @@ import { renderRedeEsp32, setupRedeEsp32Events } from './views/rede-esp32.js';
 import { renderLeituras, setupLeiturasEvents } from './views/leituras.js';
 import { renderLotes, setupLotesEvents } from './views/lotes.js';
 import { renderViagens, setupViagensEvents } from './views/viagens.js';
-import { renderAlertas, setupAlertasEvents } from './views/alertas.js?v=20261120-live3';
+import { renderAlertas, setupAlertasEvents } from './views/alertas.js?v=20261120-live4';
 import { renderPrevisoes } from './views/previsoes.js';
 import { renderRelatorios, setupRelatoriosEvents } from './views/relatorios.js';
 import { renderConfiguracoes, setupConfiguracoesEvents } from './views/configuracoes.js?v=20261120-live3';
