@@ -23,7 +23,7 @@ import {
 import { renderDashboard, setupDashboardEvents } from './views/dashboard.js';
 import { renderSensores, setupSensoresEvents } from './views/sensores.js';
 import { renderRedeEsp32, setupRedeEsp32Events } from './views/rede-esp32.js';
-import { renderLeituras, setupLeiturasEvents } from './views/leituras.js';
+import { renderLeituras, setupLeiturasEvents } from './views/leituras.js?v=20261120-live10';
 import { renderLotes, setupLotesEvents } from './views/lotes.js';
 import { renderViagens, setupViagensEvents } from './views/viagens.js';
 import { renderAlertas, setupAlertasEvents } from './views/alertas.js?v=20261120-live9';
@@ -103,7 +103,7 @@ const routes = {
     authRequired: true
   },
   '#/leituras': {
-    title: 'Histórico Safra & Correlação',
+    title: 'Histórico Safra',
     render: renderLeituras,
     setup: setupLeiturasEvents,
     authRequired: true
