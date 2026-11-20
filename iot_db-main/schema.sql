@@ -356,3 +356,28 @@ CREATE TABLE IF NOT EXISTS alertas_preditivos (
     status VARCHAR(20) DEFAULT 'EM ABERTO',
     data_geracao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+/* ===== PERFIL E PREFERÊNCIAS DO USUÁRIO (PERSISTÊNCIA POR ID) ===== */
+ALTER TABLE usuario
+    ADD COLUMN IF NOT EXISTS cargo           VARCHAR(120),
+    ADD COLUMN IF NOT EXISTS bio             TEXT,
+    ADD COLUMN IF NOT EXISTS telefone        VARCHAR(40),
+    ADD COLUMN IF NOT EXISTS avatar_iniciais VARCHAR(6),
+    ADD COLUMN IF NOT EXISTS avatar_cor      VARCHAR(30),
+    ADD COLUMN IF NOT EXISTS avatar_url      VARCHAR(500);
+
+CREATE TABLE IF NOT EXISTS usuario_preferencia (
+    fk_usuario_id_usuario  INTEGER PRIMARY KEY,
+    tema                   VARCHAR(30) NOT NULL DEFAULT 'claro',
+    efeitos_visuais        BOOLEAN NOT NULL DEFAULT TRUE,
+    atualizacao_tempo_real BOOLEAN NOT NULL DEFAULT TRUE,
+    idioma                 VARCHAR(15) NOT NULL DEFAULT 'pt-BR',
+    fuso_horario           VARCHAR(60) NOT NULL DEFAULT 'America/Recife',
+    moeda                  VARCHAR(10) NOT NULL DEFAULT 'BRL',
+    notificacoes_json      JSONB NOT NULL DEFAULT '{}'::jsonb,
+    propriedade_json       JSONB NOT NULL DEFAULT '{}'::jsonb,
+    preferencias_extras    JSONB NOT NULL DEFAULT '{}'::jsonb,
+    data_atualizacao       TIMESTAMP NOT NULL DEFAULT (now() AT TIME ZONE 'UTC'),
+    CONSTRAINT fk_pref_usuario FOREIGN KEY (fk_usuario_id_usuario)
+        REFERENCES usuario (id_usuario) ON DELETE CASCADE
+);

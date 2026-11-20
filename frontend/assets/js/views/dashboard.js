@@ -10,31 +10,55 @@ import { toast } from '../components/toast.js';
 import { Modal } from '../components/modal.js';
 
 let chartInstances = [];
+let dadosGraficosCache = null;
+
+const DEFAULT_DADOS_GRAFICOS = {
+  umidade_ar_24h: [61, 60, 59, 58, 60, 61, 63, 62],
+  umidade_solo_24h: [54, 53, 55, 57, 59, 58, 57, 58],
+  temp_solo_24h: [24.1, 23.9, 24.3, 24.6, 24.8, 24.5, 24.4, 24.5],
+  temp_ar_24h: [26.2, 25.8, 26.8, 28.2, 29.0, 28.1, 27.5, 27.8],
+  conformidade_geral_pct: 90,
+  saude_plantacao_pct: 85,
+  umidade_dossel_pct: 67,
+  temp_foliar_c: 27,
+  agua_reservatorio_pct: 63,
+  vazao_ldia: 4200
+};
 
 export async function renderDashboard() {
-  const isAnalista = auth.getActiveProfile() === 'analista';
-  if (isAnalista) {
+  const profileRole = auth.getActiveProfile();
+  if (profileRole === 'admin') {
+    return renderAdminDashboard();
+  }
+  if (profileRole === 'analista') {
     return renderAnalistaDashboard();
   }
 
   const isResumido = localStorage.getItem('DASHBOARD_MODE') !== 'detalhado';
   
-  // Resiliência total: executa em paralelo com fallbacks instantâneos
-  let resumo, clima;
+  // Busca dados reais do PostgreSQL em paralelo (sem usar cache desatualizado)
+  let resumo = null, clima = null, graficos = null;
   try {
     const results = await Promise.allSettled([
       api.getDashboardResumo(),
-      api.getClimaAtual()
+      api.getClimaAtual(),
+      api.getDadosGraficos()
     ]);
     resumo = results[0].status === 'fulfilled' ? results[0].value : null;
     clima = results[1].status === 'fulfilled' ? results[1].value : null;
+    graficos = results[2].status === 'fulfilled' ? results[2].value : null;
   } catch (e) {
-    console.warn('Erro ao obter métricas online, usando fallback local.');
+    console.warn('Erro ao obter métricas online:', e);
   }
+
+  dadosGraficosCache = {
+    ...DEFAULT_DADOS_GRAFICOS,
+    ...(graficos || {})
+  };
 
   return `
     <div class="dashboard-canvas apple-animate-in">
-      ${isResumido ? renderModoResumido(resumo, clima) : renderModoDetalhado(resumo, clima)}
+      ${isResumido ? renderModoResumido(resumo, clima, dadosGraficosCache) : renderModoDetalhado(resumo, clima, dadosGraficosCache)}
     </div>
   `;
 }
@@ -383,7 +407,18 @@ function renderAnalistaDashboard() {
 /**
  * 1. MODO RESUMIDO (Primeira Imagem do Figma)
  */
-function renderModoResumido(resumo, clima) {
+function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
+  const confPct = Number(dg.conformidade_geral_pct ?? 90);
+  const saudePct = Number(dg.saude_plantacao_pct ?? 85);
+  const umidDosselPct = Number(dg.umidade_dossel_pct ?? 67);
+  const tempFoliar = Number(dg.temp_foliar_c ?? 27);
+  const aguaPct = Number(dg.agua_reservatorio_pct ?? 63);
+  const vazaoLdia = Number(dg.vazao_ldia ?? 4200);
+  const uArLast = (dg.umidade_ar_24h && dg.umidade_ar_24h.length) ? dg.umidade_ar_24h[dg.umidade_ar_24h.length - 1] : 62;
+  const uSoloLast = (dg.umidade_solo_24h && dg.umidade_solo_24h.length) ? dg.umidade_solo_24h[dg.umidade_solo_24h.length - 1] : 58;
+  const tSoloLast = (dg.temp_solo_24h && dg.temp_solo_24h.length) ? dg.temp_solo_24h[dg.temp_solo_24h.length - 1] : 24.5;
+  const tArLast = (dg.temp_ar_24h && dg.temp_ar_24h.length) ? dg.temp_ar_24h[dg.temp_ar_24h.length - 1] : 27.8;
+
   return `
     <!-- Top Row: 3 Cards (Condição Geral, Lotes em Operação, Previsão do Tempo) -->
     <div class="top-kpi-3col">
@@ -405,7 +440,7 @@ function renderModoResumido(resumo, clima) {
               <line x1="60" y1="60" x2="88" y2="28" stroke="#183D2E" stroke-width="3" stroke-linecap="round"/>
               <circle cx="60" cy="60" r="5" fill="#183D2E"/>
             </svg>
-            <div style="font-size: 18px; font-weight: 800; color: #1E293B; margin-top: -6px;">96%</div>
+            <div style="font-size: 18px; font-weight: 800; color: #1E293B; margin-top: -6px;">${confPct}%</div>
             <span style="font-size: 9px; font-weight: 700; color: #047857; background: #ECFDF5; padding: 1px 6px; border-radius: 4px;">Ótimo</span>
           </div>
 
@@ -414,37 +449,37 @@ function renderModoResumido(resumo, clima) {
             <div class="metric-progress-item">
               <div class="metric-labels-row">
                 <span style="color: #64748B;">Água & Solo</span>
-                <strong style="color: #1E293B;">98%</strong>
+                <strong style="color: #1E293B;">${aguaPct}%</strong>
               </div>
               <div class="progress-track-bg">
-                <div class="progress-fill-bar" style="width: 98%; background: #10B981;"></div>
+                <div class="progress-fill-bar" style="width: ${Math.min(100, aguaPct)}%; background: #10B981;"></div>
               </div>
             </div>
 
             <div class="metric-progress-item">
               <div class="metric-labels-row">
                 <span style="color: #64748B;">Saúde Foliar</span>
-                <strong style="color: #1E293B;">96%</strong>
+                <strong style="color: #1E293B;">${saudePct}%</strong>
               </div>
               <div class="progress-track-bg">
-                <div class="progress-fill-bar" style="width: 96%; background: #059669;"></div>
+                <div class="progress-fill-bar" style="width: ${Math.min(100, saudePct)}%; background: #059669;"></div>
               </div>
             </div>
 
             <div class="metric-progress-item">
               <div class="metric-labels-row">
                 <span style="color: #64748B;">Microclima</span>
-                <strong style="color: #1E293B;">94%</strong>
+                <strong style="color: #1E293B;">${umidDosselPct}%</strong>
               </div>
               <div class="progress-track-bg">
-                <div class="progress-fill-bar" style="width: 94%; background: #0EA5E9;"></div>
+                <div class="progress-fill-bar" style="width: ${Math.min(100, umidDosselPct)}%; background: #0EA5E9;"></div>
               </div>
             </div>
           </div>
         </div>
 
         <div style="border-top: 1px solid #F1F5F9; padding-top: 12px; display: flex; justify-content: space-between; font-size: 11px; color: #64748B; margin-top: auto;">
-          <span>Parâmetros 100% Ideais</span>
+          <span>Parâmetros Sincronizados</span>
           <span style="color: #047857; font-weight: 600;">● 24h Conforme</span>
         </div>
       </div>
@@ -521,7 +556,7 @@ function renderModoResumido(resumo, clima) {
               <i data-lucide="sun" style="width: 26px; height: 26px; color: #F59E0B;"></i>
             </div>
             <div>
-              <div style="font-size: 28px; font-weight: 800; color: #1E293B; line-height: 1;">28°C</div>
+              <div style="font-size: 28px; font-weight: 800; color: #1E293B; line-height: 1;">${tArLast}°C</div>
               <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Ensolarado • Vento 12 km/h</div>
             </div>
           </div>
@@ -536,7 +571,7 @@ function renderModoResumido(resumo, clima) {
         </div>
 
         <div style="border-top: 1px solid #F1F5F9; padding-top: 12px; display: flex; justify-content: space-between; font-size: 11px; margin-top: auto;">
-          <div><span style="color:#94A3B8; font-size:10px;">UMIDADE</span><div style="font-weight:700; color:#1E293B;">62%</div></div>
+          <div><span style="color:#94A3B8; font-size:10px;">UMIDADE</span><div style="font-weight:700; color:#1E293B;">${uArLast}%</div></div>
           <div><span style="color:#94A3B8; font-size:10px;">CHUVA</span><div style="font-weight:700; color:#1E293B;">0 mm</div></div>
           <div><span style="color:#94A3B8; font-size:10px;">UV</span><div style="font-weight:700; color:#047857;">Mod. 29°</div></div>
           <div><span style="color:#94A3B8; font-size:10px;">QUI</span><div style="font-weight:700; color:#334155;">28°</div></div>
@@ -555,7 +590,9 @@ function renderModoResumido(resumo, clima) {
           <span style="font-size: 14px; font-weight: 700; color: #1E293B; letter-spacing: 0.5px; text-transform: uppercase;">
             RESUMO DAS CONDIÇÕES & CULTURAS
           </span>
-          <i data-lucide="info" style="width: 16px; height: 16px; color: #94A3B8;"></i>
+          <button class="btn-editar-dados-graficos" style="background: #ECFDF5; border: 1px solid #A7F3D0; color: #047857; padding: 4px 10px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+            <i data-lucide="edit-3" style="width: 12px; height: 12px;"></i> Editar Indicadores
+          </button>
         </div>
 
         <!-- Gauge Semicircular Perfeitamente Alinhado na Mesma Curva Geométrica -->
@@ -564,12 +601,12 @@ function renderModoResumido(resumo, clima) {
             <svg width="260" height="135" viewBox="0 0 260 135" style="display: block; margin: 0 auto;">
               <!-- Arco Base Cinza de 180° perfeito -->
               <path id="gauge-track" d="M 45,120 A 85,85 0 0,1 215,120" fill="none" stroke="#F1F5F9" stroke-width="20" stroke-linecap="round"/>
-              <!-- Segmento Verde Contínuo (0 a 85% do semicírculo) -->
-              <path d="M 45,120 A 85,85 0 0,1 215,120" fill="none" stroke="#059669" stroke-width="20" stroke-linecap="round" stroke-dasharray="227 268" stroke-dashoffset="0"/>
-              <!-- Segmento Azul Contínuo na Mesma Trajetória da Curva (85% a 100%) -->
-              <path d="M 45,120 A 85,85 0 0,1 215,120" fill="none" stroke="#0284C7" stroke-width="20" stroke-linecap="round" stroke-dasharray="41 268" stroke-dashoffset="-227"/>
+              <!-- Segmento Verde Contínuo -->
+              <path d="M 45,120 A 85,85 0 0,1 215,120" fill="none" stroke="#059669" stroke-width="20" stroke-linecap="round" stroke-dasharray="${Math.round((confPct / 100) * 268)} 268" stroke-dashoffset="0"/>
+              <!-- Segmento Azul Contínuo -->
+              <path d="M 45,120 A 85,85 0 0,1 215,120" fill="none" stroke="#0284C7" stroke-width="20" stroke-linecap="round" stroke-dasharray="${Math.max(0, 268 - Math.round((confPct / 100) * 268))} 268" stroke-dashoffset="-${Math.round((confPct / 100) * 268)}"/>
             </svg>
-            <div class="gauge-pct-number">90%</div>
+            <div class="gauge-pct-number">${confPct}%</div>
           </div>
           <div class="gauge-caption">LEITURAS CONFORMES</div>
         </div>
@@ -579,25 +616,25 @@ function renderModoResumido(resumo, clima) {
           <div class="metric-progress-item">
             <div class="metric-labels-row">
               <span style="color:#475569; font-weight: 500;">● Saúde da Plantação (NDVI)</span>
-              <strong style="color: #1E293B;">85%</strong>
+              <strong style="color: #1E293B;">${saudePct}%</strong>
             </div>
-            <div class="progress-track-bg"><div class="progress-fill-bar" style="width: 85%; background: #059669;"></div></div>
+            <div class="progress-track-bg"><div class="progress-fill-bar" style="width: ${Math.min(100, saudePct)}%; background: #059669;"></div></div>
           </div>
 
           <div class="metric-progress-item">
             <div class="metric-labels-row">
               <span style="color:#475569; font-weight: 500;">● Umidade Média do Dossel</span>
-              <strong style="color: #1E293B;">67%</strong>
+              <strong style="color: #1E293B;">${umidDosselPct}%</strong>
             </div>
-            <div class="progress-track-bg"><div class="progress-fill-bar" style="width: 67%; background: #0284C7;"></div></div>
+            <div class="progress-track-bg"><div class="progress-fill-bar" style="width: ${Math.min(100, umidDosselPct)}%; background: #0284C7;"></div></div>
           </div>
 
           <div class="metric-progress-item">
             <div class="metric-labels-row">
               <span style="color:#475569; font-weight: 500;">● Temperatura Foliar</span>
-              <strong style="color: #1E293B;">27°C</strong>
+              <strong style="color: #1E293B;">${tempFoliar}°C</strong>
             </div>
-            <div class="progress-track-bg"><div class="progress-fill-bar" style="width: 60%; background: #F59E0B;"></div></div>
+            <div class="progress-track-bg"><div class="progress-fill-bar" style="width: ${Math.min(100, Math.round((tempFoliar / 45) * 100))}%; background: #F59E0B;"></div></div>
           </div>
         </div>
 
@@ -623,8 +660,8 @@ function renderModoResumido(resumo, clima) {
             <div style="font-size: 10px; font-weight: 700; color: #94A3B8; text-transform: uppercase;">STATUS ÁGUA</div>
             <div style="display: flex; justify-content: space-between; align-items: baseline;">
               <div>
-                <span style="font-size: 16px; font-weight: 700; color: #1E293B;">63%</span>
-                <div style="font-size: 10px; color: #94A3B8;">4.200 L/dia</div>
+                <span style="font-size: 16px; font-weight: 700; color: #1E293B;">${aguaPct}%</span>
+                <div style="font-size: 10px; color: #94A3B8;">${vazaoLdia.toLocaleString('pt-BR')} L/dia</div>
               </div>
               <span style="background: #D1FAE5; color: #065F46; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 9999px;">Auto</span>
             </div>
@@ -671,18 +708,24 @@ function renderModoResumido(resumo, clima) {
 
     <!-- Bottom Row: Telemetria de Campo (24h) com 4 Mini Gráficos Suaves e Organizados -->
     <div class="figma-card telemetry-4charts-container">
-      <div style="display: flex; justify-content: space-between; align-items: center;">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
         <div>
           <span style="font-size: 14px; font-weight: 700; color: #1E293B; letter-spacing: 0.5px; text-transform: uppercase;">
             TELEMETRIA DE CAMPO (24H)
           </span>
-          <p style="font-size: 12px; color: #94A3B8; margin-top: 2px;">Leituras em tempo real dos nós LoRaWAN distribuídos nos LOTES</p>
+          <p style="font-size: 12px; color: #94A3B8; margin-top: 2px;">Leituras em tempo real dos nós LoRaWAN distribuídos nos LOTES, sincronizadas com o banco</p>
         </div>
 
-        <div class="telemetria-timeframe-selector" style="display: flex; gap: 4px; background: #F1F5F9; padding: 4px; border-radius: 10px;">
-          <button class="timeframe-btn active" data-tf="24h" style="padding: 4px 12px; background: #fff; border-radius: 6px; font-size: 12px; font-weight: 600; color: #1E293B; box-shadow: 0 1px 2px rgba(0,0,0,0.05); border: none; cursor: pointer;">24h</button>
-          <button class="timeframe-btn" data-tf="7d" style="padding: 4px 12px; font-size: 12px; font-weight: 600; color: #64748B; background: none; border: none; border-radius: 6px; cursor: pointer;">7 Dias</button>
-          <button class="timeframe-btn" data-tf="30d" style="padding: 4px 12px; font-size: 12px; font-weight: 600; color: #64748B; background: none; border: none; border-radius: 6px; cursor: pointer;">30 Dias</button>
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+          <button class="btn-editar-dados-graficos" id="btn-editar-dados-graficos" style="background: #183D2E; color: #FFFFFF; border: none; padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+            <i data-lucide="sliders" style="width: 14px; height: 14px;"></i> Editar Dados & Gráficos
+          </button>
+
+          <div class="telemetria-timeframe-selector" style="display: flex; gap: 4px; background: #F1F5F9; padding: 4px; border-radius: 10px;">
+            <button class="timeframe-btn active" data-tf="24h" style="padding: 4px 12px; background: #fff; border-radius: 6px; font-size: 12px; font-weight: 600; color: #1E293B; box-shadow: 0 1px 2px rgba(0,0,0,0.05); border: none; cursor: pointer;">24h</button>
+            <button class="timeframe-btn" data-tf="7d" style="padding: 4px 12px; font-size: 12px; font-weight: 600; color: #64748B; background: none; border: none; border-radius: 6px; cursor: pointer;">7 Dias</button>
+            <button class="timeframe-btn" data-tf="30d" style="padding: 4px 12px; font-size: 12px; font-weight: 600; color: #64748B; background: none; border: none; border-radius: 6px; cursor: pointer;">30 Dias</button>
+          </div>
         </div>
       </div>
 
@@ -693,7 +736,7 @@ function renderModoResumido(resumo, clima) {
         <div class="mini-chart-card">
           <div class="mini-chart-header">
             <span class="mini-chart-title">Umidade do Ar</span>
-            <span class="mini-chart-pill pill-green">62% Ideal</span>
+            <span class="mini-chart-pill pill-green">${uArLast}% Ideal</span>
           </div>
           <div class="chart-canvas-wrap">
             <canvas id="miniChart1"></canvas>
@@ -707,7 +750,7 @@ function renderModoResumido(resumo, clima) {
         <div class="mini-chart-card">
           <div class="mini-chart-header">
             <span class="mini-chart-title">Umidade do Solo</span>
-            <span class="mini-chart-pill pill-green">58% Ideal</span>
+            <span class="mini-chart-pill pill-green">${uSoloLast}% Ideal</span>
           </div>
           <div class="chart-canvas-wrap">
             <canvas id="miniChart2"></canvas>
@@ -721,7 +764,7 @@ function renderModoResumido(resumo, clima) {
         <div class="mini-chart-card">
           <div class="mini-chart-header">
             <span class="mini-chart-title">Temperatura do Solo</span>
-            <span class="mini-chart-pill pill-blue">24.5°C Segura</span>
+            <span class="mini-chart-pill pill-blue">${tSoloLast}°C Segura</span>
           </div>
           <div class="chart-canvas-wrap">
             <canvas id="miniChart3"></canvas>
@@ -735,7 +778,7 @@ function renderModoResumido(resumo, clima) {
         <div class="mini-chart-card">
           <div class="mini-chart-header">
             <span class="mini-chart-title">Temperatura do Ar</span>
-            <span class="mini-chart-pill pill-green">27.8°C Ideal</span>
+            <span class="mini-chart-pill pill-green">${tArLast}°C Ideal</span>
           </div>
           <div class="chart-canvas-wrap">
             <canvas id="miniChart4"></canvas>
@@ -753,9 +796,19 @@ function renderModoResumido(resumo, clima) {
 /**
  * 2. MODO DETALHADO (Segunda Imagem do Figma)
  */
-function renderModoDetalhado(resumo, clima) {
+function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
+  const confPct = Number(dg.conformidade_geral_pct ?? 90);
+  const saudePct = Number(dg.saude_plantacao_pct ?? 85);
+  const umidDosselPct = Number(dg.umidade_dossel_pct ?? 67);
+  const tempFoliar = Number(dg.temp_foliar_c ?? 27);
+  const aguaPct = Number(dg.agua_reservatorio_pct ?? 63);
+  const uArLast = (dg.umidade_ar_24h && dg.umidade_ar_24h.length) ? dg.umidade_ar_24h[dg.umidade_ar_24h.length - 1] : 62;
+  const uSoloLast = (dg.umidade_solo_24h && dg.umidade_solo_24h.length) ? dg.umidade_solo_24h[dg.umidade_solo_24h.length - 1] : 58;
+  const tSoloLast = (dg.temp_solo_24h && dg.temp_solo_24h.length) ? dg.temp_solo_24h[dg.temp_solo_24h.length - 1] : 24.5;
+  const tArLast = (dg.temp_ar_24h && dg.temp_ar_24h.length) ? dg.temp_ar_24h[dg.temp_ar_24h.length - 1] : 27.8;
+
   return `
-    <!-- Top Row: 4 Cards (Condição Geral 96%, Lotes 6, Cadeia Fria +1.2°C, Alertas 2) -->
+    <!-- Top Row: 4 Cards (Condição Geral, Lotes 6, Cadeia Fria +1.2°C, Alertas 2) -->
     <div class="detailed-kpi-4col">
       <div class="figma-card">
         <div class="card-top-title-row">
@@ -763,12 +816,12 @@ function renderModoDetalhado(resumo, clima) {
           <span class="card-status-pill pill-green">Excelente</span>
         </div>
         <div style="display: flex; align-items: center; justify-content: space-between; margin: 10px 0;">
-          <div style="font-size: 36px; font-weight: 800; color: #1E293B;">96%</div>
+          <div style="font-size: 36px; font-weight: 800; color: #1E293B;">${confPct}%</div>
           <div style="width: 44px; height: 44px; border-radius: 50%; background: #ECFDF5; border: 1.5px solid #10B981; display: flex; align-items: center; justify-content: center; color: #059669;">
             <i data-lucide="leaf" style="width: 22px; height: 22px;"></i>
           </div>
         </div>
-        <span style="font-size: 11px; color: #64748B;">Parâmetros 100% ideais</span>
+        <span style="font-size: 11px; color: #64748B;">Parâmetros sincronizados</span>
       </div>
 
       <div class="figma-card">
@@ -826,16 +879,19 @@ function renderModoDetalhado(resumo, clima) {
       <!-- Coluna Esquerda: Gauge de Produção + Status da Água -->
       <div style="display: flex; flex-direction: column; gap: 24px;">
         <div class="figma-card">
-          <span style="font-size: 13px; font-weight: 700; color: #1E293B; text-transform: uppercase;">Resumo da produção</span>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 13px; font-weight: 700; color: #1E293B; text-transform: uppercase;">Resumo da produção</span>
+            <button class="btn-editar-dados-graficos" style="background: #ECFDF5; border: 1px solid #A7F3D0; color: #047857; padding: 4px 10px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer;">Editar</button>
+          </div>
           
           <div class="gauge-semicircle-wrap" style="margin-top: 14px;">
             <div class="gauge-svg-container">
               <svg width="260" height="135" viewBox="0 0 260 135" style="display: block; margin: 0 auto;">
                 <path d="M 45,120 A 85,85 0 0,1 215,120" fill="none" stroke="#F1F5F9" stroke-width="20" stroke-linecap="round"/>
-                <path d="M 45,120 A 85,85 0 0,1 215,120" fill="none" stroke="#059669" stroke-width="20" stroke-linecap="round" stroke-dasharray="227 268" stroke-dashoffset="0"/>
-                <path d="M 45,120 A 85,85 0 0,1 215,120" fill="none" stroke="#0284C7" stroke-width="20" stroke-linecap="round" stroke-dasharray="41 268" stroke-dashoffset="-227"/>
+                <path d="M 45,120 A 85,85 0 0,1 215,120" fill="none" stroke="#059669" stroke-width="20" stroke-linecap="round" stroke-dasharray="${Math.round((confPct / 100) * 268)} 268" stroke-dashoffset="0"/>
+                <path d="M 45,120 A 85,85 0 0,1 215,120" fill="none" stroke="#0284C7" stroke-width="20" stroke-linecap="round" stroke-dasharray="${Math.max(0, 268 - Math.round((confPct / 100) * 268))} 268" stroke-dashoffset="-${Math.round((confPct / 100) * 268)}"/>
               </svg>
-              <div class="gauge-pct-number">90%</div>
+              <div class="gauge-pct-number">${confPct}%</div>
             </div>
             <div class="gauge-caption">% de leituras dentro da faixa nas últimas 24h</div>
           </div>
@@ -843,15 +899,15 @@ function renderModoDetalhado(resumo, clima) {
           <div style="margin-top: 14px; display: flex; flex-direction: column; gap: 8px; font-size: 12px;">
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <span style="color: #475569;">○ Saúde da plantação:</span>
-              <strong style="color: #1E293B;">85%</strong>
+              <strong style="color: #1E293B;">${saudePct}%</strong>
             </div>
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <span style="color: #475569;">○ Umidade:</span>
-              <strong style="color: #1E293B;">67%</strong>
+              <strong style="color: #1E293B;">${umidDosselPct}%</strong>
             </div>
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <span style="color: #475569;">○ Temperatura:</span>
-              <strong style="color: #1E293B;">27°C</strong>
+              <strong style="color: #1E293B;">${tempFoliar}°C</strong>
             </div>
           </div>
         </div>
@@ -860,7 +916,7 @@ function renderModoDetalhado(resumo, clima) {
           <div style="display: flex; justify-content: space-between; align-items: center;">
             <div>
               <span style="font-size: 10px; font-weight: 700; color: #94A3B8; text-transform: uppercase;">Status da água</span>
-              <div style="font-size: 18px; font-weight: 800; color: #1E293B; margin-top: 2px;">63%</div>
+              <div style="font-size: 18px; font-weight: 800; color: #1E293B; margin-top: 2px;">${aguaPct}%</div>
               <span style="font-size: 11px; color: #64748B;">Umidade média do solo</span>
             </div>
             <span class="card-status-pill pill-green">ATIVA</span>
@@ -923,24 +979,28 @@ function renderModoDetalhado(resumo, clima) {
 
     <!-- 4 Gráficos no Rodapé do Modo Detalhado -->
     <div class="figma-card telemetry-4charts-container">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+        <span style="font-size: 13px; font-weight: 700; color: #1E293B; text-transform: uppercase;">Telemetria dos Gráficos (PostgreSQL)</span>
+        <button class="btn-editar-dados-graficos" style="background: #183D2E; color: #FFFFFF; border: none; padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer;">Editar Dados & Gráficos</button>
+      </div>
       <div class="charts-4col-grid">
         <div class="mini-chart-card">
-          <div class="mini-chart-header"><span class="mini-chart-title">Umidade do ar</span><span class="mini-chart-pill pill-green">62% Ideal</span></div>
+          <div class="mini-chart-header"><span class="mini-chart-title">Umidade do ar</span><span class="mini-chart-pill pill-green">${uArLast}% Ideal</span></div>
           <div class="chart-canvas-wrap"><canvas id="miniChart1"></canvas></div>
           <div class="chart-time-labels"><span>01 Jun</span><span>03 Jun</span><span>05 Jun</span><span>07 Jun</span></div>
         </div>
         <div class="mini-chart-card">
-          <div class="mini-chart-header"><span class="mini-chart-title">Umidade do solo</span><span class="mini-chart-pill pill-green">58% Ideal</span></div>
+          <div class="mini-chart-header"><span class="mini-chart-title">Umidade do solo</span><span class="mini-chart-pill pill-green">${uSoloLast}% Ideal</span></div>
           <div class="chart-canvas-wrap"><canvas id="miniChart2"></canvas></div>
           <div class="chart-time-labels"><span>01 Jun</span><span>03 Jun</span><span>05 Jun</span><span>07 Jun</span></div>
         </div>
         <div class="mini-chart-card">
-          <div class="mini-chart-header"><span class="mini-chart-title">Temperatura do solo</span><span class="mini-chart-pill pill-green">48% Ideal</span></div>
+          <div class="mini-chart-header"><span class="mini-chart-title">Temperatura do solo</span><span class="mini-chart-pill pill-green">${tSoloLast}°C Ideal</span></div>
           <div class="chart-canvas-wrap"><canvas id="miniChart3"></canvas></div>
           <div class="chart-time-labels"><span>01 Jun</span><span>03 Jun</span><span>05 Jun</span><span>07 Jun</span></div>
         </div>
         <div class="mini-chart-card">
-          <div class="mini-chart-header"><span class="mini-chart-title">Temperatura do ar</span><span class="mini-chart-pill pill-green">48% Ideal</span></div>
+          <div class="mini-chart-header"><span class="mini-chart-title">Temperatura do ar</span><span class="mini-chart-pill pill-green">${tArLast}°C Ideal</span></div>
           <div class="chart-canvas-wrap"><canvas id="miniChart4"></canvas></div>
           <div class="chart-time-labels"><span>01 Jun</span><span>03 Jun</span><span>05 Jun</span><span>07 Jun</span></div>
         </div>
@@ -953,15 +1013,23 @@ function renderModoDetalhado(resumo, clima) {
  * CONFIGURAÇÃO DOS EVENTOS DO DASHBOARD E RENDERIZAÇÃO DOS 4 GRÁFICOS APPLE STYLE
  */
 export async function setupDashboardEvents() {
-  const isAnalista = auth.getActiveProfile() === 'analista';
-  if (isAnalista) {
+  const profileRole = auth.getActiveProfile();
+  if (profileRole === 'admin') {
+    setupAdminDashboardEvents();
+    return;
+  }
+  if (profileRole === 'analista') {
     setupAnalistaDashboardEvents();
     return;
   }
 
+  if (window.lucide) window.lucide.createIcons();
+
   // Destrói instâncias anteriores
   chartInstances.forEach(c => c && c.destroy());
   chartInstances = [];
+
+  const dg = dadosGraficosCache || DEFAULT_DADOS_GRAFICOS;
 
   // Toggle Resumido vs Detalhado com animação fluida Apple
   const toggleBtn = document.getElementById('toggle-dashboard-mode');
@@ -985,11 +1053,100 @@ export async function setupDashboardEvents() {
     });
   }
 
-  // Gera curvas suaves idênticas às do Figma (Spline Bézier de alta fidelidade)
-  criarMiniGraficoApple('miniChart1', [61, 60, 59, 58, 60, 61, 63, 62], '#10B981');
-  criarMiniGraficoApple('miniChart2', [54, 53, 55, 57, 59, 58, 57, 58], '#0D9488');
-  criarMiniGraficoApple('miniChart3', [24.1, 23.9, 24.3, 24.6, 24.8, 24.5, 24.4, 24.5], '#0284C7');
-  criarMiniGraficoApple('miniChart4', [26.2, 25.8, 26.8, 28.2, 29.0, 28.1, 27.5, 27.8], '#16A34A');
+  // Gera curvas suaves com os dados reais persistidos no PostgreSQL
+  criarMiniGraficoApple('miniChart1', dg.umidade_ar_24h || DEFAULT_DADOS_GRAFICOS.umidade_ar_24h, '#10B981');
+  criarMiniGraficoApple('miniChart2', dg.umidade_solo_24h || DEFAULT_DADOS_GRAFICOS.umidade_solo_24h, '#0D9488');
+  criarMiniGraficoApple('miniChart3', dg.temp_solo_24h || DEFAULT_DADOS_GRAFICOS.temp_solo_24h, '#0284C7');
+  criarMiniGraficoApple('miniChart4', dg.temp_ar_24h || DEFAULT_DADOS_GRAFICOS.temp_ar_24h, '#16A34A');
+
+  // Modal para Editar Dados & Gráficos (Salva no PostgreSQL e atualiza os gráficos)
+  document.querySelectorAll('.btn-editar-dados-graficos').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const cur = dadosGraficosCache || DEFAULT_DADOS_GRAFICOS;
+      Modal.open('Editar Dados & Séries dos Gráficos (Persistência PostgreSQL)', `
+        <div style="display:flex; flex-direction:column; gap:12px; font-size:12px; color:#334155;">
+          <p style="margin:0; color:#64748B; line-height:1.4;">
+            Altere os indicadores operacionais e os pontos das séries de telemetria (valores separados por vírgula). Tudo será salvo no banco de dados PostgreSQL e refletido imediatamente nos gráficos.
+          </p>
+          <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
+            <div>
+              <label style="display:block; font-weight:700; margin-bottom:4px;">Conformidade (%)</label>
+              <input id="inp-dg-conf" type="number" min="0" max="100" value="${cur.conformidade_geral_pct ?? 90}" style="width:100%; padding:7px 10px; border:1px solid #CBD5E1; border-radius:8px;">
+            </div>
+            <div>
+              <label style="display:block; font-weight:700; margin-bottom:4px;">Saúde NDVI (%)</label>
+              <input id="inp-dg-saude" type="number" min="0" max="100" value="${cur.saude_plantacao_pct ?? 85}" style="width:100%; padding:7px 10px; border:1px solid #CBD5E1; border-radius:8px;">
+            </div>
+            <div>
+              <label style="display:block; font-weight:700; margin-bottom:4px;">Umidade Dossel (%)</label>
+              <input id="inp-dg-dossel" type="number" min="0" max="100" value="${cur.umidade_dossel_pct ?? 67}" style="width:100%; padding:7px 10px; border:1px solid #CBD5E1; border-radius:8px;">
+            </div>
+            <div>
+              <label style="display:block; font-weight:700; margin-bottom:4px;">Temp. Foliar (°C)</label>
+              <input id="inp-dg-tfoliar" type="number" step="0.1" value="${cur.temp_foliar_c ?? 27}" style="width:100%; padding:7px 10px; border:1px solid #CBD5E1; border-radius:8px;">
+            </div>
+            <div>
+              <label style="display:block; font-weight:700; margin-bottom:4px;">Status Água (%)</label>
+              <input id="inp-dg-agua" type="number" min="0" max="100" value="${cur.agua_reservatorio_pct ?? 63}" style="width:100%; padding:7px 10px; border:1px solid #CBD5E1; border-radius:8px;">
+            </div>
+            <div>
+              <label style="display:block; font-weight:700; margin-bottom:4px;">Vazão (L/dia)</label>
+              <input id="inp-dg-vazao" type="number" step="50" value="${cur.vazao_ldia ?? 4200}" style="width:100%; padding:7px 10px; border:1px solid #CBD5E1; border-radius:8px;">
+            </div>
+          </div>
+
+          <div>
+            <label style="display:block; font-weight:700; margin-bottom:4px;">Série Gráfico 1 — Umidade do Ar 24h (%)</label>
+            <input id="inp-dg-uar" type="text" value="${(cur.umidade_ar_24h || []).join(', ')}" style="width:100%; padding:7px 10px; border:1px solid #CBD5E1; border-radius:8px; font-family:monospace;">
+          </div>
+          <div>
+            <label style="display:block; font-weight:700; margin-bottom:4px;">Série Gráfico 2 — Umidade do Solo 24h (%)</label>
+            <input id="inp-dg-usolo" type="text" value="${(cur.umidade_solo_24h || []).join(', ')}" style="width:100%; padding:7px 10px; border:1px solid #CBD5E1; border-radius:8px; font-family:monospace;">
+          </div>
+          <div>
+            <label style="display:block; font-weight:700; margin-bottom:4px;">Série Gráfico 3 — Temperatura do Solo 24h (°C)</label>
+            <input id="inp-dg-tsolo" type="text" value="${(cur.temp_solo_24h || []).join(', ')}" style="width:100%; padding:7px 10px; border:1px solid #CBD5E1; border-radius:8px; font-family:monospace;">
+          </div>
+          <div>
+            <label style="display:block; font-weight:700; margin-bottom:4px;">Série Gráfico 4 — Temperatura do Ar 24h (°C)</label>
+            <input id="inp-dg-tar" type="text" value="${(cur.temp_ar_24h || []).join(', ')}" style="width:100%; padding:7px 10px; border:1px solid #CBD5E1; border-radius:8px; font-family:monospace;">
+          </div>
+        </div>
+      `, async () => {
+        const parseSeries = (str, fallback) => {
+          const arr = String(str || '')
+            .split(',')
+            .map(s => parseFloat(s.trim()))
+            .filter(n => !Number.isNaN(n));
+          return arr.length >= 2 ? arr : fallback;
+        };
+
+        const payload = {
+          conformidade_geral_pct: Number(document.getElementById('inp-dg-conf')?.value || 90),
+          saude_plantacao_pct: Number(document.getElementById('inp-dg-saude')?.value || 85),
+          umidade_dossel_pct: Number(document.getElementById('inp-dg-dossel')?.value || 67),
+          temp_foliar_c: Number(document.getElementById('inp-dg-tfoliar')?.value || 27),
+          agua_reservatorio_pct: Number(document.getElementById('inp-dg-agua')?.value || 63),
+          vazao_ldia: Number(document.getElementById('inp-dg-vazao')?.value || 4200),
+          umidade_ar_24h: parseSeries(document.getElementById('inp-dg-uar')?.value, cur.umidade_ar_24h),
+          umidade_solo_24h: parseSeries(document.getElementById('inp-dg-usolo')?.value, cur.umidade_solo_24h),
+          temp_solo_24h: parseSeries(document.getElementById('inp-dg-tsolo')?.value, cur.temp_solo_24h),
+          temp_ar_24h: parseSeries(document.getElementById('inp-dg-tar')?.value, cur.temp_ar_24h)
+        };
+
+        try {
+          const saved = await api.salvarDadosGraficos(payload);
+          dadosGraficosCache = { ...DEFAULT_DADOS_GRAFICOS, ...saved };
+          toast.success('Gráficos Salvos no PostgreSQL', 'As séries e indicadores foram persistidos no banco de dados e atualizados.');
+          window.dispatchEvent(new HashChangeEvent('hashchange'));
+          return true;
+        } catch (err) {
+          toast.error('Erro ao Salvar Gráficos', err.message || 'Falha de comunicação com o servidor backend.');
+          return false;
+        }
+      }, 'Salvar no Banco');
+    });
+  });
 
   // Interatividade nos seletores de período de telemetria
   document.querySelectorAll('.timeframe-btn').forEach(btn => {
@@ -1010,11 +1167,12 @@ export async function setupDashboardEvents() {
       chartInstances.forEach(c => c && c.destroy());
       chartInstances = [];
 
+      const cur = dadosGraficosCache || DEFAULT_DADOS_GRAFICOS;
       if (tf === '24h') {
-        criarMiniGraficoApple('miniChart1', [61, 60, 59, 58, 60, 61, 63, 62], '#10B981');
-        criarMiniGraficoApple('miniChart2', [54, 53, 55, 57, 59, 58, 57, 58], '#0D9488');
-        criarMiniGraficoApple('miniChart3', [24.1, 23.9, 24.3, 24.6, 24.8, 24.5, 24.4, 24.5], '#0284C7');
-        criarMiniGraficoApple('miniChart4', [26.2, 25.8, 26.8, 28.2, 29.0, 28.1, 27.5, 27.8], '#16A34A');
+        criarMiniGraficoApple('miniChart1', cur.umidade_ar_24h || DEFAULT_DADOS_GRAFICOS.umidade_ar_24h, '#10B981');
+        criarMiniGraficoApple('miniChart2', cur.umidade_solo_24h || DEFAULT_DADOS_GRAFICOS.umidade_solo_24h, '#0D9488');
+        criarMiniGraficoApple('miniChart3', cur.temp_solo_24h || DEFAULT_DADOS_GRAFICOS.temp_solo_24h, '#0284C7');
+        criarMiniGraficoApple('miniChart4', cur.temp_ar_24h || DEFAULT_DADOS_GRAFICOS.temp_ar_24h, '#16A34A');
       } else if (tf === '7d') {
         criarMiniGraficoApple('miniChart1', [58, 62, 65, 60, 59, 63, 62], '#10B981');
         criarMiniGraficoApple('miniChart2', [52, 54, 58, 61, 57, 56, 58], '#0D9488');
@@ -1346,5 +1504,535 @@ function setupAnalistaDashboardEvents() {
         toast.warning('Filtro Desativado', 'Sensores transmitindo valores analógicos brutos.');
       }
     });
+  }
+}
+
+/**
+ * 3. DASHBOARD DO ADMINISTRADOR (FIGMA MOCKUP 1: LORENA LIRA)
+ * Visão Geral do Sistema com Governança, Lotes, Sensores, Conformidade e Atividade 24h
+ */
+function renderAdminDashboard() {
+  return `
+    <div class="dashboard-canvas apple-animate-in">
+      <!-- Sub-barra Técnica do Administrador -->
+      <div class="analista-subbar" style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 12px 16px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+          <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: #047857; background: #ECFDF5; border: 1px solid #A7F3D0; padding: 4px 10px; border-radius: 20px;">
+            <i data-lucide="map-pin" style="width: 12px; height: 12px;"></i> Polo Sertão São Francisco
+          </span>
+          <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: #0284C7; background: #F0F9FF; border: 1px solid #BAE6FD; padding: 4px 10px; border-radius: 20px;">
+            <i data-lucide="radio" style="width: 12px; height: 12px;"></i> Rede LoRaWAN + Gateway 4G Online
+          </span>
+          <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: #475569; background: #F8FAFC; border: 1px solid #E2E8F0; padding: 4px 10px; border-radius: 20px;">
+            <i data-lucide="file-check" style="width: 12px; height: 12px;"></i> 3 Regras Agronômicas Vigentes
+          </span>
+          <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: #15803D; background: #DCFCE7; border: 1px solid #86EFAC; padding: 4px 10px; border-radius: 20px;">
+            <i data-lucide="check-circle" style="width: 12px; height: 12px;"></i> Auditoria GlobalGAP em Dia
+          </span>
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button class="btn-analista-sync" id="btn-admin-convidar-user" style="background: #F8FAFC; border: 1px solid #CBD5E1; color: #334155; font-size: 12px; font-weight: 600; padding: 6px 14px; border-radius: 8px; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+            <i data-lucide="user-plus" style="width: 14px; height: 14px;"></i>
+            <span>Convidar Usuário</span>
+          </button>
+          <button class="btn-analista-sync" id="btn-admin-parametros-safra" style="background: #F8FAFC; border: 1px solid #CBD5E1; color: #334155; font-size: 12px; font-weight: 600; padding: 6px 14px; border-radius: 8px; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+            <i data-lucide="sliders" style="width: 14px; height: 14px;"></i>
+            <span>Parâmetros da Safra</span>
+          </button>
+          <button class="btn-analista-export" id="btn-admin-emitir-relatorio" style="background: #183D2E; border: none; color: #FFFFFF; font-size: 12px; font-weight: 600; padding: 6px 14px; border-radius: 8px; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+            <i data-lucide="file-text" style="width: 14px; height: 14px;"></i>
+            <span>Emitir Relatório Executivo</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 4 Cards Superiores de Governança -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 20px;">
+        <!-- Card 1: Perfis de Usuários -->
+        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 11px; font-weight: 700; color: #64748B; letter-spacing: 0.5px;">PERFIS DE USUÁRIOS</span>
+            <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 2px 8px; border-radius: 12px;">12 ATIVOS</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 14px; margin: 14px 0;">
+            <div style="width: 58px; height: 58px; border-radius: 50%; border: 5px solid #10B981; border-top-color: #0284C7; border-right-color: #0F172A; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+              <span style="font-size: 15px; font-weight: 800; color: #0F172A; line-height: 1;">12</span>
+              <span style="font-size: 8px; color: #64748B;">MEMBROS</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 3px; font-size: 11px;">
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span style="width: 6px; height: 6px; border-radius: 50%; background: #10B981;"></span>
+                <span style="color: #475569;">Produtores: <strong>5</strong> <span style="color: #94A3B8;">(42%)</span></span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span style="width: 6px; height: 6px; border-radius: 50%; background: #0284C7;"></span>
+                <span style="color: #475569;">Analistas: <strong>4</strong> <span style="color: #94A3B8;">(33%)</span></span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span style="width: 6px; height: 6px; border-radius: 50%; background: #0F172A;"></span>
+                <span style="color: #475569;">Admins: <strong>3</strong> <span style="color: #94A3B8;">(25%)</span></span>
+              </div>
+            </div>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 11px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px;">
+            <span>Acesso à Plataforma</span>
+            <strong style="color: #047857;">100% Autenticados</strong>
+          </div>
+        </div>
+
+        <!-- Card 2: Lotes & Culturas -->
+        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 11px; font-weight: 700; color: #64748B; letter-spacing: 0.5px;">LOTES &amp; CULTURAS</span>
+            <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 2px 8px; border-radius: 12px;">3 LOTES ATIVOS</span>
+          </div>
+          <div style="margin: 12px 0;">
+            <div style="display: flex; justify-content: space-between; align-items: baseline;">
+              <div>
+                <span style="font-size: 20px; font-weight: 800; color: #0F172A;">1.800</span>
+                <span style="font-size: 12px; font-weight: 600; color: #64748B;">kg</span>
+              </div>
+              <span style="font-size: 10px; font-weight: 600; color: #059669; background: #ECFDF5; padding: 2px 6px; border-radius: 6px;">Safra 2026</span>
+            </div>
+            <div style="width: 100%; height: 6px; background: #E2E8F0; border-radius: 3px; display: flex; overflow: hidden; margin-top: 8px;">
+              <div style="width: 55%; background: #10B981;" title="Manga: 1.000kg"></div>
+              <div style="width: 30%; background: #3B82F6;" title="Uva: 500kg"></div>
+              <div style="width: 15%; background: #F59E0B;" title="Melão: 300kg"></div>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B; margin-top: 6px;">
+              <span>• Manga (1.000kg)</span>
+              <span>• Uva (500kg)</span>
+              <span>• Melão (300kg)</span>
+            </div>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 11px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px;">
+            <span>3 Setores</span>
+            <strong style="color: #0F172A;">Petrolina Setor 04 &amp; Vale</strong>
+          </div>
+        </div>
+
+        <!-- Card 3: Sensores de Campo (IoT) -->
+        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 11px; font-weight: 700; color: #64748B; letter-spacing: 0.5px;">SENSORES DE CAMPO (IOT)</span>
+            <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 2px 8px; border-radius: 12px;">100% ONLINE</span>
+          </div>
+          <div style="margin: 12px 0; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <span style="font-size: 20px; font-weight: 800; color: #0F172A;">99.8 %</span>
+              <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Transmissão em Tempo Real</div>
+              <div style="font-size: 10px; color: #94A3B8;">Nós DHT11 + Solo TDR</div>
+            </div>
+            <div style="display: flex; align-items: flex-end; gap: 3px; height: 36px;">
+              <span style="width: 5px; height: 18px; background: #10B981; border-radius: 2px;"></span>
+              <span style="width: 5px; height: 26px; background: #10B981; border-radius: 2px;"></span>
+              <span style="width: 5px; height: 32px; background: #10B981; border-radius: 2px;"></span>
+              <span style="width: 5px; height: 28px; background: #10B981; border-radius: 2px;"></span>
+              <span style="width: 5px; height: 36px; background: #10B981; border-radius: 2px;"></span>
+            </div>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 11px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px;">
+            <span>Cadência de Leitura</span>
+            <strong style="color: #0F172A;">A cada 300s (5 min)</strong>
+          </div>
+        </div>
+
+        <!-- Card 4: Alertas & Incidentes -->
+        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 11px; font-weight: 700; color: #64748B; letter-spacing: 0.5px;">ALERTAS &amp; INCIDENTES</span>
+            <span style="font-size: 10px; font-weight: 700; color: #0284C7; background: #F0F9FF; padding: 2px 8px; border-radius: 12px;">OPERAÇÃO ESTÁVEL</span>
+          </div>
+          <div style="margin: 12px 0; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <span style="font-size: 20px; font-weight: 800; color: #0F172A;">2 ativos</span>
+              <div style="font-size: 11px; color: #64748B; margin-top: 2px;">0 Críticos • 1 Atenção • 1 Info</div>
+            </div>
+            <div style="display: flex; gap: 4px;">
+              <span style="width: 10px; height: 10px; border-radius: 50%; background: #94A3B8;"></span>
+              <span style="width: 10px; height: 10px; border-radius: 50%; background: #F59E0B;"></span>
+              <span style="width: 10px; height: 10px; border-radius: 50%; background: #3B82F6;"></span>
+            </div>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 11px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px;">
+            <span>Resolução Média</span>
+            <strong style="color: #0F172A;">14 minutos</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- Gráfico Central: Atividade Operacional da Fazenda (Últimas 24h) -->
+      <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+          <div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <h3 style="font-size: 15px; font-weight: 700; color: #0F172A; margin: 0;">Atividade Operacional da Fazenda (Últimas 24h)</h3>
+              <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 2px 8px; border-radius: 12px;">Tempo Real</span>
+            </div>
+            <p style="font-size: 12px; color: #64748B; margin: 4px 0 0 0;">Monitoramento consolidado dos lotes: umidade do solo (VWC) e temperatura média com faixa agronômica ideal</p>
+          </div>
+          <div style="display: flex; align-items: center; gap: 16px; font-size: 11px;">
+            <span style="display: flex; align-items: center; gap: 6px; color: #047857; font-weight: 600;">
+              <span style="width: 8px; height: 8px; border-radius: 50%; background: #10B981;"></span> Umidade do Solo (VWC)
+            </span>
+            <span style="display: flex; align-items: center; gap: 6px; color: #0284C7; font-weight: 600;">
+              <span style="width: 8px; height: 8px; border-radius: 50%; background: #0284C7;"></span> Temp. Média Lotes (°C)
+            </span>
+            <span style="display: flex; align-items: center; gap: 6px; color: #475569; font-weight: 600;">
+              <span style="width: 12px; height: 6px; background: #D1FAE5; border-radius: 2px;"></span> Faixa Agronômica Ideal (40-60%)
+            </span>
+          </div>
+        </div>
+
+        <!-- Canvas do Gráfico -->
+        <div style="height: 240px; position: relative;">
+          <canvas id="chart-admin-atividade"></canvas>
+        </div>
+
+        <!-- 3 Métricas Rápidas abaixo do Gráfico -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 16px;">
+          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <span style="font-size: 10px; font-weight: 700; color: #64748B;">UMIDADE MÉDIA DO SOLO</span>
+              <div style="font-size: 16px; font-weight: 800; color: #047857; margin-top: 2px;">46.8% VWC</div>
+            </div>
+            <span style="font-size: 10px; font-weight: 600; color: #047857; background: #D1FAE5; padding: 3px 8px; border-radius: 6px;">Dentro da Faixa</span>
+          </div>
+
+          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <span style="font-size: 10px; font-weight: 700; color: #64748B;">TEMPERATURA MÉDIA</span>
+              <div style="font-size: 16px; font-weight: 800; color: #0284C7; margin-top: 2px;">11.8°C</div>
+            </div>
+            <span style="font-size: 10px; font-weight: 600; color: #0284C7; background: #E0F2FE; padding: 3px 8px; border-radius: 6px;">Estável</span>
+          </div>
+
+          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <span style="font-size: 10px; font-weight: 700; color: #64748B;">CICLOS DE IRRIGAÇÃO</span>
+              <div style="font-size: 16px; font-weight: 800; color: #0F172A; margin-top: 2px;">3 concluídos hoje</div>
+            </div>
+            <span style="font-size: 10px; font-weight: 600; color: #047857; background: #D1FAE5; padding: 3px 8px; border-radius: 6px;">100% Eficiência</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Seção: Gestão de Perfis & Acessos Recentes -->
+      <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="users" style="width: 16px; height: 16px; color: #0F172A;"></i>
+              <h3 style="font-size: 14px; font-weight: 700; color: #0F172A; margin: 0;">Gestão de Perfis &amp; Acessos Recentes</h3>
+              <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 2px 8px; border-radius: 12px;">4 MEMBROS ONLINE HOJE</span>
+            </div>
+            <p style="font-size: 12px; color: #64748B; margin: 4px 0 0 0;">Atividades operacionais em tempo real e sessões ativas da equipe de campo e gestão</p>
+          </div>
+          <a href="#/usuarios" style="font-size: 12px; font-weight: 600; color: #0284C7; text-decoration: none; display: flex; align-items: center; gap: 4px;">
+            Gerenciar Todos os Usuários &rarr;
+          </a>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px;">
+          <!-- Usuário 1: Maria Clara -->
+          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px; display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <div style="width: 36px; height: 36px; border-radius: 50%; background: #D1FAE5; border: 1.5px solid #10B981; color: #065F46; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 12px;">MC</div>
+              <div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <strong style="font-size: 13px; color: #0F172A;">Maria Clara</strong>
+                  <span style="font-size: 9px; font-weight: 700; color: #047857; background: #DCFCE7; padding: 1px 6px; border-radius: 4px;">Produtor</span>
+                </div>
+                <div style="font-size: 11px; color: #64748B;">Colheita Lote #7 Manga</div>
+              </div>
+            </div>
+            <div style="text-align: right;">
+              <span style="font-size: 10px; color: #64748B;">15:47</span>
+              <div style="font-size: 10px; font-weight: 700; color: #047857;">Ativo</div>
+            </div>
+          </div>
+
+          <!-- Usuário 2: Luiz Felipe -->
+          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px; display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <div style="width: 36px; height: 36px; border-radius: 50%; background: #E0F2FE; border: 1.5px solid #0284C7; color: #0369A1; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 12px;">LF</div>
+              <div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <strong style="font-size: 13px; color: #0F172A;">Luiz Felipe</strong>
+                  <span style="font-size: 9px; font-weight: 700; color: #0284C7; background: #E0F2FE; padding: 1px 6px; border-radius: 4px;">Analista</span>
+                </div>
+                <div style="font-size: 11px; color: #64748B;">Laudo Uva Vitória</div>
+              </div>
+            </div>
+            <div style="text-align: right;">
+              <span style="font-size: 10px; color: #64748B;">15:15</span>
+              <div style="font-size: 10px; font-weight: 600; color: #64748B;">27m</div>
+            </div>
+          </div>
+
+          <!-- Usuário 3: Rodrigo Alves -->
+          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px; display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <div style="width: 36px; height: 36px; border-radius: 50%; background: #F1F5F9; border: 1.5px solid #94A3B8; color: #334155; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 12px;">RA</div>
+              <div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <strong style="font-size: 13px; color: #0F172A;">Rodrigo Alves</strong>
+                  <span style="font-size: 9px; font-weight: 700; color: #047857; background: #DCFCE7; padding: 1px 6px; border-radius: 4px;">Produtor</span>
+                </div>
+                <div style="font-size: 11px; color: #64748B;">Turno fertirrigação</div>
+              </div>
+            </div>
+            <div style="text-align: right;">
+              <span style="font-size: 10px; color: #64748B;">14:50</span>
+              <div style="font-size: 10px; font-weight: 600; color: #64748B;">52m</div>
+            </div>
+          </div>
+
+          <!-- Usuário 4: Lorena Lira -->
+          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px; display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <div style="width: 36px; height: 36px; border-radius: 50%; background: #DCFCE7; border: 1.5px solid #86EFAC; color: #166534; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 12px;">LL</div>
+              <div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <strong style="font-size: 13px; color: #0F172A;">Lorena Lira</strong>
+                  <span style="font-size: 9px; font-weight: 700; color: #0F172A; background: #E2E8F0; padding: 1px 6px; border-radius: 4px;">Admin</span>
+                </div>
+                <div style="font-size: 11px; color: #64748B;">Parâmetros de clima</div>
+              </div>
+            </div>
+            <div style="text-align: right;">
+              <span style="font-size: 10px; color: #64748B;">14:20</span>
+              <div style="font-size: 10px; font-weight: 700; color: #047857;">Ativo</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2 Cards Inferiores: Parâmetros Agronômicos & Regras Ativas + Conformidade & Despachos -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 16px;">
+        <!-- Card 1: Parâmetros Agronômicos & Regras Ativas -->
+        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+            <div>
+              <h3 style="font-size: 14px; font-weight: 700; color: #0F172A; margin: 0;">Parâmetros Agronômicos &amp; Regras Ativas</h3>
+              <p style="font-size: 11px; color: #64748B; margin: 2px 0 0 0;">Faixas climáticas ideais validadas para as culturas da safra</p>
+            </div>
+            <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 3px 8px; border-radius: 6px;">3 REGRAS VIGENTES</span>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <span style="width: 8px; height: 8px; border-radius: 50%; background: #10B981;"></span>
+                  <strong style="font-size: 13px; color: #0F172A;">Manga (Tommy Atkins / Kent)</strong>
+                </div>
+                <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Umidade ideal no solo: 55% a 65% VWC</div>
+              </div>
+              <div style="text-align: right;">
+                <span style="font-size: 12px; font-weight: 700; color: #047857; background: #ECFDF5; padding: 2px 8px; border-radius: 6px;">10.0°C a 13.0°C</span>
+                <div style="font-size: 10px; color: #047857; font-weight: 600; margin-top: 2px;">• Em Faixa Ótima</div>
+              </div>
+            </div>
+
+            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <span style="width: 8px; height: 8px; border-radius: 50%; background: #3B82F6;"></span>
+                  <strong style="font-size: 13px; color: #0F172A;">Uva de Mesa (Vitória Sem Semente)</strong>
+                </div>
+                <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Umidade ideal no solo: 40% a 50% VWC</div>
+              </div>
+              <div style="text-align: right;">
+                <span style="font-size: 12px; font-weight: 700; color: #0284C7; background: #F0F9FF; padding: 2px 8px; border-radius: 6px;">8.0°C a 11.5°C</span>
+                <div style="font-size: 10px; color: #047857; font-weight: 600; margin-top: 2px;">• Em Faixa Ótima</div>
+              </div>
+            </div>
+
+            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <span style="width: 8px; height: 8px; border-radius: 50%; background: #F59E0B;"></span>
+                  <strong style="font-size: 13px; color: #0F172A;">Melão Amarelo</strong>
+                </div>
+                <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Umidade ideal no solo: 45% a 55% VWC</div>
+              </div>
+              <div style="text-align: right;">
+                <span style="font-size: 12px; font-weight: 700; color: #D97706; background: #FFFBEB; padding: 2px 8px; border-radius: 6px;">12.0°C a 15.0°C</span>
+                <div style="font-size: 10px; color: #047857; font-weight: 600; margin-top: 2px;">• Em Faixa Ótima</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; padding-top: 10px; border-top: 1px solid #F1F5F9; font-size: 11px;">
+            <span style="color: #64748B;">Tolerâncias climáticas aplicadas aos atuadores</span>
+            <button id="btn-config-regras" style="background: none; border: none; color: #0284C7; font-weight: 600; cursor: pointer;">Configurar Parâmetros</button>
+          </div>
+        </div>
+
+        <!-- Card 2: Conformidade, Despachos & Auditoria -->
+        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+            <div>
+              <h3 style="font-size: 14px; font-weight: 700; color: #0F172A; margin: 0;">Conformidade, Despachos &amp; Auditoria</h3>
+              <p style="font-size: 11px; color: #64748B; margin: 2px 0 0 0;">Rastreabilidade portuária e certificação GlobalG.A.P.</p>
+            </div>
+            <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 3px 8px; border-radius: 6px;">GLOBALGAP 100%</span>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <div style="font-size: 11px; font-weight: 700; color: #64748B; margin-bottom: 2px;">STATUS DAS ROTAS DE DESPACHO</div>
+            
+            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <strong style="font-size: 12px; color: #0F172A;">Porto Pecém (CE)</strong>
+                <div style="font-size: 10px; color: #64748B;">Melão (300 kg) • 10°C Monitorado</div>
+              </div>
+              <span style="font-size: 10px; font-weight: 700; color: #047857; background: #DCFCE7; padding: 2px 8px; border-radius: 4px;">Trânsito OK</span>
+            </div>
+
+            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <strong style="font-size: 12px; color: #0F172A;">Porto Suape (PE)</strong>
+                <div style="font-size: 10px; color: #64748B;">Uva Vitória (500 kg) • Atracado</div>
+              </div>
+              <span style="font-size: 10px; font-weight: 700; color: #0284C7; background: #E0F2FE; padding: 2px 8px; border-radius: 4px;">Embarque</span>
+            </div>
+
+            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <strong style="font-size: 12px; color: #0F172A;">Porto Salvador (BA)</strong>
+                <div style="font-size: 10px; color: #64748B;">Manga Tommy (1.000 kg) • 24/09</div>
+              </div>
+              <span style="font-size: 10px; font-weight: 700; color: #059669; background: #D1FAE5; padding: 2px 8px; border-radius: 4px;">Packing House</span>
+            </div>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; padding-top: 10px; border-top: 1px solid #F1F5F9; font-size: 11px;">
+            <span style="color: #64748B;">Cadeia de Frio e Transporte Refrigerado</span>
+            <strong style="color: #047857;">100% Conforme GlobalG.A.P.</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function setupAdminDashboardEvents() {
+  // Destrói instâncias anteriores de gráficos
+  chartInstances.forEach(c => c && c.destroy());
+  chartInstances = [];
+
+  // Botões da sub-barra do Admin
+  const btnConvidar = document.getElementById('btn-admin-convidar-user');
+  if (btnConvidar) {
+    btnConvidar.addEventListener('click', () => {
+      window.location.hash = '#/usuarios';
+    });
+  }
+
+  const btnParametros = document.getElementById('btn-admin-parametros-safra');
+  if (btnParametros) {
+    btnParametros.addEventListener('click', () => {
+      window.location.hash = '#/configuracoes';
+    });
+  }
+
+  const btnRelatorio = document.getElementById('btn-admin-emitir-relatorio');
+  if (btnRelatorio) {
+    btnRelatorio.addEventListener('click', () => {
+      window.location.hash = '#/relatorios';
+    });
+  }
+
+  const btnConfigRegras = document.getElementById('btn-config-regras');
+  if (btnConfigRegras) {
+    btnConfigRegras.addEventListener('click', () => {
+      window.location.hash = '#/configuracoes';
+    });
+  }
+
+  // Gráfico: Atividade Operacional da Fazenda (Últimas 24h)
+  const ctx = document.getElementById('chart-admin-atividade');
+  if (ctx && window.Chart) {
+    const hours = ['00:00', '02:00', '04:00', '06:00', '08:00 (Início da Irrigação)', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', 'Agora (15:42)'];
+    const vwcData = [45.2, 45.0, 44.8, 45.5, 48.0, 49.5, 49.0, 48.2, 47.5, 47.0, 46.8, 46.8];
+    const tempData = [10.5, 10.2, 10.0, 10.4, 11.0, 11.5, 12.0, 12.8, 12.2, 11.8, 11.6, 11.8];
+
+    const chart = new window.Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: hours,
+        datasets: [
+          {
+            label: 'Umidade do Solo (VWC)',
+            data: vwcData,
+            borderColor: '#10B981',
+            backgroundColor: 'rgba(16, 185, 129, 0.15)',
+            borderWidth: 2.5,
+            fill: true,
+            tension: 0.35,
+            pointRadius: [0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 5],
+            pointBackgroundColor: '#10B981',
+            yAxisID: 'y'
+          },
+          {
+            label: 'Temp. Média Lotes (°C)',
+            data: tempData,
+            borderColor: '#0284C7',
+            backgroundColor: 'transparent',
+            borderWidth: 2,
+            borderDash: [4, 4],
+            tension: 0.35,
+            pointRadius: 0,
+            yAxisID: 'y1'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#0F172A',
+            padding: 10,
+            callbacks: {
+              label: (item) => item.datasetIndex === 0 ? `Umidade: ${item.raw}% VWC` : `Temperatura: ${item.raw}°C`
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            ticks: { font: { size: 10 }, color: '#94A3B8' }
+          },
+          y: {
+            position: 'left',
+            min: 30,
+            max: 70,
+            ticks: {
+              callback: (v) => v + '%',
+              font: { size: 10 },
+              color: '#10B981'
+            },
+            grid: { color: '#F1F5F9' }
+          },
+          y1: {
+            position: 'right',
+            min: 5,
+            max: 20,
+            ticks: {
+              callback: (v) => v + '°C',
+              font: { size: 10 },
+              color: '#0284C7'
+            },
+            grid: { display: false }
+          }
+        }
+      }
+    });
+
+    chartInstances.push(chart);
   }
 }

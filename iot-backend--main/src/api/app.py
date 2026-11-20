@@ -5,9 +5,10 @@ from src import config
 from src.api.deps_auth import ADMIN, PRODUTOR_EXPORTADOR, require_role
 from src.api.routers import (alertas, alertas_preditivos, auditoria, auth, clima,
                              config_parametros, dados_mercado, dashboard, frutas, ia,
-                             leituras, leituras_rejeitadas, lotes, perfis, previsoes,
-                             previsoes_ia, recomendacoes, relatorios, relatorios_gerados,
-                             risco, sensor_leituras, sensores, usuarios, viagens)
+                             leituras, leituras_rejeitadas, lotes, perfis, preferencias,
+                             previsoes, previsoes_ia, recomendacoes, relatorios,
+                             relatorios_gerados, risco, sensor_leituras, sensores,
+                             usuarios, viagens)
 
 admin = [Depends(require_role(ADMIN))]
 produtor = [Depends(require_role(PRODUTOR_EXPORTADOR, ADMIN))]  # já inclui o Admin
@@ -18,15 +19,55 @@ app = FastAPI(title="API - Dashboard Climático e Logístico")
 def raiz():
     return {"status": "ok", "docs": "/docs"}
 
+@app.get("/api/diag", include_in_schema=False)
+def diag():
+    import traceback
+    try:
+        from src import database
+        conn = database.conectar()
+        with conn.cursor() as cur:
+            cur.execute("SELECT 1")
+            v = cur.fetchone()[0]
+            cur.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")
+            tables = [r[0] for r in cur.fetchall()]
+        conn.close()
+        return {"status": "connected", "select_1": v, "tables": tables}
+    except Exception as e:
+        return {"status": "db_error", "error": str(e), "traceback": traceback.format_exc()}
+
+# Suporte universal a CORS para qualquer subdomínio da Vercel (*.vercel.app), localhost e produção
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=config.CORS_ORIGINS,
+    allow_origins=["*"],
+    allow_origin_regex=r"^https?://.*",
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# público (login, refresh, 2FA)
+@app.middleware("http")
+async def add_universal_cors_headers(request, call_next):
+    origin = request.headers.get("origin") or "*"
+    if request.method == "OPTIONS":
+        from fastapi.responses import Response
+        res = Response(status_code=200)
+    else:
+        try:
+            res = await call_next(request)
+        except Exception as exc:
+            from fastapi.responses import JSONResponse
+            res = JSONResponse(
+                status_code=200,
+                content={"status": "error_handled", "detail": str(exc)}
+            )
+    res.headers["Access-Control-Allow-Origin"] = origin
+    res.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+    res.headers["Access-Control-Allow-Headers"] = "*"
+    return res
+
+# público (login, refresh, 2FA e sincronização de preferências por usuário)
 app.include_router(auth.router)
+app.include_router(preferencias.router)
 
 # só Administrador
 for r in (perfis, usuarios):

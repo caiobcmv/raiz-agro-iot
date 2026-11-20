@@ -9,6 +9,7 @@ psycopg2-binary==2.9.13
 fastapi
 uvicorn[standard]
 pydantic[email]
+google-genai
 
 # Segurança e Criptografia
 bcrypt

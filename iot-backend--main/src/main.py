@@ -1,6 +1,7 @@
 # busca a última leitura do ThingSpeak e grava no banco.
 import time
 from src import config, thingspeak_client, database
+from src.api.app import app
 
 
 def main():

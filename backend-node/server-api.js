@@ -69,25 +69,49 @@ function router(req, res) {
       try { data = JSON.parse(body); } catch(e) {}
       const email = (data.email || '').trim().toLowerCase();
 
-      // Comparação exata de e-mail (sem includes): apenas os 2 e-mails autorizados
-      if (email !== 'maria.clara@raizagro.agr.br' && email !== 'luiz.felipe@raizagro.agr.br') {
+      const usuarios = {
+        'lorena.lira@raizagro.agr.br': {
+          id_usuario: 3,
+          nome: 'Lorena Lira',
+          email: 'lorena.lira@raizagro.agr.br',
+          perfil: 'Administradora da Plataforma',
+          profile: 'admin'
+        },
+        'maria.clara@raizagro.agr.br': {
+          id_usuario: 1,
+          nome: 'Maria Clara',
+          email: 'maria.clara@raizagro.agr.br',
+          perfil: 'Gestora de Operações',
+          profile: 'gestor'
+        },
+        'luiz.felipe@raizagro.agr.br': {
+          id_usuario: 2,
+          nome: 'Luiz Felipe',
+          email: 'luiz.felipe@raizagro.agr.br',
+          perfil: 'Analista IoT & Telemetria',
+          profile: 'analista'
+        }
+      };
+
+      // Comparação exata contra os 3 e-mails autorizados
+      const autorizacao = usuarios[email];
+      if (!autorizacao) {
         return sendJson(res, 401, {
           detail: 'Credenciais inválidas. E-mail não autorizado.'
         });
       }
 
-      const isAnalista = email === 'luiz.felipe@raizagro.agr.br';
       const user = db.prepare('SELECT u.*, p.nome as perfil FROM usuario u JOIN perfil p ON u.id_perfil = p.id_perfil WHERE u.email = ?').get(email);
       return sendJson(res, 200, {
-        access_token: 'jwt_local_token_' + (isAnalista ? 'analista' : 'gestor'),
+        access_token: 'jwt_local_token_' + autorizacao.profile,
         token_type: 'bearer',
         user: {
-          id_usuario: user ? user.id_usuario : (isAnalista ? 2 : 1),
-          nome: user ? user.nome : (isAnalista ? 'Luiz Felipe' : 'Maria Clara'),
+          id_usuario: user ? user.id_usuario : autorizacao.id_usuario,
+          nome: user ? user.nome : autorizacao.nome,
           email: email,
-          perfil: isAnalista ? 'Analista IoT & Telemetria' : 'Gestora de Operações'
+          perfil: autorizacao.perfil
         },
-        perfil: isAnalista ? 'analista' : 'gestor'
+        perfil: autorizacao.profile
       });
     });
     return;

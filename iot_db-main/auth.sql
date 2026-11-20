@@ -59,6 +59,9 @@ BEGIN
 END $$;
 
 -- O primeiro Administrador NÃO entra aqui (tem hash de senha). Crie assim:
---   INSERT INTO usuario (nome, email, senha, status, fk_perfil_id_perfil)
---   VALUES ('Nome', 'email@real.com', '<hash argon2>', 'ativo',
---           (SELECT id_perfil FROM perfil WHERE nome = 'Administrador'));
+--   INSERT INTO usuario (id_usuario, nome, email, senha, status, fk_perfil_id_perfil)
+--   VALUES (3, 'Lorena Lira', 'lorena.lira@raizagro.agr.br', '<hash argon2>', 'ativo',
+--           (SELECT id_perfil FROM perfil WHERE nome = 'Administrador'))
+--   ON CONFLICT (id_usuario) DO UPDATE SET nome = EXCLUDED.nome, email = EXCLUDED.email;
+-- Ou para atualizar banco existente:
+--   UPDATE usuario SET nome = 'Lorena Lira', email = 'lorena.lira@raizagro.agr.br' WHERE id_usuario = 3;

@@ -138,3 +138,6 @@ INSERT INTO cortes_alerta_preditivo (nivel, limiar_min, limiar_max, acao_recomen
 ('MEDIO', 0.50, 0.79, 'Ajuste preventivo do ambiente e verificacao dos sistemas de refrigeracao'),
 ('CRITICO', 0.80, 1.00, 'Intervencao logistica e operacional imediata no lote')
 ON CONFLICT (nivel) DO NOTHING;
+
+-- Atualiza usuário Administrador para Lorena Lira se o banco já tiver o usuário 3
+UPDATE usuario SET nome = 'Lorena Lira', email = 'lorena.lira@raizagro.agr.br' WHERE id_usuario = 3;
