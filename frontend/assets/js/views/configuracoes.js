@@ -82,7 +82,7 @@ export async function renderConfiguracoes() {
           <!-- Nome de Exibição -->
           <div style="margin-bottom: 14px;">
             <label style="display: block; font-size: 11px; font-weight: 600; color: #475569; margin-bottom: 6px;">Nome de Exibição</label>
-            <input id="cfg-profile-name" value="${nomeExibicao}" readonly style="width: 100%; padding: 10px 12px; border: 1px solid #E2E8F0; border-radius: 9px; font-size: 13px; color: #0F172A; outline: none; background: #F8FAFC; box-sizing: border-box; cursor: default;">
+            <input id="cfg-profile-name" value="${nomeExibicao}" ${readOnlyAttr} style="width: 100%; padding: 10px 12px; border: 1px solid #E2E8F0; border-radius: 9px; font-size: 13px; color: #0F172A; outline: none; background: ${inputBg}; box-sizing: border-box; cursor: ${inputCursor};">
           </div>
 
           <!-- Cargo e Iniciais -->
@@ -93,7 +93,7 @@ export async function renderConfiguracoes() {
             </div>
             <div>
               <label style="display: block; font-size: 11px; font-weight: 600; color: #475569; margin-bottom: 6px;">Iniciais</label>
-              <input id="cfg-profile-initials" value="${iniciais}" readonly style="width: 100%; padding: 10px 12px; border: 1px solid #E2E8F0; border-radius: 9px; font-size: 13px; font-weight: 700; text-align: center; color: #0F172A; outline: none; background: #F8FAFC; box-sizing: border-box; cursor: default;">
+              <input id="cfg-profile-initials" value="${iniciais}" ${readOnlyAttr} style="width: 100%; padding: 10px 12px; border: 1px solid #E2E8F0; border-radius: 9px; font-size: 13px; font-weight: 700; text-align: center; color: #0F172A; outline: none; background: ${inputBg}; box-sizing: border-box; cursor: ${inputCursor};">
             </div>
           </div>
 
@@ -331,15 +331,21 @@ export async function renderConfiguracoes() {
             ${CULTURAS_LIST.map((c, i) => `
               <div class="culture-tag" data-index="${i}" style="background:#183D2E; color:#fff; font-size:11px; font-weight:600; padding:5px 12px; border-radius:7px; display:flex; align-items:center; gap:6px;">
                 ${c}
+                ${isAdmin ? `<span class="btn-remove-cultura" data-index="${i}" style="cursor:pointer; font-weight:800; opacity:0.8; margin-left:3px;" title="Remover cultura">&times;</span>` : ''}
               </div>
             `).join('')}
+            ${isAdmin ? `
+              <button type="button" id="btn-add-cultura" style="background:#F1F5F9; color:#059669; border:1px dashed #059669; font-size:11px; font-weight:700; padding:5px 12px; border-radius:7px; cursor:pointer; display:flex; align-items:center; gap:4px;">
+                <i data-lucide="plus" style="width:12px;height:12px;"></i> Nova Cultura
+              </button>
+            ` : ''}
           </div>
         </div>
 
         <!-- Tipo de Solo -->
         <div>
           <label style="display:block; font-size:11px; font-weight:600; color:#475569; margin-bottom:5px;">Tipo de Solo / Caracterização Terroir</label>
-          <select id="cfg-tipo-solo" disabled style="width:100%; padding:10px 12px; border:1px solid #E2E8F0; border-radius:9px; font-size:12px; color:#0F172A; outline:none; background:#F8FAFC; box-sizing:border-box; cursor:default;">
+          <select id="cfg-tipo-solo" ${isAdmin ? '' : 'disabled'} style="width:100%; padding:10px 12px; border:1px solid #E2E8F0; border-radius:9px; font-size:12px; color:#0F172A; outline:none; background:${inputBg}; box-sizing:border-box; cursor:${inputCursor};">
             <option>Latossolo Vermelho Eutrófico (Textura Média a Argilosa)</option>
             <option>Argissolo Vermelho-Amarelo</option>
             <option>Neossolo Quartzarênico</option>
@@ -379,6 +385,11 @@ export async function renderConfiguracoes() {
                   <div style="font-size:11px; font-weight:700; color:#059669;">${v.brix}</div>
                   <div style="font-size:10px; color:#94A3B8;">${v.calibre}</div>
                 </div>
+                ${isAdmin ? `
+                  <button type="button" class="btn-edit-variedade" data-index="${i}" style="padding:4px 9px; background:#FFFFFF; border:1px solid #CBD5E1; border-radius:6px; font-size:11px; font-weight:700; color:#047857; cursor:pointer; display:flex; align-items:center; gap:4px; box-shadow:0 1px 2px rgba(0,0,0,0.05);" title="Editar Limiares">
+                    <i data-lucide="edit-3" style="width:11px; height:11px;"></i> Editar
+                  </button>
+                ` : ''}
               </div>
             </div>
           `).join('')}
@@ -652,11 +663,67 @@ export async function setupConfiguracoesEvents() {
     toast.info('Padrões Restaurados', isAdmin ? 'Padrões de sistema e tema Claro restaurados.' : 'Tema Claro e paleta Esmeralda restaurados.');
   });
 
-  // H) Salvar Configurações do Sistema (Apenas Perfil Administrador)
+  // H) Edição de Variedades e Limiares (Admin)
+  document.querySelectorAll('.btn-edit-variedade').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const idx = parseInt(e.currentTarget.dataset.index, 10);
+      const item = VARIEDADES_LIST[idx];
+      if (!item) return;
+
+      Modal.open(`Editar Padrão — ${item.name}`, `
+        <div style="display:flex; flex-direction:column; gap:12px; font-size:13px;">
+          <div>
+            <label style="font-weight:700; color:#1E293B; display:block; margin-bottom:5px;">Grau Brix Mínimo</label>
+            <input id="modal-edit-brix" value="${item.brix}" style="width:100%; padding:9px 12px; border:1px solid #CBD5E1; border-radius:8px; box-sizing:border-box; font-size:13px;">
+          </div>
+          <div>
+            <label style="font-weight:700; color:#1E293B; display:block; margin-bottom:5px;">Calibre Padrão de Colheita</label>
+            <input id="modal-edit-calibre" value="${item.calibre}" style="width:100%; padding:9px 12px; border:1px solid #CBD5E1; border-radius:8px; box-sizing:border-box; font-size:13px;">
+          </div>
+        </div>
+      `, () => {
+        const novoBrix = document.getElementById('modal-edit-brix')?.value.trim();
+        const novoCalibre = document.getElementById('modal-edit-calibre')?.value.trim();
+        if (novoBrix) item.brix = novoBrix;
+        if (novoCalibre) item.calibre = novoCalibre;
+        toast.success('Padrão Atualizado', `Limiares de ${item.name} foram atualizados.`);
+        window.dispatchEvent(new HashChangeEvent('hashchange'));
+      }, 'Salvar Alterações');
+    });
+  });
+
+  // I) Adicionar e Remover Culturas (Admin)
+  document.getElementById('btn-add-cultura')?.addEventListener('click', () => {
+    Modal.open('Cadastrar Nova Cultura', `
+      <div style="font-size:13px;">
+        <label style="font-weight:700; color:#1E293B; display:block; margin-bottom:5px;">Nome da Cultura</label>
+        <input id="modal-nova-cultura" placeholder="Ex: Melão Amarelo, Goiaba Paluma..." style="width:100%; padding:9px 12px; border:1px solid #CBD5E1; border-radius:8px; box-sizing:border-box; font-size:13px;">
+      </div>
+    `, () => {
+      const nova = document.getElementById('modal-nova-cultura')?.value.trim();
+      if (nova) {
+        CULTURAS_LIST.push(nova);
+        toast.success('Cultura Cadastrada', `A cultura ${nova} foi adicionada à propriedade.`);
+        window.dispatchEvent(new HashChangeEvent('hashchange'));
+      }
+    }, 'Cadastrar Cultura');
+  });
+
+  document.querySelectorAll('.btn-remove-cultura').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const idx = parseInt(e.currentTarget.dataset.index, 10);
+      const removida = CULTURAS_LIST.splice(idx, 1);
+      toast.info('Cultura Removida', `${removida[0]} foi removida da lista.`);
+      window.dispatchEvent(new HashChangeEvent('hashchange'));
+    });
+  });
+
+  // J) Salvar Configurações do Sistema (Apenas Perfil Administrador)
   document.getElementById('btn-salvar-configuracoes-admin')?.addEventListener('click', () => {
     const farmName = document.getElementById('cfg-farm-name')?.value || 'Fazenda Vale das Uvas';
     const farmCoords = document.getElementById('cfg-farm-coords')?.value || '-21.177502, -47.616331';
     const farmArea = document.getElementById('cfg-farm-area')?.value || '1.250';
+    const tipoSolo = document.getElementById('cfg-tipo-solo')?.value || '';
     const bio = document.getElementById('cfg-profile-bio')?.value || '';
     const phone = document.getElementById('cfg-profile-phone')?.value || '';
     const matinal = document.getElementById('cfg-horario-matinal')?.value || '06:30 AM';
@@ -669,7 +736,10 @@ export async function setupConfiguracoesEvents() {
         ...(currentPrefs.propriedade_json || {}),
         farmName,
         farmCoords,
-        farmArea
+        farmArea,
+        tipoSolo,
+        culturas: CULTURAS_LIST,
+        variedades: VARIEDADES_LIST
       },
       notificacoes_json: {
         ...(currentPrefs.notificacoes_json || {}),
