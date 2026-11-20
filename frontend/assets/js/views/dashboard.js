@@ -8,6 +8,7 @@ import { api } from '../api.js';
 import { auth } from '../auth.js';
 import { toast } from '../components/toast.js';
 import { Modal } from '../components/modal.js';
+import { downloadCSV, downloadPDF, openExportChoiceModal } from '../utils/export-utils.js';
 
 let chartInstances = [];
 let dadosGraficosCache = null;
@@ -1286,14 +1287,40 @@ function setupAnalistaDashboardEvents() {
     });
   }
 
-  // Exportar Telemetria
+  // Exportar Telemetria (CSV & PDF Reais)
   const btnExport = document.getElementById('btn-export-telemetria');
   if (btnExport) {
     btnExport.addEventListener('click', () => {
-      toast.info('Exportação Iniciada', 'Gerando arquivo CSV com telemetria dos 24 sensores do LOTE A1 e C2...');
-      setTimeout(() => {
-        toast.success('Download Pronto', 'Arquivo telemetria_petrolina_us915.csv gerado com sucesso.');
-      }, 1200);
+      const headers = ['Timestamp', 'Sensor', 'Lote / Talhao', 'Temp Ar (C)', 'Umidade Ar (%)', 'Umidade Solo (%)', 'Status'];
+      const g = dadosGraficosCache || DEFAULT_DADOS_GRAFICOS;
+      const horas = ['00:00', '03:00', '06:00', '09:00', '12:00', '15:00', '18:00', '21:00'];
+      const rows = horas.map((h, i) => [
+        `Hoje ${h}`,
+        'DHT11 ESP32-C3 (#3500765)',
+        'Lote #1 / Talhao A1',
+        g.temp_ar_24h?.[i] ?? 27.0,
+        g.umidade_ar_24h?.[i] ?? 60,
+        g.umidade_solo_24h?.[i] ?? 56,
+        'VALIDO'
+      ]);
+      const dataTag = new Date().toISOString().slice(0, 10);
+      openExportChoiceModal(
+        Modal,
+        'Exportar Telemetria IoT — Petrolina US915',
+        () => {
+          downloadCSV(`telemetria_petrolina_us915_${dataTag}.csv`, headers, rows);
+          toast.success('Download CSV Concluído', `telemetria_petrolina_us915_${dataTag}.csv baixado com sucesso.`);
+        },
+        () => {
+          downloadPDF(`telemetria_petrolina_us915_${dataTag}.pdf`, {
+            title: 'Relatório de Telemetria IoT — Petrolina US915',
+            subtitle: 'Série 24h • DHT11 ESP32-C3 & Sonda Solo FDR',
+            headers,
+            rows
+          });
+          toast.success('Download PDF Concluído', `telemetria_petrolina_us915_${dataTag}.pdf baixado com sucesso.`);
+        }
+      );
     });
   }
 

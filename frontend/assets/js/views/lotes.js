@@ -9,6 +9,7 @@
 import { api } from '../api.js';
 import { Modal } from '../components/modal.js';
 import { toast } from '../components/toast.js';
+import { downloadCSV, downloadPDF, openExportChoiceModal } from '../utils/export-utils.js';
 
 let _lotesData = [
   {
@@ -115,6 +116,10 @@ export async function renderLotes() {
             <div>Período Vigente: <strong style="color: #0F172A;">01/08/2025 - 30/07/2026</strong></div>
             <div>Área Produtiva: <strong style="color: #0F172A;">1.250 ha cadastrados</strong></div>
           </div>
+          <button class="btn" id="btn-exportar-lotes-pdf-csv" style="background: #FFFFFF; color: #0F172A; border: 1px solid #CBD5E1; font-size: 12px; font-weight: 700; padding: 9px 15px; border-radius: 8px; display: flex; align-items: center; gap: 7px; cursor: pointer;">
+            <i data-lucide="download" style="width: 14px; height: 14px; color: #059669;"></i>
+            <span>Exportar (PDF/CSV)</span>
+          </button>
           <button class="btn btn-primary" id="btn-abrir-nova-safra" style="background: #183D2E; color: #FFFFFF; border: none; font-size: 12px; font-weight: 700; padding: 9px 18px; border-radius: 8px; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: all 0.2s;">
             <i data-lucide="plus-circle" style="width: 15px; height: 15px;"></i>
             <span>+ Abrir Nova Safra (2026/2027)</span>
@@ -727,6 +732,30 @@ export function setupLotesEvents() {
       filtrarLotes();
       toast.info('Esteira Operacional', `Filtrando lotes no estágio: "${estagio}".`);
     });
+  });
+
+  // Exportar Lotes (PDF & CSV dedicados)
+  document.getElementById('btn-exportar-lotes-pdf-csv')?.addEventListener('click', () => {
+    const headers = ['Codigo', 'Cultura', 'Talhao', 'Status', 'Colheita', 'Volume', 'Destino', 'Brix', 'Temp (C)'];
+    const rows = _lotesData.map(l => [l.codigo, l.cultura, l.talhao, l.status, l.colheita, l.volume, l.destino, l.brix, l.temp]);
+    const dataTag = new Date().toISOString().slice(0, 10);
+    openExportChoiceModal(
+      Modal,
+      'Exportar Rastreabilidade de Lotes & Safra',
+      () => {
+        downloadCSV(`rastreabilidade_lotes_raiz_${dataTag}.csv`, headers, rows);
+        toast.success('CSV Exportado', `rastreabilidade_lotes_raiz_${dataTag}.csv baixado.`);
+      },
+      () => {
+        downloadPDF(`rastreabilidade_lotes_raiz_${dataTag}.pdf`, {
+          title: 'Relatório de Rastreabilidade de Lotes — Safra 25/26',
+          subtitle: 'Governança Agronômica • Esteira de Status, Brix e Destino de Exportação',
+          headers,
+          rows
+        });
+        toast.success('PDF Exportado', `rastreabilidade_lotes_raiz_${dataTag}.pdf baixado.`);
+      }
+    );
   });
 
   vincularEventosCards();

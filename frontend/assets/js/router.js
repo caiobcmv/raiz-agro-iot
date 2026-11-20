@@ -20,20 +20,20 @@ import {
   renderSenhaAlterada, setupSenhaAlteradaEvents,
   renderContaBloqueada, setupContaBloqueadaEvents
 } from './views/auth-flow.js?v=20261111-clean2fa-1';
-import { renderDashboard, setupDashboardEvents } from './views/dashboard.js';
-import { renderSensores, setupSensoresEvents } from './views/sensores.js';
-import { renderRedeEsp32, setupRedeEsp32Events } from './views/rede-esp32.js';
-import { renderLeituras, setupLeiturasEvents } from './views/leituras.js';
-import { renderLotes, setupLotesEvents } from './views/lotes.js';
-import { renderViagens, setupViagensEvents } from './views/viagens.js';
-import { renderAlertas, setupAlertasEvents } from './views/alertas.js?v=20261120-live4';
+import { renderDashboard, setupDashboardEvents } from './views/dashboard.js?v=20261120-exp1';
+import { renderSensores, setupSensoresEvents } from './views/sensores.js?v=20261120-exp1';
+import { renderRedeEsp32, setupRedeEsp32Events } from './views/rede-esp32.js?v=20261120-exp1';
+import { renderLeituras, setupLeiturasEvents } from './views/leituras.js?v=20261120-exp1';
+import { renderLotes, setupLotesEvents } from './views/lotes.js?v=20261120-exp2';
+import { renderViagens, setupViagensEvents } from './views/viagens.js?v=20261120-exp2';
+import { renderAlertas, setupAlertasEvents } from './views/alertas.js?v=20261120-exp1';
 import { renderPrevisoes } from './views/previsoes.js';
-import { renderRelatorios, setupRelatoriosEvents } from './views/relatorios.js';
-import { renderConfiguracoes, setupConfiguracoesEvents } from './views/configuracoes.js?v=20261120-live3';
+import { renderRelatorios, setupRelatoriosEvents } from './views/relatorios.js?v=20261120-exp2';
+import { renderConfiguracoes, setupConfiguracoesEvents } from './views/configuracoes.js?v=20261120-exp2';
 import { renderUsuarios, setupUsuariosEvents } from './views/usuarios.js';
-import { renderRegrasAgronomicas, setupRegrasAgronomicasEvents } from './views/regras-agronomicas.js';
-import { renderAuditoria, setupAuditoriaEvents } from './views/auditoria.js';
-import { renderSensoresAdmin, setupSensoresAdminEvents } from './views/sensores-admin.js';
+import { renderRegrasAgronomicas, setupRegrasAgronomicasEvents } from './views/regras-agronomicas.js?v=20261120-exp1';
+import { renderAuditoria, setupAuditoriaEvents } from './views/auditoria.js?v=20261120-exp2';
+import { renderSensoresAdmin, setupSensoresAdminEvents } from './views/sensores-admin.js?v=20261120-exp1';
 
 const routes = {
   '#/login': {

@@ -1,4 +1,4 @@
-﻿import { liveTelemetry } from '../live-telemetry.js';
+import { liveTelemetry } from '../live-telemetry.js';
 /**
  * VIEW: SENSORES & TELEMETRIA DE CAMPO - FIEL AO FIGMA (PERFIL ANALISTA)
  * Suporte a correlação multidimensional, canais ThingSpeak e auditoria de hardware.
@@ -7,6 +7,7 @@
 import { api } from '../api.js';
 import { Modal } from '../components/modal.js';
 import { toast } from '../components/toast.js';
+import { downloadCSV, downloadPDF, openExportChoiceModal } from '../utils/export-utils.js';
 
 export async function renderSensores() {
   return `
@@ -609,47 +610,67 @@ export function setupSensoresEvents() {
     });
   }
 
-  // Exportar CSV de Sensores
+  // Exportar Inventário de Sensores (CSV & PDF Reais)
   const btnExpSens = document.getElementById('btn-exportar-sensores-csv');
   if (btnExpSens) {
     btnExpSens.addEventListener('click', () => {
-      const headers = ["ID Sensor", "Nome", "Tipo", "LOTE", "Canal ThingSpeak", "Bateria", "Status"];
+      const headers = ['ID Sensor', 'Nome', 'Tipo', 'LOTE', 'Canal ThingSpeak', 'Bateria', 'Status'];
       const rows = [
-        [1, "SNS-SL-001", "Solo (FDR)", "LOTE A1 - Uva Vitoria", 248901, "98%", "ativo"],
-        [2, "SNS-AR-002", "Ar / Microclima", "LOTE A1 - Uva Vitoria", 248901, "95%", "ativo"],
-        [3, "SNS-SL-003", "Solo (FDR)", "LOTE B2 - Uva Thompson", 248902, "92%", "ativo"],
-        [4, "SNS-AR-004", "Ar / Microclima", "LOTE B2 - Uva Thompson", 248902, "90%", "ativo"],
-        [5, "SNS-SL-005", "Solo (FDR)", "LOTE C1 - Manga Palmer", 248903, "88%", "ativo"]
+        ['1', 'SNS-SL-001', 'Solo (FDR)', 'LOTE A1 - Uva Vitoria', '248901', '98%', 'ativo'],
+        ['2', 'SNS-AR-002', 'Ar / Microclima', 'LOTE A1 - Uva Vitoria', '3500765', '95%', 'ativo'],
+        ['3', 'SNS-SL-003', 'Solo (FDR)', 'LOTE B2 - Uva Thompson', '248902', '92%', 'ativo'],
+        ['4', 'SNS-AR-004', 'Ar / Microclima', 'LOTE B2 - Uva Thompson', '248902', '90%', 'ativo'],
+        ['5', 'SNS-SL-005', 'Solo (FDR)', 'LOTE C1 - Manga Palmer', '248903', '88%', 'ativo']
       ];
-      const csv = "\uFEFF" + [headers.join(";"), ...rows.map(r => r.join(";"))].join("\r\n");
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = "inventario_sensores_agro.csv";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      toast.success('Download Concluído', 'Inventário de sensores exportado com sucesso.');
+      const dataTag = new Date().toISOString().slice(0, 10);
+      openExportChoiceModal(
+        Modal,
+        'Exportar Inventário de Sensores IoT',
+        () => {
+          downloadCSV(`inventario_sensores_agro_${dataTag}.csv`, headers, rows);
+          toast.success('Download CSV Concluído', `inventario_sensores_agro_${dataTag}.csv baixado.`);
+        },
+        () => {
+          downloadPDF(`inventario_sensores_agro_${dataTag}.pdf`, {
+            title: 'Inventário de Sensores & Telemetria de Campo',
+            subtitle: 'Parque de Hardware IoT • ESP32-C3, Sondas FDR e Câmaras Frias',
+            headers,
+            rows
+          });
+          toast.success('Download PDF Concluído', `inventario_sensores_agro_${dataTag}.pdf baixado.`);
+        }
+      );
     });
   }
 
-  // Botão Log de Ingestão
+  // Botão Log de Ingestão (com download real do dump CSV)
   const btnLog = document.getElementById('btn-log-ingestao');
   if (btnLog) {
     btnLog.addEventListener('click', () => {
       Modal.open('Log Completo de Ingestão ThingSpeak', `
         <div style="font-family: monospace; font-size: 11px; background: #0F172A; color: #86EFAC; padding: 14px; border-radius: 8px; line-height: 1.7; max-height: 260px; overflow-y: auto;">
           [14:12:00] REJECTED - Outlier térmico 78.4°C descartado por filtro Penman (Sensor #02 • Ch 248901)<br>
-          [14:10:00] CHANNEL 248901 - POST /update ? api_key=THINGSPEAK_KEY &amp; field1=27.4 &amp; field2=46.8 - 200 OK<br>
-          [14:05:00] CHANNEL 248901 - POST /update ? api_key=THINGSPEAK_KEY &amp; field1=27.2 &amp; field2=46.7 - 200 OK<br>
-          [14:00:00] CHANNEL 248901 - POST /update ? api_key=THINGSPEAK_KEY &amp; field1=27.1 &amp; field2=46.8 - 200 OK<br>
-          [13:55:00] CHANNEL 248902 - POST /update ? api_key=THINGSPEAK_KEY &amp; field1=25.8 &amp; field2=37.8 - 200 OK<br>
+          [14:10:00] CHANNEL 3500765 - POST /update ? api_key=THINGSPEAK_KEY &amp; field1=27.4 &amp; field2=46.8 - 200 OK<br>
+          [14:05:00] CHANNEL 3500765 - POST /update ? api_key=THINGSPEAK_KEY &amp; field1=27.2 &amp; field2=46.7 - 200 OK<br>
+          [14:00:00] CHANNEL 3500765 - POST /update ? api_key=THINGSPEAK_KEY &amp; field1=27.1 &amp; field2=46.8 - 200 OK<br>
+          [13:55:00] CHANNEL 3500765 - POST /update ? api_key=THINGSPEAK_KEY &amp; field1=25.8 &amp; field2=37.8 - 200 OK<br>
           [Ontem 22:45] REJECTED - Leitura analógica corrompida -4.2% descartada (Sensor #14 • Ch 248905)
         </div>
       `, () => {
-        toast.success('Download Concluído', 'Dump de 1.000 feeds do ThingSpeak exportado com sucesso.');
-      }, 'Exportar Feed Completo');
+        const dataTag = new Date().toISOString().slice(0, 10);
+        downloadCSV(
+          `thingspeak_feed_dump_${dataTag}.csv`,
+          ['Horario', 'Canal', 'Status', 'Temp (C)', 'Umidade (%)', 'Observacao'],
+          [
+            ['14:12:00', '248901', 'REJECTED', '78.4', '-', 'Outlier termico descartado por filtro fisico'],
+            ['14:10:00', '3500765', '200 OK', '27.4', '46.8', 'Gravado em leitura_climatica'],
+            ['14:05:00', '3500765', '200 OK', '27.2', '46.7', 'Gravado em leitura_climatica'],
+            ['14:00:00', '3500765', '200 OK', '27.1', '46.8', 'Gravado em leitura_climatica'],
+            ['13:55:00', '3500765', '200 OK', '25.8', '37.8', 'Gravado em leitura_climatica']
+          ]
+        );
+        toast.success('Download Concluído', `thingspeak_feed_dump_${dataTag}.csv baixado com sucesso.`);
+      }, 'Exportar Feed Completo (CSV)');
     });
   }
 

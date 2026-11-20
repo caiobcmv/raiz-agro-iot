@@ -10,6 +10,7 @@
 import { api } from '../api.js';
 import { Modal } from '../components/modal.js';
 import { toast } from '../components/toast.js';
+import { downloadCSV, downloadPDF, openExportChoiceModal } from '../utils/export-utils.js';
 
 let _regrasFisiologicas = [
   {
@@ -392,7 +393,7 @@ export async function renderRegrasAgronomicas() {
             <a href="#/sensores" style="color: #0284C7; text-decoration: none; font-weight: 600; display: flex; justify-content: space-between; padding: 3px 0;">
               <span>Reclassificar Pesos de Predição (XRF)</span> &rarr;
             </a>
-            <a href="#/relatorios" style="color: #0284C7; text-decoration: none; font-weight: 600; display: flex; justify-content: space-between; padding: 3px 0;">
+            <a href="javascript:void(0)" id="btn-exportar-dicionario-pdf" style="color: #0284C7; text-decoration: none; font-weight: 600; display: flex; justify-content: space-between; padding: 3px 0;">
               <span>Exportar Dicionário de Parâmetros (PDF)</span> &rarr;
             </a>
           </div>
@@ -592,25 +593,46 @@ export function setupRegrasAgronomicasEvents() {
     });
   }
 
-  // Exportar Matriz
+  // Exportar Matriz (CSV & PDF Reais)
+  const headersMatriz = ['ID', 'Cultura', 'Subtitulo', 'Faixa Segura', 'Ponto Critico Min', 'Ponto Critico Max', 'Norma'];
+  const getRowsMatriz = () => _regrasFisiologicas.map(r => [r.id, r.titulo, r.subtitulo, r.tempLabel, r.pontoFrio, r.pontoQuente, r.badge]);
+
   const btnExportarMatriz = document.getElementById('btn-exportar-matriz');
   if (btnExportarMatriz) {
     btnExportarMatriz.addEventListener('click', () => {
-      const csv = `id;cultura;subtitulo;faixa_segura;ponto_critico_min;ponto_critico_max;norma\n` +
-        _regrasFisiologicas.map(r => `${r.id};"${r.titulo}";"${r.subtitulo}";"${r.tempLabel}";"${r.pontoFrio}";"${r.pontoQuente}";"${r.badge}"`).join('\n');
-      
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `matriz_regras_agronomicas_raiz_agro.csv`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      toast.success('Matriz Exportada', 'Matriz completa de 18 regras baixada em CSV.');
+      const dataTag = new Date().toISOString().slice(0, 10);
+      openExportChoiceModal(
+        Modal,
+        'Exportar Matriz de Regras Agronômicas',
+        () => {
+          downloadCSV(`matriz_regras_agronomicas_${dataTag}.csv`, headersMatriz, getRowsMatriz());
+          toast.success('Matriz CSV Exportada', `matriz_regras_agronomicas_${dataTag}.csv baixado com sucesso.`);
+        },
+        () => {
+          downloadPDF(`matriz_regras_agronomicas_${dataTag}.pdf`, {
+            title: 'Matriz de Regras Agronômicas & Limiares Fisiológicos',
+            subtitle: 'Parâmetros de Conservação (Embrapa / UC Davis / IAC)',
+            headers: headersMatriz,
+            rows: getRowsMatriz()
+          });
+          toast.success('Matriz PDF Exportada', `matriz_regras_agronomicas_${dataTag}.pdf baixado com sucesso.`);
+        }
+      );
     });
   }
+
+  // Exportar Dicionário de Parâmetros (PDF Direto)
+  document.getElementById('btn-exportar-dicionario-pdf')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    const dataTag = new Date().toISOString().slice(0, 10);
+    downloadPDF(`dicionario_parametros_raiz_${dataTag}.pdf`, {
+      title: 'Dicionário Oficial de Parâmetros Agronômicos',
+      subtitle: 'Especificações de Temperatura, Umidade Relativa e Risco Preditivo',
+      headers: headersMatriz,
+      rows: getRowsMatriz()
+    });
+    toast.success('Dicionário PDF Baixado', `dicionario_parametros_raiz_${dataTag}.pdf gerado com sucesso.`);
+  });
 
   // Nova Regra
   const btnNova = document.getElementById('btn-nova-regra');

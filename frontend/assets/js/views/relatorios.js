@@ -6,8 +6,10 @@
  */
 
 import { api } from '../api.js';
+import { auth } from '../auth.js';
 import { Modal } from '../components/modal.js';
 import { toast } from '../components/toast.js';
+import { downloadCSV, downloadPDF } from '../utils/export-utils.js';
 
 let _relatoriosList = [
   {
@@ -372,48 +374,87 @@ function atualizarTabelaRelatorios() {
 }
 
 function dispararDownloadReal(titulo, formato) {
-  let mimeType = 'text/plain';
-  let extensao = formato.toLowerCase();
-  let content = '';
+  const extensao = String(formato || 'pdf').toLowerCase();
+  const baseName = `${titulo.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')}`;
+  const tLower = String(titulo || '').toLowerCase();
 
-  if (extensao === 'csv') {
-    mimeType = 'text/csv;charset=utf-8;';
-    content = `timestamp;sensor;talhao;cultura;vwc_solo;temp_ar;umid_ar;rssi_dbm;status\n` +
-              `2026-09-22 15:42:00;SNS-SL-001;Talhao A1;Uva Vitoria;46.8;27.4;61.2;-81;VALIDO\n` +
-              `2026-09-22 15:37:00;SNS-SL-001;Talhao A1;Uva Vitoria;46.7;27.3;61.5;-80;VALIDO\n` +
-              `2026-09-22 15:32:00;SNS-SL-019;Talhao C1;Manga Tommy;62.4;28.1;59.4;-85;REJEITADO_OUTLIER\n` +
-              `2026-09-22 15:27:00;SNS-AR-002;Talhao A1;Uva Vitoria;46.8;28.1;59.4;-80;VALIDO\n`;
-  } else if (extensao === 'xlsx') {
-    mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-    content = `RAIZ AGRO - PLATAFORMA IOT AGRICULTURA DE PRECISÃO\n` +
-              `RELATORIO OFICIAL: ${titulo}\n` +
-              `Safra: 2025/2026 | Polo Petrolina-PE\n` +
-              `Assinatura Digital SHA-256: d41d8cd98f00b204e9800998ecf8427e\n\n` +
-              `Talhao;Cultura;Produtividade (ton/ha);Brix Medio;Faixa Frio (C);Status\n` +
-              `Talhao A1;Uva Vitoria;32.4;19.8;0.8;Colhido / Exportado\n` +
-              `Talhao B1;Manga Palmer;29.0;16.5;12.0;Em Transito (Peceem)\n` +
-              `Talhao B2;Melao Amarelo;28.1;12.4;10.5;Packing House\n`;
-  } else {
-    mimeType = 'application/pdf';
-    content = `%PDF-1.4\n` +
-              `% RAIZ AGRO PLATAFORMA IOT AGRICULTURA DE PRECISÃO\n` +
-              `% RELATÓRIO OFICIAL: ${titulo}\n` +
-              `% DATA: 22 de setembro de 2026\n` +
-              `% POLO: Sertão do São Francisco / Petrolina - Setor 04\n` +
-              `% AUDITORIA FORENSE: Homologado GlobalG.A.P. & MAPA Compliance v4\n` +
-              `% ASSINATURA DIGITAL: 0x9812A7C4B29E1084F\n` +
-              `% STATUS: Persistido no Banco de Dados Relacional (PostgreSQL / raiz_agro.db)\n`;
+  let subtitle = 'RAIZ Agro IoT • Repositório Oficial de Documentos & Compliance';
+  let headers = ['Timestamp', 'Sensor / Talhao', 'Cultura', 'VWC Solo (%)', 'Temp Ar (C)', 'Umid Ar (%)', 'Status'];
+  let rows = [
+    ['2026-09-22 15:42', 'SNS-SL-001 • Talhao A1', 'Uva Vitoria', '46.8', '27.4', '61.2', 'VALIDO'],
+    ['2026-09-22 15:37', 'SNS-SL-002 • Talhao A2', 'Uva Vitoria', '48.1', '27.1', '61.5', 'VALIDO'],
+    ['2026-09-22 15:32', 'SNS-SL-019 • Talhao C1', 'Manga Tommy', '62.4', '28.1', '59.4', 'REJEITADO_OUTLIER'],
+    ['2026-09-22 15:27', 'DHT11-ESP32 • Camara 01', 'Manga Palmer', '-', '11.8', '92.0', 'VALIDO']
+  ];
+  let notes = [
+    'Auditoria Forense: Homologado GlobalG.A.P. IFA v6 & MAPA Compliance v4.',
+    'Assinatura Digital SHA-256 verificada no PostgreSQL.',
+    'Polo Sertão do São Francisco / Petrolina - Setor 04.'
+  ];
+
+  if (tLower.includes('safra')) {
+    subtitle = 'Consolidado de Ciclos Agronômicos, Produtividade, Água e Brix Médio';
+    headers = ['Ciclo', 'Cultura Principal', 'Area (ha)', 'Produtividade', 'Volume (ton)', 'Agua (m3/ha)', 'Brix', 'Status'];
+    rows = [
+      ['2025/2026', 'Uva Vitoria & Manga Palmer', '42.5', '30.2 ton/ha', '1284.5', '3420', '19.4', 'Em Andamento'],
+      ['2024/2025', 'Uva Vitoria (Seedless)', '40.0', '26.5 ton/ha', '1060.0', '3760', '18.2', 'Concluida'],
+      ['2023/2024', 'Manga Tommy & Uva Crimson', '38.0', '24.8 ton/ha', '942.4', '4120', '17.5', 'Concluida']
+    ];
+    notes = [
+      'Taxa média de exportação na safra ativa: 96.2% (União Europeia / UK / Mercosul).',
+      'Eficiência hídrica aprimorada em -9.0% vs. ciclo anterior com irrigação FDR.'
+    ];
+  } else if (tLower.includes('globalg.a.p') || tLower.includes('conformidade') || tLower.includes('dossi')) {
+    subtitle = 'Dossiê Oficial de Rastreabilidade & Certificação Internacional GlobalG.A.P.';
+    headers = ['Lote', 'Variedade', 'Brix Min/Med', 'Residuos', 'Cold-Chain (C)', 'Destino', 'Certificacao'];
+    rows = [
+      ['EXP-2026-08', 'Uva Vitoria Seedless', '18.0 / 19.8', '0.0% (Zero)', '0.5 - 2.0 C', 'Porto Pecem (UE)', 'HOMOLOGADO A+'],
+      ['LT-2026-079', 'Uva Vitoria Seedless', '18.0 / 18.9', '0.0% (Zero)', '0.5 - 2.0 C', 'Porto Suape (UK)', 'HOMOLOGADO A+'],
+      ['LT-2026-084', 'Manga Palmer', '13.0 / 16.5', '0.0% (Zero)', '10.0 - 13.0 C', 'Rotterdam (NL)', 'HOMOLOGADO A+']
+    ];
+    notes = [
+      'Certificado Fitossanitário e Rastreabilidade de Campo ao Porto 100% em conformidade.',
+      'Zero desvios críticos não mitigados na cadeia fria auditada.'
+    ];
+  } else if (tLower.includes('sensor') || tLower.includes('thingspeak') || tLower.includes('rejei')) {
+    subtitle = 'Auditoria Forense de Ingestão IoT • Canal ThingSpeak #3500765 & leitura_rejeitada';
+    headers = ['Data/Hora', 'Sensor', 'Canal', 'Temp (C)', 'Umid (%)', 'Motivo / Validacao', 'Status'];
+    rows = [
+      ['2026-09-22 15:42', 'DHT11 ESP32-C3', '#3500765', '11.8', '92.0', 'Dentro da faixa fisica (-5 a 55C)', 'ACEITO'],
+      ['2026-09-22 15:37', 'Solo Simulado #2', 'Seed SQL', '-', '58.4', 'Umidade volumetrica valida', 'ACEITO'],
+      ['2026-09-22 14:12', 'DHT11 ESP32-C3', '#3500765', '99.9', '0.0', 'temperatura_fora_do_limite_fisico', 'REJEITADO'],
+      ['2026-09-21 22:45', 'Sonda Solo #14', '#248905', '-4.2', '12.0', 'leitura_analogica_corrompida', 'REJEITADO']
+    ];
+    notes = [
+      'Filtro físico de sanitização bloqueou 100% dos outliers antes das médias agronômicas.',
+      'Deduplicação ativa por (fk_sensor_id_sensor, entry_id_thingspeak).'
+    ];
+  } else if (tLower.includes('perda') || tLower.includes('desvio') || tLower.includes('térmic') || tLower.includes('termic')) {
+    subtitle = 'Análise de Risco de Perda Pós-Colheita & Excursões Térmicas';
+    headers = ['Lote', 'Cultura', 'Temp Atual', 'Limiar Max', 'Prob. Risco', 'Perda Est.', 'Acao Recomendada'];
+    rows = [
+      ['Lote #1 (1.000 kg)', 'Manga Palmer', '14.8 C', '13.0 C', '84% (Critico)', '30.0%', 'Intervencao logistica imediata'],
+      ['Lote #2 (1.500 cx)', 'Uva Vitoria', '1.9 C', '2.0 C', '62% (Medio)', '10.0%', 'Ajuste preventivo refrigeracao'],
+      ['Lote #3 (2.200 kg)', 'Melao Amarelo', '12.3 C', '12.0 C', '42% (Baixo)', '2.0%', 'Observacao passiva do lote']
+    ];
+    notes = [
+      'Cálculo baseado na tabela oficial cortes_alerta_preditivo e perda_risco do PostgreSQL.',
+      'Referências fisiológicas: Embrapa Semiárido, UC Davis Postharvest e IAC.'
+    ];
   }
 
-  const blob = new Blob([content], { type: mimeType });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${titulo.toLowerCase().replace(/[^a-z0-9]/g, '_')}.${extensao}`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  if (extensao === 'csv' || extensao === 'xlsx') {
+    downloadCSV(`${baseName}.csv`, headers, rows);
+    return;
+  }
+
+  downloadPDF(`${baseName}.pdf`, {
+    title: titulo,
+    subtitle,
+    headers,
+    rows,
+    notes
+  });
 }
 
 function vincularEventosTabelaRel() {
@@ -473,16 +514,17 @@ export function setupRelatoriosEvents() {
         btnCompilar.innerHTML = `<i data-lucide="zap" style="width: 14px; height: 14px;"></i><span>Compilar &amp; Gerar Documento</span>`;
         if (window.lucide) window.lucide.createIcons();
 
+        const perfilAtivo = auth.getProfileData();
         const novoDoc = {
           id: Date.now(),
           titulo: `${tipo} — ${talhao.split('•')[0].trim()}`,
           tipo_label: tipo.toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 18),
           codigo_ref: `#REL-2026-${Math.floor(1000 + Math.random() * 9000)}`,
-          gerado_por: 'Lorena Lira',
-          cargo_gerador: 'Administrador',
-          iniciais: 'LL',
-          avatarBg: '#DCFCE7',
-          avatarColor: '#047857',
+          gerado_por: perfilAtivo.nome,
+          cargo_gerador: perfilAtivo.cargo,
+          iniciais: perfilAtivo.iniciais,
+          avatarBg: perfilAtivo.avatarBg || '#DCFCE7',
+          avatarColor: perfilAtivo.avatarColor || '#047857',
           data: 'Hoje, Agora',
           formato: formato.toUpperCase(),
           tamanho: formato === 'pdf' ? '5.1 MB' : (formato === 'csv' ? '1.2 MB' : '2.4 MB'),

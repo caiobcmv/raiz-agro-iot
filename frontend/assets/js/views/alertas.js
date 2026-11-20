@@ -8,8 +8,12 @@ import { liveTelemetry } from '../live-telemetry.js';
 import { auth } from '../auth.js';
 import { toast } from '../components/toast.js';
 import { Modal } from '../components/modal.js';
+import { downloadCSV, downloadPDF, openExportChoiceModal } from '../utils/export-utils.js';
 
 export async function renderAlertas() {
+  if (auth.getActiveProfile() === 'analista') {
+    return renderAnalistaAlertas();
+  }
   return renderGestoraAlertas();
 }
 
@@ -483,6 +487,10 @@ function renderAnalistaAlertas() {
 
 
 export function setupAlertasEvents() {
+  if (auth.getActiveProfile() === 'analista') {
+    setupAnalistaAlertasEvents();
+    return;
+  }
   setupGestoraAlertasEvents();
 }
 
@@ -490,6 +498,9 @@ export function setupAlertasEvents() {
  * Eventos da Central de Alertas do Analista
  */
 function setupAnalistaAlertasEvents() {
+  if (window.lucide) {
+    window.lucide.createIcons();
+  }
   liveTelemetry.start();
 
   // Reconhecer Todos
@@ -500,46 +511,36 @@ function setupAnalistaAlertasEvents() {
     });
   }
 
-  // Exportar Log com Download de CSV Real
+  // Exportar Log com Download de CSV e PDF Reais
   const btnExp = document.getElementById('btn-export-log-analista');
   if (btnExp) {
-    btnExp.addEventListener('click', async () => {
-      try {
-        toast.info('Gerando Arquivo', 'Consultando ocorrências do banco de dados...');
-        
-        // Cabeçalhos do CSV
-        const headers = ["ID Alerta", "Titulo", "Severidade", "Status", "Sensor", "Data/Hora", "Descricao"];
-        
-        // Dados do banco de dados (tabela alerta & alerta_preditivo)
-        const rows = [
-          [1, "Desvio Termico no Lote de Manga", "Critico (P1)", "Pendente", "DHT11 ESP32-C3", new Date().toISOString(), "DHT11 registrou 14.8C acima do teto de 13.0C em transito para Pecem."],
-          [2, "Deficit de Umidade Relativa no Lote de Uva", "Medio (P2)", "Pendente", "SNS-AR-002", new Date().toISOString(), "Umidade caiu para 87.5% UR na camara de armazenamento."],
-          [3, "Oscilacao Termica em Melao Amarelo", "Baixo (P3)", "Reconhecido", "SNS-SL-003", new Date().toISOString(), "Temperatura em 12.3C na antecamara."],
-          [4, "Risco Preditivo de Deficit Hidrico", "Alta Probabilidade (84%)", "Auditoria", "SNS-SL-004", new Date().toISOString(), "Probabilidade projetada em 84% para as proximas 12 horas."],
-          [5, "Outlier Termico Rejeitado", "Filtro Penman", "Descartado", "Sonda Solo #SNS-SL-04", new Date().toISOString(), "Leitura 62.4C acima do limite fisico."]
-        ];
-
-        // Monta o conteúdo CSV formatado em UTF-8 com BOM para Excel
-        const csvContent = "\uFEFF" + [
-          headers.join(";"),
-          ...rows.map(r => r.map(field => `"${String(field).replace(/"/g, '""')}"`).join(";"))
-        ].join("\r\n");
-
-        // Cria o blob e dispara o download real no navegador
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.setAttribute('download', `log_auditoria_incidentes_dht11_${new Date().toISOString().slice(0, 10)}.csv`);
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-
-        toast.success('Download Concluído!', 'Arquivo log_auditoria_incidentes_dht11.csv baixado com sucesso.');
-      } catch (err) {
-        toast.error('Erro na exportação', err.message);
-      }
+    btnExp.addEventListener('click', () => {
+      const headers = ['ID Alerta', 'Titulo', 'Severidade', 'Status', 'Sensor', 'Data/Hora', 'Descricao'];
+      const rows = [
+        ['ALT-2026-001', 'Desvio Termico no Lote de Manga', 'Critico (P1)', 'Em Aberto', 'DHT11 ESP32-C3', new Date().toLocaleString('pt-BR'), 'DHT11 registrou 14.8C acima do teto de 13.0C em transito para Pecem.'],
+        ['ALT-2026-002', 'Deficit de Umidade Relativa no Lote de Uva', 'Medio (P2)', 'Em Aberto', 'SNS-AR-002', new Date().toLocaleString('pt-BR'), 'Umidade caiu para 87.5% UR na camara de armazenamento.'],
+        ['ALT-2026-003', 'Oscilacao Termica em Melao Amarelo', 'Baixo (P3)', 'Em Aberto', 'SNS-SL-003', new Date().toLocaleString('pt-BR'), 'Temperatura em 12.3C na antecamara.'],
+        ['PRED-2026-004', 'Risco Preditivo de Deficit Hidrico', 'Alta Prob. (84%)', 'Auditoria', 'SNS-SL-004', new Date().toLocaleString('pt-BR'), 'Probabilidade projetada em 84% para as proximas 12 horas.'],
+        ['REJ-2026-005', 'Outlier Termico Rejeitado', 'Filtro Fisico', 'Descartado', 'Sonda Solo #04', new Date().toLocaleString('pt-BR'), 'Leitura 62.4C acima do limite fisico.']
+      ];
+      const dataTag = new Date().toISOString().slice(0, 10);
+      openExportChoiceModal(
+        Modal,
+        'Exportar Log de Incidentes & Alertas (Analista)',
+        () => {
+          downloadCSV(`log_auditoria_incidentes_dht11_${dataTag}.csv`, headers, rows);
+          toast.success('Download CSV Concluído!', `log_auditoria_incidentes_dht11_${dataTag}.csv baixado.`);
+        },
+        () => {
+          downloadPDF(`log_auditoria_incidentes_dht11_${dataTag}.pdf`, {
+            title: 'Relatório Técnico de Incidentes & Alertas IoT',
+            subtitle: 'Perfil Analista • Triagem Reativa & Preditiva (DHT11 ESP32-C3)',
+            headers,
+            rows
+          });
+          toast.success('Download PDF Concluído!', `log_auditoria_incidentes_dht11_${dataTag}.pdf baixado.`);
+        }
+      );
     });
   }
 
@@ -1157,27 +1158,35 @@ function setupGestoraAlertasEvents() {
     window.lucide.createIcons();
   }
 
-  // Exportar CSV da Gestora (Download Real)
+  // Exportar Registro da Gestora (CSV & PDF Reais — sem duplicidade)
   const btnExportGestora = document.getElementById('btn-exportar-csv');
   if (btnExportGestora) {
     btnExportGestora.addEventListener('click', () => {
-      const headers = ["Incidente", "LOTE/Cultura", "Severidade", "Status", "Data"];
+      const headers = ['ID', 'Prioridade', 'Categoria', 'Incidente', 'Lote / Cultura', 'Valor em Risco', 'Status', 'Data'];
+      const nowStr = new Date().toLocaleString('pt-BR');
       const rows = [
-        ["Desvio Termico Reefer 40ft", "Lote Manga Palmer #4092", "Critico", "Em Andamento", new Date().toISOString()],
-        ["Estresse Hidrico Acentuado", "LOTE A1 - Uva Vitoria", "Moderado", "Pendente", new Date().toISOString()],
-        ["Oscilacao de Tensao no No LoRa", "Repetidor Serra do Mel", "Baixo", "Resolvido", new Date().toISOString()]
+        ['EXP-2026-08', 'P1 - Critico', 'Cadeia Fria', 'Desvio Termico Reefer 40ft (3.4C)', 'Lote Uva Vitoria #EXP-2026-08', 'R$ 42.000', 'Ativo', nowStr],
+        ['VU-02', 'P2 - Atencao', 'Irrigacao', 'Estresse Hidrico Critico (38.2% VWC)', 'Talhao A1 - Uva Vitoria', 'R$ 15.000', 'Ativo', nowStr],
+        ['MET-04', 'Preditivo IA', 'Microclima', 'Rajadas de Vento > 42 km/h', 'Setor 04 - Petrolina', 'R$ 0', 'Monitorando', nowStr]
       ];
-      const csv = "\uFEFF" + [headers.join(";"), ...rows.map(r => r.map(c => `"${c}"`).join(";"))].join("\r\n");
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = "registro_alertas_gestora.csv";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      toast.success('Download Concluído', 'Arquivo registro_alertas_gestora.csv baixado com sucesso.');
+      const dataTag = new Date().toISOString().slice(0, 10);
+      openExportChoiceModal(
+        Modal,
+        'Exportar Registro de Incidentes & Alertas',
+        () => {
+          downloadCSV(`registro_alertas_gestora_${dataTag}.csv`, headers, rows);
+          toast.success('Download CSV Concluído', `registro_alertas_gestora_${dataTag}.csv baixado com sucesso.`);
+        },
+        () => {
+          downloadPDF(`registro_alertas_gestora_${dataTag}.pdf`, {
+            title: 'Registro Oficial de Alertas & Incidentes Operacionais',
+            subtitle: 'Cadeia Fria, Irrigação de Precisão e Alertas Preditivos IA',
+            headers,
+            rows
+          });
+          toast.success('Download PDF Concluído', `registro_alertas_gestora_${dataTag}.pdf baixado com sucesso.`);
+        }
+      );
     });
   }
 
@@ -1261,23 +1270,7 @@ function setupGestoraAlertasEvents() {
     }
   });
 
-  // 5. Botão Exportar CSV (Gera e baixa o arquivo)
-  document.getElementById('btn-exportar-csv')?.addEventListener('click', () => {
-    const csvContent = 'data:text/csv;charset=utf-8,' +
-      'ID,Prioridade,Categoria,Titulo,Valor_Risco,Status,Data\\n' +
-      'EXP-2026-08,P1-Critico,Cadeia Fria,Desvio Termico Reefer 40ft,R$ 42.000,Ativo,2026-09-22 11:30\\n' +
-      'VU-03,P2-Atencao,Irrigacao,Estresse Hidrico LOTE A1,R$ 15.000,Ativo,2026-09-22 11:45\\n' +
-      'MET-04,Preditivo,Clima,Alerta de Rajadas de Vento Setor 04,R$ 0,Monitorando,2026-09-22 12:00';
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', 'relatorio_incidentes_raiz_2026.csv');
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    toast.success('Download Concluído', 'O arquivo CSV de incidentes foi gerado com sucesso.');
-  });
+  // 5. Exportação tratada no listener unificado acima (CSV & PDF)
 
   // 6. Botão Regras de Disparo (Modal)
   document.getElementById('btn-regras-disparo')?.addEventListener('click', () => {

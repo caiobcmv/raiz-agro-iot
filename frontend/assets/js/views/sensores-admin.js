@@ -8,6 +8,7 @@
 import { api } from '../api.js';
 import { Modal } from '../components/modal.js';
 import { toast } from '../components/toast.js';
+import { downloadCSV, downloadPDF, openExportChoiceModal } from '../utils/export-utils.js';
 
 let _sensoresList = [
   {
@@ -685,24 +686,30 @@ export function setupSensoresAdminEvents() {
     });
   }
 
-  // Exportar CSV
+  // Exportar Leituras (CSV & PDF Reais)
   const btnExport = document.getElementById('btn-export-leituras');
   if (btnExport) {
     btnExport.addEventListener('click', () => {
-      const csv = `id_sensor;tipo;talhao;status;leitura_atual;bateria;rssi_dbm;firmware\n` +
-        _sensoresList.map(s => `${s.id};${s.tipo};"${s.talhao}";${s.status};"${s.vwc}";${s.bateria};${s.rssi};${s.firmware}`).join('\n');
-      
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `sensores_telemetria_raiz_agro_${new Date().toISOString().slice(0, 10)}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
-      toast.success('Download Concluído', 'Arquivo CSV de leituras e telemetria compilado.');
+      const headers = ['ID Sensor', 'Tipo', 'Talhao', 'Status', 'Leitura Atual', 'Bateria', 'RSSI (dBm)', 'Firmware'];
+      const rows = _sensoresList.map(s => [s.id, s.tipo, s.talhao, s.status, s.vwc, s.bateria, s.rssi, s.firmware]);
+      const dataTag = new Date().toISOString().slice(0, 10);
+      openExportChoiceModal(
+        Modal,
+        'Exportar Leituras & Parque de Sensores (Admin)',
+        () => {
+          downloadCSV(`sensores_telemetria_raiz_agro_${dataTag}.csv`, headers, rows);
+          toast.success('Download CSV Concluído', `sensores_telemetria_raiz_agro_${dataTag}.csv baixado.`);
+        },
+        () => {
+          downloadPDF(`sensores_telemetria_raiz_agro_${dataTag}.pdf`, {
+            title: 'Relatório de Telemetria & Parque de Sensores',
+            subtitle: 'Auditoria Administrativa de Hardware LoRaWAN & ESP32',
+            headers,
+            rows
+          });
+          toast.success('Download PDF Concluído', `sensores_telemetria_raiz_agro_${dataTag}.pdf baixado.`);
+        }
+      );
     });
   }
 

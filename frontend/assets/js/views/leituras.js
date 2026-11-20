@@ -1,4 +1,4 @@
-﻿/**
+/**
  * VIEW: HISTÓRICO SAFRA & CORRELAÇÃO - FIEL AO FIGMA
  * Suporta perfil Analista (Histórico Safra & Correlação com sub-barra, FDR e Brix)
  * e perfil Gestora (Rendimento Executivo e LOTES).
@@ -8,6 +8,7 @@ import { api } from '../api.js';
 import { auth } from '../auth.js';
 import { toast } from '../components/toast.js';
 import { Modal } from '../components/modal.js';
+import { downloadCSV, downloadPDF, openExportChoiceModal } from '../utils/export-utils.js';
 
 let _ultimoEstadoSafras = null;
 
@@ -1359,14 +1360,60 @@ export function setupLeiturasEvents() {
   const btnExport = document.getElementById('btn-export-safra');
   if (btnExport) {
     btnExport.addEventListener('click', () => {
-      toast.success('Download Concluído', 'Relatório executivo da safra 2025/2026 gerado com sucesso.');
+      const estado = _ultimoEstadoSafras || DADOS_SAFRAS_PADRAO;
+      const safras = estado.safras || DADOS_SAFRAS_PADRAO.safras;
+      const headers = ['Ciclo', 'Cultura', 'Area (ha)', 'Produtividade (ton/ha)', 'Volume (ton)', 'Agua (m3/ha)', 'Brix Medio', 'Status'];
+      const rows = safras.map(s => [
+        s.ciclo, s.cultura, s.area_ha, s.produtividade_ton_ha, s.volume_total_ton, s.consumo_agua_m3_ha, s.brix_medio, s.status
+      ]);
+      const dataTag = new Date().toISOString().slice(0, 10);
+      openExportChoiceModal(
+        Modal,
+        'Exportar Relatório Executivo de Safra',
+        () => {
+          downloadCSV(`relatorio_safra_raiz_${dataTag}.csv`, headers, rows);
+          toast.success('CSV Exportado', `relatorio_safra_raiz_${dataTag}.csv baixado com sucesso.`);
+        },
+        () => {
+          downloadPDF(`relatorio_safra_raiz_${dataTag}.pdf`, {
+            title: 'Relatório Executivo de Histórico de Safra',
+            subtitle: 'Ciclos Agronômicos, Produtividade, Consumo Hídrico e Brix Médio',
+            headers,
+            rows
+          });
+          toast.success('PDF Exportado', `relatorio_safra_raiz_${dataTag}.pdf baixado com sucesso.`);
+        }
+      );
     });
   }
 
   const btnLotes = document.getElementById('btn-export-lotes-analista');
   if (btnLotes) {
     btnLotes.addEventListener('click', () => {
-      toast.success('Exportação de Lotes', 'Planilha detalhada de lotes (A1, A2, B1, B2) exportada.');
+      const estado = _ultimoEstadoSafras || DADOS_SAFRAS_PADRAO;
+      const talhoes = estado.talhoes || DADOS_SAFRAS_PADRAO.talhoes || [];
+      const headers = ['Talhao', 'Variedade', 'Porta-Enxerto', 'Ciclo', 'Area (ha)', 'Volume (ton)', 'Produtividade', 'Brix', 'Status'];
+      const rows = talhoes.map(t => [
+        t.codigo, t.variedade, t.porta_enxerto, t.ciclo, t.area_ha, t.volume_ton, t.produtividade_ton_ha, t.brix_medio, t.status
+      ]);
+      const dataTag = new Date().toISOString().slice(0, 10);
+      openExportChoiceModal(
+        Modal,
+        'Exportar Relatório Detalhado de Lotes & Talhões',
+        () => {
+          downloadCSV(`lotes_talhoes_raiz_${dataTag}.csv`, headers, rows);
+          toast.success('CSV Exportado', `lotes_talhoes_raiz_${dataTag}.csv baixado com sucesso.`);
+        },
+        () => {
+          downloadPDF(`lotes_talhoes_raiz_${dataTag}.pdf`, {
+            title: 'Relatório Detalhado de Lotes & Talhões',
+            subtitle: 'Rendimento por Variedade, Calibre, Brix e Status de Exportação',
+            headers,
+            rows
+          });
+          toast.success('PDF Exportado', `lotes_talhoes_raiz_${dataTag}.pdf baixado com sucesso.`);
+        }
+      );
     });
   }
 

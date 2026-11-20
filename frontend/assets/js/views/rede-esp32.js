@@ -1,4 +1,4 @@
-﻿import { liveTelemetry } from '../live-telemetry.js';
+import { liveTelemetry } from '../live-telemetry.js';
 /**
  * VIEW: REDE ESP32 & TOPOLOGIA - FIEL AO FIGMA (PERFIL ANALISTA)
  * Distribuição espacial dos nós LoRaWAN, topologia em malha e sinal RSSI/PDR 24h.
@@ -6,6 +6,7 @@
 
 import { Modal } from '../components/modal.js';
 import { toast } from '../components/toast.js';
+import { downloadCSV, downloadPDF, openExportChoiceModal } from '../utils/export-utils.js';
 
 export async function renderRedeEsp32() {
   return `
@@ -388,11 +389,37 @@ export function setupRedeEsp32Events() {
     });
   }
 
-  // Exportar CSV
+  // Exportar Topologia (CSV & PDF Reais)
   const btnExport = document.getElementById('btn-export-csv');
   if (btnExport) {
     btnExport.addEventListener('click', () => {
-      toast.success('Relatório Gerado', 'Arquivo topologia_enlaces_esp32.csv baixado com sucesso.');
+      const headers = ['No / Hardware', 'Tipo', 'Setor / Talhao', 'RSSI (dBm)', 'SNR (dB)', 'Bateria (%)', 'PDR 24h (%)', 'Status'];
+      const rows = [
+        ['GW-PET-04', 'Gateway LoRaWAN US915', 'Central Packing House', '-62', '10.8', '100 (AC)', '99.8', 'Online'],
+        ['ESP32-C3-DHT11', 'Sensor Ar (ThingSpeak #3500765)', 'Camara Fria 01 / Bancada', '-74', '9.2', '96', '99.4', 'Online'],
+        ['ESP32-VU01', 'Sonda Solo FDR', 'Talhao A1 - Uva Vitoria', '-81', '7.8', '91', '98.9', 'Online'],
+        ['ESP32-VU02', 'Sonda Solo FDR', 'Talhao A2 - Uva Vitoria', '-84', '6.9', '88', '98.5', 'Online'],
+        ['ESP32-MG01', 'Estacao Microclima', 'Talhao B1 - Manga Palmer', '-79', '8.4', '94', '99.1', 'Online'],
+        ['ESP32-RF08', 'Termografo Reefer 40ft', 'Em Transito BR-116', '-88', '5.5', '94', '97.6', 'Alerta']
+      ];
+      const dataTag = new Date().toISOString().slice(0, 10);
+      openExportChoiceModal(
+        Modal,
+        'Exportar Topologia & Enlaces ESP32',
+        () => {
+          downloadCSV(`topologia_enlaces_esp32_${dataTag}.csv`, headers, rows);
+          toast.success('CSV Gerado', `topologia_enlaces_esp32_${dataTag}.csv baixado com sucesso.`);
+        },
+        () => {
+          downloadPDF(`topologia_enlaces_esp32_${dataTag}.pdf`, {
+            title: 'Relatório de Topologia Rede ESP32 & LoRaWAN',
+            subtitle: 'Gateway Petrolina-04 • Banda US915 (915 MHz) • Qualidade de Enlace',
+            headers,
+            rows
+          });
+          toast.success('PDF Gerado', `topologia_enlaces_esp32_${dataTag}.pdf baixado com sucesso.`);
+        }
+      );
     });
   }
 
