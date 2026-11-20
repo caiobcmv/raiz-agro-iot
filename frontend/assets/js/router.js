@@ -4,14 +4,14 @@
 
 import { api } from './api.js';
 import { auth } from './auth.js';
-import { renderSidebar } from './components/sidebar.js';
-import { renderHeader } from './components/header.js?v=20261120-live9';
-import { Modal } from './components/modal.js';
-import { toast } from './components/toast.js';
-import { showAccessDeniedModal } from './components/access-denied-modal.js';
+import { renderSidebar } from './components/sidebar.js?v=20261120-live14';
+import { renderHeader } from './components/header.js?v=20261120-live14';
+import { Modal } from './components/modal.js?v=20261120-live14';
+import { toast } from './components/toast.js?v=20261120-live14';
+import { showAccessDeniedModal } from './components/access-denied-modal.js?v=20261120-live14';
 
 // Importação das Views
-import { renderLogin, setupLoginEvents } from './views/login.js?v=20261111-clean2fa-1';
+import { renderLogin, setupLoginEvents } from './views/login.js?v=20261120-live14';
 import {
   renderPrimeiroAcesso, setupPrimeiroAcessoEvents,
   renderRecuperarSenha, setupRecuperarSenhaEvents,
@@ -19,21 +19,21 @@ import {
   renderRedefinirSenha, setupRedefinirSenhaEvents,
   renderSenhaAlterada, setupSenhaAlteradaEvents,
   renderContaBloqueada, setupContaBloqueadaEvents
-} from './views/auth-flow.js?v=20261111-clean2fa-1';
-import { renderDashboard, setupDashboardEvents } from './views/dashboard.js';
-import { renderSensores, setupSensoresEvents } from './views/sensores.js';
-import { renderRedeEsp32, setupRedeEsp32Events } from './views/rede-esp32.js';
-import { renderLeituras, setupLeiturasEvents } from './views/leituras.js?v=20261120-live12';
-import { renderLotes, setupLotesEvents } from './views/lotes.js';
-import { renderViagens, setupViagensEvents } from './views/viagens.js';
-import { renderAlertas, setupAlertasEvents } from './views/alertas.js?v=20261120-live9';
-import { renderPrevisoes } from './views/previsoes.js';
-import { renderRelatorios, setupRelatoriosEvents } from './views/relatorios.js';
-import { renderConfiguracoes, setupConfiguracoesEvents } from './views/configuracoes.js?v=20261120-live3';
-import { renderUsuarios, setupUsuariosEvents } from './views/usuarios.js';
-import { renderRegrasAgronomicas, setupRegrasAgronomicasEvents } from './views/regras-agronomicas.js';
-import { renderAuditoria, setupAuditoriaEvents } from './views/auditoria.js';
-import { renderSensoresAdmin, setupSensoresAdminEvents } from './views/sensores-admin.js';
+} from './views/auth-flow.js?v=20261120-live14';
+import { renderDashboard, setupDashboardEvents } from './views/dashboard.js?v=20261120-live14';
+import { renderSensores, setupSensoresEvents } from './views/sensores.js?v=20261120-live14';
+import { renderRedeEsp32, setupRedeEsp32Events } from './views/rede-esp32.js?v=20261120-live14';
+import { renderLeituras, setupLeiturasEvents } from './views/leituras.js?v=20261120-live14';
+import { renderLotes, setupLotesEvents } from './views/lotes.js?v=20261120-live14';
+import { renderViagens, setupViagensEvents } from './views/viagens.js?v=20261120-live14';
+import { renderAlertas, setupAlertasEvents } from './views/alertas.js?v=20261120-live14';
+import { renderPrevisoes } from './views/previsoes.js?v=20261120-live14';
+import { renderRelatorios, setupRelatoriosEvents } from './views/relatorios.js?v=20261120-live14';
+import { renderConfiguracoes, setupConfiguracoesEvents } from './views/configuracoes.js?v=20261120-live14';
+import { renderUsuarios, setupUsuariosEvents } from './views/usuarios.js?v=20261120-live14';
+import { renderRegrasAgronomicas, setupRegrasAgronomicasEvents } from './views/regras-agronomicas.js?v=20261120-live14';
+import { renderAuditoria, setupAuditoriaEvents } from './views/auditoria.js?v=20261120-live14';
+import { renderSensoresAdmin, setupSensoresAdminEvents } from './views/sensores-admin.js?v=20261120-live14';
 
 const routes = {
   '#/login': {
@@ -315,7 +315,7 @@ export class Router {
         const currentLabel = document.getElementById('header-date-label')?.textContent || '22 de setembro de 2026';
         Modal.open('Período de Análise e Ciclo de Safra', `
           <div style="display:flex; flex-direction:column; gap:14px; font-size:13px;">
-            <p style="color:#64748B; margin:0; line-height:1.5;">Selecione a janela temporal para filtragem dinâmica dos indicadores:</p>
+            <p style="color:#64748B; margin:0; line-height:1.5; font-size:13px;">Selecione a janela temporal para filtragem dinâmica dos indicadores:</p>
             <div style="display:flex; flex-direction:column; gap:8px;">
               ${[
                 'Tempo Real • Hoje (Ciclo Ativo)',
@@ -323,12 +323,15 @@ export class Router {
                 'Últimos 7 dias consolidados',
                 'Últimos 30 dias (Mensal)',
                 'Safra 2025/2026 Completa'
-              ].map(periodo => `
-                <label style="display:flex; align-items:center; gap:12px; padding:11px 14px; border-radius:10px; background:#F8FAFC; border:1px solid #E2E8F0; color:#0F172A; cursor:pointer; font-weight:600; font-size:13px; transition:all 0.15s ease;">
-                  <input type="radio" name="modal-periodo-safra" value="${periodo}" ${currentLabel.includes(periodo.split(' ')[0]) ? 'checked' : ''} style="accent-color:#059669; width:16px; height:16px; cursor:pointer;">
-                  <span style="color:#0F172A;">${periodo}</span>
+              ].map(periodo => {
+                const isChecked = currentLabel.includes(periodo.split(' ')[0]);
+                return `
+                <label style="display:flex; align-items:center; gap:12px; padding:12px 14px; border-radius:10px; background:#F8FAFC; border:1px solid #E2E8F0; color:#0F172A; cursor:pointer; font-weight:600; font-size:13px; transition:all 0.15s ease;" onmouseover="this.style.background='#F1F5F9'; this.style.borderColor='#CBD5E1';" onmouseout="this.style.background='#F8FAFC'; this.style.borderColor='#E2E8F0';">
+                  <input type="radio" name="modal-periodo-safra" value="${periodo}" ${isChecked ? 'checked' : ''} style="accent-color:#059669; width:16px; height:16px; cursor:pointer; flex-shrink:0;">
+                  <span style="color:#0F172A !important; font-weight:600; font-size:13px; line-height:1.3;">${periodo}</span>
                 </label>
-              `).join('')}
+              `;
+              }).join('')}
             </div>
           </div>
         `, (modal) => {

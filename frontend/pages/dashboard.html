@@ -8,11 +8,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/assets/css/design-system.css">
-  <link rel="stylesheet" href="/assets/css/components.css">
-  <link rel="stylesheet" href="/assets/css/layout.css">
-  <link rel="stylesheet" href="/assets/css/dashboard.css">
-  <link rel="stylesheet" href="/assets/css/analista.css">
+  <link rel="stylesheet" href="/assets/css/design-system.css?v=20261120-live14">
+  <link rel="stylesheet" href="/assets/css/components.css?v=20261120-live14">
+  <link rel="stylesheet" href="/assets/css/layout.css?v=20261120-live14">
+  <link rel="stylesheet" href="/assets/css/dashboard.css?v=20261120-live14">
+  <link rel="stylesheet" href="/assets/css/analista.css?v=20261120-live14">
   
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -88,411 +88,430 @@
       </header>
       <main class="page-body">
         <div id="view-container">
-﻿<div class="dashboard-canvas apple-animate-in">
-  <!-- Top Row: 3 Cards (Condição Geral, Lotes em Operação, Previsão do Tempo) -->
-  <div class="top-kpi-3col">
-    
-    <!-- CARD 1: CONDIÇÃO GERAL -->
-    <div class="figma-card">
-      <div class="card-top-title-row">
-        <span class="card-header-label">CONDIÇÃO GERAL</span>
-        <span class="card-status-pill pill-green">Excelente</span>
-      </div>
-
-      <div style="display: flex; align-items: center; gap: 20px; margin: 12px 0;">
-        <!-- Gauge Semicircular com agulha -->
-        <div style="position: relative; width: 120px; height: 82px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-          <svg width="120" height="65" viewBox="0 0 120 65">
-            <path d="M 12,60 A 48,48 0 0,1 108,60" fill="none" stroke="#F1F5F9" stroke-width="10" stroke-linecap="round"/>
-            <path d="M 12,60 A 48,48 0 0,1 102,40" fill="none" stroke="#10B981" stroke-width="10" stroke-linecap="round"/>
-            <!-- Ponteiro indicador Apple -->
-            <line x1="60" y1="60" x2="88" y2="28" stroke="#183D2E" stroke-width="3" stroke-linecap="round"/>
-            <circle cx="60" cy="60" r="5" fill="#183D2E"/>
-          </svg>
-          <div style="font-size: 18px; font-weight: 800; color: #1E293B; margin-top: -6px;">96% <span style="font-size: 9px; font-weight: 700; color: #047857; background: #ECFDF5; padding: 1px 6px; border-radius: 4px; vertical-align: middle;">Ótimo</span></div>
-          <span style="font-size: 9px; font-weight: 700; color: #64748B; letter-spacing: 0.5px; text-transform: uppercase; margin-top: 2px;">ÍNDICE GERAL</span>
+<div class="dashboard-canvas apple-animate-in">
+<!-- Top Row: 3 Cards (Condição Geral, Lotes em Operação, Previsão do Tempo) -->
+    <div class="top-kpi-3col">
+      
+      <!-- CARD 1: CONDIÇÃO GERAL -->
+      <div class="figma-card">
+        <div class="card-top-title-row">
+          <span class="card-header-label">CONDIÇÃO GERAL</span>
+          <span class="card-status-pill pill-green">Excelente</span>
         </div>
 
-        <!-- Barras de Sub-métricas -->
-        <div style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
-          <div class="metric-progress-item">
-            <div class="metric-labels-row">
-              <span style="color: #64748B;">Água e Solo</span>
-              <strong style="color: #1E293B;">98%</strong>
+        <div style="display: flex; align-items: center; gap: 20px; margin: 12px 0;">
+          <!-- Gauge Semicircular com agulha -->
+          <div style="position: relative; width: 130px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+            <svg width="130" height="72" viewBox="0 0 130 72" style="overflow: visible;">
+              <defs>
+                <linearGradient id="gauge-grad-card1" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stop-color="#EAB308" />
+                  <stop offset="45%" stop-color="#10B981" />
+                  <stop offset="100%" stop-color="#059669" />
+                </linearGradient>
+              </defs>
+              <!-- Arco Base Cinza de 180 graus (R=50, centro em 65, 60) -->
+              <path d="M 15,60 A 50,50 0 0,1 115,60" fill="none" stroke="#F1F5F9" stroke-width="11" stroke-linecap="round"/>
+              <!-- Arco Preenchido com Gradiente Suave -->
+              <path d="M 15,60 A 50,50 0 0,1 115,60" fill="none" stroke="url(#gauge-grad-card1)" stroke-width="11" stroke-linecap="round" stroke-dasharray="148 157.1" stroke-dashoffset="0"/>
+              
+              <!-- Ponteiro indicador Apple perfeitamente alinhado na direção do valor (34 graus) -->
+              <line x1="65" y1="60" x2="101" y2="36" stroke="#183D2E" stroke-width="3" stroke-linecap="round"/>
+              <circle cx="65" cy="60" r="5" fill="#183D2E"/>
+              <circle cx="65" cy="60" r="2" fill="#FFFFFF"/>
+            </svg>
+            <div style="font-size: 18px; font-weight: 800; color: #1E293B; margin-top: 4px; display: flex; align-items: center; gap: 6px;">
+              96% <span style="font-size: 9px; font-weight: 700; color: #047857; background: #ECFDF5; border: 1px solid #A7F3D0; padding: 1px 6px; border-radius: 4px;">Ótimo</span>
             </div>
-            <div class="progress-track-bg">
-              <div class="progress-fill-bar" style="width: 98%; background: #10B981;"></div>
+            <span style="font-size: 9px; font-weight: 700; color: #64748B; letter-spacing: 0.6px; text-transform: uppercase; margin-top: 2px;">ÍNDICE GERAL</span>
+          </div>
+
+          <!-- Barras de Sub-métricas -->
+          <div style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
+            <div class="metric-progress-item">
+              <div class="metric-labels-row">
+                <span style="color: #64748B;">Água e Solo</span>
+                <strong style="color: #1E293B;">98%</strong>
+              </div>
+              <div class="progress-track-bg">
+                <div class="progress-fill-bar" style="width: 98%; background: #10B981;"></div>
+              </div>
+            </div>
+
+            <div class="metric-progress-item">
+              <div class="metric-labels-row">
+                <span style="color: #64748B;">Saúde Foliar</span>
+                <strong style="color: #1E293B;">96%</strong>
+              </div>
+              <div class="progress-track-bg">
+                <div class="progress-fill-bar" style="width: 96%; background: #059669;"></div>
+              </div>
+            </div>
+
+            <div class="metric-progress-item">
+              <div class="metric-labels-row">
+                <span style="color: #64748B;">Microclima</span>
+                <strong style="color: #1E293B;">94%</strong>
+              </div>
+              <div class="progress-track-bg">
+                <div class="progress-fill-bar" style="width: 94%; background: #0EA5E9;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="border-top: 1px solid #F1F5F9; padding-top: 12px; display: flex; justify-content: space-between; font-size: 11px; color: #64748B; margin-top: auto;">
+          <span>Parâmetros 100% Ideais</span>
+          <span style="color: #047857; font-weight: 600;">● 24h Conforme</span>
+        </div>
+      </div>
+
+      <!-- CARD 2: LOTES EM OPERAÇÃO -->
+      <div class="figma-card">
+        <div class="card-top-title-row">
+          <span class="card-header-label">LOTES EM OPERAÇÃO</span>
+          <span class="card-status-pill pill-blue">6 Ativos</span>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 20px; margin: 12px 0;">
+          <!-- Rosca de Capacidade -->
+          <div style="position: relative; width: 90px; height: 90px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+            <svg width="90" height="90" viewBox="0 0 36 36" style="transform: rotate(-90deg);">
+              <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#F1F5F9" stroke-width="4.5"/>
+              <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" stroke-dasharray="50, 100" fill="none" stroke="#059669" stroke-width="4.5"/>
+              <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" stroke-dasharray="33, 100" stroke-dashoffset="-50" fill="none" stroke="#0284C7" stroke-width="4.5"/>
+              <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" stroke-dasharray="17, 100" stroke-dashoffset="-83" fill="none" stroke="#F59E0B" stroke-width="4.5"/>
+            </svg>
+            <div style="position: absolute; text-align: center;">
+              <span style="font-size: 18px; font-weight: 800; color: #1E293B;">6<small style="font-size: 11px; color: #94A3B8;">/10</small></span>
+              <div style="font-size: 8px; font-weight: 700; color: #94A3B8; text-transform: uppercase;">Capacidade</div>
             </div>
           </div>
 
-          <div class="metric-progress-item">
-            <div class="metric-labels-row">
-              <span style="color: #64748B;">Saúde Foliar</span>
-              <strong style="color: #1E293B;">96%</strong>
+          <!-- Lista de Categorias -->
+          <div style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
+            <div class="metric-progress-item">
+              <div class="metric-labels-row">
+                <span style="display: flex; align-items: center; gap: 6px; color: #475569;"><span style="width:7px; height:7px; border-radius:50%; background:#059669;"></span>Colheita</span>
+                <strong style="color: #334155;">3 lotes</strong>
+              </div>
+              <div class="progress-track-bg"><div class="progress-fill-bar" style="width: 50%; background: #059669;"></div></div>
             </div>
-            <div class="progress-track-bg">
-              <div class="progress-fill-bar" style="width: 96%; background: #059669;"></div>
+
+            <div class="metric-progress-item">
+              <div class="metric-labels-row">
+                <span style="display: flex; align-items: center; gap: 6px; color: #475569;"><span style="width:7px; height:7px; border-radius:50%; background:#0284C7;"></span>Reefer / Frio</span>
+                <strong style="color: #334155;">2 lotes</strong>
+              </div>
+              <div class="progress-track-bg"><div class="progress-fill-bar" style="width: 33%; background: #0284C7;"></div></div>
+            </div>
+
+            <div class="metric-progress-item">
+              <div class="metric-labels-row">
+                <span style="display: flex; align-items: center; gap: 6px; color: #475569;"><span style="width:7px; height:7px; border-radius:50%; background:#F59E0B;"></span>Maturação</span>
+                <strong style="color: #334155;">1 lote</strong>
+              </div>
+              <div class="progress-track-bg"><div class="progress-fill-bar" style="width: 17%; background: #F59E0B;"></div></div>
             </div>
           </div>
+        </div>
 
-          <div class="metric-progress-item">
-            <div class="metric-labels-row">
-              <span style="color: #64748B;">Microclima</span>
-              <strong style="color: #1E293B;">94%</strong>
+        <div style="border-top: 1px solid #F1F5F9; padding-top: 12px; display: flex; justify-content: space-between; font-size: 11px; color: #475569; margin-top: auto;">
+          <span>● 3 Colheita</span>
+          <span>● 2 Reefer</span>
+          <span>● 1 Maturação</span>
+        </div>
+      </div>
+
+      <!-- CARD 3: PREVISÃO DO TEMPO E CLIMA -->
+      <div class="figma-card">
+        <div class="card-top-title-row">
+          <span class="card-header-label">PREVISÃO DO TEMPO</span>
+          <span class="card-status-pill pill-amber" style="display: flex; align-items: center; gap: 4px;">
+            <i data-lucide="map-pin" style="width: 11px; height: 11px;"></i> Petrolina, PE • Hoje
+          </span>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin: 10px 0;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 44px; height: 44px; background: #FFFBEB; border: 1px solid #FEF3C7; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+              <i data-lucide="sun" style="width: 26px; height: 26px; color: #F59E0B;"></i>
             </div>
-            <div class="progress-track-bg">
-              <div class="progress-fill-bar" style="width: 94%; background: #0EA5E9;"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div style="border-top: 1px solid #F1F5F9; padding-top: 12px; display: flex; justify-content: space-between; font-size: 11px; color: #64748B; margin-top: auto;">
-        <span>Parâmetros 100% Ideais</span>
-        <span style="color: #047857; font-weight: 600;">● 24h Conforme</span>
-      </div>
-    </div>
-
-    <!-- CARD 2: LOTES EM OPERAÇÃO -->
-    <div class="figma-card">
-      <div class="card-top-title-row">
-        <span class="card-header-label">LOTES EM OPERAÇÃO</span>
-        <span class="card-status-pill pill-blue">6 Ativos</span>
-      </div>
-
-      <div style="display: flex; align-items: center; gap: 20px; margin: 12px 0;">
-        <!-- Rosca de Capacidade -->
-        <div style="position: relative; width: 90px; height: 90px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-          <svg width="90" height="90" viewBox="0 0 36 36" style="transform: rotate(-90deg);">
-            <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#F1F5F9" stroke-width="4.5"/>
-            <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" stroke-dasharray="50, 100" fill="none" stroke="#059669" stroke-width="4.5"/>
-            <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" stroke-dasharray="33, 100" stroke-dashoffset="-50" fill="none" stroke="#0284C7" stroke-width="4.5"/>
-            <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" stroke-dasharray="17, 100" stroke-dashoffset="-83" fill="none" stroke="#F59E0B" stroke-width="4.5"/>
-          </svg>
-          <div style="position: absolute; text-align: center;">
-            <span style="font-size: 18px; font-weight: 800; color: #1E293B;">6<small style="font-size: 11px; color: #94A3B8;">/10</small></span>
-            <div style="font-size: 8px; font-weight: 700; color: #94A3B8; text-transform: uppercase;">Capacidade</div>
-          </div>
-        </div>
-
-        <!-- Lista de Categorias -->
-        <div style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
-          <div class="metric-progress-item">
-            <div class="metric-labels-row">
-              <span style="display: flex; align-items: center; gap: 6px; color: #475569;"><span style="width:7px; height:7px; border-radius:50%; background:#059669;"></span>Colheita</span>
-              <strong style="color: #334155;">3 lotes</strong>
-            </div>
-            <div class="progress-track-bg"><div class="progress-fill-bar" style="width: 50%; background: #059669;"></div></div>
-          </div>
-
-          <div class="metric-progress-item">
-            <div class="metric-labels-row">
-              <span style="display: flex; align-items: center; gap: 6px; color: #475569;"><span style="width:7px; height:7px; border-radius:50%; background:#0284C7;"></span>Reefer / Frio</span>
-              <strong style="color: #334155;">2 lotes</strong>
-            </div>
-            <div class="progress-track-bg"><div class="progress-fill-bar" style="width: 33%; background: #0284C7;"></div></div>
-          </div>
-
-          <div class="metric-progress-item">
-            <div class="metric-labels-row">
-              <span style="display: flex; align-items: center; gap: 6px; color: #475569;"><span style="width:7px; height:7px; border-radius:50%; background:#F59E0B;"></span>Maturação</span>
-              <strong style="color: #334155;">1 lote</strong>
-            </div>
-            <div class="progress-track-bg"><div class="progress-fill-bar" style="width: 17%; background: #F59E0B;"></div></div>
-          </div>
-        </div>
-      </div>
-
-      <div style="border-top: 1px solid #F1F5F9; padding-top: 12px; display: flex; justify-content: space-between; font-size: 11px; color: #475569; margin-top: auto;">
-        <span>● 3 Colheita</span>
-        <span>● 2 Reefer</span>
-        <span>● 1 Maturação</span>
-      </div>
-    </div>
-
-    <!-- CARD 3: PREVISÃO DO TEMPO E CLIMA -->
-    <div class="figma-card">
-      <div class="card-top-title-row">
-        <span class="card-header-label">PREVISÃO DO TEMPO</span>
-        <span class="card-status-pill pill-amber" style="display: flex; align-items: center; gap: 4px;">
-          <i data-lucide="map-pin" style="width: 11px; height: 11px;"></i> Petrolina, PE • Hoje
-        </span>
-      </div>
-
-      <div style="display: flex; justify-content: space-between; align-items: center; margin: 10px 0;">
-        <div style="display: flex; align-items: center; gap: 12px;">
-          <div style="width: 44px; height: 44px; background: #FFFBEB; border: 1px solid #FEF3C7; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
-            <i data-lucide="sun" style="width: 26px; height: 26px; color: #F59E0B;"></i>
-          </div>
-          <div>
-            <div style="font-size: 28px; font-weight: 800; color: #1E293B; line-height: 1;">28°C</div>
-            <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Ensolarado • Vento 12 km/h</div>
-          </div>
-        </div>
-
-        <div style="display: flex; gap: 8px; text-align: center; font-size: 10px;">
-          <div><span style="color:#94A3B8;">MANHÃ</span><div style="font-weight:700; color:#334155;">22°</div></div>
-          <div style="border-right: 1px solid #E2E8F0;"></div>
-          <div><span style="color:#94A3B8;">TARDE</span><div style="font-weight:700; color:#D97706;">31°</div></div>
-          <div style="border-right: 1px solid #E2E8F0;"></div>
-          <div><span style="color:#94A3B8;">NOITE</span><div style="font-weight:700; color:#334155;">24°</div></div>
-        </div>
-      </div>
-
-      <div style="border-top: 1px solid #F1F5F9; padding-top: 12px; display: flex; justify-content: space-between; font-size: 11px; margin-top: auto;">
-        <div><span style="color:#94A3B8; font-size:10px;">UMIDADE</span><div style="font-weight:700; color:#1E293B;">62%</div></div>
-        <div><span style="color:#94A3B8; font-size:10px;">CHUVA</span><div style="font-weight:700; color:#1E293B;">0 mm</div></div>
-        <div><span style="color:#94A3B8; font-size:10px;">UV</span><div style="font-weight:700; color:#047857;">Mod. 29°</div></div>
-        <div><span style="color:#94A3B8; font-size:10px;">Qua</span><div style="font-weight:700; color:#334155;">28°</div></div>
-        <div><span style="color:#94A3B8; font-size:10px;">Qui</span><div style="font-weight:700; color:#334155;">28°</div></div>
-        <div><span style="color:#94A3B8; font-size:10px;">Sex</span><div style="font-weight:700; color:#334155;">27°</div></div>
-      </div>
-    </div>
-
-  </div>
-
-  <!-- Middle Row: Resumo da Produção (Gauge Grande) + Monitoramento da Propriedade (Satélite) -->
-  <div class="middle-split-row">
-    
-    <!-- Card Esquerdo: Resumo das Condições e Culturas -->
-    <div class="figma-card">
-      <div class="card-top-title-row">
-        <span style="font-size: 14px; font-weight: 700; color: #1E293B; letter-spacing: 0.5px; text-transform: uppercase;">
-          RESUMO DAS CONDIÇÕES E CULTURAS
-        </span>
-      </div>
-
-      <!-- Gauge Semicircular Perfeitamente Alinhado na Mesma Curva Geométrica -->
-      <div class="gauge-semicircle-wrap">
-        <div class="gauge-svg-container">
-          <svg width="260" height="135" viewBox="0 0 260 135" style="display: block; margin: 0 auto;">
-            <!-- Arco Base Cinza de 180° perfeito -->
-            <path id="gauge-track" d="M 45,120 A 85,85 0 0,1 215,120" fill="none" stroke="#F1F5F9" stroke-width="20" stroke-linecap="round"/>
-            <!-- Segmento Verde Contínuo -->
-            <path d="M 45,120 A 85,85 0 0,1 215,120" fill="none" stroke="#059669" stroke-width="20" stroke-linecap="round" stroke-dasharray="241 268" stroke-dashoffset="0"/>
-          </svg>
-          <div class="gauge-pct-number">90%</div>
-        </div>
-        <div class="gauge-caption">LEITURAS CONFORMES</div>
-      </div>
-
-      <!-- Barras de Saúde, Umidade e Temperatura -->
-      <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; border-top: 1px solid #F1F5F9; padding-top: 14px;">
-        <div class="metric-progress-item">
-          <div class="metric-labels-row">
-            <span style="color:#475569; font-weight: 500;">● Saúde da Plantação (NDVI)</span>
-            <strong style="color: #1E293B;">85%</strong>
-          </div>
-          <div class="progress-track-bg"><div class="progress-fill-bar" style="width: 85%; background: #059669;"></div></div>
-        </div>
-
-        <div class="metric-progress-item">
-          <div class="metric-labels-row">
-            <span style="color:#475569; font-weight: 500;">● Umidade Média do Dossel</span>
-            <strong style="color: #1E293B;">67%</strong>
-          </div>
-          <div class="progress-track-bg"><div class="progress-fill-bar" style="width: 67%; background: #0284C7;"></div></div>
-        </div>
-
-        <div class="metric-progress-item">
-          <div class="metric-labels-row">
-            <span style="color:#475569; font-weight: 500;">● Temperatura Foliar</span>
-            <strong style="color: #1E293B;">27°C</strong>
-          </div>
-          <div class="progress-track-bg"><div class="progress-fill-bar" style="width: 60%; background: #F59E0B;"></div></div>
-        </div>
-      </div>
-
-      <!-- Rodapé Duplo: Culturas e Status da Água -->
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; border-top: 1px solid #F1F5F9; padding-top: 14px; margin-top: auto;">
-        <div style="background: rgba(248, 250, 252, 0.8); border: 1px solid #F1F5F9; border-radius: 12px; padding: 10px 14px;">
-          <div style="font-size: 10px; font-weight: 700; color: #94A3B8; text-transform: uppercase;">CULTURAS</div>
-          <div style="display: flex; justify-content: space-between; font-size: 12px; margin-top: 4px;">
-            <span style="color: #334155; font-weight: 600;">Vitória:</span>
-            <strong style="color: #047857;">55%</strong>
-          </div>
-          <div style="display: flex; justify-content: space-between; font-size: 12px;">
-            <span style="color: #334155; font-weight: 600;">Palmer:</span>
-            <strong style="color: #0369A1;">35%</strong>
-          </div>
-          <div style="display: flex; justify-content: space-between; font-size: 12px;">
-            <span style="color: #94A3B8;">Outras:</span>
-            <span style="color: #94A3B8;">10%</span>
-          </div>
-        </div>
-
-        <div style="background: rgba(248, 250, 252, 0.8); border: 1px solid #F1F5F9; border-radius: 12px; padding: 10px 14px; display: flex; flex-direction: column; justify-content: space-between;">
-          <div style="font-size: 10px; font-weight: 700; color: #94A3B8; text-transform: uppercase;">STATUS ÁGUA</div>
-          <div style="display: flex; justify-content: space-between; align-items: baseline;">
             <div>
-              <span style="font-size: 16px; font-weight: 700; color: #1E293B;">63%</span>
-              <div style="font-size: 10px; color: #94A3B8;">4.200 L/dia</div>
+              <div style="font-size: 28px; font-weight: 800; color: #1E293B; line-height: 1;">28°C</div>
+              <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Ensolarado • Vento 12 km/h</div>
             </div>
-            <span style="background: #D1FAE5; color: #065F46; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 9999px;">Auto</span>
+          </div>
+
+          <div style="display: flex; gap: 8px; text-align: center; font-size: 10px;">
+            <div><span style="color:#94A3B8;">MANHÃ</span><div style="font-weight:700; color:#334155;">22°</div></div>
+            <div style="border-right: 1px solid #E2E8F0;"></div>
+            <div><span style="color:#94A3B8;">TARDE</span><div style="font-weight:700; color:#D97706;">31°</div></div>
+            <div style="border-right: 1px solid #E2E8F0;"></div>
+            <div><span style="color:#94A3B8;">NOITE</span><div style="font-weight:700; color:#334155;">24°</div></div>
+          </div>
+        </div>
+
+        <div style="border-top: 1px solid #F1F5F9; padding-top: 12px; display: flex; justify-content: space-between; font-size: 11px; margin-top: auto;">
+          <div><span style="color:#94A3B8; font-size:10px;">UMIDADE</span><div style="font-weight:700; color:#1E293B;">62%</div></div>
+          <div><span style="color:#94A3B8; font-size:10px;">CHUVA</span><div style="font-weight:700; color:#1E293B;">0 mm</div></div>
+          <div><span style="color:#94A3B8; font-size:10px;">UV</span><div style="font-weight:700; color:#047857;">Mod. 29°</div></div>
+          <div><span style="color:#94A3B8; font-size:10px;">Qua</span><div style="font-weight:700; color:#334155;">28°</div></div>
+          <div><span style="color:#94A3B8; font-size:10px;">Qui</span><div style="font-weight:700; color:#334155;">28°</div></div>
+          <div><span style="color:#94A3B8; font-size:10px;">Sex</span><div style="font-weight:700; color:#334155;">27°</div></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Middle Row: Resumo da Produção (Gauge Grande) + Monitoramento da Propriedade (Satélite) -->
+    <div class="middle-split-row">
+      
+      <!-- Card Esquerdo: Resumo das Condições e Culturas -->
+      <div class="figma-card">
+        <div class="card-top-title-row">
+          <span style="font-size: 14px; font-weight: 700; color: #1E293B; letter-spacing: 0.5px; text-transform: uppercase;">
+            RESUMO DAS CONDIÇÕES E CULTURAS
+          </span>
+        </div>
+
+        <!-- Gauge Semicircular Perfeitamente Alinhado na Mesma Curva Geométrica -->
+        <div class="gauge-semicircle-wrap">
+          <div class="gauge-svg-container">
+            <svg width="260" height="135" viewBox="0 0 260 135" style="display: block; margin: 0 auto;">
+              <!-- Arco Base Cinza de 180° perfeito -->
+              <path id="gauge-track" d="M 45,120 A 85,85 0 0,1 215,120" fill="none" stroke="#F1F5F9" stroke-width="20" stroke-linecap="round"/>
+              <!-- Segmento Verde Contínuo -->
+              <path d="M 45,120 A 85,85 0 0,1 215,120" fill="none" stroke="#059669" stroke-width="20" stroke-linecap="round" stroke-dasharray="241 268" stroke-dashoffset="0"/>
+            </svg>
+            <div class="gauge-pct-number">90%</div>
+          </div>
+          <div class="gauge-caption">LEITURAS CONFORMES</div>
+        </div>
+
+        <!-- Barras de Saúde, Umidade e Temperatura -->
+        <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; border-top: 1px solid #F1F5F9; padding-top: 14px;">
+          <div class="metric-progress-item">
+            <div class="metric-labels-row">
+              <span style="color:#475569; font-weight: 500;">● Saúde da Plantação (NDVI)</span>
+              <strong style="color: #1E293B;">85%</strong>
+            </div>
+            <div class="progress-track-bg"><div class="progress-fill-bar" style="width: 85%; background: #059669;"></div></div>
+          </div>
+
+          <div class="metric-progress-item">
+            <div class="metric-labels-row">
+              <span style="color:#475569; font-weight: 500;">● Umidade Média do Dossel</span>
+              <strong style="color: #1E293B;">67%</strong>
+            </div>
+            <div class="progress-track-bg"><div class="progress-fill-bar" style="width: 67%; background: #0284C7;"></div></div>
+          </div>
+
+          <div class="metric-progress-item">
+            <div class="metric-labels-row">
+              <span style="color:#475569; font-weight: 500;">● Temperatura Foliar</span>
+              <strong style="color: #1E293B;">27°C</strong>
+            </div>
+            <div class="progress-track-bg"><div class="progress-fill-bar" style="width: 60%; background: #F59E0B;"></div></div>
+          </div>
+        </div>
+
+        <!-- Rodapé Duplo: Culturas e Status da Água -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; border-top: 1px solid #F1F5F9; padding-top: 14px; margin-top: auto;">
+          <div style="background: rgba(248, 250, 252, 0.8); border: 1px solid #F1F5F9; border-radius: 12px; padding: 10px 14px;">
+            <div style="font-size: 10px; font-weight: 700; color: #94A3B8; text-transform: uppercase;">CULTURAS</div>
+            <div style="display: flex; justify-content: space-between; font-size: 12px; margin-top: 4px;">
+              <span style="color: #334155; font-weight: 600;">Vitória:</span>
+              <strong style="color: #047857;">55%</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 12px;">
+              <span style="color: #334155; font-weight: 600;">Palmer:</span>
+              <strong style="color: #0369A1;">35%</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 12px;">
+              <span style="color: #94A3B8;">Outras:</span>
+              <span style="color: #94A3B8;">10%</span>
+            </div>
+          </div>
+
+          <div style="background: rgba(248, 250, 252, 0.8); border: 1px solid #F1F5F9; border-radius: 12px; padding: 10px 14px; display: flex; flex-direction: column; justify-content: space-between;">
+            <div style="font-size: 10px; font-weight: 700; color: #94A3B8; text-transform: uppercase;">STATUS ÁGUA</div>
+            <div style="display: flex; justify-content: space-between; align-items: baseline;">
+              <div>
+                <span style="font-size: 16px; font-weight: 700; color: #1E293B;">63%</span>
+                <div style="font-size: 10px; color: #94A3B8;">4.200 L/dia</div>
+              </div>
+              <span style="background: #D1FAE5; color: #065F46; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 9999px;">Auto</span>
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- Card Direito: Monitoramento da Propriedade e Talhões (Foto de Satélite com Overlays Fiéis ao Figma) -->
-    <div class="figma-card" style="padding: 24px; display: flex; flex-direction: column;">
-      <div class="card-top-title-row" style="margin-bottom: 12px;">
-        <div>
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <span style="font-size: 14px; font-weight: 700; color: #1E293B; letter-spacing: 0.5px; text-transform: uppercase;">
+      <!-- Card Direito: Monitoramento da Propriedade e Talhões (Foto de Satélite com Overlays Fiéis ao Figma) -->
+      <div class="figma-card" style="padding: 24px; display: flex; flex-direction: column;">
+        <div class="card-top-title-row" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+          <div style="min-width: 0;">
+            <span style="font-size: 13px; font-weight: 700; color: #1E293B; letter-spacing: 0.5px; text-transform: uppercase; display: block; line-height: 1.3;">
               MONITORAMENTO DA PROPRIEDADE E TALHÕES
             </span>
-            <span class="card-status-pill pill-green" style="font-size: 10px; padding: 2px 8px;">sentinel-2</span>
+            <p style="font-size: 12px; color: #94A3B8; margin-top: 3px; margin-bottom: 0;">Fazenda Vale das Uvas • Setor 04 (48 ha)</p>
           </div>
-          <p style="font-size: 12px; color: #94A3B8; margin-top: 2px;">Fazenda Vale das Uvas • Setor 04 (48 ha)</p>
-        </div>
 
-        <div style="display: flex; gap: 4px;">
-          <button type="button" style="width: 28px; height: 28px; background: #F1F5F9; border: 1px solid #E2E8F0; border-radius: 8px; font-weight: 700; color: #475569; cursor: pointer;">+</button>
-          <button type="button" style="width: 28px; height: 28px; background: #F1F5F9; border: 1px solid #E2E8F0; border-radius: 8px; font-weight: 700; color: #475569; cursor: pointer;">-</button>
-          <button type="button" style="width: 28px; height: 28px; background: #F1F5F9; border: 1px solid #E2E8F0; border-radius: 8px; color: #475569; cursor: pointer; display: flex; align-items: center; justify-content: center;">
-            <i data-lucide="maximize-2" style="width: 14px; height: 14px;"></i>
-          </button>
-        </div>
-      </div>
-
-      <!-- Área Fotográfica em Alta Resolução com Overlays Exatos do Figma -->
-      <div class="satellite-map-container" style="position: relative; overflow: hidden; border-radius: 12px; min-height: 270px; flex: 1;">
-        <img src="assets/images/topologia-sensores-campo.jpg" alt="Visão Aérea dos Talhões" class="satellite-bg-img" style="width: 100%; height: 100%; object-fit: cover; display: block; border-radius: 12px;">
-
-        <!-- Overlay 1: Talhão A • Vitória (Top Left) -->
-        <div style="position: absolute; top: 12%; left: 8%; width: 32%; height: 32%; border: 1.5px solid #10B981; background: rgba(16, 185, 129, 0.15); border-radius: 8px; backdrop-filter: blur(1px); display: flex; flex-direction: column; justify-content: space-between; padding: 6px 8px; box-shadow: 0 0 12px rgba(16, 185, 129, 0.3);">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="background: rgba(15, 23, 42, 0.75); color: #FFFFFF; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;">Talhão A • Vitória</span>
-            <span style="width: 8px; height: 8px; border-radius: 50%; background: #10B981; border: 1.5px solid #FFFFFF;"></span>
-          </div>
-          <div style="text-align: center;">
-            <span style="background: rgba(16, 185, 129, 0.85); color: #FFFFFF; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">NDVI 0.88</span>
+          <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+            <span class="card-status-pill pill-green" style="font-size: 10px; padding: 3px 8px; font-weight: 700;">sentinel-2</span>
+            <div style="display: flex; gap: 4px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 2px;">
+              <button type="button" id="btn-map-zoom-in" style="width: 26px; height: 26px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 6px; font-weight: 700; color: #334155; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; transition: all 0.2s;" title="Aproximar zoom">+</button>
+              <button type="button" id="btn-map-zoom-out" style="width: 26px; height: 26px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 6px; font-weight: 700; color: #334155; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; transition: all 0.2s;" title="Afastar zoom">&minus;</button>
+              <button type="button" id="btn-map-fullscreen" style="width: 26px; height: 26px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 6px; color: #334155; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" title="Redefinir visualização / Tela inteira">
+                <i data-lucide="maximize-2" style="width: 13px; height: 13px;"></i>
+              </button>
+            </div>
           </div>
         </div>
 
-        <!-- Overlay 2: Talhão C • Palmer (Top Right) -->
-        <div style="position: absolute; top: 12%; right: 8%; width: 28%; height: 32%; border: 1.5px solid #F59E0B; background: rgba(245, 158, 11, 0.15); border-radius: 8px; backdrop-filter: blur(1px); display: flex; flex-direction: column; justify-content: space-between; padding: 6px 8px; box-shadow: 0 0 12px rgba(245, 158, 11, 0.3);">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="background: rgba(15, 23, 42, 0.75); color: #FFFFFF; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;">Talhão C • Palmer</span>
+        <!-- Área Fotográfica em Alta Resolução com Overlays Exatos do Figma e Zoom Interativo -->
+        <div id="satellite-map-viewport" class="satellite-map-container" style="position: relative; overflow: hidden; border-radius: 12px; min-height: 270px; flex: 1; background: #0F172A; cursor: grab; user-select: none;">
+          <div id="satellite-map-stage" style="position: absolute; inset: 0; transform-origin: center center; transition: transform 0.2s ease-out;">
+            <img src="assets/images/topologia-sensores-campo.jpg" alt="Visão Aérea dos Talhões" class="satellite-bg-img" style="width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; border-radius: 12px;">
+
+            <!-- Overlay 1: Talhão A • Vitória (Top Left) -->
+            <div style="position: absolute; top: 12%; left: 8%; width: 32%; height: 32%; border: 1.5px solid #10B981; background: rgba(16, 185, 129, 0.15); border-radius: 8px; backdrop-filter: blur(1px); display: flex; flex-direction: column; justify-content: space-between; padding: 6px 8px; box-shadow: 0 0 12px rgba(16, 185, 129, 0.3);">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="background: rgba(15, 23, 42, 0.75); color: #FFFFFF; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;">Talhão A • Vitória</span>
+                <span style="width: 8px; height: 8px; border-radius: 50%; background: #10B981; border: 1.5px solid #FFFFFF;"></span>
+              </div>
+              <div style="text-align: center;">
+                <span style="background: rgba(16, 185, 129, 0.85); color: #FFFFFF; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">NDVI 0.88</span>
+              </div>
+            </div>
+
+            <!-- Overlay 2: Talhão C • Palmer (Top Right) -->
+            <div style="position: absolute; top: 12%; right: 8%; width: 28%; height: 32%; border: 1.5px solid #F59E0B; background: rgba(245, 158, 11, 0.15); border-radius: 8px; backdrop-filter: blur(1px); display: flex; flex-direction: column; justify-content: space-between; padding: 6px 8px; box-shadow: 0 0 12px rgba(245, 158, 11, 0.3);">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="background: rgba(15, 23, 42, 0.75); color: #FFFFFF; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;">Talhão C • Palmer</span>
+              </div>
+              <div style="text-align: center;">
+                <span style="background: #F59E0B; color: #FFFFFF; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">Alerta Hídrico</span>
+              </div>
+            </div>
+
+            <!-- Gateway Central ESP32 (Centro) -->
+            <div style="position: absolute; top: 48%; left: 34%; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(4px); padding: 5px 12px; border-radius: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.25); font-size: 11px; font-weight: 700; color: #0F172A; display: flex; align-items: center; gap: 6px; z-index: 10; border: 1px solid rgba(255,255,255,0.8);">
+              <span style="width: 8px; height: 8px; border-radius: 50%; background: #10B981;"></span>
+              <span>Gateway Central ESP32</span>
+            </div>
+
+            <!-- Overlay 3: Talhão B • Thompson (Bottom Left) -->
+            <div style="position: absolute; bottom: 12%; left: 14%; width: 30%; height: 32%; border: 1.5px solid #0284C7; background: rgba(2, 132, 199, 0.15); border-radius: 8px; backdrop-filter: blur(1px); display: flex; flex-direction: column; justify-content: space-between; padding: 6px 8px; box-shadow: 0 0 12px rgba(2, 132, 199, 0.3);">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="background: rgba(15, 23, 42, 0.75); color: #FFFFFF; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;">Talhão B • Thompson</span>
+                <span style="width: 8px; height: 8px; border-radius: 50%; background: #0284C7; border: 1.5px solid #FFFFFF;"></span>
+              </div>
+              <div style="text-align: center;">
+                <span style="background: #0284C7; color: #FFFFFF; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">VWC 48%</span>
+              </div>
+            </div>
           </div>
-          <div style="text-align: center;">
-            <span style="background: #F59E0B; color: #FFFFFF; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">Alerta Hídrico</span>
+
+          <!-- Indicador Flutuante de Zoom -->
+          <div id="map-zoom-badge" style="position: absolute; bottom: 10px; right: 10px; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(4px); color: #FFFFFF; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 12px; pointer-events: none; opacity: 0; transition: opacity 0.3s; z-index: 20;">
+            100%
           </div>
         </div>
 
-        <!-- Gateway Central ESP32 (Centro) -->
-        <div style="position: absolute; top: 48%; left: 34%; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(4px); padding: 5px 12px; border-radius: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.25); font-size: 11px; font-weight: 700; color: #0F172A; display: flex; align-items: center; gap: 6px; z-index: 10; border: 1px solid rgba(255,255,255,0.8);">
-          <span style="width: 8px; height: 8px; border-radius: 50%; background: #10B981;"></span>
-          <span>Gateway Central ESP32</span>
-        </div>
-
-        <!-- Overlay 3: Talhão B • Thompson (Bottom Left) -->
-        <div style="position: absolute; bottom: 12%; left: 14%; width: 30%; height: 32%; border: 1.5px solid #0284C7; background: rgba(2, 132, 199, 0.15); border-radius: 8px; backdrop-filter: blur(1px); display: flex; flex-direction: column; justify-content: space-between; padding: 6px 8px; box-shadow: 0 0 12px rgba(2, 132, 199, 0.3);">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="background: rgba(15, 23, 42, 0.75); color: #FFFFFF; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;">Talhão B • Thompson</span>
-            <span style="width: 8px; height: 8px; border-radius: 50%; background: #0284C7; border: 1.5px solid #FFFFFF;"></span>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; font-size: 11px; color: #94A3B8;">
+          <div style="display: flex; gap: 16px;">
+            <span><strong style="color: #10B981;">●</strong> Ótimo</span>
+            <span><strong style="color: #0284C7;">●</strong> Atenção</span>
+            <span><strong style="color: #F59E0B;">●</strong> Crítico</span>
           </div>
-          <div style="text-align: center;">
-            <span style="background: #0284C7; color: #FFFFFF; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">VWC 48%</span>
-          </div>
-        </div>
-      </div>
-
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; font-size: 11px; color: #94A3B8;">
-        <div style="display: flex; gap: 16px;">
-          <span><strong style="color: #10B981;">●</strong> Ótimo</span>
-          <span><strong style="color: #0284C7;">●</strong> Atenção</span>
-          <span><strong style="color: #F59E0B;">●</strong> Crítico</span>
-        </div>
-        <div>Passagem orbital há 42 min</div>
-      </div>
-    </div>
-
-  </div>
-
-  <!-- Bottom Row: Telemetria de Campo (24h) com 4 Mini Gráficos Suaves e Organizados -->
-  <div class="figma-card telemetry-4charts-container">
-    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-      <div>
-        <span style="font-size: 14px; font-weight: 700; color: #1E293B; letter-spacing: 0.5px; text-transform: uppercase;">
-          TELEMETRIA DE CAMPO (24H)
-        </span>
-        <p style="font-size: 12px; color: #94A3B8; margin-top: 2px;">Leituras em tempo real dos nós LoRaWAN distribuídos nos talhões</p>
-      </div>
-
-      <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-        <div class="telemetria-timeframe-selector" style="display: flex; gap: 4px; background: #F1F5F9; padding: 4px; border-radius: 10px;">
-          <button class="timeframe-btn active" data-tf="24h" style="padding: 4px 12px; background: #fff; border-radius: 6px; font-size: 12px; font-weight: 600; color: #1E293B; box-shadow: 0 1px 2px rgba(0,0,0,0.05); border: none; cursor: pointer;">24h</button>
-          <button class="timeframe-btn" data-tf="7d" style="padding: 4px 12px; font-size: 12px; font-weight: 600; color: #64748B; background: none; border: none; border-radius: 6px; cursor: pointer;">7 Dias</button>
-          <button class="timeframe-btn" data-tf="30d" style="padding: 4px 12px; font-size: 12px; font-weight: 600; color: #64748B; background: none; border: none; border-radius: 6px; cursor: pointer;">30 Dias</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Grid com 4 Gráficos Fluidos Alinhados e Centralizados -->
-    <div class="charts-4col-grid">
-      
-      <!-- Gráfico 1: Umidade do Ar -->
-      <div class="mini-chart-card">
-        <div class="mini-chart-header">
-          <span class="mini-chart-title">Umidade do Ar</span>
-          <span class="mini-chart-pill pill-green">62% Ideal</span>
-        </div>
-        <div class="chart-canvas-wrap">
-          <canvas id="miniChart1"></canvas>
-        </div>
-        <div class="chart-time-labels">
-          <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>Agora</span>
-        </div>
-      </div>
-
-      <!-- Gráfico 2: Umidade do Solo -->
-      <div class="mini-chart-card">
-        <div class="mini-chart-header">
-          <span class="mini-chart-title">Umidade do Solo</span>
-          <span class="mini-chart-pill pill-green">58% Ideal</span>
-        </div>
-        <div class="chart-canvas-wrap">
-          <canvas id="miniChart2"></canvas>
-        </div>
-        <div class="chart-time-labels">
-          <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>Agora</span>
-        </div>
-      </div>
-
-      <!-- Gráfico 3: Temperatura do Solo -->
-      <div class="mini-chart-card">
-        <div class="mini-chart-header">
-          <span class="mini-chart-title">Temperatura do Solo</span>
-          <span class="mini-chart-pill pill-blue">24.5°C Segura</span>
-        </div>
-        <div class="chart-canvas-wrap">
-          <canvas id="miniChart3"></canvas>
-        </div>
-        <div class="chart-time-labels">
-          <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>Agora</span>
-        </div>
-      </div>
-
-      <!-- Gráfico 4: Temperatura do Ar -->
-      <div class="mini-chart-card">
-        <div class="mini-chart-header">
-          <span class="mini-chart-title">Temperatura do Ar</span>
-          <span class="mini-chart-pill pill-green">27.8°C Ideal</span>
-        </div>
-        <div class="chart-canvas-wrap">
-          <canvas id="miniChart4"></canvas>
-        </div>
-        <div class="chart-time-labels">
-          <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>Agora</span>
+          <div>Passagem orbital há 42 min</div>
         </div>
       </div>
 
     </div>
-  </div>
+
+    <!-- Bottom Row: Telemetria de Campo (24h) com 4 Mini Gráficos Suaves e Organizados -->
+    <div class="figma-card telemetry-4charts-container">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+        <div>
+          <span style="font-size: 14px; font-weight: 700; color: #1E293B; letter-spacing: 0.5px; text-transform: uppercase;">
+            TELEMETRIA DE CAMPO (24H)
+          </span>
+          <p style="font-size: 12px; color: #94A3B8; margin-top: 2px;">Leituras em tempo real dos nós LoRaWAN distribuídos nos talhões</p>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+          <div class="telemetria-timeframe-selector" style="display: flex; gap: 4px; background: #F1F5F9; padding: 4px; border-radius: 10px;">
+            <button class="timeframe-btn active" data-tf="24h" style="padding: 4px 12px; background: #fff; border-radius: 6px; font-size: 12px; font-weight: 600; color: #1E293B; box-shadow: 0 1px 2px rgba(0,0,0,0.05); border: none; cursor: pointer;">24h</button>
+            <button class="timeframe-btn" data-tf="7d" style="padding: 4px 12px; font-size: 12px; font-weight: 600; color: #64748B; background: none; border: none; border-radius: 6px; cursor: pointer;">7 Dias</button>
+            <button class="timeframe-btn" data-tf="30d" style="padding: 4px 12px; font-size: 12px; font-weight: 600; color: #64748B; background: none; border: none; border-radius: 6px; cursor: pointer;">30 Dias</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Grid com 4 Gráficos Fluidos Alinhados e Centralizados -->
+      <div class="charts-4col-grid">
+        
+        <!-- Gráfico 1: Umidade do Ar -->
+        <div class="mini-chart-card">
+          <div class="mini-chart-header">
+            <span class="mini-chart-title">Umidade do Ar</span>
+            <span class="mini-chart-pill pill-green">62% Ideal</span>
+          </div>
+          <div class="chart-canvas-wrap">
+            <canvas id="miniChart1"></canvas>
+          </div>
+          <div class="chart-time-labels">
+            <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>Agora</span>
+          </div>
+        </div>
+
+        <!-- Gráfico 2: Umidade do Solo -->
+        <div class="mini-chart-card">
+          <div class="mini-chart-header">
+            <span class="mini-chart-title">Umidade do Solo</span>
+            <span class="mini-chart-pill pill-green">58% Ideal</span>
+          </div>
+          <div class="chart-canvas-wrap">
+            <canvas id="miniChart2"></canvas>
+          </div>
+          <div class="chart-time-labels">
+            <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>Agora</span>
+          </div>
+        </div>
+
+        <!-- Gráfico 3: Temperatura do Solo -->
+        <div class="mini-chart-card">
+          <div class="mini-chart-header">
+            <span class="mini-chart-title">Temperatura do Solo</span>
+            <span class="mini-chart-pill pill-blue">24.5°C Segura</span>
+          </div>
+          <div class="chart-canvas-wrap">
+            <canvas id="miniChart3"></canvas>
+          </div>
+          <div class="chart-time-labels">
+            <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>Agora</span>
+          </div>
+        </div>
+
+        <!-- Gráfico 4: Temperatura do Ar -->
+        <div class="mini-chart-card">
+          <div class="mini-chart-header">
+            <span class="mini-chart-title">Temperatura do Ar</span>
+            <span class="mini-chart-pill pill-green">27.8°C Ideal</span>
+          </div>
+          <div class="chart-canvas-wrap">
+            <canvas id="miniChart4"></canvas>
+          </div>
+          <div class="chart-time-labels">
+            <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>Agora</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
 </div>
-
         </div>
       </main>
     </div>
@@ -500,7 +519,7 @@
   <div id="modal-root"></div>
   <div id="toast-container" class="toast-container"></div>
   <script type="module">
-    import { setupDashboardEvents } from "/assets/js/views/dashboard.js?v=20261120-live12";
+    import { setupDashboardEvents } from "/assets/js/views/dashboard.js?v=20261120-live14";
     if (typeof setupDashboardEvents === "function") {
       try { setupDashboardEvents(); } catch (err) { console.warn("Erro evento:", err); }
     }
