@@ -1153,3 +1153,71 @@
   }
 }
 
+
+/* =====================================================================
+   DASHBOARD DETALHADO - PRODUTOR / GESTORA (Figma v2)
+   ===================================================================== */
+.dd-wrap { display: flex; flex-direction: column; gap: 16px; }
+.dd-card {
+  background: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  border-radius: 12px;
+  padding: 18px 20px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+}
+.dd-card-lg { padding: 22px 24px; }
+.dd-kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.dd-split-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: stretch; }
+.dd-label { font-size: 10px; font-weight: 600; color: #6B7280; text-transform: uppercase; letter-spacing: 0.4px; }
+.dd-caption { font-size: 11px; color: #6B7280; }
+.dd-muted { font-size: 12px; color: #6B7280; line-height: 1.5; margin: 4px 0 0; }
+.dd-kpi { display: flex; flex-direction: column; justify-content: space-between; min-height: 128px; }
+.dd-kpi-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 12px 0; }
+.dd-kpi-value { font-size: 30px; font-weight: 700; color: #1E293B; line-height: 1; letter-spacing: -0.5px; }
+.dd-amber { color: #B7791F; }
+.dd-pill { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 4px; font-size: 10.5px; font-weight: 600; white-space: nowrap; }
+.dd-pill-green { background: #E8F5EC; color: #1F6B3E; }
+.dd-pill-amber { background: #FDF0DD; color: #B45309; }
+.dd-pill-gray  { background: #F1F3F5; color: #4B5563; }
+.dd-card-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 10px; }
+.dd-title { font-size: 17px; font-weight: 700; color: #1E293B; margin: 0 0 12px; }
+.dd-subtitle { font-size: 12.5px; font-weight: 700; color: #1E293B; display: block; }
+.dd-harvest-range { font-size: 30px; font-weight: 700; color: #1F7A45; letter-spacing: -0.5px; line-height: 1.1; margin-top: 4px; }
+.dd-divider { height: 1px; background: #E5E7EB; margin: 18px 0 14px; }
+.dd-prod-row { display: flex; align-items: center; gap: 36px; margin: 6px 0 22px; }
+.dd-prod-value { font-size: 34px; font-weight: 700; color: #1E293B; letter-spacing: -0.5px; line-height: 1; }
+.dd-prod-text { font-size: 13px; font-weight: 600; color: #1E293B; margin-bottom: 3px; }
+.dd-mini-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.dd-mini { background: #F5F6F7; border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+.dd-mini-label { font-size: 10.5px; color: #6B7280; }
+.dd-mini-value { font-size: 16px; font-weight: 700; color: #1E293B; }
+.dd-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+.dd-table th { font-size: 9.5px; font-weight: 600; color: #6B7280; text-transform: uppercase; letter-spacing: 0.4px; text-align: left; padding: 0 0 8px; border-bottom: 1px solid #E5E7EB; }
+.dd-table td { font-size: 13px; font-weight: 600; color: #1E293B; padding: 14px 0; border-bottom: 1px solid #E5E7EB; }
+.dd-table tbody tr:last-child td { border-bottom: none; }
+.dd-price { font-size: 15px !important; font-weight: 700 !important; }
+.dd-weather-now { display: flex; align-items: center; gap: 28px; flex-wrap: wrap; }
+.dd-weather-temp { font-size: 30px; font-weight: 700; color: #1E293B; line-height: 1; }
+.dd-weather-cond { font-size: 13px; font-weight: 600; color: #1E293B; margin-bottom: 3px; }
+.dd-weather-extra { margin-left: auto; font-size: 11px; color: #6B7280; line-height: 1.8; }
+.dd-forecast { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+.dd-forecast-day { display: flex; flex-direction: column; gap: 6px; }
+.dd-forecast-day strong { font-size: 12px; color: #1E293B; font-weight: 700; }
+.dd-steps-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 8px; }
+.dd-step { display: flex; gap: 16px; background: #F5F6F7; border-radius: 8px; padding: 14px 16px; text-decoration: none; transition: background 0.2s ease; }
+.dd-step:hover { background: #EEF1F3; }
+.dd-step-num { font-size: 11px; font-weight: 700; color: #1F7A45; padding-top: 2px; }
+.dd-step-title { font-size: 12.5px; font-weight: 700; color: #1E293B; display: block; }
+.dd-step .dd-muted { font-size: 11px; }
+
+@media (max-width: 1200px) {
+  .dd-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 960px) {
+  .dd-split-grid, .dd-steps-grid { grid-template-columns: 1fr; }
+  .dd-forecast { grid-template-columns: repeat(3, 1fr); row-gap: 14px; }
+  .dd-weather-extra { margin-left: 0; }
+}
+@media (max-width: 560px) {
+  .dd-kpi-grid, .dd-mini-grid { grid-template-columns: 1fr; }
+}

@@ -43,11 +43,14 @@ export function renderHeader(title) {
   if (isAdmin) metaDict = PAGE_META_ADMIN;
   else if (isAnalista) metaDict = PAGE_META_ANALISTA;
 
-  const meta = metaDict[hash] || { h2: title || 'Visão Geral do Sistema', sub: 'Gerencie preferências da fazenda, parâmetros de sensores, notificações e acessos.' };
+  const meta = { ...(metaDict[hash] || { h2: title || 'Visão Geral do Sistema', sub: 'Gerencie preferências da fazenda, parâmetros de sensores, notificações e acessos.' }) };
 
   const isDashboard = hash === '#/dashboard';
   const isResumido = localStorage.getItem('DASHBOARD_MODE') !== 'detalhado';
   const isLeiturasGestor = !isAnalista && hash === '#/leituras';
+  if (isDashboard && !isAdmin && !isAnalista && !isResumido) {
+    meta.sub = 'Acompanhe a safra, planeje a colheita e priorize as ações do dia.';
+  }
   const dataFormatada = isLeiturasGestor ? 'Safra 2025/2026' : '22 de setembro de 2026';
 
   return `
