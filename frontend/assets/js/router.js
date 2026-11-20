@@ -309,8 +309,8 @@ export class Router {
       dateSelectorBtn.addEventListener('click', () => {
         const currentLabel = document.getElementById('header-date-label')?.textContent || '22 de setembro de 2026';
         Modal.open('Período de Análise & Ciclo de Safra', `
-          <div style="display:flex; flex-direction:column; gap:12px; font-size:13px;">
-            <p style="color:#CBD5E1; margin:0;">Selecione a janela temporal para filtragem dinâmica dos indicadores:</p>
+          <div style="display:flex; flex-direction:column; gap:14px; font-size:13px;">
+            <p style="color:#64748B; margin:0; line-height:1.5;">Selecione a janela temporal para filtragem dinâmica dos indicadores:</p>
             <div style="display:flex; flex-direction:column; gap:8px;">
               ${[
                 'Tempo Real • Hoje (Ciclo Ativo)',
@@ -319,9 +319,9 @@ export class Router {
                 'Últimos 30 dias (Mensal)',
                 'Safra 2025/2026 Completa'
               ].map(periodo => `
-                <label style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:10px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.14); color:#FFFFFF; cursor:pointer; font-weight:600;">
-                  <input type="radio" name="modal-periodo-safra" value="${periodo}" ${currentLabel.includes(periodo.split(' ')[0]) ? 'checked' : ''} style="accent-color:#10B981;">
-                  <span>${periodo}</span>
+                <label style="display:flex; align-items:center; gap:12px; padding:11px 14px; border-radius:10px; background:#F8FAFC; border:1px solid #E2E8F0; color:#0F172A; cursor:pointer; font-weight:600; font-size:13px; transition:all 0.15s ease;">
+                  <input type="radio" name="modal-periodo-safra" value="${periodo}" ${currentLabel.includes(periodo.split(' ')[0]) ? 'checked' : ''} style="accent-color:#059669; width:16px; height:16px; cursor:pointer;">
+                  <span style="color:#0F172A;">${periodo}</span>
                 </label>
               `).join('')}
             </div>
