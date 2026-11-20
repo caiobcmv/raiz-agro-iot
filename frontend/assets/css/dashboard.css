@@ -564,8 +564,8 @@
 
 .detailed-middle-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
+  grid-template-columns: 1fr 1.05fr 1.35fr;
+  gap: 18px;
   align-items: stretch;
   margin-top: 20px;
 }
@@ -578,6 +578,12 @@
   .middle-split-row {
     grid-template-columns: 1fr;
   }
+  .detailed-middle-grid {
+    grid-template-columns: 1fr 1.05fr 1.35fr;
+  }
+}
+
+@media (max-width: 1100px) {
   .detailed-middle-grid {
     grid-template-columns: 1fr 1fr;
   }
