@@ -127,11 +127,12 @@ export function renderSidebar(currentPath) {
           </button>
         </div>
 
-        <div class="gateway-status-pill" id="sidebar-gateway-pill" style="cursor:pointer; display:flex; flex-direction:column; align-items:flex-start; gap:2px; border-radius:10px; padding:10px 14px; width:100%; box-sizing:border-box;" title="${profileRole === 'gestor' || (!isAdmin && !isAnalista) ? 'Status da coleta de sensores (ThingSpeak)' : 'Clique para verificar conectividade do Gateway'}">
-          <span style="color: #1E293B; font-weight: 700; font-size: 11px;">
+        <div class="gateway-status-pill" id="sidebar-gateway-pill" style="cursor:pointer;" title="Clique para verificar conectividade do Gateway">
+          <span style="display: flex; align-items: center; gap: 6px; color: #1E293B; font-weight: 600; font-size: 11px;">
+            <span class="gateway-live-dot" style="width: 7px; height: 7px; border-radius: 50%; background: #10B981; box-shadow: 0 0 6px rgba(16,185,129,0.7);"></span>
             ${profile.gatewayPill}
           </span>
-          <span id="sidebar-gateway-status" style="color: #64748B; font-size: 10px; font-weight: 400;">${profile.gatewayStatus || 'Última leitura não informada'}</span>
+          <span style="color: #64748B; font-size: 11px; font-weight: 500;">${profile.gatewayStatus}</span>
         </div>
       </div>
     </aside>

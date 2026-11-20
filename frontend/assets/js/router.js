@@ -4,14 +4,14 @@
 
 import { api } from './api.js';
 import { auth } from './auth.js';
-import { renderSidebar } from './components/sidebar.js?v=20261120-live26';
-import { renderHeader } from './components/header.js?v=20261120-live26';
-import { Modal } from './components/modal.js?v=20261120-live26';
-import { toast } from './components/toast.js?v=20261120-live26';
-import { showAccessDeniedModal } from './components/access-denied-modal.js?v=20261120-live26';
+import { renderSidebar } from './components/sidebar.js?v=20261120-live27';
+import { renderHeader } from './components/header.js?v=20261120-live27';
+import { Modal } from './components/modal.js?v=20261120-live27';
+import { toast } from './components/toast.js?v=20261120-live27';
+import { showAccessDeniedModal } from './components/access-denied-modal.js?v=20261120-live27';
 
 // Importação das Views
-import { renderLogin, setupLoginEvents } from './views/login.js?v=20261120-live26';
+import { renderLogin, setupLoginEvents } from './views/login.js?v=20261120-live27';
 import {
   renderPrimeiroAcesso, setupPrimeiroAcessoEvents,
   renderRecuperarSenha, setupRecuperarSenhaEvents,
@@ -19,21 +19,21 @@ import {
   renderRedefinirSenha, setupRedefinirSenhaEvents,
   renderSenhaAlterada, setupSenhaAlteradaEvents,
   renderContaBloqueada, setupContaBloqueadaEvents
-} from './views/auth-flow.js?v=20261120-live26';
-import { renderDashboard, setupDashboardEvents } from './views/dashboard.js?v=20261120-live26';
-import { renderSensores, setupSensoresEvents } from './views/sensores.js?v=20261120-live26';
-import { renderRedeEsp32, setupRedeEsp32Events } from './views/rede-esp32.js?v=20261120-live26';
-import { renderLeituras, setupLeiturasEvents } from './views/leituras.js?v=20261120-live26';
-import { renderLotes, setupLotesEvents } from './views/lotes.js?v=20261120-live26';
-import { renderViagens, setupViagensEvents } from './views/viagens.js?v=20261120-live26';
-import { renderAlertas, setupAlertasEvents } from './views/alertas.js?v=20261120-live26';
-import { renderPrevisoes } from './views/previsoes.js?v=20261120-live26';
-import { renderRelatorios, setupRelatoriosEvents } from './views/relatorios.js?v=20261120-live26';
-import { renderConfiguracoes, setupConfiguracoesEvents } from './views/configuracoes.js?v=20261120-live26';
-import { renderUsuarios, setupUsuariosEvents } from './views/usuarios.js?v=20261120-live26';
-import { renderRegrasAgronomicas, setupRegrasAgronomicasEvents } from './views/regras-agronomicas.js?v=20261120-live26';
-import { renderAuditoria, setupAuditoriaEvents } from './views/auditoria.js?v=20261120-live26';
-import { renderSensoresAdmin, setupSensoresAdminEvents } from './views/sensores-admin.js?v=20261120-live26';
+} from './views/auth-flow.js?v=20261120-live27';
+import { renderDashboard, setupDashboardEvents } from './views/dashboard.js?v=20261120-live27';
+import { renderSensores, setupSensoresEvents } from './views/sensores.js?v=20261120-live27';
+import { renderRedeEsp32, setupRedeEsp32Events } from './views/rede-esp32.js?v=20261120-live27';
+import { renderLeituras, setupLeiturasEvents } from './views/leituras.js?v=20261120-live27';
+import { renderLotes, setupLotesEvents } from './views/lotes.js?v=20261120-live27';
+import { renderViagens, setupViagensEvents } from './views/viagens.js?v=20261120-live27';
+import { renderAlertas, setupAlertasEvents } from './views/alertas.js?v=20261120-live27';
+import { renderPrevisoes } from './views/previsoes.js?v=20261120-live27';
+import { renderRelatorios, setupRelatoriosEvents } from './views/relatorios.js?v=20261120-live27';
+import { renderConfiguracoes, setupConfiguracoesEvents } from './views/configuracoes.js?v=20261120-live27';
+import { renderUsuarios, setupUsuariosEvents } from './views/usuarios.js?v=20261120-live27';
+import { renderRegrasAgronomicas, setupRegrasAgronomicasEvents } from './views/regras-agronomicas.js?v=20261120-live27';
+import { renderAuditoria, setupAuditoriaEvents } from './views/auditoria.js?v=20261120-live27';
+import { renderSensoresAdmin, setupSensoresAdminEvents } from './views/sensores-admin.js?v=20261120-live27';
 
 const routes = {
   '#/login': {
@@ -303,49 +303,8 @@ export class Router {
 
     // 4. Gateway Status Pill na Sidebar
     const gatewayPill = document.getElementById('sidebar-gateway-pill');
-    const isGestorPerfil = !['admin', 'analista'].includes(auth.getActiveProfile());
-    let ultimaColetaMin = null;
-
-    if (isGestorPerfil && gatewayPill) {
-      // "Coleta de sensores · última leitura há X min": inferido da leitura mais recente recebida (ThingSpeak)
-      api.getSensores().then(sensores => {
-        const statusEl = document.getElementById('sidebar-gateway-status');
-        const dotEl = document.getElementById('sidebar-gateway-dot');
-        const tempos = (Array.isArray(sensores) ? sensores : [])
-          .filter(s => String(s.origem || '').toLowerCase() === 'thingspeak' && s.ultima_leitura)
-          .map(s => new Date(s.ultima_leitura).getTime())
-          .filter(t => !Number.isNaN(t));
-        if (!statusEl) return;
-        if (!tempos.length) {
-          statusEl.textContent = 'sem leituras';
-          if (dotEl) { dotEl.style.background = '#94A3B8'; dotEl.style.boxShadow = 'none'; }
-          gatewayPill.title = 'Nenhuma leitura recebida do ThingSpeak';
-          return;
-        }
-        ultimaColetaMin = Math.max(0, Math.round((Date.now() - Math.max(...tempos)) / 60000));
-        const txt = ultimaColetaMin < 60 ? `há ${ultimaColetaMin} min`
-          : ultimaColetaMin < 1440 ? `há ${Math.round(ultimaColetaMin / 60)} h`
-          : `há ${Math.round(ultimaColetaMin / 1440)} d`;
-        statusEl.textContent = txt;
-        gatewayPill.title = `Coleta de sensores · última leitura ${txt}`;
-        if (dotEl && ultimaColetaMin > 30) {
-          dotEl.style.background = '#F59E0B';
-          dotEl.style.boxShadow = '0 0 6px rgba(245,158,11,0.6)';
-        }
-      }).catch(() => {});
-    }
-
     gatewayPill?.addEventListener('click', () => {
       const profile = auth.getProfileData();
-      if (isGestorPerfil) {
-        const statusTxt = document.getElementById('sidebar-gateway-status')?.textContent || '';
-        if (ultimaColetaMin === null) {
-          toast.info('Coleta de sensores', 'Nenhuma leitura recente recebida do ThingSpeak.');
-        } else {
-          toast.success('Coleta de sensores', `Última leitura recebida ${statusTxt} (ThingSpeak).`);
-        }
-        return;
-      }
       toast.success(`${profile.gatewayPill} Ativo`, `Enlace de telemetria operacional (Latência: 42ms • Pacotes íntegros).`);
     });
 
