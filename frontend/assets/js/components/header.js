@@ -46,7 +46,6 @@ export function renderHeader(title) {
   const meta = metaDict[hash] || { h2: title || 'Visão Geral do Sistema', sub: 'Gerencie preferências da fazenda, parâmetros de sensores, notificações e acessos.' };
 
   const isDashboard = hash === '#/dashboard';
-  const isConfiguracoes = hash === '#/configuracoes';
   const isResumido = localStorage.getItem('DASHBOARD_MODE') !== 'detalhado';
   const isLeiturasGestor = !isAnalista && hash === '#/leituras';
   const dataFormatada = isLeiturasGestor ? 'Safra 2025/2026' : '22 de setembro de 2026';
@@ -60,15 +59,7 @@ export function renderHeader(title) {
         </button>
 
         <div class="header-title-wrap" style="min-width:0;">
-          <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-            <h2>${meta.h2}</h2>
-            ${isConfiguracoes ? `
-            <span style="background: #ECFDF5; color: #065F46; font-size: 11px; font-weight: 600; padding: 4px 12px; border-radius: 20px; display: inline-flex; align-items: center; gap: 6px;">
-              <span style="width: 7px; height: 7px; border-radius: 50%; background: #10B981;"></span>
-              Ao Vivo &bull; 22:19:16
-            </span>
-            ` : ''}
-          </div>
+          <h2>${meta.h2}</h2>
           ${meta.sub ? `<p>${meta.sub}</p>` : ''}
         </div>
       </div>
