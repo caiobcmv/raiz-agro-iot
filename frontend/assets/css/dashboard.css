@@ -564,9 +564,10 @@
 
 .detailed-middle-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
+  grid-template-columns: 280px 1.12fr 1.15fr;
+  gap: 20px;
   align-items: stretch;
+  margin-top: 20px;
 }
 
 /* Responsividade */
@@ -577,6 +578,12 @@
   .middle-split-row {
     grid-template-columns: 1fr;
   }
+  .detailed-middle-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 900px) {
   .detailed-middle-grid {
     grid-template-columns: 1fr;
   }

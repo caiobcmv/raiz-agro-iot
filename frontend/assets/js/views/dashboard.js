@@ -838,7 +838,7 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
 }
 
 /**
- * 2. MODO DETALHADO (Segunda Imagem do Figma)
+ * 2. MODO DETALHADO (Fiel ao Design Figma)
  */
 function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
   const confPct = Number(dg.conformidade_geral_pct ?? 90);
@@ -848,206 +848,373 @@ function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
   const aguaPct = Number(dg.agua_reservatorio_pct ?? 63);
   const uArLast = (dg.umidade_ar_24h && dg.umidade_ar_24h.length) ? dg.umidade_ar_24h[dg.umidade_ar_24h.length - 1] : 62;
   const uSoloLast = (dg.umidade_solo_24h && dg.umidade_solo_24h.length) ? dg.umidade_solo_24h[dg.umidade_solo_24h.length - 1] : 58;
-  const tSoloLast = (dg.temp_solo_24h && dg.temp_solo_24h.length) ? dg.temp_solo_24h[dg.temp_solo_24h.length - 1] : 24.5;
-  const tArLast = (dg.temp_ar_24h && dg.temp_ar_24h.length) ? dg.temp_ar_24h[dg.temp_ar_24h.length - 1] : 27.8;
+  const tSoloLast = (dg.temp_solo_24h && dg.temp_solo_24h.length) ? dg.temp_solo_24h[dg.temp_solo_24h.length - 1] : 48;
+  const tArLast = (dg.temp_ar_24h && dg.temp_ar_24h.length) ? dg.temp_ar_24h[dg.temp_ar_24h.length - 1] : 48;
 
   return `
     <!-- Top Row: 4 Cards (Condição Geral, Lotes 6, Cadeia Fria +1.2°C, Alertas 2) -->
     <div class="detailed-kpi-4col">
-      <div class="figma-card">
-        <div class="card-top-title-row">
-          <span class="card-header-label">CONDIÇÃO GERAL</span>
-          <span class="card-status-pill pill-green">Excelente</span>
+      <!-- Card 1: CONDIÇÃO GERAL -->
+      <div class="figma-card" style="padding: 18px 20px;">
+        <div class="card-top-title-row" style="margin-bottom: 8px;">
+          <span class="card-header-label" style="font-size: 10px; font-weight: 700; color: #71807A; text-transform: uppercase; letter-spacing: 0.5px;">CONDIÇÃO GERAL</span>
+          <span class="card-status-pill pill-green" style="background: #ECFDF5; color: #059669; border: 1px solid #A7F3D0; border-radius: 20px; padding: 3px 10px; font-size: 11px; font-weight: 700;">Excelente</span>
         </div>
-        <div style="display: flex; align-items: center; justify-content: space-between; margin: 10px 0;">
-          <div style="font-size: 36px; font-weight: 800; color: #1E293B;">${confPct}%</div>
+        <div style="display: flex; align-items: center; justify-content: space-between; margin: 10px 0 14px;">
+          <div style="font-size: 38px; font-weight: 800; color: #1E293B; line-height: 1;">96%</div>
           <div style="width: 44px; height: 44px; border-radius: 50%; background: #ECFDF5; border: 1.5px solid #10B981; display: flex; align-items: center; justify-content: center; color: #059669;">
-            <i data-lucide="leaf" style="width: 22px; height: 22px;"></i>
+            <i data-lucide="leaf" style="width: 20px; height: 20px;"></i>
           </div>
         </div>
-        <span style="font-size: 11px; color: #64748B;">Parâmetros sincronizados</span>
+        <span style="font-size: 11px; color: #71807A;">Parâmetros 100% ideais</span>
       </div>
 
-      <div class="figma-card">
-        <div class="card-top-title-row">
-          <span class="card-header-label">LOTES EM OPERAÇÃO</span>
-          <span class="card-status-pill pill-blue">6 Ativos</span>
+      <!-- Card 2: LOTES EM OPERAÇÃO -->
+      <div class="figma-card" style="padding: 18px 20px;">
+        <div class="card-top-title-row" style="margin-bottom: 8px;">
+          <span class="card-header-label" style="font-size: 10px; font-weight: 700; color: #71807A; text-transform: uppercase; letter-spacing: 0.5px;">LOTES EM OPERAÇÃO</span>
         </div>
-        <div style="display: flex; align-items: center; justify-content: space-between; margin: 10px 0;">
-          <div>
-            <div style="font-size: 36px; font-weight: 800; color: #1E293B; line-height: 1;">6</div>
-            <span style="font-size: 11px; color: #94A3B8;">lotes ativos</span>
+        <div style="display: flex; align-items: center; justify-content: space-between; margin: 10px 0 14px;">
+          <div style="display: flex; align-items: baseline; gap: 4px;">
+            <span style="font-size: 38px; font-weight: 800; color: #1E293B; line-height: 1;">6</span>
+            <span style="font-size: 11px; color: #71807A;">lotes ativos</span>
           </div>
-          <div style="width: 44px; height: 44px; border-radius: 50%; background: #EFF6FF; border: 1.5px solid #0284C7; display: flex; align-items: center; justify-content: center; color: #0284C7;">
-            <i data-lucide="package" style="width: 22px; height: 22px;"></i>
+          <div style="position: relative; width: 44px; height: 44px;">
+            <svg width="44" height="44" viewBox="0 0 44 44" style="transform: rotate(-90deg);">
+              <circle cx="22" cy="22" r="17" fill="none" stroke="#E2E8F0" stroke-width="4"/>
+              <circle cx="22" cy="22" r="17" fill="none" stroke="#10B981" stroke-width="4" stroke-dasharray="54 107" stroke-dashoffset="0"/>
+              <circle cx="22" cy="22" r="17" fill="none" stroke="#0284C7" stroke-width="4" stroke-dasharray="35 107" stroke-dashoffset="-54"/>
+              <circle cx="22" cy="22" r="17" fill="none" stroke="#F59E0B" stroke-width="4" stroke-dasharray="18 107" stroke-dashoffset="-89"/>
+            </svg>
+            <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #059669;">
+              <i data-lucide="clipboard-list" style="width: 16px; height: 16px;"></i>
+            </div>
           </div>
         </div>
-        <div style="display: flex; gap: 12px; font-size: 11px; color: #64748B;">
-          <span>● 3 Colheita</span>
-          <span>● 2 Reefer</span>
+        <div style="display: flex; gap: 12px; font-size: 11px; color: #71807A;">
+          <span style="display: flex; align-items: center; gap: 4px;"><span style="width: 6px; height: 6px; border-radius: 50%; background: #10B981;"></span>3 Colheita</span>
+          <span style="display: flex; align-items: center; gap: 4px;"><span style="width: 6px; height: 6px; border-radius: 50%; background: #0284C7;"></span>2 Reefer</span>
         </div>
       </div>
 
-      <div class="figma-card">
-        <div class="card-top-title-row">
-          <span class="card-header-label">CADEIA FRIA (REEFER)</span>
-          <span class="card-status-pill pill-green">Faixa Ideal</span>
+      <!-- Card 3: CADEIA FRIA (REEFER) -->
+      <div class="figma-card" style="padding: 18px 20px;">
+        <div class="card-top-title-row" style="margin-bottom: 8px;">
+          <span class="card-header-label" style="font-size: 10px; font-weight: 700; color: #71807A; text-transform: uppercase; letter-spacing: 0.5px;">CADEIA FRIA (REEFER)</span>
+          <span class="card-status-pill pill-green" style="background: #ECFDF5; color: #059669; border: 1px solid #A7F3D0; border-radius: 20px; padding: 3px 10px; font-size: 11px; font-weight: 700;">Faixa Ideal</span>
         </div>
-        <div style="display: flex; align-items: center; justify-content: space-between; margin: 10px 0;">
-          <div style="font-size: 36px; font-weight: 800; color: #1E293B;">+1.2°C</div>
-          <div style="width: 44px; height: 44px; border-radius: 12px; background: #ECFDF5; display: flex; align-items: center; justify-content: center; color: #10B981;">
-            <i data-lucide="activity" style="width: 22px; height: 22px;"></i>
+        <div style="display: flex; align-items: center; justify-content: space-between; margin: 10px 0 14px;">
+          <div style="font-size: 38px; font-weight: 800; color: #1E293B; line-height: 1;">+1.2°C</div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 1px;">
+            <svg width="56" height="22" viewBox="0 0 56 22" fill="none">
+              <path d="M 2,11 Q 14,2 28,11 T 54,11" stroke="#10B981" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+            </svg>
+            <span style="font-size: 8.5px; font-weight: 700; color: #059669; text-transform: uppercase; letter-spacing: 0.5px;">Estável</span>
           </div>
         </div>
-        <span style="font-size: 11px; color: #64748B;">Teto seguro: 2.0°C</span>
+        <span style="font-size: 11px; color: #71807A;">Teto seguro: 2.0°C</span>
       </div>
 
-      <div class="figma-card">
-        <div class="card-top-title-row">
-          <span class="card-header-label">ALERTAS ATIVOS</span>
-          <span class="card-status-pill pill-amber">Atenção Leve</span>
+      <!-- Card 4: ALERTAS ATIVOS -->
+      <div class="figma-card" style="padding: 18px 20px;">
+        <div class="card-top-title-row" style="margin-bottom: 8px;">
+          <span class="card-header-label" style="font-size: 10px; font-weight: 700; color: #71807A; text-transform: uppercase; letter-spacing: 0.5px;">ALERTAS ATIVOS</span>
+          <span class="card-status-pill pill-amber" style="background: #FEF3C7; color: #D97706; border: 1px solid #FDE68A; border-radius: 20px; padding: 3px 10px; font-size: 11px; font-weight: 700;">Atenção Leve</span>
         </div>
-        <div style="display: flex; align-items: center; justify-content: space-between; margin: 10px 0;">
-          <div style="font-size: 36px; font-weight: 800; color: #1E293B;">2</div>
-          <div style="width: 44px; height: 44px; border-radius: 12px; background: #FFFBEB; display: flex; align-items: center; justify-content: center; color: #F59E0B;">
-            <i data-lucide="bell" style="width: 22px; height: 22px;"></i>
+        <div style="display: flex; align-items: center; justify-content: space-between; margin: 10px 0 14px;">
+          <div style="font-size: 38px; font-weight: 800; color: #1E293B; line-height: 1;">2</div>
+          <div style="width: 44px; height: 44px; border-radius: 12px; background: #FFFBEB; border: 1px solid #FEF3C7; display: flex; align-items: center; justify-content: center; color: #D97706;">
+            <i data-lucide="bell" style="width: 20px; height: 20px;"></i>
           </div>
         </div>
-        <span style="font-size: 11px; color: #64748B;">Necessário atenção</span>
+        <span style="font-size: 11px; color: #71807A;">Necessário atenção</span>
       </div>
     </div>
 
-    <!-- Middle Row: Resumo da Produção e Janela Ideal de Colheita / Mercado / Rota Fria -->
+    <!-- Middle Section: 3 Columns Grid -->
     <div class="detailed-middle-grid">
       
-      <!-- Coluna Esquerda: Gauge de Produção + Status da Água -->
-      <div style="display: flex; flex-direction: column; gap: 24px;">
-        <div class="figma-card">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 13px; font-weight: 700; color: #1E293B; text-transform: uppercase;">Resumo da produção</span>
-            <button class="btn-editar-dados-graficos" style="background: #ECFDF5; border: 1px solid #A7F3D0; color: #047857; padding: 4px 10px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer;">Editar</button>
+      <!-- Coluna 1 (Esquerda): Resumo da Produção + Status da Água -->
+      <div style="display: flex; flex-direction: column; gap: 16px;">
+        <!-- Card: Resumo da produção -->
+        <div class="figma-card" style="padding: 18px 20px;">
+          <div style="margin-bottom: 6px;">
+            <span style="font-size: 13px; font-weight: 700; color: #1E293B;">Resumo da produção</span>
           </div>
           
-          <div class="gauge-semicircle-wrap" style="margin-top: 14px;">
-            <div class="gauge-svg-container">
-              <svg width="260" height="135" viewBox="0 0 260 135" style="display: block; margin: 0 auto;">
-                <path d="M 45,120 A 85,85 0 0,1 215,120" fill="none" stroke="#F1F5F9" stroke-width="20" stroke-linecap="round"/>
-                <path d="M 45,120 A 85,85 0 0,1 215,120" fill="none" stroke="#059669" stroke-width="20" stroke-linecap="round" stroke-dasharray="${Math.round((confPct / 100) * 268)} 268" stroke-dashoffset="0"/>
-                <path d="M 45,120 A 85,85 0 0,1 215,120" fill="none" stroke="#0284C7" stroke-width="20" stroke-linecap="round" stroke-dasharray="${Math.max(0, 268 - Math.round((confPct / 100) * 268))} 268" stroke-dashoffset="-${Math.round((confPct / 100) * 268)}"/>
+          <div class="gauge-semicircle-wrap" style="margin-top: 10px;">
+            <div class="gauge-svg-container" style="position: relative; width: 220px; height: 110px; margin: 0 auto;">
+              <svg width="220" height="110" viewBox="0 0 220 110" style="display: block; margin: 0 auto;">
+                <defs>
+                  <linearGradient id="gaugeProdGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#EF4444"/>
+                    <stop offset="25%" stop-color="#F59E0B"/>
+                    <stop offset="60%" stop-color="#10B981"/>
+                    <stop offset="100%" stop-color="#059669"/>
+                  </linearGradient>
+                </defs>
+                <path d="M 25,100 A 85,85 0 0,1 195,100" fill="none" stroke="#F1F5F9" stroke-width="18" stroke-linecap="round"/>
+                <path d="M 25,100 A 85,85 0 0,1 195,100" fill="none" stroke="url(#gaugeProdGrad)" stroke-width="18" stroke-linecap="round" stroke-dasharray="${Math.round((confPct / 100) * 267)} 267" stroke-dashoffset="0"/>
               </svg>
-              <div class="gauge-pct-number">${confPct}%</div>
+              <div style="position: absolute; bottom: 8px; left: 0; right: 0; text-align: center;">
+                <span style="font-size: 32px; font-weight: 800; color: #1E293B; line-height: 1;">${confPct}%</span>
+              </div>
             </div>
-            <div class="gauge-caption">% de leituras dentro da faixa nas últimas 24h</div>
+            <div style="font-size: 10.5px; color: #71807A; text-align: center; margin-top: 6px;">% de leituras dentro da faixa nas últimas 24h</div>
           </div>
 
-          <div style="margin-top: 14px; display: flex; flex-direction: column; gap: 8px; font-size: 12px;">
+          <div style="margin-top: 14px; display: flex; flex-direction: column; gap: 8px; font-size: 11.5px; border-top: 1px solid #F1F5F9; padding-top: 12px;">
             <div style="display: flex; justify-content: space-between; align-items: center;">
-              <span style="color: #475569;">○ Saúde da plantação:</span>
+              <span style="color: #475569; display: flex; align-items: center; gap: 6px;">
+                <span style="width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid #10B981; display: inline-block;"></span>
+                Saúde da plantação
+              </span>
               <strong style="color: #1E293B;">${saudePct}%</strong>
             </div>
             <div style="display: flex; justify-content: space-between; align-items: center;">
-              <span style="color: #475569;">○ Umidade:</span>
+              <span style="color: #475569; display: flex; align-items: center; gap: 6px;">
+                <span style="width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid #0284C7; display: inline-block;"></span>
+                Umidade
+              </span>
               <strong style="color: #1E293B;">${umidDosselPct}%</strong>
             </div>
             <div style="display: flex; justify-content: space-between; align-items: center;">
-              <span style="color: #475569;">○ Temperatura:</span>
+              <span style="color: #475569; display: flex; align-items: center; gap: 6px;">
+                <i data-lucide="thermometer" style="width: 13px; height: 13px; color: #F59E0B;"></i>
+                Temperatura
+              </span>
               <strong style="color: #1E293B;">${tempFoliar}°C</strong>
             </div>
           </div>
         </div>
 
-        <div class="figma-card" style="padding: 18px 24px;">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div>
-              <span style="font-size: 10px; font-weight: 700; color: #94A3B8; text-transform: uppercase;">Status da água</span>
-              <div style="font-size: 18px; font-weight: 800; color: #1E293B; margin-top: 2px;">${aguaPct}%</div>
-              <span style="font-size: 11px; color: #64748B;">Umidade média do solo</span>
+        <!-- Card: Status da água -->
+        <div class="figma-card" style="padding: 18px 20px;">
+          <div style="margin-bottom: 8px;">
+            <span style="font-size: 13px; font-weight: 700; color: #1E293B;">Status da água</span>
+          </div>
+
+          <div style="background: #EFF6FF; border: 1px solid #DBEAFE; border-radius: 12px; padding: 10px 14px; margin-bottom: 12px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+              <span style="font-size: 11px; color: #475569; font-weight: 500;">Umidade média do solo</span>
+              <span style="font-size: 14px; font-weight: 800; color: #1E293B;">${aguaPct}%</span>
             </div>
-            <span class="card-status-pill pill-green">ATIVA</span>
+            <div style="width: 100%; height: 6px; background: #E0E7FF; border-radius: 999px; overflow: hidden;">
+              <div style="width: ${aguaPct}%; height: 100%; background: #0284C7; border-radius: 999px;"></div>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px; padding: 10px 12px;">
+            <div>
+              <span style="font-size: 10px; color: #71807A; display: block; margin-bottom: 2px;">Consumo de hoje</span>
+              <strong style="font-size: 17px; font-weight: 800; color: #1E293B;">4,2 L</strong>
+            </div>
+            <div style="display: flex; flex-direction: column; align-items: flex-start; justify-content: center;">
+              <span style="font-size: 10px; color: #71807A; display: block; margin-bottom: 4px;">Irrigação automática</span>
+              <span style="background: #ECFDF5; border: 1px solid #A7F3D0; color: #059669; font-size: 10px; font-weight: 800; padding: 2px 7px; border-radius: 6px;">ATIVA</span>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- Coluna Direita: Janela de Colheita, Mercado e Rota Fria -->
-      <div style="display: flex; flex-direction: column; gap: 20px;">
+      <!-- Coluna 2 (Centro): Janela de Colheita, Mercado, Saídas da Faixa e Rota Fria -->
+      <div style="display: flex; flex-direction: column; gap: 12px;">
         
-        <!-- Janela Ideal de Colheita e Exportação -->
-        <div class="figma-card" style="padding: 22px;">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <strong style="font-size: 13px; color: #1E293B;">Janela Ideal de Colheita e Exp.</strong>
-            <span class="card-status-pill pill-green">88% Eficácia</span>
+        <!-- Janela Ideal de Colheita e Exp. -->
+        <div class="figma-card" style="padding: 16px 18px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <strong style="font-size: 12.5px; color: #1E293B;">Janela Ideal de Colheita e Exp.</strong>
+            <span style="background: #ECFDF5; border: 1px solid #A7F3D0; color: #059669; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 12px;">88% Eficácia</span>
           </div>
-          <div style="font-size: 13px; font-weight: 700; color: #047857; margin: 8px 0 2px;">
+          <div style="font-size: 12.5px; font-weight: 700; color: #047857; margin-bottom: 3px;">
             Período recomendado: 28/09 a 04/10
           </div>
-          <p style="font-size: 11px; color: #64748B;">
+          <p style="font-size: 11px; color: #64748B; margin: 0; line-height: 1.35;">
             Probabilidade de 88% de máxima qualidade brix e menor perda pós-colheita para despacho marítimo.
           </p>
         </div>
 
         <!-- Preço e Demanda de Mercado -->
-        <div class="figma-card" style="padding: 22px;">
+        <div class="figma-card" style="padding: 16px 18px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-            <strong style="font-size: 13px; color: #1E293B;">Preço e Demanda de Mercado</strong>
+            <strong style="font-size: 12.5px; color: #1E293B;">Preço e Demanda de Mercado</strong>
             <span style="font-size: 10px; color: #94A3B8;">Ceagesp / Export</span>
           </div>
-          <div style="display: flex; justify-content: space-between; font-size: 12px; padding: 4px 0;">
+          <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11.5px; margin-bottom: 5px;">
             <span style="color: #334155;">Uva Vitória</span>
-            <strong style="color: #047857;">R$ 14,20/kg <small style="color: #10B981;">↑ +8%</small></strong>
+            <strong style="color: #047857; font-weight: 700;">R$ 14,20/kg <span style="color: #10B981; font-size: 11px; font-weight: 600;">↑ +8%</span></strong>
           </div>
-          <div style="display: flex; justify-content: space-between; font-size: 12px; padding: 4px 0;">
+          <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11.5px;">
             <span style="color: #334155;">Manga Palmer</span>
-            <strong style="color: #334155;">R$ 6,80/kg <small style="color: #94A3B8;">estável</small></strong>
+            <strong style="color: #334155; font-weight: 700;">R$ 6,80/kg <span style="color: #94A3B8; font-size: 11px; font-weight: 500;">estável</span></strong>
           </div>
         </div>
 
+        <!-- Saídas da Faixa na Semana -->
+        <div class="figma-card" style="padding: 16px 18px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <strong style="font-size: 12.5px; color: #1E293B;">Saídas da Faixa na Semana</strong>
+            <span style="background: #FEF3C7; border: 1px solid #FDE68A; color: #D97706; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 12px;">3 Registros</span>
+          </div>
+          <div style="font-size: 12.5px; font-weight: 700; color: #1E293B; margin-bottom: 3px;">
+            3 ocorrências térmicas registradas
+          </div>
+          <p style="font-size: 11px; color: #64748B; margin: 0; line-height: 1.35;">
+            Eventos de parada técnica em baús frigoríficos com retorno automático para a temperatura ideal (+1.6 °C).
+          </p>
+        </div>
+
         <!-- Rota Fria: Petrolina -> Pecém -->
-        <div class="figma-card" style="padding: 22px;">
+        <div class="figma-card" style="padding: 16px 18px;">
           <div style="display: flex; justify-content: space-between; align-items: center;">
-            <strong style="font-size: 13px; color: #1E293B;">Rota Fria: Petrolina ➔ Pecém</strong>
-            <span class="card-status-pill pill-green">+1.2°C OK</span>
+            <strong style="font-size: 12.5px; color: #1E293B; display: flex; align-items: center; gap: 5px;">
+              <i data-lucide="truck" style="width: 14px; height: 14px; color: #0284C7;"></i>
+              Rota Fria: Petrolina ➔ Pecém
+            </strong>
+            <span style="background: #ECFDF5; border: 1px solid #A7F3D0; color: #059669; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 12px;">+1.2°C OK</span>
           </div>
-          <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Reefer MS-904 em trânsito rodoviário</div>
+          <div style="font-size: 11px; color: #64748B; margin: 2px 0 8px;">Reefer MS-904 em trânsito rodoviário</div>
+
+          <div style="position: relative;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; font-size: 11px;">
+              <span style="color: #0284C7; font-weight: 600; display: flex; align-items: center; gap: 3px;">
+                <i data-lucide="map-pin" style="width: 11px; height: 11px;"></i> Petrolina
+              </span>
+              <span style="color: #059669; font-weight: 700; font-size: 10.5px;">68% do trajeto (842 km)</span>
+              <span style="color: #0284C7; font-weight: 600; display: flex; align-items: center; gap: 3px;">
+                <i data-lucide="navigation" style="width: 11px; height: 11px;"></i> Pecém
+              </span>
+            </div>
+            <div style="width: 100%; height: 5px; background: #E2E8F0; border-radius: 999px; position: relative;">
+              <div style="width: 68%; height: 100%; background: #0284C7; border-radius: 999px;"></div>
+              <div style="position: absolute; left: 68%; top: 50%; transform: translate(-50%, -50%); width: 16px; height: 16px; border-radius: 50%; background: #0F172A; border: 2px solid #FFFFFF; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.3);">
+                <i data-lucide="truck" style="width: 9px; height: 9px; color: #FFFFFF;"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Coluna 3 (Direita): Monitoramento da Propriedade + Previsão do Tempo -->
+      <div style="display: flex; flex-direction: column; gap: 16px;">
+        <!-- Card: Monitoramento da propriedade -->
+        <div class="figma-card" style="padding: 18px 20px; display: flex; flex-direction: column;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <span style="font-size: 13px; font-weight: 700; color: #1E293B;">Monitoramento da propriedade</span>
+            <button type="button" style="background: none; border: none; padding: 2px; color: #71807A; cursor: pointer;" title="Expandir visualização">
+              <i data-lucide="maximize-2" style="width: 14px; height: 14px;"></i>
+            </button>
+          </div>
           
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; font-size: 12px;">
-            <span style="color: #0284C7; font-weight: 600;">Petrolina</span>
-            <strong style="color: #059669;">68% do trajeto (842 km)</strong>
-            <span style="color: #0284C7; font-weight: 600;">Pecém</span>
+          <div style="position: relative; width: 100%; border-radius: 10px; overflow: hidden; border: 1px solid #E2E8F0; background: #0F172A;">
+            <img src="/assets/images/mapa-propriedade-detalhado.jpg" alt="Monitoramento da Propriedade" style="width: 100%; height: 102px; object-fit: cover; display: block;">
           </div>
-          <div class="progress-track-bg" style="margin-top: 6px;"><div class="progress-fill-bar" style="width: 68%; background: #0284C7;"></div></div>
+
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 9.5px; color: #64748B;">
+            <span style="display: flex; align-items: center; gap: 3px;"><span style="width: 6px; height: 6px; border-radius: 50%; background: #059669;"></span>Ótimo</span>
+            <span style="display: flex; align-items: center; gap: 3px;"><span style="width: 6px; height: 6px; border-radius: 50%; background: #10B981;"></span>Boa</span>
+            <span style="display: flex; align-items: center; gap: 3px;"><span style="width: 6px; height: 6px; border-radius: 50%; background: #F59E0B;"></span>Atenção</span>
+            <span style="display: flex; align-items: center; gap: 3px;"><span style="width: 6px; height: 6px; border-radius: 50%; background: #EF4444;"></span>Crítico</span>
+            <span style="display: flex; align-items: center; gap: 3px;"><span style="width: 6px; height: 6px; border-radius: 50%; background: #94A3B8;"></span>Sem dados</span>
+          </div>
+        </div>
+
+        <!-- Card: Previsão do tempo -->
+        <div class="figma-card" style="padding: 18px 20px;">
+          <span style="font-size: 13px; font-weight: 700; color: #1E293B; display: block; margin-bottom: 8px;">Previsão do tempo</span>
+          
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="sun" style="width: 26px; height: 26px; color: #F59E0B;"></i>
+              <div>
+                <div style="font-size: 22px; font-weight: 800; color: #1E293B; line-height: 1;">28°C</div>
+                <div style="font-size: 9.5px; color: #64748B; margin-top: 2px;">Ensolarado · Sensação 30°C</div>
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2px 10px; font-size: 9.5px; color: #64748B; text-align: right;">
+              <span>Umidade <strong style="color: #1E293B;">62%</strong></span>
+              <span>Chuva <strong style="color: #1E293B;">0 mm</strong></span>
+              <span>Vento <strong style="color: #1E293B;">12 km/h</strong></span>
+              <span>UV <strong style="color: #1E293B;">Moderado</strong></span>
+            </div>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #F1F5F9; padding-top: 8px; font-size: 9.5px; text-align: center;">
+            <div><span style="color: #94A3B8; display: block;">Qua 23/09</span><strong style="color: #1E293B; font-size: 10px;">20° / 29°</strong></div>
+            <div><span style="color: #94A3B8; display: block;">Qui 24/09</span><strong style="color: #1E293B; font-size: 10px;">19° / 28°</strong></div>
+            <div><span style="color: #94A3B8; display: block;">Sex 25/09</span><strong style="color: #1E293B; font-size: 10px;">17° / 26°</strong></div>
+            <div><span style="color: #94A3B8; display: block;">Sáb 26/09</span><strong style="color: #1E293B; font-size: 10px;">17° / 26°</strong></div>
+            <div><span style="color: #94A3B8; display: block;">Dom 27/09</span><strong style="color: #1E293B; font-size: 10px;">19° / 28°</strong></div>
+            <div><span style="color: #94A3B8; display: block;">Seg 28/09</span><strong style="color: #1E293B; font-size: 10px;">17° / 26°</strong></div>
+          </div>
         </div>
 
       </div>
 
     </div>
 
-    <!-- 4 Gráficos no Rodapé do Modo Detalhado -->
-    <div class="figma-card telemetry-4charts-container">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
-        <span style="font-size: 13px; font-weight: 700; color: #1E293B; text-transform: uppercase;">Telemetria dos Gráficos (PostgreSQL)</span>
-        <button class="btn-editar-dados-graficos" style="background: #183D2E; color: #FFFFFF; border: none; padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer;">Editar Dados e Gráficos</button>
+    <!-- 4 Gráficos de Telemetria no Rodapé (Modo Detalhado) -->
+    <div class="charts-4col-grid" style="margin-top: 20px;">
+      <div class="figma-card mini-chart-card" style="padding: 16px 18px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
+          <span style="font-size: 11.5px; font-weight: 600; color: #334155; display: flex; align-items: center; gap: 5px;">
+            <i data-lucide="droplet" style="width: 13px; height: 13px; color: #10B981;"></i>
+            Umidade do ar
+          </span>
+          <div style="text-align: right;">
+            <span style="font-size: 15px; font-weight: 800; color: #1E293B;">${uArLast}%</span>
+            <span style="color: #10B981; font-size: 10.5px; font-weight: 700; margin-left: 3px;">Ideal</span>
+          </div>
+        </div>
+        <div class="chart-canvas-wrap" style="height: 60px;"><canvas id="miniChart1"></canvas></div>
+        <div class="chart-time-labels"><span>01 Jun</span><span>03 Jun</span><span>05 Jun</span><span>07 Jun</span></div>
       </div>
-      <div class="charts-4col-grid">
-        <div class="mini-chart-card">
-          <div class="mini-chart-header"><span class="mini-chart-title">Umidade do ar</span><span class="mini-chart-pill pill-green">${uArLast}% Ideal</span></div>
-          <div class="chart-canvas-wrap"><canvas id="miniChart1"></canvas></div>
-          <div class="chart-time-labels"><span>01 Jun</span><span>03 Jun</span><span>05 Jun</span><span>07 Jun</span></div>
+
+      <div class="figma-card mini-chart-card" style="padding: 16px 18px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
+          <span style="font-size: 11.5px; font-weight: 600; color: #334155; display: flex; align-items: center; gap: 5px;">
+            <i data-lucide="droplets" style="width: 13px; height: 13px; color: #10B981;"></i>
+            Umidade do solo
+          </span>
+          <div style="text-align: right;">
+            <span style="font-size: 15px; font-weight: 800; color: #1E293B;">${uSoloLast}%</span>
+            <span style="color: #10B981; font-size: 10.5px; font-weight: 700; margin-left: 3px;">Ideal</span>
+          </div>
         </div>
-        <div class="mini-chart-card">
-          <div class="mini-chart-header"><span class="mini-chart-title">Umidade do solo</span><span class="mini-chart-pill pill-green">${uSoloLast}% Ideal</span></div>
-          <div class="chart-canvas-wrap"><canvas id="miniChart2"></canvas></div>
-          <div class="chart-time-labels"><span>01 Jun</span><span>03 Jun</span><span>05 Jun</span><span>07 Jun</span></div>
+        <div class="chart-canvas-wrap" style="height: 60px;"><canvas id="miniChart2"></canvas></div>
+        <div class="chart-time-labels"><span>01 Jun</span><span>03 Jun</span><span>05 Jun</span><span>07 Jun</span></div>
+      </div>
+
+      <div class="figma-card mini-chart-card" style="padding: 16px 18px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
+          <span style="font-size: 11.5px; font-weight: 600; color: #334155; display: flex; align-items: center; gap: 5px;">
+            <i data-lucide="thermometer" style="width: 13px; height: 13px; color: #10B981;"></i>
+            Temperatura do solo
+          </span>
+          <div style="text-align: right;">
+            <span style="font-size: 15px; font-weight: 800; color: #1E293B;">${tSoloLast}%</span>
+            <span style="color: #10B981; font-size: 10.5px; font-weight: 700; margin-left: 3px;">Ideal</span>
+          </div>
         </div>
-        <div class="mini-chart-card">
-          <div class="mini-chart-header"><span class="mini-chart-title">Temperatura do solo</span><span class="mini-chart-pill pill-green">${tSoloLast}°C Ideal</span></div>
-          <div class="chart-canvas-wrap"><canvas id="miniChart3"></canvas></div>
-          <div class="chart-time-labels"><span>01 Jun</span><span>03 Jun</span><span>05 Jun</span><span>07 Jun</span></div>
+        <div class="chart-canvas-wrap" style="height: 60px;"><canvas id="miniChart3"></canvas></div>
+        <div class="chart-time-labels"><span>01 Jun</span><span>03 Jun</span><span>05 Jun</span><span>07 Jun</span></div>
+      </div>
+
+      <div class="figma-card mini-chart-card" style="padding: 16px 18px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
+          <span style="font-size: 11.5px; font-weight: 600; color: #334155; display: flex; align-items: center; gap: 5px;">
+            <i data-lucide="thermometer" style="width: 13px; height: 13px; color: #10B981;"></i>
+            Temperatura do ar
+          </span>
+          <div style="text-align: right;">
+            <span style="font-size: 15px; font-weight: 800; color: #1E293B;">${tArLast}%</span>
+            <span style="color: #10B981; font-size: 10.5px; font-weight: 700; margin-left: 3px;">Ideal</span>
+          </div>
         </div>
-        <div class="mini-chart-card">
-          <div class="mini-chart-header"><span class="mini-chart-title">Temperatura do ar</span><span class="mini-chart-pill pill-green">${tArLast}°C Ideal</span></div>
-          <div class="chart-canvas-wrap"><canvas id="miniChart4"></canvas></div>
-          <div class="chart-time-labels"><span>01 Jun</span><span>03 Jun</span><span>05 Jun</span><span>07 Jun</span></div>
-        </div>
+        <div class="chart-canvas-wrap" style="height: 60px;"><canvas id="miniChart4"></canvas></div>
+        <div class="chart-time-labels"><span>01 Jun</span><span>03 Jun</span><span>05 Jun</span><span>07 Jun</span></div>
       </div>
     </div>
   `;
@@ -1204,10 +1371,19 @@ export async function setupDashboardEvents() {
   }
 
   // Gera curvas suaves com os dados reais persistidos no PostgreSQL
-  criarMiniGraficoApple('miniChart1', dg.umidade_ar_24h || DEFAULT_DADOS_GRAFICOS.umidade_ar_24h, '#10B981');
-  criarMiniGraficoApple('miniChart2', dg.umidade_solo_24h || DEFAULT_DADOS_GRAFICOS.umidade_solo_24h, '#0D9488');
-  criarMiniGraficoApple('miniChart3', dg.temp_solo_24h || DEFAULT_DADOS_GRAFICOS.temp_solo_24h, '#0284C7');
-  criarMiniGraficoApple('miniChart4', dg.temp_ar_24h || DEFAULT_DADOS_GRAFICOS.temp_ar_24h, '#16A34A');
+  const isResumidoCurrent = localStorage.getItem('DASHBOARD_MODE') !== 'detalhado';
+  if (isResumidoCurrent) {
+    criarMiniGraficoApple('miniChart1', dg.umidade_ar_24h || DEFAULT_DADOS_GRAFICOS.umidade_ar_24h, '#10B981');
+    criarMiniGraficoApple('miniChart2', dg.umidade_solo_24h || DEFAULT_DADOS_GRAFICOS.umidade_solo_24h, '#0D9488');
+    criarMiniGraficoApple('miniChart3', dg.temp_solo_24h || DEFAULT_DADOS_GRAFICOS.temp_solo_24h, '#0284C7');
+    criarMiniGraficoApple('miniChart4', dg.temp_ar_24h || DEFAULT_DADOS_GRAFICOS.temp_ar_24h, '#16A34A');
+  } else {
+    // No modo Detalhado, os 4 gráficos são em tom verde esmeralda com pontos conforme Figma
+    criarMiniGraficoApple('miniChart1', dg.umidade_ar_24h || DEFAULT_DADOS_GRAFICOS.umidade_ar_24h, '#10B981');
+    criarMiniGraficoApple('miniChart2', dg.umidade_solo_24h || DEFAULT_DADOS_GRAFICOS.umidade_solo_24h, '#10B981');
+    criarMiniGraficoApple('miniChart3', dg.temp_solo_24h || [42, 45, 48, 47, 50, 48, 48], '#10B981');
+    criarMiniGraficoApple('miniChart4', dg.temp_ar_24h || [44, 46, 48, 49, 47, 48, 48], '#10B981');
+  }
 
   // Modal para Editar Dados e Gráficos (Salva no PostgreSQL e atualiza os gráficos)
   document.querySelectorAll('.btn-editar-dados-graficos').forEach(btn => {
@@ -1346,10 +1522,11 @@ function criarMiniGraficoApple(canvasId, dataPoints, strokeColor) {
   if (!canvas || typeof Chart === 'undefined') return;
 
   const ctx = canvas.getContext('2d');
+  const isDetalhado = localStorage.getItem('DASHBOARD_MODE') === 'detalhado';
 
   // Gradiente suave de preenchimento Apple
-  const gradient = ctx.createLinearGradient(0, 0, 0, 100);
-  gradient.addColorStop(0, strokeColor + '40'); // 25% opacidade no topo
+  const gradient = ctx.createLinearGradient(0, 0, 0, 80);
+  gradient.addColorStop(0, strokeColor + '35'); // opacidade no topo
   gradient.addColorStop(1, strokeColor + '00'); // 0% opacidade na base
 
   const chart = new Chart(ctx, {
@@ -1359,12 +1536,15 @@ function criarMiniGraficoApple(canvasId, dataPoints, strokeColor) {
       datasets: [{
         data: dataPoints,
         borderColor: strokeColor,
-        borderWidth: 2.8,
+        borderWidth: 2.5,
         backgroundColor: gradient,
         fill: true,
         tension: 0.45,
-        pointRadius: 0,
-        pointHoverRadius: 6,
+        pointRadius: isDetalhado ? 2.5 : 0,
+        pointBackgroundColor: strokeColor,
+        pointBorderColor: '#FFFFFF',
+        pointBorderWidth: 1.5,
+        pointHoverRadius: 5,
         pointHoverBackgroundColor: strokeColor,
         pointHoverBorderColor: '#FFFFFF',
         pointHoverBorderWidth: 2
