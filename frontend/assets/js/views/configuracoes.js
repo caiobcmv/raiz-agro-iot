@@ -105,24 +105,21 @@ export async function renderConfiguracoes() {
           <div>
             <label style="display: block; font-size: 11px; font-weight: 600; color: #475569; margin-bottom: 8px;">Cor do Avatar</label>
             <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-              <button class="avatar-color-pill active" data-color="esmeralda" style="padding: 6px 12px; background: #ECFDF5; border: 1.5px solid #10B981; border-radius: 20px; font-size: 12px; font-weight: 600; color: #065F46; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
-                <span style="width: 8px; height: 8px; border-radius: 50%; background: #059669;"></span> Esmeralda
-              </button>
-              <button class="avatar-color-pill" data-color="floresta" style="padding: 6px 12px; background: #F0FDF4; border: 1px solid #E2E8F0; border-radius: 20px; font-size: 12px; font-weight: 500; color: #166534; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
-                <span style="width: 8px; height: 8px; border-radius: 50%; background: #22C55E;"></span> Floresta
-              </button>
-              <button class="avatar-color-pill" data-color="azul" style="padding: 6px 12px; background: #EFF6FF; border: 1px solid #E2E8F0; border-radius: 20px; font-size: 12px; font-weight: 500; color: #1E40AF; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
-                <span style="width: 8px; height: 8px; border-radius: 50%; background: #3B82F6;"></span> Azul Céu
-              </button>
-              <button class="avatar-color-pill" data-color="ambar" style="padding: 6px 12px; background: #FFFBEB; border: 1px solid #E2E8F0; border-radius: 20px; font-size: 12px; font-weight: 500; color: #92400E; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
-                <span style="width: 8px; height: 8px; border-radius: 50%; background: #F59E0B;"></span> Âmbar
-              </button>
-              <button class="avatar-color-pill" data-color="violeta" style="padding: 6px 12px; background: #F5F3FF; border: 1px solid #E2E8F0; border-radius: 20px; font-size: 12px; font-weight: 500; color: #5B21B6; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
-                <span style="width: 8px; height: 8px; border-radius: 50%; background: #8B5CF6;"></span> Violeta
-              </button>
-              <button class="avatar-color-pill" data-color="rosa" style="padding: 6px 12px; background: #FDF2F8; border: 1px solid #E2E8F0; border-radius: 20px; font-size: 12px; font-weight: 500; color: #9D174D; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
-                <span style="width: 8px; height: 8px; border-radius: 50%; background: #EC4899;"></span> Rosa
-              </button>
+              ${[
+                { key: 'esmeralda', name: 'Esmeralda', dot: '#059669', bg: '#ECFDF5', border: '#10B981', color: '#065F46' },
+                { key: 'floresta',  name: 'Floresta',  dot: '#22C55E', bg: '#F0FDF4', border: '#22C55E', color: '#166534' },
+                { key: 'azul',      name: 'Azul Céu',  dot: '#3B82F6', bg: '#EFF6FF', border: '#3B82F6', color: '#1E40AF' },
+                { key: 'ambar',     name: 'Âmbar',     dot: '#F59E0B', bg: '#FFFBEB', border: '#F59E0B', color: '#92400E' },
+                { key: 'violeta',   name: 'Violeta',   dot: '#8B5CF6', bg: '#F5F3FF', border: '#8B5CF6', color: '#5B21B6' },
+                { key: 'rosa',      name: 'Rosa',      dot: '#EC4899', bg: '#FDF2F8', border: '#EC4899', color: '#831843' }
+              ].map(p => {
+                const isActive = (profile.avatarKey || 'esmeralda') === p.key;
+                return `
+                  <button class="avatar-color-pill ${isActive ? 'active' : ''}" data-color="${p.key}" style="padding: 6px 12px; background: ${p.bg}; border: ${isActive ? '1.5px solid #10B981' : '1px solid #E2E8F0'}; border-radius: 20px; font-size: 12px; font-weight: ${isActive ? '700' : '500'}; color: ${isActive ? '#065F46' : '#475569'}; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                    <span style="width: 8px; height: 8px; border-radius: 50%; background: ${p.dot};"></span> ${p.name}
+                  </button>
+                `;
+              }).join('')}
             </div>
           </div>
         </div>
@@ -492,19 +489,51 @@ export async function setupConfiguracoesEvents() {
     rosa:      { bg: '#FCE7F3', border: '#EC4899', color: '#831843' }
   };
 
+  // Aplica a cor salva no carregamento da página
+  const savedKey = localStorage.getItem('user_avatar_key_' + (isAnalista ? 'analista' : 'gestor')) || localStorage.getItem('USER_AVATAR_KEY') || 'esmeralda';
+  const initialTheme = avatarColors[savedKey] || avatarColors.esmeralda;
+  const avatarDisplay = document.getElementById('profile-avatar-display');
+  if (avatarDisplay) {
+    avatarDisplay.style.background = initialTheme.bg;
+    avatarDisplay.style.borderColor = initialTheme.border;
+    avatarDisplay.style.color = initialTheme.color;
+  }
+  const headerAvatar = document.querySelector('.avatar-initials-pill');
+  if (headerAvatar) {
+    headerAvatar.style.background = initialTheme.bg;
+    headerAvatar.style.borderColor = initialTheme.border;
+    headerAvatar.style.color = initialTheme.color;
+  }
+  document.querySelectorAll('.avatar-color-pill').forEach(p => {
+    if (p.dataset.color === savedKey) {
+      p.classList.add('active');
+      p.style.border = '1.5px solid #10B981';
+      p.style.fontWeight = '700';
+      p.style.color = '#065F46';
+    } else {
+      p.classList.remove('active');
+      p.style.border = '1px solid #E2E8F0';
+      p.style.fontWeight = '500';
+      p.style.color = '#475569';
+    }
+  });
+
   document.querySelectorAll('.avatar-color-pill').forEach(pill => {
     pill.addEventListener('click', () => {
+      const colorKey = pill.dataset.color || 'esmeralda';
+      const theme = auth.saveAvatarTheme(colorKey);
+
       document.querySelectorAll('.avatar-color-pill').forEach(p => {
         p.classList.remove('active');
         p.style.border = '1px solid #E2E8F0';
         p.style.fontWeight = '500';
+        p.style.color = '#475569';
       });
       pill.classList.add('active');
       pill.style.border = '1.5px solid #10B981';
-      pill.style.fontWeight = '600';
+      pill.style.fontWeight = '700';
+      pill.style.color = '#065F46';
 
-      const colorKey = pill.dataset.color || 'esmeralda';
-      const theme = avatarColors[colorKey] || avatarColors.esmeralda;
       const avatarDisplay = document.getElementById('profile-avatar-display');
       if (avatarDisplay) {
         avatarDisplay.style.background = theme.bg;
@@ -517,7 +546,7 @@ export async function setupConfiguracoesEvents() {
         headerAvatar.style.borderColor = theme.border;
         headerAvatar.style.color = theme.color;
       }
-      toast.info('Cor Atualizada', `Paleta ${pill.textContent.trim()} aplicada ao seu avatar.`);
+      toast.success('Cor Salva', `Paleta ${pill.textContent.trim()} salva com sucesso no seu perfil.`);
     });
   });
 
@@ -591,11 +620,15 @@ export async function setupConfiguracoesEvents() {
 
   // F) Salvar Perfil no Banco (Preferências Pessoais)
   document.getElementById('btn-salvar-perfil-banco')?.addEventListener('click', () => {
-    toast.success('Perfil Salvo', 'Suas preferências visuais foram salvas com sucesso.');
+    const activePill = document.querySelector('.avatar-color-pill.active');
+    const colorKey = activePill?.dataset.color || 'esmeralda';
+    auth.saveAvatarTheme(colorKey);
+    toast.success('Perfil Salvo', 'Preferências de avatar e tema sincronizadas com sucesso.');
   });
 
   // G) Restaurar Padrões Visuais
   document.getElementById('btn-restaurar-padroes')?.addEventListener('click', () => {
+    auth.saveAvatarTheme('esmeralda');
     document.body.classList.remove('dark-theme-preview');
     toast.info('Padrões Restaurados', 'Tema Claro e paleta Esmeralda restaurados.');
   });

@@ -1,0 +1,7 @@
+{
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/assets/(.*)", "destination": "/frontend/assets/$1" },
+    { "source": "/((?!assets/).*)", "destination": "/frontend/index.html" }
+  ]
+}

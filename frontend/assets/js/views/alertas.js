@@ -1,4 +1,4 @@
-﻿import { liveTelemetry } from '../live-telemetry.js';
+import { liveTelemetry } from '../live-telemetry.js';
 /**
  * CENTRAL DE ALERTAS & INCIDENTES - FIGMA COMPLIANT & FULLY DYNAMIC
  * Suporta perfil Analista (DHT11 ESP32-C3, Triagem com Machine Learning, Rota Portuária)
@@ -10,10 +10,6 @@ import { toast } from '../components/toast.js';
 import { Modal } from '../components/modal.js';
 
 export async function renderAlertas() {
-  const isAnalista = auth.getActiveProfile() === 'analista';
-  if (isAnalista) {
-    return renderAnalistaAlertas();
-  }
   return renderGestoraAlertas();
 }
 
@@ -487,11 +483,6 @@ function renderAnalistaAlertas() {
 
 
 export function setupAlertasEvents() {
-  const isAnalista = auth.getActiveProfile() === 'analista';
-  if (isAnalista) {
-    setupAnalistaAlertasEvents();
-    return;
-  }
   setupGestoraAlertasEvents();
 }
 
@@ -648,7 +639,7 @@ function setupAnalistaAlertasEvents() {
  */
 function renderGestoraAlertas() {
   return `
-  <div style="max-width: 1280px; margin: 0 auto; width: 100%; padding: 0 16px;">
+  <div class="dashboard-canvas apple-animate-in" style="padding: 24px 32px 48px; overflow-y: auto;">
     <!-- Top Sub-Bar: Sensores Ativos & Ações -->
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
       <div style="background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 9999px; padding: 7px 16px; display: inline-flex; align-items: center; gap: 8px;">
@@ -719,7 +710,7 @@ function renderGestoraAlertas() {
 
         <div>
           <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 6px;">
-            <span style="font-size: 10px; color: #64748B; line-height: 1.25;">LOTE A1 • Uva<br>Vitória</span>
+            <span style="font-size: 10px; color: #64748B; line-height: 1.25;">Talhão A1 • Uva<br>Vitória</span>
             <span id="kpi-umidade-status" style="font-size: 10px; font-weight: 700; color: #D97706; text-align: right; line-height: 1.25;">Murcha<br>iminente</span>
           </div>
           <div style="width: 100%; height: 5px; background: #FEF3C7; border-radius: 9999px; overflow: hidden;">
@@ -746,7 +737,7 @@ function renderGestoraAlertas() {
 
         <div>
           <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 6px;">
-            <span style="font-size: 10px; color: #64748B; line-height: 1.25;">LOTE B2 • Uva Tho...</span>
+            <span style="font-size: 10px; color: #64748B; line-height: 1.25;">Talhão B2 • Uva Thom...</span>
             <span style="font-size: 10px; color: #64748B; text-align: right; line-height: 1.25;">Pico 33,8°C<br>dossel</span>
           </div>
           <div style="display: flex; gap: 3px; height: 5px;">
@@ -791,7 +782,7 @@ function renderGestoraAlertas() {
     <div id="alert-tabs-container" style="display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
       <button class="alert-filter-tab active" data-filter="todos" style="padding: 7px 16px; background: #183D2E; border: none; border-radius: 9999px; font-size: 12px; font-weight: 600; color: #FFFFFF; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
         Todos os Incidentes
-        <span style="background: #059669; color: #FFFFFF; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 9999px;">6</span>
+        <span style="background: #059669; color: #FFFFFF; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 9999px;">3</span>
       </button>
 
       <button class="alert-filter-tab" data-filter="criticos" style="padding: 7px 14px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 9999px; font-size: 12px; font-weight: 600; color: #DC2626; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
@@ -820,10 +811,10 @@ function renderGestoraAlertas() {
     </div>
 
     <!-- Search & Secondary Filters Bar -->
-    <div style="display: grid; grid-template-columns: 1.6fr 1.2fr 1.4fr auto; gap: 10px; margin-bottom: 20px; align-items: center;">
+    <div style="display: grid; grid-template-columns: 1.6fr 1.2fr 1.4fr auto; gap: 10px; margin-bottom: 24px; align-items: center;">
       <div style="position: relative;">
         <i data-lucide="search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 15px; height: 15px; color: #94A3B8;"></i>
-        <input id="alert-search-input" type="text" placeholder="Buscar por Lote, LOTE ou Equipamento..." style="width: 100%; padding: 9px 12px 9px 36px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 12px; color: #0F172A; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#10B981'" onblur="this.style.borderColor='#E2E8F0'">
+        <input id="alert-search-input" type="text" placeholder="Buscar por Lote, Tipo de Equipamento..." style="width: 100%; padding: 9px 12px 9px 36px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 12px; color: #0F172A; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#10B981'" onblur="this.style.borderColor='#E2E8F0'">
       </div>
 
       <select id="alert-origin-select" style="width: 100%; padding: 9px 12px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 12px; color: #475569; outline: none; cursor: pointer; box-sizing: border-box;">
@@ -834,7 +825,7 @@ function renderGestoraAlertas() {
       </select>
 
       <select id="alert-safra-select" style="width: 100%; padding: 9px 12px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 12px; color: #475569; outline: none; cursor: pointer; box-sizing: border-box;">
-        <option value="2025/26">Safra Atual: 2025/26 (Todos os Lotes)</option>
+        <option value="2025/26">Safra Atual: 2025/26 [Todos os Lotes]</option>
         <option value="2024/25">Safra 2024/25</option>
         <option value="2023/24">Safra 2023/24</option>
       </select>
@@ -845,114 +836,112 @@ function renderGestoraAlertas() {
       </button>
     </div>
 
-    <!-- Main Content 2-Column Grid -->
-    <div style="display: grid; grid-template-columns: 1.55fr 1fr; gap: 20px; align-items: start;">
+    <!-- MAIN INCIDENT CARDS LIST: LARGURA TOTAL (100% FIEL AO FIGMA/LAYOUT) -->
+    <div id="incident-cards-container" style="display: flex; flex-direction: column; gap: 20px; margin-bottom: 24px;">
 
-      <!-- Left Column: Incident Cards List -->
-      <div id="incident-cards-container" style="display: flex; flex-direction: column; gap: 18px;">
+      <!-- Card P1: CRÍTICO (Reefer 40ft) -->
+      <div class="incident-card" data-category="criticos" data-origin="reefer" style="background: #FFFFFF; border: 1px solid #FCA5A5; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 8px rgba(220,38,38,0.06); transition: all 0.3s ease;">
+        <!-- Top Tag Header -->
+        <div style="padding: 12px 20px; background: #FEF2F2; border-bottom: 1px solid #FEE2E2; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <span id="badge-p1-status" style="background: #EF4444; color: #FFFFFF; font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;">
+              <span style="width: 5px; height: 5px; border-radius: 50%; background: #FFFFFF;"></span>
+              ● P1 • CRÍTICO
+            </span>
+            <span style="background: #F1F5F9; color: #334155; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 4px;">
+              Cadeia Fria
+            </span>
+            <span style="background: #FEE2E2; color: #B91C1C; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 4px;">
+              Valor em Risco: R$ 42.000
+            </span>
+            <span id="telemetria-live-badge" style="display: none; background: #ECFDF5; border: 1px solid #A7F3D0; color: #047857; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px;">
+              ● Live 5s
+            </span>
+          </div>
+          <span style="font-size: 11px; color: #94A3B8;">Registrado há 28 min</span>
+        </div>
 
-        <!-- Card P1: CRÍTICO (Reefer 40ft) -->
-        <div class="incident-card" data-category="criticos" data-origin="reefer" style="background: #FFFFFF; border: 1px solid #FCA5A5; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 8px rgba(220,38,38,0.06); transition: all 0.3s ease;">
-          <!-- Top Tag Header -->
-          <div style="padding: 12px 20px; background: #FEF2F2; border-bottom: 1px solid #FEE2E2; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-              <span id="badge-p1-status" style="background: #EF4444; color: #FFFFFF; font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;">
-                <span style="width: 5px; height: 5px; border-radius: 50%; background: #FFFFFF;"></span>
-                P1 • CRÍTICO
-              </span>
-              <span style="background: #F1F5F9; color: #334155; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 4px;">
-                Cadeia Fria
-              </span>
-              <span style="background: #FEE2E2; color: #B91C1C; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 4px;">
-                Valor em Risco: R$ 42.000
-              </span>
-              <span id="telemetria-live-badge" style="display: none; background: #ECFDF5; border: 1px solid #A7F3D0; color: #047857; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px;">
-                ● Live 5s
-              </span>
+        <!-- Body -->
+        <div style="padding: 20px;">
+          <h3 style="font-size: 16px; font-weight: 700; color: #0F172A; margin: 0 0 6px;">
+            Desvio Térmico no Baú Frigorífico (Reefer 40ft) — Lote EXP-2026-08
+          </h3>
+          <p style="font-size: 12px; color: #64748B; line-height: 1.5; margin: 0 0 16px;">
+            Temperatura interna e reportada em 3,4°C por 38 minutos consecutivos direto acima do limite máximo de tolerância para Uva de Mesa em trânsito (2,0°C). Carga em deslocamento rodoviário na BR-110 em direção ao Porto de Pecém / CE. Sensor: MSC-RA-4001.
+          </p>
+
+          <!-- 4 Metric Cards in Row -->
+          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px;">
+            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px 14px;">
+              <div style="font-size: 9px; font-weight: 700; color: #64748B; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 3px;">TEMP. ATUAL</div>
+              <div id="live-p1-temp" style="font-size: 22px; font-weight: 800; color: #DC2626; line-height: 1.1;">3.4°C</div>
+              <div style="font-size: 10px; color: #DC2626; font-weight: 500; margin-top: 3px;">Limite: 0.5 - 2.0°C</div>
             </div>
-            <span style="font-size: 11px; color: #94A3B8;">Registrado há 28 min</span>
+
+            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px 14px;">
+              <div style="font-size: 9px; font-weight: 700; color: #64748B; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 3px;">UMIDADE REEFER</div>
+              <div style="font-size: 22px; font-weight: 800; color: #0F172A; line-height: 1.1;">91%</div>
+              <div style="font-size: 10px; color: #10B981; font-weight: 600; margin-top: 3px;">Normal (85-95%)</div>
+            </div>
+
+            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px 14px;">
+              <div style="font-size: 9px; font-weight: 700; color: #64748B; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 3px;">GÁS ETILENO</div>
+              <div style="font-size: 22px; font-weight: 800; color: #0F172A; line-height: 1.1;">0.03 ppm</div>
+              <div style="font-size: 10px; color: #10B981; font-weight: 600; margin-top: 3px;">Seguro (&lt;0.05)</div>
+            </div>
+
+            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px 14px;">
+              <div style="font-size: 9px; font-weight: 700; color: #64748B; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 3px;">BATERIA GATEWAY</div>
+              <div style="font-size: 22px; font-weight: 800; color: #0F172A; line-height: 1.1;">94%</div>
+              <div style="font-size: 10px; color: #64748B; font-weight: 500; margin-top: 3px;">Estável (Operante)</div>
+            </div>
           </div>
 
-          <!-- Body -->
-          <div style="padding: 20px;">
-            <h3 style="font-size: 16px; font-weight: 700; color: #0F172A; margin: 0 0 6px;">
-              Desvio Térmico no Baú Frigorífico (Reefer 40ft) — Lote EXP-2026-08
-            </h3>
-            <p style="font-size: 12px; color: #64748B; line-height: 1.5; margin: 0 0 16px;">
-              Temperatura interna sustentada em 3.4°C por 28 minutos consecutivos (limite máximo de tolerância para Uva de Mesa em trânsito: 2.0°C). Carga em deslocamento rodoviário na BR-116 em direção ao Porto de Pecém / Embarque MSC Rotterdam.
-            </p>
-
-            <!-- 4 Metric Cards in Row -->
-            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px;">
-              <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 10px 12px;">
-                <div style="font-size: 9px; font-weight: 700; color: #64748B; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 3px;">TEMP. ATUAL</div>
-                <div id="live-p1-temp" style="font-size: 20px; font-weight: 800; color: #DC2626; line-height: 1.1;">3.4°C</div>
-                <div style="font-size: 10px; color: #DC2626; font-weight: 500; margin-top: 2px;">Alvo: 0.5 - 2.0°C</div>
+          <!-- Responsive SVG Temperature Curve -->
+          <div style="background: #FFF5F5; border: 1px solid #FED7D7; border-radius: 14px; padding: 16px 20px 14px; margin-bottom: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+              <div style="font-size: 13px; font-weight: 700; color: #0F172A;">
+                Curva Térmica da Carga (Últimas 2 Horas)
+                <span style="font-size: 11px; font-weight: 400; color: #94A3B8; margin-left: 6px;">Escala de 10 min</span>
               </div>
-
-              <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 10px 12px;">
-                <div style="font-size: 9px; font-weight: 700; color: #64748B; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 3px;">UMIDADE REEFER</div>
-                <div style="font-size: 20px; font-weight: 800; color: #0F172A; line-height: 1.1;">91%</div>
-                <div style="font-size: 10px; color: #10B981; font-weight: 600; margin-top: 2px;">Normal (85-95%)</div>
-              </div>
-
-              <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 10px 12px;">
-                <div style="font-size: 9px; font-weight: 700; color: #64748B; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 3px;">GÁS ETILENO (C₂H₄)</div>
-                <div style="font-size: 20px; font-weight: 800; color: #0F172A; line-height: 1.1;">0.03 ppm</div>
-                <div style="font-size: 10px; color: #10B981; font-weight: 600; margin-top: 2px;">Seguro (&lt;0.05)</div>
-              </div>
-
-              <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 10px 12px;">
-                <div style="font-size: 9px; font-weight: 700; color: #64748B; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 3px;">BATERIA GATEWAY</div>
-                <div style="font-size: 20px; font-weight: 800; color: #0F172A; line-height: 1.1;">94%</div>
-                <div style="font-size: 10px; color: #64748B; font-weight: 500; margin-top: 2px;">GSM 4G Operante</div>
+              <div style="background: #FEE2E2; color: #DC2626; font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 6px; border: 1px solid #FECACA;">
+                +1.4°C acima do setpoint
               </div>
             </div>
 
-            <!-- Proportional Responsive SVG Chart -->
-            <div style="background: #FFF5F5; border: 1px solid #FED7D7; border-radius: 14px; padding: 16px 20px 14px; margin-bottom: 16px;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                <div style="font-size: 13px; font-weight: 700; color: #0F172A;">
-                  Curva Térmica da Carga (Últimas 2 Horas)
-                  <span style="font-size: 11px; font-weight: 400; color: #94A3B8; margin-left: 6px;">Escala de 10 min</span>
-                </div>
-                <div style="background: #FEE2E2; color: #DC2626; font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 6px; border: 1px solid #FECACA;">
-                  +1.4°C acima do setpoint
-                </div>
-              </div>
+            <div style="position: relative; width: 100%;">
+              <svg viewBox="0 0 1000 132" style="width: 100%; height: auto; display: block;">
+                <defs>
+                  <linearGradient id="alertRedGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#EF4444" stop-opacity="0.30"/>
+                    <stop offset="60%" stop-color="#EF4444" stop-opacity="0.08"/>
+                    <stop offset="100%" stop-color="#EF4444" stop-opacity="0.0"/>
+                  </linearGradient>
+                </defs>
 
-              <div style="position: relative; width: 100%;">
-                <svg viewBox="0 0 760 132" style="width: 100%; height: auto; display: block;">
-                  <defs>
-                    <linearGradient id="alertRedGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stop-color="#EF4444" stop-opacity="0.30"/>
-                      <stop offset="60%" stop-color="#EF4444" stop-opacity="0.08"/>
-                      <stop offset="100%" stop-color="#EF4444" stop-opacity="0.0"/>
-                    </linearGradient>
-                  </defs>
+                <line x1="40" y1="64" x2="960" y2="64" stroke="#F87171" stroke-width="1.5" stroke-dasharray="6,5"/>
+                <text x="50" y="55" font-size="11" font-weight="700" fill="#DC2626" font-family="'Plus Jakarta Sans', sans-serif">Limite de Segurança (2.0°C)</text>
 
-                  <line x1="30" y1="64" x2="730" y2="64" stroke="#F87171" stroke-width="1.5" stroke-dasharray="6,5"/>
-                  <text x="50" y="55" font-size="11" font-weight="700" fill="#DC2626" font-family="'Plus Jakarta Sans', sans-serif">Limite de Segurança (2.0°C)</text>
+                <path d="M 50,78 C 200,78 350,73 500,68 C 650,62 800,42 950,20 L 950,98 L 50,98 Z" fill="url(#alertRedGradient)"/>
+                <path d="M 50,78 C 200,78 350,73 500,68 C 650,62 800,42 950,20" fill="none" stroke="#EF4444" stroke-width="2.8" stroke-linecap="round"/>
 
-                  <path d="M 50,78 C 130,78 190,75 270,71 C 350,66 420,54 490,48 C 560,42 640,26 710,20 L 710,98 L 50,98 Z" fill="url(#alertRedGradient)"/>
-                  <path d="M 50,78 C 130,78 190,75 270,71 C 350,66 420,54 490,48 C 560,42 640,26 710,20" fill="none" stroke="#EF4444" stroke-width="2.8" stroke-linecap="round"/>
+                <circle cx="50" cy="78" r="4.5" fill="#EF4444" stroke="#FFFFFF" stroke-width="2"/>
+                <circle cx="350" cy="73" r="4.5" fill="#EF4444" stroke="#FFFFFF" stroke-width="2"/>
+                <circle cx="650" cy="56" r="4.5" fill="#EF4444" stroke="#FFFFFF" stroke-width="2"/>
+                <circle cx="950" cy="20" r="6" fill="#DC2626" stroke="#FFFFFF" stroke-width="2.5"/>
 
-                  <circle cx="50" cy="78" r="4.5" fill="#EF4444" stroke="#FFFFFF" stroke-width="2"/>
-                  <circle cx="270" cy="71" r="4.5" fill="#EF4444" stroke="#FFFFFF" stroke-width="2"/>
-                  <circle cx="490" cy="48" r="4.5" fill="#EF4444" stroke="#FFFFFF" stroke-width="2"/>
-                  <circle cx="710" cy="20" r="6" fill="#DC2626" stroke="#FFFFFF" stroke-width="2.5"/>
-
-                  <text x="50" y="120" font-size="11" font-weight="500" fill="#64748B" font-family="'Plus Jakarta Sans', sans-serif" text-anchor="start">10:30 (1.7°C)</text>
-                  <text x="270" y="120" font-size="11" font-weight="500" fill="#64748B" font-family="'Plus Jakarta Sans', sans-serif" text-anchor="middle">11:00 (1.9°C)</text>
-                  <text x="490" y="120" font-size="11" font-weight="500" fill="#64748B" font-family="'Plus Jakarta Sans', sans-serif" text-anchor="middle">11:30 (2.4°C)</text>
-                  <text x="710" y="120" font-size="11" font-weight="700" fill="#DC2626" font-family="'Plus Jakarta Sans', sans-serif" text-anchor="end">Agora (3.4°C)</text>
-                </svg>
-              </div>
+                <text x="50" y="120" font-size="11" font-weight="500" fill="#64748B" font-family="'Plus Jakarta Sans', sans-serif" text-anchor="start">10:30 (1.7°C)</text>
+                <text x="350" y="120" font-size="11" font-weight="500" fill="#64748B" font-family="'Plus Jakarta Sans', sans-serif" text-anchor="middle">11:00 (1.9°C)</text>
+                <text x="650" y="120" font-size="11" font-weight="500" fill="#64748B" font-family="'Plus Jakarta Sans', sans-serif" text-anchor="middle">11:30 (2.4°C)</text>
+                <text x="950" y="120" font-size="11" font-weight="700" fill="#DC2626" font-family="'Plus Jakarta Sans', sans-serif" text-anchor="end">Agora (3.4°C)</text>
+              </svg>
             </div>
+          </div>
 
-            <!-- Action Buttons -->
+          <!-- Action Buttons -->
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
             <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-              <button id="btn-ligar-motorista" style="padding: 9px 16px; background: #EF4444; border: none; border-radius: 8px; font-size: 12px; font-weight: 700; color: #FFFFFF; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 4px rgba(239,68,68,0.25); transition: opacity 0.2s;" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+              <button id="btn-ligar-motorista" style="padding: 9px 18px; background: #EF4444; border: none; border-radius: 8px; font-size: 12px; font-weight: 700; color: #FFFFFF; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 4px rgba(239,68,68,0.25); transition: opacity 0.2s;" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
                 <i data-lucide="phone" style="width: 14px; height: 14px;"></i>
                 Ligar para Motorista / Frota
               </button>
@@ -961,82 +950,84 @@ function renderGestoraAlertas() {
                 <i data-lucide="activity" style="width: 14px; height: 14px; color: #64748B;"></i>
                 <span id="txt-telemetria-btn">Telemetria Contínua</span>
               </button>
-
-              <button id="btn-atender-p1" style="padding: 9px 16px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 12px; font-weight: 600; color: #334155; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background 0.2s;" onmouseover="this.style.background='#F8FAFC'" onmouseout="this.style.background='#FFFFFF'">
-                <i data-lucide="check" style="width: 14px; height: 14px; color: #059669;"></i>
-                Marcar como Atendido
-              </button>
             </div>
+
+            <button id="btn-atender-p1" style="padding: 9px 18px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 12px; font-weight: 600; color: #334155; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background 0.2s;" onmouseover="this.style.background='#F8FAFC'" onmouseout="this.style.background='#FFFFFF'">
+              <i data-lucide="check" style="width: 14px; height: 14px; color: #059669;"></i>
+              Marcar como Atendido
+            </button>
           </div>
         </div>
+      </div>
 
-        <!-- Card P2: ATENÇÃO (Estresse Hídrico) -->
-        <div class="incident-card" data-category="moderados" data-origin="lora" style="background: #FFFFFF; border: 1px solid #FCD34D; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 8px rgba(245,158,11,0.06); transition: all 0.3s ease;">
-          <!-- Top Tag Header -->
-          <div style="padding: 12px 20px; background: #FFFBEB; border-bottom: 1px solid #FEF3C7; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-              <span style="background: #F59E0B; color: #FFFFFF; font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 4px;">
-                P2 • ATENÇÃO
-              </span>
-              <span style="background: #F1F5F9; color: #334155; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 4px;">
-                Manejo de Irrigação
-              </span>
-              <span style="background: #F8FAFC; border: 1px solid #E2E8F0; color: #64748B; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 4px;">
-                Nó ESP32-VU03
-              </span>
+      <!-- Card P2: ATENÇÃO (Estresse Hídrico) -->
+      <div class="incident-card" data-category="moderados" data-origin="lora" style="background: #FFFFFF; border: 1px solid #FCD34D; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 8px rgba(245,158,11,0.06); transition: all 0.3s ease;">
+        <!-- Top Tag Header -->
+        <div style="padding: 12px 20px; background: #FFFBEB; border-bottom: 1px solid #FEF3C7; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <span style="background: #F59E0B; color: #FFFFFF; font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 4px;">
+              P2 • ATENÇÃO
+            </span>
+            <span style="background: #F1F5F9; color: #334155; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 4px;">
+              Manejo de Irrigação
+            </span>
+            <span style="background: #F8FAFC; border: 1px solid #E2E8F0; color: #64748B; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 4px;">
+              Nó ESP32-VU02
+            </span>
+          </div>
+          <span style="font-size: 11px; color: #94A3B8;">Registrado há 12 min</span>
+        </div>
+
+        <!-- Body -->
+        <div style="padding: 20px;">
+          <h3 style="font-size: 16px; font-weight: 700; color: #0F172A; margin: 0 0 6px;">
+            Estresse Hídrico Crítico no Talhão A1 (Uva Vitória Seedless)
+            <span style="font-size: 12px; font-weight: 500; color: #64748B; margin-left: 4px;">Área: 12,5 ha</span>
+          </h3>
+          <p style="font-size: 12px; color: #64748B; line-height: 1.5; margin: 0 0 14px;">
+            Umidade volumétrica do solo (VWC) atingiu 38,2% na profundidade radicular principal de 20cm (limiar de recarga: 50.0%). Temperatura de microclima local em 32,5°C com alta radiação solar no pomar.
+          </p>
+
+          <!-- Prescrição Agronômica Callout -->
+          <div style="background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 10px; padding: 12px 16px; margin-bottom: 16px;">
+            <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+              <i data-lucide="zap" style="width: 14px; height: 14px; color: #D97706;"></i>
+              <span style="font-size: 10px; font-weight: 800; color: #B45309; letter-spacing: 0.5px; text-transform: uppercase;">PRESCRIÇÃO AGRONÔMICA AUTOMATIZADA</span>
             </div>
-            <span style="font-size: 11px; color: #94A3B8;">Registrado há 12 min</span>
+            <p style="font-size: 11px; color: #92400E; line-height: 1.45; margin: 0;">
+              Iniciar turno de fertirrigação com lâmina de 4,2mm às 15:30 para restabelecer capacidade de campo sem lixiviação de nutrientes e evitar perda de calibre de baga.
+            </p>
           </div>
 
-          <!-- Body -->
-          <div style="padding: 20px;">
-            <h3 style="font-size: 16px; font-weight: 700; color: #0F172A; margin: 0 0 6px;">
-              Estresse Hídrico Crítico no LOTE A1 (Uva Vitória Seedless)
-              <span style="font-size: 12px; font-weight: 500; color: #64748B; margin-left: 4px;">Área: 12,5 ha</span>
-            </h3>
-            <p style="font-size: 12px; color: #64748B; line-height: 1.5; margin: 0 0 14px;">
-              Umidade volumétrica do solo (VWC) atingiu 38.2% na profundidade radicular principal de 20cm (limiar de recarga: 50.0%). Temperatura de microclima local em 32.5°C com alta radiação solar no pomar.
-            </p>
-
-            <!-- Prescrição Agronômica Callout -->
-            <div style="background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 10px; padding: 12px 16px; margin-bottom: 16px;">
-              <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
-                <i data-lucide="zap" style="width: 14px; height: 14px; color: #D97706;"></i>
-                <span style="font-size: 10px; font-weight: 800; color: #B45309; letter-spacing: 0.5px; text-transform: uppercase;">PRESCRIÇÃO AGRONÔMICA AUTOMATIZADA</span>
-              </div>
-              <p style="font-size: 11px; color: #92400E; line-height: 1.45; margin: 0;">
-                Iniciar turno de fertirrigação com lâmina de 4.2mm às 15:30 para restabelecer capacidade de campo sem lixiviação de nutrientes e evitar perda de calibre de baga.
-              </p>
+          <!-- 4 Metric Cards in Row -->
+          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px;">
+            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px 14px;">
+              <div style="font-size: 9px; font-weight: 700; color: #64748B; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 3px;">VWC 20CM</div>
+              <div id="live-vwc-20" style="font-size: 22px; font-weight: 800; color: #EA580C; line-height: 1.1;">38.2%</div>
+              <div style="font-size: 10px; color: #EA580C; font-weight: 500; margin-top: 3px;">Alvo &gt; 50%</div>
             </div>
 
-            <!-- 4 Metric Cards in Row -->
-            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px;">
-              <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 10px 12px;">
-                <div style="font-size: 9px; font-weight: 700; color: #64748B; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 3px;">VWC 20CM</div>
-                <div id="live-vwc-20" style="font-size: 20px; font-weight: 800; color: #EA580C; line-height: 1.1;">38.2%</div>
-                <div style="font-size: 10px; color: #EA580C; font-weight: 500; margin-top: 2px;">Alvo &gt; 50%</div>
-              </div>
-
-              <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 10px 12px;">
-                <div style="font-size: 9px; font-weight: 700; color: #64748B; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 3px;">VWC 40CM</div>
-                <div style="font-size: 20px; font-weight: 800; color: #EA580C; line-height: 1.1;">46.8%</div>
-                <div style="font-size: 10px; color: #EA580C; font-weight: 500; margin-top: 2px;">Em declínio</div>
-              </div>
-
-              <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 10px 12px;">
-                <div style="font-size: 9px; font-weight: 700; color: #64748B; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 3px;">TEMP SOLO</div>
-                <div style="font-size: 20px; font-weight: 800; color: #059669; line-height: 1.1;">27.1°C</div>
-                <div style="font-size: 10px; color: #10B981; font-weight: 600; margin-top: 2px;">Normal</div>
-              </div>
-
-              <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 10px 12px;">
-                <div style="font-size: 9px; font-weight: 700; color: #64748B; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 3px;">VÁLVULA SETOR</div>
-                <div id="live-valvula-status" style="font-size: 20px; font-weight: 800; color: #64748B; line-height: 1.1;">Fechada</div>
-                <div id="live-valvula-sub" style="font-size: 10px; color: #64748B; font-weight: 500; margin-top: 2px;">Pronta p/ envio</div>
-              </div>
+            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px 14px;">
+              <div style="font-size: 9px; font-weight: 700; color: #64748B; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 3px;">VWC 40CM</div>
+              <div style="font-size: 22px; font-weight: 800; color: #EA580C; line-height: 1.1;">46.8%</div>
+              <div style="font-size: 10px; color: #EA580C; font-weight: 500; margin-top: 3px;">Em declínio</div>
             </div>
 
-            <!-- Action Buttons -->
+            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px 14px;">
+              <div style="font-size: 9px; font-weight: 700; color: #64748B; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 3px;">TEMP SOLO</div>
+              <div style="font-size: 22px; font-weight: 800; color: #059669; line-height: 1.1;">27.1°C</div>
+              <div style="font-size: 10px; color: #10B981; font-weight: 600; margin-top: 3px;">Normal</div>
+            </div>
+
+            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px 14px;">
+              <div style="font-size: 9px; font-weight: 700; color: #64748B; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 3px;">VÁLVULA SETOR</div>
+              <div id="live-valvula-status" style="font-size: 22px; font-weight: 800; color: #64748B; line-height: 1.1;">Fechada</div>
+              <div id="live-valvula-sub" style="font-size: 10px; color: #64748B; font-weight: 500; margin-top: 3px;">Pronta p/ envio</div>
+            </div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
             <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
               <button id="btn-irrigacao-acao" style="padding: 9px 18px; background: #059669; border: none; border-radius: 8px; font-size: 12px; font-weight: 700; color: #FFFFFF; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 4px rgba(5,150,105,0.25); transition: all 0.2s;">
                 <i data-lucide="zap" style="width: 14px; height: 14px;"></i>
@@ -1046,171 +1037,114 @@ function renderGestoraAlertas() {
               <button id="btn-ver-curva-umidade" style="padding: 9px 16px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 12px; font-weight: 600; color: #334155; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='#F8FAFC'" onmouseout="this.style.background='#FFFFFF'">
                 Ver Curva de Umidade
               </button>
-
-              <button id="btn-silenciar-p2" style="padding: 9px 14px; background: transparent; border: none; font-size: 12px; font-weight: 500; color: #64748B; cursor: pointer;">
-                Silenciar 1h
-              </button>
             </div>
-          </div>
-        </div>
 
-        <!-- Card Preditivo IA (quando selecionado filtro) -->
-        <div id="card-preditivo-ia" class="incident-card" data-category="preditivos" data-origin="estacao" style="display: none; background: #FFFFFF; border: 1px solid #C4B5FD; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 8px rgba(124,58,237,0.06);">
-          <div style="padding: 12px 20px; background: #F5F3FF; border-bottom: 1px solid #EDE9FE; display: flex; justify-content: space-between; align-items: center;">
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <span style="background: #7C3AED; color: #FFFFFF; font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 4px;">
-                PREDITIVO IA
-              </span>
-              <span style="background: #EDE9FE; color: #6D28D9; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 4px;">
-                Microclima & Vento
-              </span>
-            </div>
-            <span style="font-size: 11px; color: #94A3B8;">Previsão para 17:00</span>
-          </div>
-          <div style="padding: 20px;">
-            <h3 style="font-size: 15px; font-weight: 700; color: #0F172A; margin: 0 0 6px;">
-              Rajadas de Vento Acima de 42 km/h com Umidade em Queda Livre no Setor 04
-            </h3>
-            <p style="font-size: 12px; color: #64748B; line-height: 1.5; margin: 0 0 14px;">
-              Modelo meteorológico GFS acoplado aos sensores indica risco de evapotranspiração acelerada no dossel foliar e descalibragem do peso de cacho para exportação.
-            </p>
-            <button id="btn-ajustar-cortina" style="padding: 8px 14px; background: #7C3AED; color: #FFFFFF; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer;">
-              Acionar Cortina Quebra-Vento
+            <button id="btn-silenciar-p2" style="padding: 9px 14px; background: transparent; border: none; font-size: 12px; font-weight: 500; color: #64748B; cursor: pointer;">
+              Silenciar 1h
             </button>
           </div>
         </div>
-
       </div>
 
-      <!-- Right Column: Sidebar Panels -->
-      <div style="display: flex; flex-direction: column; gap: 18px;">
-
-        <!-- Panel 1: Matriz de Comunicação -->
-        <div class="apple-card" style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 16px; padding: 22px 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <i data-lucide="wifi" style="width: 16px; height: 16px; color: #10B981;"></i>
-              <span style="font-size: 14px; font-weight: 700; color: #0F172A;">Matriz de Comunicação</span>
-            </div>
-            <div style="background: #ECFDF5; border: 1px solid #A7F3D0; color: #047857; font-size: 9px; font-weight: 700; line-height: 1.2; padding: 3px 8px; border-radius: 9999px; text-align: center;">
-              Failover<br>Ativo
-            </div>
+      <!-- Card Preditivo IA (quando selecionado filtro) -->
+      <div id="card-preditivo-ia" class="incident-card" data-category="preditivos" data-origin="estacao" style="display: none; background: #FFFFFF; border: 1px solid #C4B5FD; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 8px rgba(124,58,237,0.06);">
+        <div style="padding: 12px 20px; background: #F5F3FF; border-bottom: 1px solid #EDE9FE; display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="background: #7C3AED; color: #FFFFFF; font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 4px;">
+              PREDITIVO IA
+            </span>
+            <span style="background: #EDE9FE; color: #6D28D9; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 4px;">
+              Microclima & Vento
+            </span>
           </div>
-
-          <!-- Channel List -->
-          <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #F1F5F9;">
-              <div style="display: flex; align-items: center; gap: 10px;">
-                <div style="width: 34px; height: 34px; border-radius: 8px; background: #ECFDF5; display: flex; align-items: center; justify-content: center;">
-                  <i data-lucide="smartphone" style="width: 16px; height: 16px; color: #059669;"></i>
-                </div>
-                <div>
-                  <div style="font-size: 12px; font-weight: 700; color: #0F172A;">Push App Raiz</div>
-                  <div style="font-size: 10px; color: #94A3B8;">Equipe de Campo & Agrônomos</div>
-                </div>
-              </div>
-              <span id="status-push-pill" style="background: #ECFDF5; color: #059669; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 9999px;">Online</span>
-            </div>
-
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #F1F5F9;">
-              <div style="display: flex; align-items: center; gap: 10px;">
-                <div style="width: 34px; height: 34px; border-radius: 8px; background: #ECFDF5; display: flex; align-items: center; justify-content: center;">
-                  <i data-lucide="message-circle" style="width: 16px; height: 16px; color: #059669;"></i>
-                </div>
-                <div>
-                  <div style="font-size: 12px; font-weight: 700; color: #0F172A;">Notificação por E-mail</div>
-                  <div style="font-size: 10px; color: #94A3B8;">Alertas Críticos & Relatórios Instantâneos</div>
-                </div>
-              </div>
-              <span id="status-email-pill" style="background: #ECFDF5; color: #059669; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 9999px;">Ativo</span>
-            </div>
-
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0;">
-              <div style="display: flex; align-items: center; gap: 10px;">
-                <div style="width: 34px; height: 34px; border-radius: 8px; background: #F1F5F9; display: flex; align-items: center; justify-content: center;">
-                  <i data-lucide="message-square" style="width: 16px; height: 16px; color: #64748B;"></i>
-                </div>
-                <div>
-                  <div style="font-size: 12px; font-weight: 700; color: #0F172A;">Servidor SMTP Corporativo</div>
-                  <div style="font-size: 10px; color: #94A3B8;">Serviço SMTP TLS Homologado</div>
-                </div>
-              </div>
-              <span id="status-smtp-pill" style="background: #F1F5F9; color: #64748B; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 9999px;">Conectado</span>
-            </div>
-          </div>
-
-          <button id="btn-testar-rotas" style="width: 100%; padding: 10px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 12px; font-weight: 600; color: #334155; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='#F8FAFC'" onmouseout="this.style.background='#FFFFFF'">
-            Testar Rotas de Disparo
+          <span style="font-size: 11px; color: #94A3B8;">Previsão para 17:00</span>
+        </div>
+        <div style="padding: 20px;">
+          <h3 style="font-size: 15px; font-weight: 700; color: #0F172A; margin: 0 0 6px;">
+            Rajadas de Vento Acima de 42 km/h com Umidade em Queda Livre no Setor 04
+          </h3>
+          <p style="font-size: 12px; color: #64748B; line-height: 1.5; margin: 0 0 14px;">
+            Modelo meteorológico GFS acoplado aos sensores indica risco de evapotranspiração acelerada no dossel foliar e descalibragem do peso de cacho para exportação.
+          </p>
+          <button id="btn-ajustar-cortina" style="padding: 8px 14px; background: #7C3AED; color: #FFFFFF; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer;">
+            Acionar Cortina Quebra-Vento
           </button>
         </div>
-
-        <!-- Panel 2: Log de Auditoria Recente -->
-        <div class="apple-card" style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 16px; padding: 22px 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <i data-lucide="clock" style="width: 15px; height: 15px; color: #64748B;"></i>
-              <span style="font-size: 14px; font-weight: 700; color: #0F172A;">Log de Auditoria Recente</span>
-            </div>
-            <span style="font-size: 11px; color: #94A3B8;">Hoje</span>
-          </div>
-
-          <div id="audit-log-list" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 14px;">
-            <div style="display: flex; gap: 10px; align-items: flex-start;">
-              <span style="width: 7px; height: 7px; border-radius: 50%; background: #EF4444; margin-top: 5px; flex-shrink: 0;"></span>
-              <div>
-                <div style="font-size: 11px; font-weight: 600; color: #0F172A;">E-mail de alerta disparado para Rodovias Nordeste</div>
-                <div style="font-size: 10px; color: #94A3B8;">Contêiner MS-R04 • 11:42 BRT</div>
-              </div>
-            </div>
-
-            <div style="display: flex; gap: 10px; align-items: flex-start;">
-              <span style="width: 7px; height: 7px; border-radius: 50%; background: #F59E0B; margin-top: 5px; flex-shrink: 0;"></span>
-              <div>
-                <div style="font-size: 11px; font-weight: 600; color: #0F172A;">Alerta de umidade enviado para Agronomia</div>
-                <div style="font-size: 10px; color: #94A3B8;">LOTE A1 • 11:30 BRT</div>
-              </div>
-            </div>
-
-            <div style="display: flex; gap: 10px; align-items: flex-start;">
-              <span style="width: 7px; height: 7px; border-radius: 50%; background: #10B981; margin-top: 5px; flex-shrink: 0;"></span>
-              <div>
-                <div style="font-size: 11px; font-weight: 600; color: #0F172A;">Chamado #4092 marcado como Resolvido</div>
-                <div style="font-size: 10px; color: #94A3B8;">Repetidor LoRa • 11:20 BRT por Carlos E.</div>
-              </div>
-            </div>
-
-            <div style="display: flex; gap: 10px; align-items: flex-start;">
-              <span style="width: 7px; height: 7px; border-radius: 50%; background: #0284C7; margin-top: 5px; flex-shrink: 0;"></span>
-              <div>
-                <div style="font-size: 11px; font-weight: 600; color: #0F172A;">Limiar térmico ajustado para Uva Vitória</div>
-                <div style="font-size: 10px; color: #94A3B8;">Central • 09:15 BRT por Eng. Marília</div>
-              </div>
-            </div>
-          </div>
-
-          <a id="btn-ver-auditoria-completa" href="javascript:void(0)" style="font-size: 11px; font-weight: 600; color: #059669; text-decoration: none; display: block; text-align: center; padding: 4px 0;">
-            Ver Histórico Completo de Auditoria →
-          </a>
-        </div>
-
-        <!-- Panel 3: Diretriz Global de Cold-Chain -->
-        <div style="background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 16px; padding: 20px 22px;">
-          <div style="font-size: 9px; font-weight: 800; color: #047857; letter-spacing: 0.6px; text-transform: uppercase; margin-bottom: 4px;">
-            DIRETRIZ GLOBAL DE COLD-CHAIN
-          </div>
-          <div style="font-size: 13px; font-weight: 700; color: #064E3B; margin-bottom: 6px;">
-            Protocolo de Retenção de Fruta
-          </div>
-          <p style="font-size: 11px; color: #065F46; line-height: 1.5; margin: 0;">
-            Desvios acima de 2.0°C com duração superior a 45 minutos demandam vistoria de termógrafos certificados antes da emissão do Certificado Fitossanitário no porto.
-          </p>
-        </div>
-
       </div>
 
     </div>
 
-  </div>
+    <!-- SEÇÃO INFERIOR: LOG DE AUDITORIA RECENTE & DIRETRIZ (SEM MATRIZ DE COMUNICAÇÃO) -->
+    <div style="display: grid; grid-template-columns: 1.6fr 1fr; gap: 20px; align-items: start;">
+
+      <!-- Card 1: Log de Auditoria Recente -->
+      <div class="apple-card" style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 16px; padding: 22px 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <i data-lucide="clock" style="width: 15px; height: 15px; color: #64748B;"></i>
+            <span style="font-size: 14px; font-weight: 700; color: #0F172A;">Log de Auditoria Recente</span>
+          </div>
+          <span style="font-size: 11px; color: #94A3B8;">Hoje</span>
+        </div>
+
+        <div id="audit-log-list" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 14px;">
+          <div style="display: flex; gap: 10px; align-items: flex-start;">
+            <span style="width: 7px; height: 7px; border-radius: 50%; background: #EF4444; margin-top: 5px; flex-shrink: 0;"></span>
+            <div>
+              <div style="font-size: 11px; font-weight: 600; color: #0F172A;">SMS disparado para Rodovias Nordeste</div>
+              <div style="font-size: 10px; color: #94A3B8;">Ocorrência MSC 3401 • 11:47 BRT</div>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 10px; align-items: flex-start;">
+            <span style="width: 7px; height: 7px; border-radius: 50%; background: #F59E0B; margin-top: 5px; flex-shrink: 0;"></span>
+            <div>
+              <div style="font-size: 11px; font-weight: 600; color: #0F172A;">Alerta de umidade enviado para Agronomia</div>
+              <div style="font-size: 10px; color: #94A3B8;">Talhão A1 • 11:35 BRT</div>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 10px; align-items: flex-start;">
+            <span style="width: 7px; height: 7px; border-radius: 50%; background: #10B981; margin-top: 5px; flex-shrink: 0;"></span>
+            <div>
+              <div style="font-size: 11px; font-weight: 600; color: #0F172A;">Chamado 44-002 marcado como Resolvido</div>
+              <div style="font-size: 10px; color: #94A3B8;">Recebedor volta • 11:15 BRT por Carlos E.</div>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 10px; align-items: flex-start;">
+            <span style="width: 7px; height: 7px; border-radius: 50%; background: #0284C7; margin-top: 5px; flex-shrink: 0;"></span>
+            <div>
+              <div style="font-size: 11px; font-weight: 600; color: #0F172A;">Limiar térmico ajustado para Uva Vitória</div>
+              <div style="font-size: 10px; color: #94A3B8;">Operador • 09:15 BRT por Eng. Marília</div>
+            </div>
+          </div>
+        </div>
+
+        <a id="btn-ver-auditoria-completa" href="javascript:void(0)" style="font-size: 11px; font-weight: 600; color: #059669; text-decoration: none; display: block; text-align: center; padding: 4px 0;">
+          Ver Histórico Completo de Auditoria →
+        </a>
+      </div>
+
+      <!-- Card 2: Diretriz Global de Cold-Chain -->
+      <div style="background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 16px; padding: 22px 24px;">
+        <div style="font-size: 9px; font-weight: 800; color: #047857; letter-spacing: 0.6px; text-transform: uppercase; margin-bottom: 6px;">
+          DIRETRIZ GLOBAL DE COLD-CHAIN
+        </div>
+        <div style="font-size: 14px; font-weight: 700; color: #064E3B; margin-bottom: 8px;">
+          Protocolo de Retenção de Fruta
+        </div>
+        <p style="font-size: 12px; color: #065F46; line-height: 1.5; margin: 0 0 14px;">
+          Desvios acima de 2,0°C com duração superior a 45 minutos acarretam veto de embarque com bloqueio preventivo de emissão do Certificado Fitossanitário no porto.
+        </p>
+        <div style="display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 600; color: #047857; background: #DCFCE7; padding: 8px 12px; border-radius: 8px;">
+          <i data-lucide="shield-check" style="width: 14px; height: 14px;"></i>
+          <span>Norma MAPA / Protocolo GlobalGAP</span>
+        </div>
+      </div>
+
+    </div>
+
   </div>
   `;
 }
