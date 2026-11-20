@@ -21,17 +21,28 @@ let VARIEDADES_LIST = [
 ];
 
 export async function renderConfiguracoes() {
-  const isAnalista = auth.getActiveProfile() === 'analista';
+  const profileRole = auth.getActiveProfile();
+  const isAdmin = profileRole === 'admin';
+  const isAnalista = profileRole === 'analista';
   const profile = auth.getProfileData();
   const nomeExibicao = profile.nome;
   const cargoExibicao = profile.cargo;
   const iniciais = profile.iniciais;
   const emailUsuario = profile.email;
-  const userId = isAnalista ? '2' : '1';
-  const telefone = isAnalista ? '(87) 99812-4420' : '(87) 99842-1104';
-  const bio = isAnalista
-    ? 'Supervisão técnica de nós ESP32 (DHT11 e umidade do solo) e calibração de sensores IoT.'
-    : 'Gestão operacional de colheita, irrigação de precisão e manejo integrado de campo.';
+  const userId = isAdmin ? '3' : (isAnalista ? '2' : '1');
+  const telefone = isAdmin ? '(87) 99888-0011' : (isAnalista ? '(87) 99812-4420' : '(87) 99842-1104');
+  const bio = isAdmin
+    ? 'Administração global de infraestrutura IoT, governança de usuários, parâmetros agronômicos e controle de acessos.'
+    : (isAnalista
+      ? 'Supervisão técnica de nós ESP32 (DHT11 e umidade do solo) e calibração de sensores IoT.'
+      : 'Gestão operacional de colheita, irrigação de precisão e manejo integrado de campo.');
+
+  const readOnlyAttr = isAdmin ? '' : 'readonly';
+  const inputBg = isAdmin ? '#FFFFFF' : '#F8FAFC';
+  const inputCursor = isAdmin ? 'text' : 'default';
+  const roleBadge = isAdmin
+    ? 'Administradora Geral • Permissão Total'
+    : (isAnalista ? 'Analista Técnico • Telemetria' : 'Gestora Agronômica e Exportação');
 
   return `
   <div class="dashboard-canvas" style="padding: 28px 36px 48px; overflow-y: auto;">
@@ -48,9 +59,9 @@ export async function renderConfiguracoes() {
           <div>
             <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
               <h3 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 17px; font-weight: 700; color: #0F172A;">Meu Perfil e Preferências Pessoais</h3>
-              <span style="background: #ECFDF5; color: #065F46; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px;">
-                <span style="width: 6px; height: 6px; border-radius: 50%; background: #10B981;"></span>
-                Vinculado ao Usuário #${userId} (${emailUsuario})
+              <span style="background: ${isAdmin ? '#EFF6FF' : '#ECFDF5'}; color: ${isAdmin ? '#1E40AF' : '#065F46'}; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px;">
+                <span style="width: 6px; height: 6px; border-radius: 50%; background: ${isAdmin ? '#3B82F6' : '#10B981'};"></span>
+                ${roleBadge} (Usuário #${userId} • ${emailUsuario})
               </span>
             </div>
             <p style="margin: 3px 0 0; font-size: 12px; color: #94A3B8;">Suas preferências visuais são salvas localmente e carregadas automaticamente em qualquer dispositivo.</p>
@@ -89,7 +100,7 @@ export async function renderConfiguracoes() {
           <!-- Telefone de Contato -->
           <div>
             <label style="display: block; font-size: 11px; font-weight: 600; color: #475569; margin-bottom: 6px;">Telefone de Contato</label>
-            <input id="cfg-profile-phone" value="${telefone}" readonly style="width: 100%; padding: 10px 12px; border: 1px solid #E2E8F0; border-radius: 9px; font-size: 13px; color: #0F172A; outline: none; background: #F8FAFC; box-sizing: border-box; cursor: default;">
+            <input id="cfg-profile-phone" value="${telefone}" ${readOnlyAttr} style="width: 100%; padding: 10px 12px; border: 1px solid #E2E8F0; border-radius: 9px; font-size: 13px; color: #0F172A; outline: none; background: ${inputBg}; box-sizing: border-box; cursor: ${inputCursor};">
           </div>
         </div>
 
@@ -98,7 +109,7 @@ export async function renderConfiguracoes() {
           <!-- Biografia / Escopo Operacional -->
           <div style="margin-bottom: 14px;">
             <label style="display: block; font-size: 11px; font-weight: 600; color: #475569; margin-bottom: 6px;">Biografia / Escopo Operacional</label>
-            <textarea id="cfg-profile-bio" rows="3" readonly style="width: 100%; padding: 10px 12px; border: 1px solid #E2E8F0; border-radius: 9px; font-size: 13px; color: #0F172A; outline: none; background: #F8FAFC; box-sizing: border-box; resize: none; font-family: inherit; line-height: 1.5; cursor: default;">${bio}</textarea>
+            <textarea id="cfg-profile-bio" rows="3" ${readOnlyAttr} style="width: 100%; padding: 10px 12px; border: 1px solid #E2E8F0; border-radius: 9px; font-size: 13px; color: #0F172A; outline: none; background: ${inputBg}; box-sizing: border-box; resize: none; font-family: inherit; line-height: 1.5; cursor: ${inputCursor};">${bio}</textarea>
           </div>
 
           <!-- Cor do Avatar -->
@@ -284,14 +295,14 @@ export async function renderConfiguracoes() {
         <!-- Nome da Fazenda -->
         <div style="margin-bottom:14px;">
           <label style="display:block; font-size:11px; font-weight:600; color:#475569; margin-bottom:5px;">Nome da Fazenda</label>
-          <input id="cfg-farm-name" value="Fazenda RaizTech - Polo Sul" readonly style="width:100%; padding:10px 12px; border:1px solid #E2E8F0; border-radius:9px; font-size:13px; color:#0F172A; outline:none; background:#F8FAFC; box-sizing:border-box; cursor:default;">
+          <input id="cfg-farm-name" value="Fazenda Vale das Uvas" ${readOnlyAttr} style="width:100%; padding:10px 12px; border:1px solid #E2E8F0; border-radius:9px; font-size:13px; color:#0F172A; outline:none; background:${inputBg}; box-sizing:border-box; cursor:${inputCursor};">
         </div>
 
         <!-- Localização -->
         <div style="margin-bottom:14px;">
           <label style="display:block; font-size:11px; font-weight:600; color:#475569; margin-bottom:5px;">Localização e Coordenadas Geográficas</label>
           <div style="display:flex; gap:10px; align-items:flex-start; flex-wrap:wrap;">
-            <input id="cfg-farm-coords" value="-21.177502, -47.616331" readonly style="flex:1; min-width:140px; padding:10px 12px; border:1px solid #E2E8F0; border-radius:9px; font-size:12px; color:#0F172A; outline:none; background:#F8FAFC; box-sizing:border-box; cursor:default;">
+            <input id="cfg-farm-coords" value="-21.177502, -47.616331" ${readOnlyAttr} style="flex:1; min-width:140px; padding:10px 12px; border:1px solid #E2E8F0; border-radius:9px; font-size:12px; color:#0F172A; outline:none; background:${inputBg}; box-sizing:border-box; cursor:${inputCursor};">
             <div style="background:#F0FDF4; border-radius:8px; padding:8px 12px; font-size:11px; font-weight:700; color:#065F46; min-width:160px;">
               Petrolina – Setor 04 (Submédio São Francisco)
             </div>
@@ -303,7 +314,7 @@ export async function renderConfiguracoes() {
           <div>
             <label style="display:block; font-size:11px; font-weight:600; color:#475569; margin-bottom:5px;">Área Monitorada</label>
             <div style="display:flex; align-items:center; gap:6px;">
-              <input id="cfg-farm-area" value="1.250" readonly style="flex:1; padding:10px 12px; border:1px solid #E2E8F0; border-radius:9px; font-size:13px; color:#0F172A; outline:none; background:#F8FAFC; box-sizing:border-box; cursor:default;">
+              <input id="cfg-farm-area" value="1.250" ${readOnlyAttr} style="flex:1; padding:10px 12px; border:1px solid #E2E8F0; border-radius:9px; font-size:13px; color:#0F172A; outline:none; background:${inputBg}; box-sizing:border-box; cursor:${inputCursor};">
               <span style="font-size:12px; color:#64748B; white-space:nowrap;">ha</span>
             </div>
           </div>
@@ -428,11 +439,11 @@ export async function renderConfiguracoes() {
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
             <div>
               <label style="display:block; font-size:10px; font-weight:600; color:#94A3B8; margin-bottom:4px; text-transform:uppercase; letter-spacing:.5px;">Horário do Envio</label>
-              <input id="cfg-horario-matinal" value="06:30 AM" readonly style="width:100%; padding:8px 10px; border:1px solid #E2E8F0; border-radius:8px; font-size:13px; font-weight:700; color:#0F172A; outline:none; background:#fff; box-sizing:border-box;">
+              <input id="cfg-horario-matinal" value="06:30 AM" ${readOnlyAttr} style="width:100%; padding:8px 10px; border:1px solid #E2E8F0; border-radius:8px; font-size:13px; font-weight:700; color:#0F172A; outline:none; background:${inputBg}; box-sizing:border-box; cursor:${inputCursor};">
             </div>
             <div>
               <label style="display:block; font-size:10px; font-weight:600; color:#94A3B8; margin-bottom:4px; text-transform:uppercase; letter-spacing:.5px;">E-mails CC</label>
-              <input id="cfg-email-cc" value="gerencia@raizagro.agr.br, agronomo@raiz..." readonly style="width:100%; padding:8px 10px; border:1px solid #E2E8F0; border-radius:8px; font-size:11px; color:#475569; outline:none; background:#fff; box-sizing:border-box;">
+              <input id="cfg-email-cc" value="gerencia@raizagro.agr.br, agronomo@raiz..." ${readOnlyAttr} style="width:100%; padding:8px 10px; border:1px solid #E2E8F0; border-radius:8px; font-size:11px; color:#475569; outline:none; background:${inputBg}; box-sizing:border-box; cursor:${inputCursor};">
             </div>
           </div>
         </div>
@@ -453,15 +464,21 @@ export async function renderConfiguracoes() {
       </div>
     </div>
 
-    <!-- FOOTER ACTIONS: BOTÃO EM VERMELHO PARA SOLICITAR MUDANÇA -->
+    <!-- FOOTER ACTIONS -->
     <div style="display:flex; justify-content:space-between; align-items:center; padding-top:4px;">
       <button id="btn-restaurar-padroes" style="padding:11px 20px; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; font-size:13px; font-weight:600; color:#475569; cursor:pointer; display:flex; align-items:center; gap:7px; transition:all .2s;" onmouseover="this.style.background='#F1F5F9'" onmouseout="this.style.background='#F8FAFC'">
-        <i data-lucide="rotate-ccw" style="width:14px;height:14px;"></i> Restaurar padrões visuais
+        <i data-lucide="rotate-ccw" style="width:14px;height:14px;"></i> ${isAdmin ? 'Restaurar padrões do sistema' : 'Restaurar padrões visuais'}
       </button>
       <div>
-        <button id="btn-solicitar-mudanca" style="padding:11px 24px; background:#DC2626; color:#fff; border:none; border-radius:10px; font-size:13px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:8px; box-shadow:0 4px 14px rgba(220,38,38,.28); transition:transform .15s, opacity .2s;" onmouseover="this.style.opacity='.9'" onmouseout="this.style.opacity='1'">
-          <i data-lucide="send" style="width:14px;height:14px;"></i> Solicitar Mudança ao Administrador
-        </button>
+        ${isAdmin ? `
+          <button id="btn-salvar-configuracoes-admin" style="padding:11px 26px; background:#059669; color:#fff; border:none; border-radius:10px; font-size:13px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:8px; box-shadow:0 4px 14px rgba(5,150,105,.28); transition:transform .15s, opacity .2s;" onmouseover="this.style.opacity='.9'" onmouseout="this.style.opacity='1'">
+            <i data-lucide="save" style="width:15px;height:15px;"></i> Salvar Configurações do Sistema
+          </button>
+        ` : `
+          <button id="btn-solicitar-mudanca" style="padding:11px 24px; background:#DC2626; color:#fff; border:none; border-radius:10px; font-size:13px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:8px; box-shadow:0 4px 14px rgba(220,38,38,.28); transition:transform .15s, opacity .2s;" onmouseover="this.style.opacity='.9'" onmouseout="this.style.opacity='1'">
+            <i data-lucide="send" style="width:14px;height:14px;"></i> Solicitar Mudança ao Administrador
+          </button>
+        `}
       </div>
     </div>
 
@@ -472,8 +489,10 @@ export async function renderConfiguracoes() {
 export async function setupConfiguracoesEvents() {
   if (window.lucide) window.lucide.createIcons();
 
-  const isAnalista = auth.getActiveProfile() === 'analista';
-  const perfilFormatado = isAnalista ? 'Analista' : 'Produtor / Exportador';
+  const profileRole = auth.getActiveProfile();
+  const isAdmin = profileRole === 'admin';
+  const isAnalista = profileRole === 'analista';
+  const perfilFormatado = isAdmin ? 'Administrador' : (isAnalista ? 'Analista' : 'Produtor / Exportador');
 
   // =========================================================================
   // 1. PREFERÊNCIAS PESSOAIS E VISUAIS (LIVRES PARA USO)
@@ -626,11 +645,40 @@ export async function setupConfiguracoesEvents() {
     toast.success('Perfil Salvo', 'Preferências de avatar e tema sincronizadas com sucesso.');
   });
 
-  // G) Restaurar Padrões Visuais
+  // G) Restaurar Padrões Visuais / Sistema
   document.getElementById('btn-restaurar-padroes')?.addEventListener('click', () => {
     auth.saveAvatarTheme('esmeralda');
     document.body.classList.remove('dark-theme-preview');
-    toast.info('Padrões Restaurados', 'Tema Claro e paleta Esmeralda restaurados.');
+    toast.info('Padrões Restaurados', isAdmin ? 'Padrões de sistema e tema Claro restaurados.' : 'Tema Claro e paleta Esmeralda restaurados.');
+  });
+
+  // H) Salvar Configurações do Sistema (Apenas Perfil Administrador)
+  document.getElementById('btn-salvar-configuracoes-admin')?.addEventListener('click', () => {
+    const farmName = document.getElementById('cfg-farm-name')?.value || 'Fazenda Vale das Uvas';
+    const farmCoords = document.getElementById('cfg-farm-coords')?.value || '-21.177502, -47.616331';
+    const farmArea = document.getElementById('cfg-farm-area')?.value || '1.250';
+    const bio = document.getElementById('cfg-profile-bio')?.value || '';
+    const phone = document.getElementById('cfg-profile-phone')?.value || '';
+    const matinal = document.getElementById('cfg-horario-matinal')?.value || '06:30 AM';
+    const emailCc = document.getElementById('cfg-email-cc')?.value || '';
+
+    const currentPrefs = auth.getPreferences();
+    const updated = {
+      ...currentPrefs,
+      propriedade_json: {
+        ...(currentPrefs.propriedade_json || {}),
+        farmName,
+        farmCoords,
+        farmArea
+      },
+      notificacoes_json: {
+        ...(currentPrefs.notificacoes_json || {}),
+        horarioMatinal: matinal,
+        emailCc
+      }
+    };
+    auth.savePreferences(updated);
+    toast.success('Configurações Salvas', 'Todos os parâmetros da propriedade e do sistema foram gravados com sucesso.');
   });
 
   // =========================================================================
