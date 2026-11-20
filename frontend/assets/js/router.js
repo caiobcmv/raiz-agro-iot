@@ -23,7 +23,7 @@ import {
 import { renderDashboard, setupDashboardEvents } from './views/dashboard.js';
 import { renderSensores, setupSensoresEvents } from './views/sensores.js';
 import { renderRedeEsp32, setupRedeEsp32Events } from './views/rede-esp32.js';
-import { renderLeituras, setupLeiturasEvents } from './views/leituras.js?v=20261120-live11';
+import { renderLeituras, setupLeiturasEvents } from './views/leituras.js?v=20261120-live12';
 import { renderLotes, setupLotesEvents } from './views/lotes.js';
 import { renderViagens, setupViagensEvents } from './views/viagens.js';
 import { renderAlertas, setupAlertasEvents } from './views/alertas.js?v=20261120-live9';
@@ -204,6 +204,11 @@ export class Router {
       } catch (errState) {
         // Ignora erro de segurança em contextos restritos
       }
+    }
+
+    if (!sessionStorage.getItem('dashboard_mode_init')) {
+      localStorage.setItem('DASHBOARD_MODE', 'resumido');
+      sessionStorage.setItem('dashboard_mode_init', '1');
     }
 
     if (!window.location.hash || window.location.hash === '#/' || window.location.hash === '') {

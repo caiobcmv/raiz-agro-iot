@@ -207,29 +207,29 @@
 }
 
 .toggle-switch-track {
-  width: 44px;
-  height: 26px;
-  background: #E9E9EA;
+  width: 40px;
+  height: 22px;
+  background: #0F172A;
   border-radius: 9999px;
   position: relative;
   transition: background-color 0.35s cubic-bezier(0.25, 1, 0.5, 1);
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .view-mode-toggle.detalhado .toggle-switch-track {
-  background: #183D2E;
+  background: #10B981;
 }
 
 .toggle-switch-thumb {
-  width: 22px;
-  height: 22px;
+  width: 16px;
+  height: 16px;
   background: #FFFFFF;
   border-radius: 9999px;
   position: absolute;
-  top: 2px;
-  left: 2px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15), 0 1px 2px rgba(0, 0, 0, 0.1);
-  transition: transform 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275), width 0.2s ease;
+  top: 3px;
+  left: 3px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .view-mode-toggle.detalhado .toggle-switch-thumb {

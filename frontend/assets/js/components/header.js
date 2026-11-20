@@ -17,7 +17,7 @@ const PAGE_META_ADMIN = {
 };
 
 const PAGE_META_GESTOR = {
-  '#/dashboard':     { h2: 'Visão Geral do Sistema',          sub: 'Monitoramento em tempo real dos talhões, culturas e condições agrometeorológicas.' },
+  '#/dashboard':     { h2: 'Visão Geral do Sistema',          sub: 'Gerencie preferências da fazenda, parâmetros de sensores, notificações e acessos.' },
   '#/leituras':      { h2: 'Histórico Safra',                 sub: 'Registro histórico de colheitas, rendimento por talhão e correlação com dados agroclimáticos.' },
   '#/alertas':       { h2: 'Central de Alertas e Incidentes', sub: 'Monitoramento em tempo real de microclima, estresse hídrico no campo e gatilhos automatizados.' },
   '#/configuracoes': { h2: 'Configurações e Meu Perfil',      sub: 'Gerencie seu perfil, tema, dados da propriedade, padrões de qualidade e notificações.' },
@@ -59,28 +59,31 @@ export function renderHeader(title) {
         </button>
 
         <div class="header-title-wrap" style="min-width:0;">
+          ${isDashboard ? `
+          <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+            <h2 style="margin:0;">${meta.h2}</h2>
+            <div class="view-mode-toggle ${!isResumido ? 'detalhado' : ''}" id="toggle-dashboard-mode" title="Alternar entre modo Resumido e Detalhado">
+              <div class="toggle-switch-track">
+                <div class="toggle-switch-thumb"></div>
+              </div>
+              <span class="toggle-label" id="toggle-label-text">${isResumido ? 'Resumido' : 'Detalhado'}</span>
+            </div>
+          </div>
+          ${meta.sub ? `<p style="margin:4px 0 0 0;">${meta.sub}</p>` : ''}
+          ` : `
           <h2>${meta.h2}</h2>
           ${meta.sub ? `<p>${meta.sub}</p>` : ''}
+          `}
         </div>
       </div>
 
       <div class="header-right-controls">
-        <!-- Indicador de Atualização em Tempo Real (oculto no Admin para fidelidade 100% ao Figma) -->
-        ${!isAdmin ? `
+        <!-- Indicador de Atualização em Tempo Real (oculto no Dashboard e Admin para fidelidade 100% ao Figma) -->
+        ${!isAdmin && !isDashboard ? `
         <button type="button" class="live-sync-pill" id="header-live-sync-pill" title="Clique para sincronizar dados em tempo real agora">
           <span class="live-sync-dot"></span>
           <span class="live-sync-text" id="header-live-sync-text">Tempo Real</span>
         </button>
-        ` : ''}
-
-        <!-- Toggle Resumido vs Detalhado (só no dashboard da Gestora) -->
-        ${isDashboard && !isAnalista && !isAdmin ? `
-        <div class="view-mode-toggle ${!isResumido ? 'detalhado' : ''}" id="toggle-dashboard-mode" title="Alternar entre modo Resumido e Detalhado">
-          <div class="toggle-switch-track">
-            <div class="toggle-switch-thumb"></div>
-          </div>
-          <span class="toggle-label" id="toggle-label-text">${isResumido ? 'Resumido' : 'Detalhado'}</span>
-        </div>
         ` : ''}
 
         <!-- Seletor de Data -->
@@ -105,6 +108,7 @@ export function renderHeader(title) {
             <span class="profile-name" style="font-size: 12px; font-weight: 700; color: var(--text-dark, #0F172A); line-height: 1.1;">${profile.nome}</span>
             <span class="profile-role" style="font-size: 10px; color: #64748B;">${profile.cargo}</span>
           </div>
+          <i data-lucide="chevron-down" style="width: 12px; height: 12px; color: #71807A; margin-left: 2px;"></i>
         </a>
       </div>
     </header>

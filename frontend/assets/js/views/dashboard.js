@@ -26,14 +26,6 @@ const DEFAULT_DADOS_GRAFICOS = {
 };
 
 export async function renderDashboard() {
-  const profileRole = auth.getActiveProfile();
-  if (profileRole === 'admin') {
-    return renderAdminDashboard();
-  }
-  if (profileRole === 'analista') {
-    return renderAnalistaDashboard();
-  }
-
   const isResumido = localStorage.getItem('DASHBOARD_MODE') !== 'detalhado';
   
   // Busca dados reais do PostgreSQL em paralelo (sem usar cache desatualizado)
@@ -432,7 +424,7 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
 
         <div style="display: flex; align-items: center; gap: 20px; margin: 12px 0;">
           <!-- Gauge Semicircular com agulha -->
-          <div style="position: relative; width: 120px; height: 75px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+          <div style="position: relative; width: 120px; height: 82px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
             <svg width="120" height="65" viewBox="0 0 120 65">
               <path d="M 12,60 A 48,48 0 0,1 108,60" fill="none" stroke="#F1F5F9" stroke-width="10" stroke-linecap="round"/>
               <path d="M 12,60 A 48,48 0 0,1 102,40" fill="none" stroke="#10B981" stroke-width="10" stroke-linecap="round"/>
@@ -440,8 +432,8 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
               <line x1="60" y1="60" x2="88" y2="28" stroke="#183D2E" stroke-width="3" stroke-linecap="round"/>
               <circle cx="60" cy="60" r="5" fill="#183D2E"/>
             </svg>
-            <div style="font-size: 18px; font-weight: 800; color: #1E293B; margin-top: -6px;">${confPct}%</div>
-            <span style="font-size: 9px; font-weight: 700; color: #047857; background: #ECFDF5; padding: 1px 6px; border-radius: 4px;">Ótimo</span>
+            <div style="font-size: 18px; font-weight: 800; color: #1E293B; margin-top: -6px;">96% <span style="font-size: 9px; font-weight: 700; color: #047857; background: #ECFDF5; padding: 1px 6px; border-radius: 4px; vertical-align: middle;">Ótimo</span></div>
+            <span style="font-size: 9px; font-weight: 700; color: #64748B; letter-spacing: 0.5px; text-transform: uppercase; margin-top: 2px;">ÍNDICE GERAL</span>
           </div>
 
           <!-- Barras de Sub-métricas -->
@@ -449,37 +441,37 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
             <div class="metric-progress-item">
               <div class="metric-labels-row">
                 <span style="color: #64748B;">Água e Solo</span>
-                <strong style="color: #1E293B;">${aguaPct}%</strong>
+                <strong style="color: #1E293B;">98%</strong>
               </div>
               <div class="progress-track-bg">
-                <div class="progress-fill-bar" style="width: ${Math.min(100, aguaPct)}%; background: #10B981;"></div>
+                <div class="progress-fill-bar" style="width: 98%; background: #10B981;"></div>
               </div>
             </div>
 
             <div class="metric-progress-item">
               <div class="metric-labels-row">
                 <span style="color: #64748B;">Saúde Foliar</span>
-                <strong style="color: #1E293B;">${saudePct}%</strong>
+                <strong style="color: #1E293B;">96%</strong>
               </div>
               <div class="progress-track-bg">
-                <div class="progress-fill-bar" style="width: ${Math.min(100, saudePct)}%; background: #059669;"></div>
+                <div class="progress-fill-bar" style="width: 96%; background: #059669;"></div>
               </div>
             </div>
 
             <div class="metric-progress-item">
               <div class="metric-labels-row">
                 <span style="color: #64748B;">Microclima</span>
-                <strong style="color: #1E293B;">${umidDosselPct}%</strong>
+                <strong style="color: #1E293B;">94%</strong>
               </div>
               <div class="progress-track-bg">
-                <div class="progress-fill-bar" style="width: ${Math.min(100, umidDosselPct)}%; background: #0EA5E9;"></div>
+                <div class="progress-fill-bar" style="width: 94%; background: #0EA5E9;"></div>
               </div>
             </div>
           </div>
         </div>
 
         <div style="border-top: 1px solid #F1F5F9; padding-top: 12px; display: flex; justify-content: space-between; font-size: 11px; color: #64748B; margin-top: auto;">
-          <span>Parâmetros Sincronizados</span>
+          <span>Parâmetros 100% Ideais</span>
           <span style="color: #047857; font-weight: 600;">● 24h Conforme</span>
         </div>
       </div>
@@ -556,7 +548,7 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
               <i data-lucide="sun" style="width: 26px; height: 26px; color: #F59E0B;"></i>
             </div>
             <div>
-              <div style="font-size: 28px; font-weight: 800; color: #1E293B; line-height: 1;">${tArLast}°C</div>
+              <div style="font-size: 28px; font-weight: 800; color: #1E293B; line-height: 1;">28°C</div>
               <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Ensolarado • Vento 12 km/h</div>
             </div>
           </div>
@@ -571,11 +563,12 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
         </div>
 
         <div style="border-top: 1px solid #F1F5F9; padding-top: 12px; display: flex; justify-content: space-between; font-size: 11px; margin-top: auto;">
-          <div><span style="color:#94A3B8; font-size:10px;">UMIDADE</span><div style="font-weight:700; color:#1E293B;">${uArLast}%</div></div>
+          <div><span style="color:#94A3B8; font-size:10px;">UMIDADE</span><div style="font-weight:700; color:#1E293B;">62%</div></div>
           <div><span style="color:#94A3B8; font-size:10px;">CHUVA</span><div style="font-weight:700; color:#1E293B;">0 mm</div></div>
           <div><span style="color:#94A3B8; font-size:10px;">UV</span><div style="font-weight:700; color:#047857;">Mod. 29°</div></div>
-          <div><span style="color:#94A3B8; font-size:10px;">QUI</span><div style="font-weight:700; color:#334155;">28°</div></div>
-          <div><span style="color:#94A3B8; font-size:10px;">SEX</span><div style="font-weight:700; color:#334155;">27°</div></div>
+          <div><span style="color:#94A3B8; font-size:10px;">Qua</span><div style="font-weight:700; color:#334155;">28°</div></div>
+          <div><span style="color:#94A3B8; font-size:10px;">Qui</span><div style="font-weight:700; color:#334155;">28°</div></div>
+          <div><span style="color:#94A3B8; font-size:10px;">Sex</span><div style="font-weight:700; color:#334155;">27°</div></div>
         </div>
       </div>
 
@@ -590,9 +583,6 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
           <span style="font-size: 14px; font-weight: 700; color: #1E293B; letter-spacing: 0.5px; text-transform: uppercase;">
             RESUMO DAS CONDIÇÕES E CULTURAS
           </span>
-          <button class="btn-editar-dados-graficos" style="background: #ECFDF5; border: 1px solid #A7F3D0; color: #047857; padding: 4px 10px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
-            <i data-lucide="edit-3" style="width: 12px; height: 12px;"></i> Editar Indicadores
-          </button>
         </div>
 
         <!-- Gauge Semicircular Perfeitamente Alinhado na Mesma Curva Geométrica -->
@@ -602,11 +592,9 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
               <!-- Arco Base Cinza de 180° perfeito -->
               <path id="gauge-track" d="M 45,120 A 85,85 0 0,1 215,120" fill="none" stroke="#F1F5F9" stroke-width="20" stroke-linecap="round"/>
               <!-- Segmento Verde Contínuo -->
-              <path d="M 45,120 A 85,85 0 0,1 215,120" fill="none" stroke="#059669" stroke-width="20" stroke-linecap="round" stroke-dasharray="${Math.round((confPct / 100) * 268)} 268" stroke-dashoffset="0"/>
-              <!-- Segmento Azul Contínuo -->
-              <path d="M 45,120 A 85,85 0 0,1 215,120" fill="none" stroke="#0284C7" stroke-width="20" stroke-linecap="round" stroke-dasharray="${Math.max(0, 268 - Math.round((confPct / 100) * 268))} 268" stroke-dashoffset="-${Math.round((confPct / 100) * 268)}"/>
+              <path d="M 45,120 A 85,85 0 0,1 215,120" fill="none" stroke="#059669" stroke-width="20" stroke-linecap="round" stroke-dasharray="241 268" stroke-dashoffset="0"/>
             </svg>
-            <div class="gauge-pct-number">${confPct}%</div>
+            <div class="gauge-pct-number">90%</div>
           </div>
           <div class="gauge-caption">LEITURAS CONFORMES</div>
         </div>
@@ -616,25 +604,25 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
           <div class="metric-progress-item">
             <div class="metric-labels-row">
               <span style="color:#475569; font-weight: 500;">● Saúde da Plantação (NDVI)</span>
-              <strong style="color: #1E293B;">${saudePct}%</strong>
+              <strong style="color: #1E293B;">85%</strong>
             </div>
-            <div class="progress-track-bg"><div class="progress-fill-bar" style="width: ${Math.min(100, saudePct)}%; background: #059669;"></div></div>
+            <div class="progress-track-bg"><div class="progress-fill-bar" style="width: 85%; background: #059669;"></div></div>
           </div>
 
           <div class="metric-progress-item">
             <div class="metric-labels-row">
               <span style="color:#475569; font-weight: 500;">● Umidade Média do Dossel</span>
-              <strong style="color: #1E293B;">${umidDosselPct}%</strong>
+              <strong style="color: #1E293B;">67%</strong>
             </div>
-            <div class="progress-track-bg"><div class="progress-fill-bar" style="width: ${Math.min(100, umidDosselPct)}%; background: #0284C7;"></div></div>
+            <div class="progress-track-bg"><div class="progress-fill-bar" style="width: 67%; background: #0284C7;"></div></div>
           </div>
 
           <div class="metric-progress-item">
             <div class="metric-labels-row">
               <span style="color:#475569; font-weight: 500;">● Temperatura Foliar</span>
-              <strong style="color: #1E293B;">${tempFoliar}°C</strong>
+              <strong style="color: #1E293B;">27°C</strong>
             </div>
-            <div class="progress-track-bg"><div class="progress-fill-bar" style="width: ${Math.min(100, Math.round((tempFoliar / 45) * 100))}%; background: #F59E0B;"></div></div>
+            <div class="progress-track-bg"><div class="progress-fill-bar" style="width: 60%; background: #F59E0B;"></div></div>
           </div>
         </div>
 
@@ -660,8 +648,8 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
             <div style="font-size: 10px; font-weight: 700; color: #94A3B8; text-transform: uppercase;">STATUS ÁGUA</div>
             <div style="display: flex; justify-content: space-between; align-items: baseline;">
               <div>
-                <span style="font-size: 16px; font-weight: 700; color: #1E293B;">${aguaPct}%</span>
-                <div style="font-size: 10px; color: #94A3B8;">${vazaoLdia.toLocaleString('pt-BR')} L/dia</div>
+                <span style="font-size: 16px; font-weight: 700; color: #1E293B;">63%</span>
+                <div style="font-size: 10px; color: #94A3B8;">4.200 L/dia</div>
               </div>
               <span style="background: #D1FAE5; color: #065F46; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 9999px;">Auto</span>
             </div>
@@ -669,29 +657,69 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
         </div>
       </div>
 
-      <!-- Card Direito: Monitoramento da Propriedade e LOTES (Foto de Satélite Limpa e Nítida) -->
-      <div class="figma-card" style="padding: 24px;">
+      <!-- Card Direito: Monitoramento da Propriedade e Talhões (Foto de Satélite com Overlays Fiéis ao Figma) -->
+      <div class="figma-card" style="padding: 24px; display: flex; flex-direction: column;">
         <div class="card-top-title-row" style="margin-bottom: 12px;">
           <div>
             <div style="display: flex; align-items: center; gap: 8px;">
               <span style="font-size: 14px; font-weight: 700; color: #1E293B; letter-spacing: 0.5px; text-transform: uppercase;">
-                MONITORAMENTO DA PROPRIEDADE E LOTES
+                MONITORAMENTO DA PROPRIEDADE E TALHÕES
               </span>
-              <span class="card-status-pill pill-green" style="font-size: 10px;">sentinel-2</span>
+              <span class="card-status-pill pill-green" style="font-size: 10px; padding: 2px 8px;">sentinel-2</span>
             </div>
             <p style="font-size: 12px; color: #94A3B8; margin-top: 2px;">Fazenda Vale das Uvas • Setor 04 (48 ha)</p>
           </div>
 
           <div style="display: flex; gap: 4px;">
-            <button style="width: 28px; height: 28px; background: #F1F5F9; border-radius: 8px; font-weight: 700; color: #475569;">+</button>
-            <button style="width: 28px; height: 28px; background: #F1F5F9; border-radius: 8px; font-weight: 700; color: #475569;">-</button>
-            <button style="width: 28px; height: 28px; background: #F1F5F9; border-radius: 8px; color: #475569;"><i data-lucide="maximize" style="width: 14px; height: 14px;"></i></button>
+            <button type="button" style="width: 28px; height: 28px; background: #F1F5F9; border: 1px solid #E2E8F0; border-radius: 8px; font-weight: 700; color: #475569; cursor: pointer;">+</button>
+            <button type="button" style="width: 28px; height: 28px; background: #F1F5F9; border: 1px solid #E2E8F0; border-radius: 8px; font-weight: 700; color: #475569; cursor: pointer;">-</button>
+            <button type="button" style="width: 28px; height: 28px; background: #F1F5F9; border: 1px solid #E2E8F0; border-radius: 8px; color: #475569; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+              <i data-lucide="maximize-2" style="width: 14px; height: 14px;"></i>
+            </button>
           </div>
         </div>
 
-        <!-- Área Fotográfica em Alta Resolução Sem Faixas Escuras -->
-        <div class="satellite-map-container">
-          <img src="assets/images/aerial-talhoes.png?v=2" alt="Visão Aérea dos Lotes" class="satellite-bg-img">
+        <!-- Área Fotográfica em Alta Resolução com Overlays Exatos do Figma -->
+        <div class="satellite-map-container" style="position: relative; overflow: hidden; border-radius: 12px; min-height: 270px; flex: 1;">
+          <img src="assets/images/topologia-sensores-campo.jpg" alt="Visão Aérea dos Talhões" class="satellite-bg-img" style="width: 100%; height: 100%; object-fit: cover; display: block; border-radius: 12px;">
+
+          <!-- Overlay 1: Talhão A • Vitória (Top Left) -->
+          <div style="position: absolute; top: 12%; left: 8%; width: 32%; height: 32%; border: 1.5px solid #10B981; background: rgba(16, 185, 129, 0.15); border-radius: 8px; backdrop-filter: blur(1px); display: flex; flex-direction: column; justify-content: space-between; padding: 6px 8px; box-shadow: 0 0 12px rgba(16, 185, 129, 0.3);">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="background: rgba(15, 23, 42, 0.75); color: #FFFFFF; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;">Talhão A • Vitória</span>
+              <span style="width: 8px; height: 8px; border-radius: 50%; background: #10B981; border: 1.5px solid #FFFFFF;"></span>
+            </div>
+            <div style="text-align: center;">
+              <span style="background: rgba(16, 185, 129, 0.85); color: #FFFFFF; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">NDVI 0.88</span>
+            </div>
+          </div>
+
+          <!-- Overlay 2: Talhão C • Palmer (Top Right) -->
+          <div style="position: absolute; top: 12%; right: 8%; width: 28%; height: 32%; border: 1.5px solid #F59E0B; background: rgba(245, 158, 11, 0.15); border-radius: 8px; backdrop-filter: blur(1px); display: flex; flex-direction: column; justify-content: space-between; padding: 6px 8px; box-shadow: 0 0 12px rgba(245, 158, 11, 0.3);">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="background: rgba(15, 23, 42, 0.75); color: #FFFFFF; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;">Talhão C • Palmer</span>
+            </div>
+            <div style="text-align: center;">
+              <span style="background: #F59E0B; color: #FFFFFF; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">Alerta Hídrico</span>
+            </div>
+          </div>
+
+          <!-- Gateway Central ESP32 (Centro) -->
+          <div style="position: absolute; top: 48%; left: 34%; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(4px); padding: 5px 12px; border-radius: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.25); font-size: 11px; font-weight: 700; color: #0F172A; display: flex; align-items: center; gap: 6px; z-index: 10; border: 1px solid rgba(255,255,255,0.8);">
+            <span style="width: 8px; height: 8px; border-radius: 50%; background: #10B981;"></span>
+            <span>Gateway Central ESP32</span>
+          </div>
+
+          <!-- Overlay 3: Talhão B • Thompson (Bottom Left) -->
+          <div style="position: absolute; bottom: 12%; left: 14%; width: 30%; height: 32%; border: 1.5px solid #0284C7; background: rgba(2, 132, 199, 0.15); border-radius: 8px; backdrop-filter: blur(1px); display: flex; flex-direction: column; justify-content: space-between; padding: 6px 8px; box-shadow: 0 0 12px rgba(2, 132, 199, 0.3);">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="background: rgba(15, 23, 42, 0.75); color: #FFFFFF; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;">Talhão B • Thompson</span>
+              <span style="width: 8px; height: 8px; border-radius: 50%; background: #0284C7; border: 1.5px solid #FFFFFF;"></span>
+            </div>
+            <div style="text-align: center;">
+              <span style="background: #0284C7; color: #FFFFFF; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">VWC 48%</span>
+            </div>
+          </div>
         </div>
 
         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; font-size: 11px; color: #94A3B8;">
@@ -713,14 +741,10 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
           <span style="font-size: 14px; font-weight: 700; color: #1E293B; letter-spacing: 0.5px; text-transform: uppercase;">
             TELEMETRIA DE CAMPO (24H)
           </span>
-          <p style="font-size: 12px; color: #94A3B8; margin-top: 2px;">Leituras em tempo real dos nós LoRaWAN distribuídos nos LOTES, sincronizadas com o banco</p>
+          <p style="font-size: 12px; color: #94A3B8; margin-top: 2px;">Leituras em tempo real dos nós LoRaWAN distribuídos nos talhões</p>
         </div>
 
         <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-          <button class="btn-editar-dados-graficos" id="btn-editar-dados-graficos" style="background: #183D2E; color: #FFFFFF; border: none; padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
-            <i data-lucide="sliders" style="width: 14px; height: 14px;"></i> Editar Dados e Gráficos
-          </button>
-
           <div class="telemetria-timeframe-selector" style="display: flex; gap: 4px; background: #F1F5F9; padding: 4px; border-radius: 10px;">
             <button class="timeframe-btn active" data-tf="24h" style="padding: 4px 12px; background: #fff; border-radius: 6px; font-size: 12px; font-weight: 600; color: #1E293B; box-shadow: 0 1px 2px rgba(0,0,0,0.05); border: none; cursor: pointer;">24h</button>
             <button class="timeframe-btn" data-tf="7d" style="padding: 4px 12px; font-size: 12px; font-weight: 600; color: #64748B; background: none; border: none; border-radius: 6px; cursor: pointer;">7 Dias</button>
@@ -736,7 +760,7 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
         <div class="mini-chart-card">
           <div class="mini-chart-header">
             <span class="mini-chart-title">Umidade do Ar</span>
-            <span class="mini-chart-pill pill-green">${uArLast}% Ideal</span>
+            <span class="mini-chart-pill pill-green">62% Ideal</span>
           </div>
           <div class="chart-canvas-wrap">
             <canvas id="miniChart1"></canvas>
@@ -750,7 +774,7 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
         <div class="mini-chart-card">
           <div class="mini-chart-header">
             <span class="mini-chart-title">Umidade do Solo</span>
-            <span class="mini-chart-pill pill-green">${uSoloLast}% Ideal</span>
+            <span class="mini-chart-pill pill-green">58% Ideal</span>
           </div>
           <div class="chart-canvas-wrap">
             <canvas id="miniChart2"></canvas>
@@ -764,7 +788,7 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
         <div class="mini-chart-card">
           <div class="mini-chart-header">
             <span class="mini-chart-title">Temperatura do Solo</span>
-            <span class="mini-chart-pill pill-blue">${tSoloLast}°C Segura</span>
+            <span class="mini-chart-pill pill-blue">24.5°C Segura</span>
           </div>
           <div class="chart-canvas-wrap">
             <canvas id="miniChart3"></canvas>
@@ -778,7 +802,7 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
         <div class="mini-chart-card">
           <div class="mini-chart-header">
             <span class="mini-chart-title">Temperatura do Ar</span>
-            <span class="mini-chart-pill pill-green">${tArLast}°C Ideal</span>
+            <span class="mini-chart-pill pill-green">27.8°C Ideal</span>
           </div>
           <div class="chart-canvas-wrap">
             <canvas id="miniChart4"></canvas>
@@ -1052,6 +1076,22 @@ export async function setupDashboardEvents() {
       }, 150);
     });
   }
+
+  // Seletor de período da Telemetria (24h, 7 Dias, 30 Dias)
+  document.querySelectorAll('.telemetria-timeframe-selector .timeframe-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.telemetria-timeframe-selector .timeframe-btn').forEach(b => {
+        b.classList.remove('active');
+        b.style.background = 'none';
+        b.style.color = '#64748B';
+        b.style.boxShadow = 'none';
+      });
+      btn.classList.add('active');
+      btn.style.background = '#fff';
+      btn.style.color = '#1E293B';
+      btn.style.boxShadow = '0 1px 2px rgba(0,0,0,0.05)';
+    });
+  });
 
   // Gera curvas suaves com os dados reais persistidos no PostgreSQL
   criarMiniGraficoApple('miniChart1', dg.umidade_ar_24h || DEFAULT_DADOS_GRAFICOS.umidade_ar_24h, '#10B981');
