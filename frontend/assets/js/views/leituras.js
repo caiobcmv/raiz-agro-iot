@@ -1,7 +1,7 @@
-/**
+﻿/**
  * VIEW: HISTÓRICO SAFRA & CORRELAÇÃO - FIEL AO FIGMA
  * Suporta perfil Analista (Histórico Safra & Correlação com sub-barra, FDR e Brix)
- * e perfil Gestora (Rendimento Executivo e Talhões).
+ * e perfil Gestora (Rendimento Executivo e LOTES).
  */
 
 import { auth } from '../auth.js';
@@ -26,7 +26,7 @@ export async function renderLeituras() {
       <div class="analista-subbar">
         <div class="analista-subbar-info">
           <span class="analista-dot-pulse"></span>
-          <span>Safra 2025/2026 Ativa • Petrolina (45.0 ha) • Variedades: Uva Vitória, Crimson, Thompson • 4 Talhões Homologados</span>
+          <span>Safra 2025/2026 Ativa • Petrolina (45.0 ha) • Variedades: Uva Vitória, Crimson, Thompson • 4 LOTES Homologados</span>
           <span style="color: #64748B; font-size: 11px; font-weight: 400;">Sincronizado há 2 min</span>
         </div>
         <div class="analista-subbar-actions">
@@ -130,7 +130,7 @@ export async function renderLeituras() {
           </div>
 
           <div class="map-filter-tabs">
-            <button class="map-tab-btn active" data-safra-filter="todos">Todos os Talhões</button>
+            <button class="map-tab-btn active" data-safra-filter="todos">Todos os LOTES</button>
             <button class="map-tab-btn" data-safra-filter="vitoria">Uva Vitória</button>
             <button class="map-tab-btn" data-safra-filter="thompson">Thompson</button>
             <button class="map-tab-btn" data-safra-filter="crimson">Crimson</button>
@@ -318,7 +318,7 @@ export async function renderLeituras() {
         </div>
       </div>
 
-      <!-- Seção Inferior: Destino da Produção (Donut) & Desempenho por Talhão & Lote -->
+      <!-- Seção Inferior: Destino da Produção (Donut) & Desempenho por LOTE & Lote -->
       <div style="display: grid; grid-template-columns: 1fr 1.6fr; gap: 20px;">
         <!-- Card Esquerda: Destino da Produção & Conformidade -->
         <div class="analista-chart-box">
@@ -387,12 +387,12 @@ export async function renderLeituras() {
           </div>
         </div>
 
-        <!-- Card Direita: Desempenho por Talhão & Lote -->
+        <!-- Card Direita: Desempenho por LOTE & Lote -->
         <div class="analista-chart-box">
           <div class="chart-header-row">
             <div>
               <h4 style="font-size: 15px; font-weight: 700; color: #0F172A;">
-                Desempenho por Talhão & Lote
+                Desempenho por LOTE & Lote
               </h4>
               <p style="font-size: 11px; color: #64748B; margin-top: 2px;">
                 Métricas aferidas por lote auditado
@@ -410,7 +410,7 @@ export async function renderLeituras() {
               <div style="display: flex; align-items: center; gap: 12px;">
                 <span style="background: #ECFDF5; color: #047857; font-weight: 800; font-size: 11px; padding: 4px 8px; border-radius: 6px;">A1</span>
                 <div>
-                  <div style="font-weight: 700; font-size: 12px; color: #0F172A;">Talhão A1 • Uva Vitória</div>
+                  <div style="font-weight: 700; font-size: 12px; color: #0F172A;">LOTE A1 • Uva Vitória</div>
                   <div style="font-size: 10px; color: #64748B;">12.5 ha • Lâmina 3.9 m³/ton • FDR 30/60</div>
                 </div>
               </div>
@@ -428,7 +428,7 @@ export async function renderLeituras() {
               <div style="display: flex; align-items: center; gap: 12px;">
                 <span style="background: #ECFDF5; color: #047857; font-weight: 800; font-size: 11px; padding: 4px 8px; border-radius: 6px;">A2</span>
                 <div>
-                  <div style="font-weight: 700; font-size: 12px; color: #0F172A;">Talhão A2 • Uva Crimson</div>
+                  <div style="font-weight: 700; font-size: 12px; color: #0F172A;">LOTE A2 • Uva Crimson</div>
                   <div style="font-size: 10px; color: #64748B;">10.0 ha • Lâmina 4.1 m³/ton • FDR 30/60</div>
                 </div>
               </div>
@@ -446,7 +446,7 @@ export async function renderLeituras() {
               <div style="display: flex; align-items: center; gap: 12px;">
                 <span style="background: #EFF6FF; color: #1D4ED8; font-weight: 800; font-size: 11px; padding: 4px 8px; border-radius: 6px;">B1</span>
                 <div>
-                  <div style="font-weight: 700; font-size: 12px; color: #0F172A;">Talhão B1 • Uva Thompson</div>
+                  <div style="font-weight: 700; font-size: 12px; color: #0F172A;">LOTE B1 • Uva Thompson</div>
                   <div style="font-size: 10px; color: #64748B;">14.0 ha • Lâmina 4.4 m³/ton • FDR 30/60</div>
                 </div>
               </div>
@@ -464,7 +464,7 @@ export async function renderLeituras() {
               <div style="display: flex; align-items: center; gap: 12px;">
                 <span style="background: #F1F5F9; color: #475569; font-weight: 800; font-size: 11px; padding: 4px 8px; border-radius: 6px;">B2</span>
                 <div>
-                  <div style="font-weight: 700; font-size: 12px; color: #0F172A;">Talhão B2 • Uva Autumn Crisp</div>
+                  <div style="font-weight: 700; font-size: 12px; color: #0F172A;">LOTE B2 • Uva Autumn Crisp</div>
                   <div style="font-size: 10px; color: #64748B;">8.5 ha • Lâmina 4.0 m³/ton • FDR 30/60</div>
                 </div>
               </div>
@@ -806,21 +806,21 @@ export async function renderLeituras() {
 
       <!-- LINHA 3: 2/3 + 1/3 -->
       <div class="hs-split-grid">
-        <!-- ESQUERDA: Desempenho por Talhão -->
+        <!-- ESQUERDA: Desempenho por LOTE -->
         <div class="hs-card">
           <div class="hs-card-header" style="margin-bottom: 12px;">
             <div>
-              <h3 class="hs-card-title">Desempenho por Talhão</h3>
+              <h3 class="hs-card-title">Desempenho por LOTE</h3>
               <p class="hs-card-subtitle">Produtividade aferida, hídrico e maturidade individualizada</p>
             </div>
-            <span class="hs-pill-badge gray">4 talhões monitorados</span>
+            <span class="hs-pill-badge gray">4 LOTES monitorados</span>
           </div>
 
           <div class="hs-table-wrap">
             <table class="hs-table">
               <thead>
                 <tr>
-                  <th>TALHÃO</th>
+                  <th>LOTE</th>
                   <th>VARIEDADE</th>
                   <th>ÁREA</th>
                   <th>PRODUTIVIDADE REAL</th>
@@ -833,7 +833,7 @@ export async function renderLeituras() {
                 <!-- Linha 1: A1 -->
                 <tr>
                   <td>
-                    <span style="background: #ECFDF5; color: #047857; font-weight: 800; font-size: 11px; padding: 3px 8px; border-radius: 4px; display: inline-block;">Talhão A1</span>
+                    <span style="background: #ECFDF5; color: #047857; font-weight: 800; font-size: 11px; padding: 3px 8px; border-radius: 4px; display: inline-block;">LOTE A1</span>
                   </td>
                   <td style="font-weight: 600;">Uva Vitória</td>
                   <td style="font-family: var(--font-mono, monospace); color: #475569;">12.5 ha</td>
@@ -858,7 +858,7 @@ export async function renderLeituras() {
                 <!-- Linha 2: A2 -->
                 <tr>
                   <td>
-                    <span style="background: #ECFDF5; color: #047857; font-weight: 800; font-size: 11px; padding: 3px 8px; border-radius: 4px; display: inline-block;">Talhão A2</span>
+                    <span style="background: #ECFDF5; color: #047857; font-weight: 800; font-size: 11px; padding: 3px 8px; border-radius: 4px; display: inline-block;">LOTE A2</span>
                   </td>
                   <td style="font-weight: 600;">Uva Crimson</td>
                   <td style="font-family: var(--font-mono, monospace); color: #475569;">10.0 ha</td>
@@ -883,7 +883,7 @@ export async function renderLeituras() {
                 <!-- Linha 3: B1 -->
                 <tr>
                   <td>
-                    <span style="background: #FEF3C7; color: #B45309; font-weight: 800; font-size: 11px; padding: 3px 8px; border-radius: 4px; display: inline-block;">Talhão B1</span>
+                    <span style="background: #FEF3C7; color: #B45309; font-weight: 800; font-size: 11px; padding: 3px 8px; border-radius: 4px; display: inline-block;">LOTE B1</span>
                   </td>
                   <td style="font-weight: 600;">Uva Thompson</td>
                   <td style="font-family: var(--font-mono, monospace); color: #475569;">14.0 ha</td>
@@ -908,7 +908,7 @@ export async function renderLeituras() {
                 <!-- Linha 4: B2 -->
                 <tr>
                   <td>
-                    <span style="background: #F1F5F9; color: #475569; font-weight: 800; font-size: 11px; padding: 3px 8px; border-radius: 4px; display: inline-block;">Talhão B2</span>
+                    <span style="background: #F1F5F9; color: #475569; font-weight: 800; font-size: 11px; padding: 3px 8px; border-radius: 4px; display: inline-block;">LOTE B2</span>
                   </td>
                   <td style="font-weight: 600;">Uva Autumn Crisp</td>
                   <td style="font-family: var(--font-mono, monospace); color: #475569;">8.5 ha</td>
@@ -1041,7 +1041,7 @@ export function setupLeiturasEvents() {
   const btnSync = document.getElementById('btn-sync-safra');
   if (btnSync) {
     btnSync.addEventListener('click', () => {
-      toast.info('Sincronização Safra', 'Consultando dados de colheita dos talhões homologados...');
+      toast.info('Sincronização Safra', 'Consultando dados de colheita dos LOTES homologados...');
       setTimeout(() => {
         toast.success('Safra Sincronizada', 'Métricas consolidadas com canais LoRaWAN US915.');
       }, 800);
@@ -1062,7 +1062,7 @@ export function setupLeiturasEvents() {
     });
   }
 
-  // Filtros de Talhão (Analista)
+  // Filtros de LOTE (Analista)
   document.querySelectorAll('[data-safra-filter]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       document.querySelectorAll('[data-safra-filter]').forEach(b => b.classList.remove('active'));

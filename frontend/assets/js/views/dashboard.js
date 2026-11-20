@@ -265,7 +265,7 @@ function renderAnalistaDashboard() {
           <div style="border-top: 1px solid #F1F5F9; padding: 12px 0; margin-top: 8px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
               <span style="font-size: 12px; font-weight: 700; color: #0F172A;">Sonda Solo #SNS-SL-04</span>
-              <span style="font-size: 10px; background: #ECFDF5; color: #065F46; padding: 2px 6px; border-radius: 4px; font-weight: 600;">Talhão A1 • Uva Vitória</span>
+              <span style="font-size: 10px; background: #ECFDF5; color: #065F46; padding: 2px 6px; border-radius: 4px; font-weight: 600;">LOTE A1 • Uva Vitória</span>
             </div>
             <div style="font-size: 11px; color: #B91C1C; margin-bottom: 8px;">
               Motivo: Outlier térmico (temperatura_bruta = 62.4°C acima do limite físico)
@@ -284,7 +284,7 @@ function renderAnalistaDashboard() {
           <div style="border-top: 1px solid #F1F5F9; padding: 12px 0;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
               <span style="font-size: 12px; font-weight: 700; color: #0F172A;">Sonda FDR #SNS-SL-07</span>
-              <span style="font-size: 10px; background: #EFF6FF; color: #1D4ED8; padding: 2px 6px; border-radius: 4px; font-weight: 600;">Talhão C2 • Manga Palmer</span>
+              <span style="font-size: 10px; background: #EFF6FF; color: #1D4ED8; padding: 2px 6px; border-radius: 4px; font-weight: 600;">LOTE C2 • Manga Palmer</span>
             </div>
             <div style="font-size: 11px; color: #D97706; margin-bottom: 8px;">
               Motivo: Leitura analógica corrompida (umidade_bruta &lt; 0% VWC)
@@ -329,7 +329,7 @@ function renderAnalistaDashboard() {
               <span style="font-size: 10px; font-weight: 700; background: #FDE68A; color: #92400E; padding: 2px 6px; border-radius: 4px;">CORTE PREDITIVO: ALTO</span>
             </div>
             <p style="font-size: 11px; color: #78350F; line-height: 1.4; margin-bottom: 6px;">
-              Probabilidade projetada em 84% para as próximas 12 horas no Talhão A1 com base na evapotranspiração Penman-Monteith.
+              Probabilidade projetada em 84% para as próximas 12 horas no LOTE A1 com base na evapotranspiração Penman-Monteith.
             </p>
             <div style="font-size: 11px; font-weight: 600; color: #92400E; display: flex; align-items: center; gap: 4px;">
               <i data-lucide="lightbulb" style="width: 13px; height: 13px;"></i>
@@ -632,13 +632,13 @@ function renderModoResumido(resumo, clima) {
         </div>
       </div>
 
-      <!-- Card Direito: Monitoramento da Propriedade & Talhões (Foto de Satélite Limpa & Nítida) -->
+      <!-- Card Direito: Monitoramento da Propriedade & LOTES (Foto de Satélite Limpa & Nítida) -->
       <div class="figma-card" style="padding: 24px;">
         <div class="card-top-title-row" style="margin-bottom: 12px;">
           <div>
             <div style="display: flex; align-items: center; gap: 8px;">
               <span style="font-size: 14px; font-weight: 700; color: #1E293B; letter-spacing: 0.5px; text-transform: uppercase;">
-                MONITORAMENTO DA PROPRIEDADE & TALHÕES
+                MONITORAMENTO DA PROPRIEDADE & LOTES
               </span>
               <span class="card-status-pill pill-green" style="font-size: 10px;">sentinel-2</span>
             </div>
@@ -654,7 +654,7 @@ function renderModoResumido(resumo, clima) {
 
         <!-- Área Fotográfica em Alta Resolução Sem Faixas Escuras -->
         <div class="satellite-map-container">
-          <img src="assets/images/aerial-talhoes.png?v=2" alt="Visão Aérea dos Talhões" class="satellite-bg-img">
+          <img src="assets/images/aerial-talhoes.png?v=2" alt="Visão Aérea dos Lotes" class="satellite-bg-img">
         </div>
 
         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; font-size: 11px; color: #94A3B8;">
@@ -676,7 +676,7 @@ function renderModoResumido(resumo, clima) {
           <span style="font-size: 14px; font-weight: 700; color: #1E293B; letter-spacing: 0.5px; text-transform: uppercase;">
             TELEMETRIA DE CAMPO (24H)
           </span>
-          <p style="font-size: 12px; color: #94A3B8; margin-top: 2px;">Leituras em tempo real dos nós LoRaWAN distribuídos nos talhões</p>
+          <p style="font-size: 12px; color: #94A3B8; margin-top: 2px;">Leituras em tempo real dos nós LoRaWAN distribuídos nos LOTES</p>
         </div>
 
         <div class="telemetria-timeframe-selector" style="display: flex; gap: 4px; background: #F1F5F9; padding: 4px; border-radius: 10px;">
@@ -1132,7 +1132,7 @@ function setupAnalistaDashboardEvents() {
   const btnExport = document.getElementById('btn-export-telemetria');
   if (btnExport) {
     btnExport.addEventListener('click', () => {
-      toast.info('Exportação Iniciada', 'Gerando arquivo CSV com telemetria dos 24 sensores do Talhão A1 e C2...');
+      toast.info('Exportação Iniciada', 'Gerando arquivo CSV com telemetria dos 24 sensores do LOTE A1 e C2...');
       setTimeout(() => {
         toast.success('Download Pronto', 'Arquivo telemetria_petrolina_us915.csv gerado com sucesso.');
       }, 1200);
@@ -1199,7 +1199,7 @@ function setupAnalistaDashboardEvents() {
           </div>
           <div style="font-size:12px; color:#475569; line-height:1.6;">
             <strong>Hardware:</strong> Sonda FDR Solo #SNS-SL-04<br>
-            <strong>Localização:</strong> Talhão A1 • Uva Vitória (Setor 4)<br>
+            <strong>Localização:</strong> LOTE A1 • Uva Vitória (Setor 4)<br>
             <strong>Canal ThingSpeak:</strong> #248901 (Entry #14.892)<br>
             <strong>Ação recomendada:</strong> Executar calibração de offset ou inspecionar cabeamento analógico.
           </div>

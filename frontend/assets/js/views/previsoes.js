@@ -1,4 +1,4 @@
-/**
+﻿/**
  * VIEW: PREVISÕES, MODELOS DE IA & RISCO FINANCEIRO
  */
 
@@ -86,7 +86,7 @@ export async function renderPrevisoes() {
 
           <div style="background: rgba(255,255,255,0.03); border-left: 4px solid #38BDF8; border-radius: 8px; padding: 16px 20px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-              <strong style="color: #FFFFFF; font-size: 15px;">Janela Ótima de Colheita de Uva (Talhão 04)</strong>
+              <strong style="color: #FFFFFF; font-size: 15px;">Janela Ótima de Colheita de Uva (LOTE 04)</strong>
               <span class="badge badge-info">Oportunidade</span>
             </div>
             <p style="color: #CBD5E1; font-size: 13px;">

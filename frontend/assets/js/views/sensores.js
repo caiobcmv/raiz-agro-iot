@@ -1,4 +1,4 @@
-import { liveTelemetry } from '../live-telemetry.js';
+﻿import { liveTelemetry } from '../live-telemetry.js';
 /**
  * VIEW: SENSORES & TELEMETRIA DE CAMPO - FIEL AO FIGMA (PERFIL ANALISTA)
  * Suporte a correlação multidimensional, canais ThingSpeak e auditoria de hardware.
@@ -307,7 +307,7 @@ export async function renderSensores() {
                   </span>
                 </td>
                 <td style="padding: 12px 14px;">
-                  <div style="font-weight: 700; color: #0F172A;">Lote 1 (Talhão A1)</div>
+                  <div style="font-weight: 700; color: #0F172A;">Lote 1 (LOTE A1)</div>
                   <div style="font-size: 11px; color: #64748B;">Uva Niágara</div>
                 </td>
                 <td style="padding: 12px 14px;">
@@ -336,7 +336,7 @@ export async function renderSensores() {
                   </span>
                 </td>
                 <td style="padding: 12px 14px;">
-                  <div style="font-weight: 600; color: #0F172A;">Lote 1 (Talhão A1)</div>
+                  <div style="font-weight: 600; color: #0F172A;">Lote 1 (LOTE A1)</div>
                   <div style="font-size: 11px; color: #64748B;">Uva Niágara</div>
                 </td>
                 <td style="padding: 12px 14px;">
@@ -365,7 +365,7 @@ export async function renderSensores() {
                   </span>
                 </td>
                 <td style="padding: 12px 14px;">
-                  <div style="font-weight: 700; color: #0F172A;">Lote 2 (Talhão A2)</div>
+                  <div style="font-weight: 700; color: #0F172A;">Lote 2 (LOTE A2)</div>
                   <div style="font-size: 11px; color: #64748B;">Uva Crimson</div>
                 </td>
                 <td style="padding: 12px 14px;">
@@ -394,7 +394,7 @@ export async function renderSensores() {
                   </span>
                 </td>
                 <td style="padding: 12px 14px;">
-                  <div style="font-weight: 700; color: #0F172A;">Lote 3 (Talhão B1)</div>
+                  <div style="font-weight: 700; color: #0F172A;">Lote 3 (LOTE B1)</div>
                   <div style="font-size: 11px; color: #64748B;">Thompson Seedless</div>
                 </td>
                 <td style="padding: 12px 14px;">
@@ -613,13 +613,13 @@ export function setupSensoresEvents() {
   const btnExpSens = document.getElementById('btn-exportar-sensores-csv');
   if (btnExpSens) {
     btnExpSens.addEventListener('click', () => {
-      const headers = ["ID Sensor", "Nome", "Tipo", "Talhao", "Canal ThingSpeak", "Bateria", "Status"];
+      const headers = ["ID Sensor", "Nome", "Tipo", "LOTE", "Canal ThingSpeak", "Bateria", "Status"];
       const rows = [
-        [1, "SNS-SL-001", "Solo (FDR)", "Talhao A1 - Uva Vitoria", 248901, "98%", "ativo"],
-        [2, "SNS-AR-002", "Ar / Microclima", "Talhao A1 - Uva Vitoria", 248901, "95%", "ativo"],
-        [3, "SNS-SL-003", "Solo (FDR)", "Talhao B2 - Uva Thompson", 248902, "92%", "ativo"],
-        [4, "SNS-AR-004", "Ar / Microclima", "Talhao B2 - Uva Thompson", 248902, "90%", "ativo"],
-        [5, "SNS-SL-005", "Solo (FDR)", "Talhao C1 - Manga Palmer", 248903, "88%", "ativo"]
+        [1, "SNS-SL-001", "Solo (FDR)", "LOTE A1 - Uva Vitoria", 248901, "98%", "ativo"],
+        [2, "SNS-AR-002", "Ar / Microclima", "LOTE A1 - Uva Vitoria", 248901, "95%", "ativo"],
+        [3, "SNS-SL-003", "Solo (FDR)", "LOTE B2 - Uva Thompson", 248902, "92%", "ativo"],
+        [4, "SNS-AR-004", "Ar / Microclima", "LOTE B2 - Uva Thompson", 248902, "90%", "ativo"],
+        [5, "SNS-SL-005", "Solo (FDR)", "LOTE C1 - Manga Palmer", 248903, "88%", "ativo"]
       ];
       const csv = "\uFEFF" + [headers.join(";"), ...rows.map(r => r.join(";"))].join("\r\n");
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });

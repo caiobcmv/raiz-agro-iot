@@ -6,19 +6,19 @@
 import { auth } from '../auth.js';
 
 const PAGE_META_GESTOR = {
-  '#/dashboard':     { h2: 'Visão Geral do Sistema',          sub: 'Monitoramento em tempo real dos talhões, culturas e condições agrometeorológicas.' },
-  '#/leituras':      { h2: 'Histórico Safra',                 sub: 'Registro histórico de colheitas, rendimento por talhão e correlação com dados agroclimáticos.' },
-  '#/alertas':       { h2: 'Central de Alertas & Incidentes <span style="display:inline-block;width:7px;height:7px;background:#10B981;border-radius:2px;margin-left:6px;vertical-align:middle;"></span>', sub: 'Monitoramento em tempo real de desvios térmicos em contêineres reefer, estresse hídrico no campo e gatilhos automatizados.' },
-  '#/configuracoes': { h2: 'Configurações do Sistema',        sub: 'Gerencie dados da propriedade, padrões de qualidade, cadeia fria e notificações.' },
+  '#/dashboard':     { h2: 'Visão Geral do Sistema',          sub: 'Monitoramento em tempo real dos LOTES, culturas e condições agrometeorológicas.' },
+  '#/leituras':      { h2: 'Histórico Safra',                 sub: 'Registro histórico de colheitas, rendimento por LOTE e correlação com dados agroclimáticos.' },
+  '#/alertas':       { h2: 'Central de Alertas & Incidentes <span style="display:inline-block;width:7px;height:7px;background:#10B981;border-radius:2px;margin-left:6px;vertical-align:middle;"></span>', sub: 'Monitoramento em tempo real de microclima, estresse hídrico no campo e gatilhos automatizados.' },
+  '#/configuracoes': { h2: 'Configurações & Meu Perfil',      sub: 'Gerencie seu perfil, tema, dados da propriedade, padrões de qualidade e notificações.' },
 };
 
 const PAGE_META_ANALISTA = {
   '#/dashboard':     { h2: 'Visão Geral do Sistema',          sub: 'Gerencie preferências da fazenda, parâmetros de sensores, notificações e acessos.' },
   '#/sensores':      { h2: 'Sensores & Telemetria de Campo <span class="badge-header-inline">ThingSpeak IoT: Sync a cada 5m • Tabela leitura_climatica</span>', sub: '' },
   '#/rede-esp32':    { h2: 'Rede ESP32 & Topologia',          sub: 'Distribuição espacial dos nós LoRaWAN, enlaces de radiofrequência e telemetria US915.' },
-  '#/leituras':      { h2: 'Histórico Safra & Correlação',    sub: 'Registro histórico de colheitas, rendimento por talhão e correlação com dados agroclimáticos.' },
+  '#/leituras':      { h2: 'Histórico Safra & Correlação',    sub: 'Registro histórico de colheitas, rendimento por LOTE e correlação com dados agroclimáticos.' },
   '#/alertas':       { h2: 'Central de Alertas & Incidentes', sub: 'Monitoramento em tempo real de desvios térmicos, estresse hídrico e gatilhos automatizados.' },
-  '#/configuracoes': { h2: 'Configurações do Sistema',        sub: 'Gerencie dados da propriedade, parâmetros de sensores, regras preditivas e limites biológicos.' },
+  '#/configuracoes': { h2: 'Configurações & Meu Perfil',      sub: 'Gerencie seu perfil, tema, dados da propriedade, padrões de qualidade e notificações.' },
 };
 
 export function renderHeader(title) {
@@ -30,6 +30,7 @@ export function renderHeader(title) {
   const meta = metaDict[hash] || { h2: title || 'Visão Geral do Sistema', sub: 'Gerencie preferências da fazenda, parâmetros de sensores, notificações e acessos.' };
 
   const isDashboard = hash === '#/dashboard';
+  const isConfiguracoes = hash === '#/configuracoes';
   const isResumido = localStorage.getItem('DASHBOARD_MODE') !== 'detalhado';
   const isLeiturasGestor = !isAnalista && hash === '#/leituras';
   const dataFormatada = isLeiturasGestor ? 'Safra 2025/2026' : '22 de setembro de 2026';
@@ -37,7 +38,15 @@ export function renderHeader(title) {
   return `
     <header class="topbar-header">
       <div class="header-title-wrap">
-        <h2>${meta.h2}</h2>
+        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+          <h2>${meta.h2}</h2>
+          ${isConfiguracoes ? `
+          <span style="background: #ECFDF5; color: #065F46; font-size: 11px; font-weight: 600; padding: 4px 12px; border-radius: 20px; display: inline-flex; align-items: center; gap: 6px;">
+            <span style="width: 7px; height: 7px; border-radius: 50%; background: #10B981;"></span>
+            Ao Vivo &bull; 22:19:16
+          </span>
+          ` : ''}
+        </div>
         ${meta.sub ? `<p>${meta.sub}</p>` : ''}
       </div>
 

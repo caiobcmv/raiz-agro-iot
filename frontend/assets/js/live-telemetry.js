@@ -1,4 +1,4 @@
-/**
+﻿/**
  * SERVIÇO DE SINCRONIZAÇÃO EM TEMPO REAL FRONTEND <-> BACKEND & BANCO DE DADOS
  * Atualiza dinamicamente as KPIs e Gráficos de todas as telas
  * com dados reais consultados no banco local database-local/raiz_agro.db
@@ -105,7 +105,7 @@ class LiveTelemetryService {
           id: 'SNS-SL-001',
           subId: 'id_sensor: 1 • Sonda FDR Solo A1',
           tipoPill: '<span style="background: #ECFDF5; color: #047857; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 11px; display: inline-flex; align-items: center; gap: 5px;"><i data-lucide="sprout" style="width: 13px; height: 13px;"></i> FDR Capacitivo • solo</span>',
-          lote: 'Lote 1 (Talhão A1)',
+          lote: 'Lote 1 (LOTE A1)',
           fruta: 'Uva Niágara',
           channel: 'Ch 248901',
           entryId: 'entry_id: #14.892',
@@ -119,7 +119,7 @@ class LiveTelemetryService {
           id: 'SNS-AR-002',
           subId: 'id_sensor: 2 • Estação Microclima A1',
           tipoPill: '<span style="background: #EFF6FF; color: #1D4ED8; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 11px; display: inline-flex; align-items: center; gap: 5px;"><i data-lucide="cloud" style="width: 13px; height: 13px;"></i> DHT22/SHT31 • ar</span>',
-          lote: 'Lote 1 (Talhão A1)',
+          lote: 'Lote 1 (LOTE A1)',
           fruta: 'Uva Niágara',
           channel: 'Ch 248901',
           entryId: 'entry_id: #14.892',
@@ -133,7 +133,7 @@ class LiveTelemetryService {
           id: 'SNS-SL-003',
           subId: 'id_sensor: 3 • Sonda FDR Solo A2',
           tipoPill: '<span style="background: #ECFDF5; color: #047857; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 11px; display: inline-flex; align-items: center; gap: 5px;"><i data-lucide="sprout" style="width: 13px; height: 13px;"></i> TDR Analítico • solo</span>',
-          lote: 'Lote 2 (Talhão A2)',
+          lote: 'Lote 2 (LOTE A2)',
           fruta: 'Uva Crimson',
           channel: 'Ch 248902',
           entryId: 'entry_id: #14.889',
@@ -147,7 +147,7 @@ class LiveTelemetryService {
           id: 'SNS-SL-025',
           subId: 'id_sensor: 25 • Sonda Bancada Teste',
           tipoPill: '<span style="background: #FEF3C7; color: #B45309; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 11px; display: inline-flex; align-items: center; gap: 5px;"><i data-lucide="sprout" style="width: 13px; height: 13px;"></i> FDR Calibração • solo</span>',
-          lote: 'Lote 3 (Talhão B1)',
+          lote: 'Lote 3 (LOTE B1)',
           fruta: 'Thompson Seedless',
           channel: 'Ch 248903',
           entryId: 'entry_id: #11.204',

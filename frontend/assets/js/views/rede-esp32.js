@@ -1,4 +1,4 @@
-import { liveTelemetry } from '../live-telemetry.js';
+﻿import { liveTelemetry } from '../live-telemetry.js';
 /**
  * VIEW: REDE ESP32 & TOPOLOGIA - FIEL AO FIGMA (PERFIL ANALISTA)
  * Distribuição espacial dos nós LoRaWAN, topologia em malha e sinal RSSI/PDR 24h.
@@ -244,7 +244,7 @@ export async function renderRedeEsp32() {
                 <span style="font-weight: 700; color: #0F172A; font-size: 12px;">#SNS-SL-01</span>
                 <span style="background: #ECFDF5; color: #047857; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px;">Ativo</span>
               </div>
-              <div style="font-size: 11px; color: #334155; font-weight: 600;">#01 Talhão A1 • Uva Vitória</div>
+              <div style="font-size: 11px; color: #334155; font-weight: 600;">#01 LOTE A1 • Uva Vitória</div>
               <div style="font-size: 10px; color: #64748B; margin-top: 2px;">id_lote: 1</div>
               <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B; margin-top: 6px; border-top: 1px solid #EDF2F7; padding-top: 4px;">
                 <span>Ambiente: <strong>Solo (FDR)</strong></span>
@@ -258,7 +258,7 @@ export async function renderRedeEsp32() {
                 <span style="font-weight: 700; color: #0F172A; font-size: 12px;">#SNS-AR-02</span>
                 <span style="background: #ECFDF5; color: #047857; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px;">Ativo</span>
               </div>
-              <div style="font-size: 11px; color: #334155; font-weight: 600;">#02 Talhão A1 • Microclima</div>
+              <div style="font-size: 11px; color: #334155; font-weight: 600;">#02 LOTE A1 • Microclima</div>
               <div style="font-size: 10px; color: #64748B; margin-top: 2px;">id_lote: 1</div>
               <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B; margin-top: 6px; border-top: 1px solid #EDF2F7; padding-top: 4px;">
                 <span>Ambiente: <strong>Ar (Temp/Umid)</strong></span>
@@ -272,7 +272,7 @@ export async function renderRedeEsp32() {
                 <span style="font-weight: 700; color: #0F172A; font-size: 12px;">#SNS-SL-03</span>
                 <span style="background: #ECFDF5; color: #047857; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px;">Ativo</span>
               </div>
-              <div style="font-size: 11px; color: #334155; font-weight: 600;">#03 Talhão B2 • Uva Thompson</div>
+              <div style="font-size: 11px; color: #334155; font-weight: 600;">#03 LOTE B2 • Uva Thompson</div>
               <div style="font-size: 10px; color: #64748B; margin-top: 2px;">id_lote: 2</div>
               <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B; margin-top: 6px; border-top: 1px solid #EDF2F7; padding-top: 4px;">
                 <span>Ambiente: <strong>Solo (FDR)</strong></span>

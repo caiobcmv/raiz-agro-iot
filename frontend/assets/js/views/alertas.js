@@ -1,4 +1,4 @@
-import { liveTelemetry } from '../live-telemetry.js';
+﻿import { liveTelemetry } from '../live-telemetry.js';
 /**
  * CENTRAL DE ALERTAS & INCIDENTES - FIGMA COMPLIANT & FULLY DYNAMIC
  * Suporta perfil Analista (DHT11 ESP32-C3, Triagem com Machine Learning, Rota Portuária)
@@ -719,7 +719,7 @@ function renderGestoraAlertas() {
 
         <div>
           <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 6px;">
-            <span style="font-size: 10px; color: #64748B; line-height: 1.25;">Talhão A1 • Uva<br>Vitória</span>
+            <span style="font-size: 10px; color: #64748B; line-height: 1.25;">LOTE A1 • Uva<br>Vitória</span>
             <span id="kpi-umidade-status" style="font-size: 10px; font-weight: 700; color: #D97706; text-align: right; line-height: 1.25;">Murcha<br>iminente</span>
           </div>
           <div style="width: 100%; height: 5px; background: #FEF3C7; border-radius: 9999px; overflow: hidden;">
@@ -746,7 +746,7 @@ function renderGestoraAlertas() {
 
         <div>
           <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 6px;">
-            <span style="font-size: 10px; color: #64748B; line-height: 1.25;">Talhão B2 • Uva Tho...</span>
+            <span style="font-size: 10px; color: #64748B; line-height: 1.25;">LOTE B2 • Uva Tho...</span>
             <span style="font-size: 10px; color: #64748B; text-align: right; line-height: 1.25;">Pico 33,8°C<br>dossel</span>
           </div>
           <div style="display: flex; gap: 3px; height: 5px;">
@@ -823,7 +823,7 @@ function renderGestoraAlertas() {
     <div style="display: grid; grid-template-columns: 1.6fr 1.2fr 1.4fr auto; gap: 10px; margin-bottom: 20px; align-items: center;">
       <div style="position: relative;">
         <i data-lucide="search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 15px; height: 15px; color: #94A3B8;"></i>
-        <input id="alert-search-input" type="text" placeholder="Buscar por Lote, Talhão ou Equipamento..." style="width: 100%; padding: 9px 12px 9px 36px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 12px; color: #0F172A; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#10B981'" onblur="this.style.borderColor='#E2E8F0'">
+        <input id="alert-search-input" type="text" placeholder="Buscar por Lote, LOTE ou Equipamento..." style="width: 100%; padding: 9px 12px 9px 36px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 12px; color: #0F172A; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#10B981'" onblur="this.style.borderColor='#E2E8F0'">
       </div>
 
       <select id="alert-origin-select" style="width: 100%; padding: 9px 12px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 12px; color: #475569; outline: none; cursor: pointer; box-sizing: border-box;">
@@ -991,7 +991,7 @@ function renderGestoraAlertas() {
           <!-- Body -->
           <div style="padding: 20px;">
             <h3 style="font-size: 16px; font-weight: 700; color: #0F172A; margin: 0 0 6px;">
-              Estresse Hídrico Crítico no Talhão A1 (Uva Vitória Seedless)
+              Estresse Hídrico Crítico no LOTE A1 (Uva Vitória Seedless)
               <span style="font-size: 12px; font-weight: 500; color: #64748B; margin-left: 4px;">Área: 12,5 ha</span>
             </h3>
             <p style="font-size: 12px; color: #64748B; line-height: 1.5; margin: 0 0 14px;">
@@ -1118,11 +1118,11 @@ function renderGestoraAlertas() {
                   <i data-lucide="message-circle" style="width: 16px; height: 16px; color: #059669;"></i>
                 </div>
                 <div>
-                  <div style="font-size: 12px; font-weight: 700; color: #0F172A;">WhatsApp Cloud API</div>
-                  <div style="font-size: 10px; color: #94A3B8;">Transportadoras & Frota Reefer</div>
+                  <div style="font-size: 12px; font-weight: 700; color: #0F172A;">Notificação por E-mail</div>
+                  <div style="font-size: 10px; color: #94A3B8;">Alertas Críticos & Relatórios Instantâneos</div>
                 </div>
               </div>
-              <span id="status-whatsapp-pill" style="background: #ECFDF5; color: #059669; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 9999px;">Ativo</span>
+              <span id="status-email-pill" style="background: #ECFDF5; color: #059669; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 9999px;">Ativo</span>
             </div>
 
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0;">
@@ -1131,11 +1131,11 @@ function renderGestoraAlertas() {
                   <i data-lucide="message-square" style="width: 16px; height: 16px; color: #64748B;"></i>
                 </div>
                 <div>
-                  <div style="font-size: 12px; font-weight: 700; color: #0F172A;">SMS de Emergência</div>
-                  <div style="font-size: 10px; color: #94A3B8;">Áreas remotas sem dados</div>
+                  <div style="font-size: 12px; font-weight: 700; color: #0F172A;">Servidor SMTP Corporativo</div>
+                  <div style="font-size: 10px; color: #94A3B8;">Serviço SMTP TLS Homologado</div>
                 </div>
               </div>
-              <span id="status-sms-pill" style="background: #F1F5F9; color: #64748B; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 9999px;">Standby</span>
+              <span id="status-smtp-pill" style="background: #F1F5F9; color: #64748B; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 9999px;">Conectado</span>
             </div>
           </div>
 
@@ -1158,7 +1158,7 @@ function renderGestoraAlertas() {
             <div style="display: flex; gap: 10px; align-items: flex-start;">
               <span style="width: 7px; height: 7px; border-radius: 50%; background: #EF4444; margin-top: 5px; flex-shrink: 0;"></span>
               <div>
-                <div style="font-size: 11px; font-weight: 600; color: #0F172A;">SMS disparado para Rodovias Nordeste</div>
+                <div style="font-size: 11px; font-weight: 600; color: #0F172A;">E-mail de alerta disparado para Rodovias Nordeste</div>
                 <div style="font-size: 10px; color: #94A3B8;">Contêiner MS-R04 • 11:42 BRT</div>
               </div>
             </div>
@@ -1167,7 +1167,7 @@ function renderGestoraAlertas() {
               <span style="width: 7px; height: 7px; border-radius: 50%; background: #F59E0B; margin-top: 5px; flex-shrink: 0;"></span>
               <div>
                 <div style="font-size: 11px; font-weight: 600; color: #0F172A;">Alerta de umidade enviado para Agronomia</div>
-                <div style="font-size: 10px; color: #94A3B8;">Talhão A1 • 11:30 BRT</div>
+                <div style="font-size: 10px; color: #94A3B8;">LOTE A1 • 11:30 BRT</div>
               </div>
             </div>
 
@@ -1227,10 +1227,10 @@ function setupGestoraAlertasEvents() {
   const btnExportGestora = document.getElementById('btn-exportar-csv');
   if (btnExportGestora) {
     btnExportGestora.addEventListener('click', () => {
-      const headers = ["Incidente", "Talhao/Cultura", "Severidade", "Status", "Data"];
+      const headers = ["Incidente", "LOTE/Cultura", "Severidade", "Status", "Data"];
       const rows = [
         ["Desvio Termico Reefer 40ft", "Lote Manga Palmer #4092", "Critico", "Em Andamento", new Date().toISOString()],
-        ["Estresse Hidrico Acentuado", "Talhao A1 - Uva Vitoria", "Moderado", "Pendente", new Date().toISOString()],
+        ["Estresse Hidrico Acentuado", "LOTE A1 - Uva Vitoria", "Moderado", "Pendente", new Date().toISOString()],
         ["Oscilacao de Tensao no No LoRa", "Repetidor Serra do Mel", "Baixo", "Resolvido", new Date().toISOString()]
       ];
       const csv = "\uFEFF" + [headers.join(";"), ...rows.map(r => r.map(c => `"${c}"`).join(";"))].join("\r\n");
@@ -1332,7 +1332,7 @@ function setupGestoraAlertasEvents() {
     const csvContent = 'data:text/csv;charset=utf-8,' +
       'ID,Prioridade,Categoria,Titulo,Valor_Risco,Status,Data\\n' +
       'EXP-2026-08,P1-Critico,Cadeia Fria,Desvio Termico Reefer 40ft,R$ 42.000,Ativo,2026-09-22 11:30\\n' +
-      'VU-03,P2-Atencao,Irrigacao,Estresse Hidrico Talhao A1,R$ 15.000,Ativo,2026-09-22 11:45\\n' +
+      'VU-03,P2-Atencao,Irrigacao,Estresse Hidrico LOTE A1,R$ 15.000,Ativo,2026-09-22 11:45\\n' +
       'MET-04,Preditivo,Clima,Alerta de Rajadas de Vento Setor 04,R$ 0,Monitorando,2026-09-22 12:00';
 
     const encodedUri = encodeURI(csvContent);
@@ -1362,7 +1362,7 @@ function setupGestoraAlertasEvents() {
         </div>
 
         <div>
-          <label style="display: block; font-size: 11px; font-weight: 700; color: #1E293B; margin-bottom: 4px;">TEMPO DE TOLERÂNCIA ANTES DO DISPARO SMS</label>
+          <label style="display: block; font-size: 11px; font-weight: 700; color: #1E293B; margin-bottom: 4px;">TEMPO DE TOLERÂNCIA ANTES DO DISPARO DE E-MAIL</label>
           <input type="text" value="15 minutos consecutivos" style="width: 100%; padding: 8px 12px; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 13px;">
         </div>
       </div>
@@ -1483,7 +1483,7 @@ function setupGestoraAlertasEvents() {
       }
     }, 2500);
 
-    toast.success('Automação Disparada', 'Comando enviado ao nó LoRa ESP32-VU03. Válvula do talhão A1 aberta com sucesso.');
+    toast.success('Automação Disparada', 'Comando enviado ao nó LoRa ESP32-VU03. Válvula do LOTE A1 aberta com sucesso.');
   });
 
   // 11. Ver Curva de Umidade (Modal)
@@ -1491,7 +1491,7 @@ function setupGestoraAlertasEvents() {
     Modal.open('Curva Histórica de Umidade Volumétrica (Solo FDR)', `
       <div style="font-size: 13px; color: #475569;">
         <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
-          <span>Talhão A1 • Variedade Uva Vitória (20cm & 40cm)</span>
+          <span>LOTE A1 • Variedade Uva Vitória (20cm & 40cm)</span>
           <span style="font-weight: 700; color: #059669;">Taxa de Infiltração: Ideal</span>
         </div>
         <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px; padding: 16px; margin-bottom: 12px; text-align: center;">
@@ -1525,20 +1525,20 @@ function setupGestoraAlertasEvents() {
     btn.textContent = 'Enviando pings de teste...';
 
     const pPush = document.getElementById('status-push-pill');
-    const pWhatsapp = document.getElementById('status-whatsapp-pill');
-    const pSms = document.getElementById('status-sms-pill');
+    const pEmail = document.getElementById('status-email-pill');
+    const pSmtp = document.getElementById('status-smtp-pill');
 
     if (pPush) pPush.textContent = 'Ping...';
-    if (pWhatsapp) pWhatsapp.textContent = 'Ping...';
-    if (pSms) pSms.textContent = 'Ping...';
+    if (pEmail) pEmail.textContent = 'Ping...';
+    if (pSmtp) pSmtp.textContent = 'Ping...';
 
     setTimeout(() => {
       if (pPush) pPush.textContent = '210ms OK';
-      if (pWhatsapp) pWhatsapp.textContent = '340ms OK';
-      if (pSms) pSms.textContent = 'Standby OK';
+      if (pEmail) pEmail.textContent = '120ms OK';
+    if (pSmtp) pSmtp.textContent = 'Autenticado';
       btn.disabled = false;
       btn.textContent = 'Testar Rotas de Disparo';
-      toast.success('Rotas Operantes', 'Push App e WhatsApp Cloud API responderam com 100% de integridade.');
+      toast.success('Rotas Operantes', 'Push App e Notificação por E-mail responderam com 100% de integridade.');
     }, 1200);
   });
 
@@ -1557,7 +1557,7 @@ function setupGestoraAlertasEvents() {
           </thead>
           <tbody>
             ${[
-        { h: '11:42 BRT', o: 'Gateway GSM', e: 'SMS disparado para Rodovias Nordeste', u: 'Automação Central' },
+        { h: '11:42 BRT', o: 'Gateway GSM', e: 'E-mail de alerta disparado para Rodovias Nordeste', u: 'Automação Central' },
         { h: '11:30 BRT', o: 'ESP32-VU03', e: 'Alerta de umidade enviado para Agronomia', u: 'Sensor FDR' },
         { h: '11:20 BRT', o: 'Repetidor LoRa', e: 'Chamado #4092 marcado como Resolvido', u: 'Carlos E.' },
         { h: '09:15 BRT', o: 'Central', e: 'Limiar térmico ajustado para Uva Vitória', u: 'Eng. Marília' },

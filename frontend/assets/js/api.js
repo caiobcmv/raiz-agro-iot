@@ -1,4 +1,4 @@
-/**
+﻿/**
  * RAIZ AGRO IOT - CLIENTE API CENTRALIZADO
  * Conecta com o backend FastAPI (http://localhost:8000) e possui fallback resiliente
  * para modo demonstração caso o banco ou backend estejam temporariamente offline.
@@ -266,7 +266,7 @@ class ApiService {
           id_sensor: 2,
           nome: 'Sensor Solo Umidade B1',
           tipo_sensor: 'Capacitivo V2',
-          localizacao: 'Talhão Manga Tommy - Setor Sul',
+          localizacao: 'LOTE Manga Tommy - Setor Sul',
           channel_id: null,
           status: 'ativo',
           id_lote: 2,

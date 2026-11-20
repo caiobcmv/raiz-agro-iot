@@ -8,6 +8,7 @@ import { renderSidebar } from './components/sidebar.js';
 import { renderHeader } from './components/header.js';
 import { Modal } from './components/modal.js';
 import { toast } from './components/toast.js';
+import { showAccessDeniedModal } from './components/access-denied-modal.js';
 
 // Importação das Views
 import { renderLogin, setupLoginEvents } from './views/login.js';
@@ -20,7 +21,7 @@ import { renderViagens, setupViagensEvents } from './views/viagens.js';
 import { renderAlertas, setupAlertasEvents } from './views/alertas.js?v=20261104-5';
 import { renderPrevisoes } from './views/previsoes.js';
 import { renderRelatorios, setupRelatoriosEvents } from './views/relatorios.js';
-import { renderConfiguracoes, setupConfiguracoesEvents } from './views/configuracoes.js';
+import { renderConfiguracoes, setupConfiguracoesEvents } from './views/configuracoes.js?v=20261119-live7';
 import { renderUsuarios, setupUsuariosEvents } from './views/usuarios.js';
 
 const routes = {
@@ -192,6 +193,16 @@ export class Router {
             } else {
               toast.info('Ciclo Safra 2026', 'Data base de operação: 22 de setembro de 2026 (Semana 38).');
             }
+          });
+        }
+
+        // Interatividade no Perfil do Header (tentativa de editar perfil/nome)
+        const profilePill = document.getElementById('user-profile-header-pill');
+        if (profilePill) {
+          profilePill.style.cursor = 'pointer';
+          profilePill.title = 'Perfil do usuário';
+          profilePill.addEventListener('click', () => {
+            showAccessDeniedModal();
           });
         }
 

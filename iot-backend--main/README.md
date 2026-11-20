@@ -219,7 +219,7 @@ Disponível em `http://127.0.0.1:8000`, com a documentação em `/docs`. A colet
 * [ ] Recuperação de senha
 * [ ] Testes automatizados
 * [ ] Implementação de IA
-* [ ] Envio de alertas pelo Whatsapp/Telegram
+* [ ] Envio de alertas por E-mail corporativo
 * [ ] Logs estruturados em vez de `print`
 * [ ] Deploy
 
