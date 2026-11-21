@@ -1,3 +1,5 @@
+const API_URL = "http://localhost:8000";
+
 import { liveTelemetry } from '../live-telemetry.js';
 /**
  * VIEW: DASHBOARD PRINCIPAL - COM SUPORTE AOS MODOS RESUMIDO E DETALHADO DO FIGMA
@@ -12,6 +14,216 @@ import { downloadCSV, downloadPDF, openExportChoiceModal } from '../utils/export
 
 let chartInstances = [];
 let dadosGraficosCache = null;
+let sseConnection = null;
+
+// ==========================================
+// FUNÇÕES AUXILIARES DE FORMATAÇÃO E SSE
+// ==========================================
+
+function formatarTimestampRecife(isoTimestamp) {
+  if (!isoTimestamp) return '';
+  try {
+    const d = new Date(isoTimestamp);
+    if (isNaN(d.getTime())) return String(isoTimestamp);
+    return new Intl.DateTimeFormat('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      timeZone: 'America/Recife'
+    }).format(d);
+  } catch (e) {
+    return String(isoTimestamp);
+  }
+}
+
+function formatarHoraSimplesRecife(isoTimestamp) {
+  if (!isoTimestamp) return '';
+  try {
+    const d = new Date(isoTimestamp);
+    if (isNaN(d.getTime())) return '';
+    return new Intl.DateTimeFormat('pt-BR', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      timeZone: 'America/Recife'
+    }).format(d);
+  } catch (e) {
+    return '';
+  }
+}
+
+function _pulseElement(el) {
+  if (!el) return;
+  el.classList.remove('live-pulse-breath');
+  void el.offsetWidth;
+  el.classList.add('live-pulse-breath');
+}
+
+function atualizarDashboardComSSE(data) {
+  if (!data) return;
+
+  const tempNum = Number(data.temperatura);
+  const umidNum = Number(data.umidade);
+  const tempStr = !isNaN(tempNum) ? `${tempNum.toFixed(1)}°C` : '—';
+  const tempIntStr = !isNaN(tempNum) ? `${Math.round(tempNum)}°C` : '—';
+  const umidStr = !isNaN(umidNum) ? `${Math.round(umidNum)}%` : '—';
+
+  // 1. Atualizar Temperatura na tela
+  const elTempResumido = document.getElementById('sse-temp-resumido') || document.querySelector('[data-live="resumido-temp"]');
+  if (elTempResumido) {
+    elTempResumido.textContent = tempIntStr;
+    _pulseElement(elTempResumido);
+  }
+
+  const elTempDetalhado = document.getElementById('sse-detalhado-temp') || document.querySelector('[data-live="temp-ar"]');
+  if (elTempDetalhado) {
+    elTempDetalhado.textContent = tempStr;
+    _pulseElement(elTempDetalhado);
+  }
+
+  document.querySelectorAll('[data-kpi="temp-ar"], #kpi-temp-ar').forEach(el => {
+    el.textContent = tempStr;
+    _pulseElement(el);
+  });
+
+  const elPillTemp = document.getElementById('miniChart4-pill');
+  if (elPillTemp && !isNaN(tempNum)) {
+    elPillTemp.textContent = `${tempNum.toFixed(1)}°C Ideal`;
+    _pulseElement(elPillTemp);
+  }
+
+  // 2. Atualizar Umidade na tela
+  const elUmidResumido = document.getElementById('sse-umid-resumido') || document.querySelector('[data-live="umid-ar"]');
+  if (elUmidResumido) {
+    elUmidResumido.textContent = umidStr;
+    _pulseElement(elUmidResumido);
+  }
+
+  const elUmidDetalhado = document.getElementById('sse-detalhado-umid');
+  if (elUmidDetalhado) {
+    elUmidDetalhado.textContent = umidStr;
+    _pulseElement(elUmidDetalhado);
+  }
+
+  const elUmidBar = document.getElementById('sse-detalhado-umid-bar') || document.querySelector('.progress-bar-umid');
+  if (elUmidBar && !isNaN(umidNum)) {
+    elUmidBar.style.width = `${Math.min(100, Math.max(0, umidNum))}%`;
+  }
+
+  const elPillUmid = document.getElementById('miniChart1-pill');
+  if (elPillUmid && !isNaN(umidNum)) {
+    elPillUmid.textContent = `${Math.round(umidNum)}% Ideal`;
+    _pulseElement(elPillUmid);
+  }
+
+  // 3. Selo "Real" ou "Simulado" conforme campo "origem"
+  const origemValor = String(data.origem || '').toLowerCase();
+  const isReal = origemValor === 'real';
+  const seloTexto = isReal ? 'Real' : 'Simulado';
+  const seloClasseRemover = isReal ? 'pill-blue' : 'pill-green';
+  const seloClasseAdicionar = isReal ? 'pill-green' : 'pill-blue';
+
+  document.querySelectorAll('#sse-origem-badge, #sse-origem-badge-detalhado, .sse-origem-badge').forEach(badge => {
+    badge.textContent = seloTexto;
+    badge.classList.remove(seloClasseRemover);
+    badge.classList.add(seloClasseAdicionar);
+  });
+
+  // 4. Horário da última leitura em pt-BR (America/Recife)
+  const horaFormatadaRecife = formatarTimestampRecife(data.timestamp);
+  document.querySelectorAll('#sse-horario-leitura, #sse-horario-leitura-detalhado, .sse-horario-leitura').forEach(el => {
+    el.textContent = horaFormatadaRecife ? `Última leitura: ${horaFormatadaRecife}` : '';
+  });
+
+  // 5. Adicionar nova leitura ao gráfico mantendo as últimas 30 leituras
+  if (window.Chart && typeof window.Chart.getChart === 'function') {
+    const horaLabel = formatarHoraSimplesRecife(data.timestamp);
+
+    // miniChart4 = Temperatura do Ar
+    const chartTemp = window.Chart.getChart('miniChart4');
+    if (chartTemp && chartTemp.data && chartTemp.data.datasets && chartTemp.data.datasets[0] && !isNaN(tempNum)) {
+      chartTemp.data.labels.push(horaLabel);
+      chartTemp.data.datasets[0].data.push(tempNum);
+      while (chartTemp.data.datasets[0].data.length > 30) {
+        chartTemp.data.datasets[0].data.shift();
+        chartTemp.data.labels.shift();
+      }
+      chartTemp.update('none');
+    }
+
+    // miniChart1 = Umidade do Ar
+    const chartUmid = window.Chart.getChart('miniChart1');
+    if (chartUmid && chartUmid.data && chartUmid.data.datasets && chartUmid.data.datasets[0] && !isNaN(umidNum)) {
+      chartUmid.data.labels.push(horaLabel);
+      chartUmid.data.datasets[0].data.push(umidNum);
+      while (chartUmid.data.datasets[0].data.length > 30) {
+        chartUmid.data.datasets[0].data.shift();
+        chartUmid.data.labels.shift();
+      }
+      chartUmid.update('none');
+    }
+  }
+}
+
+function iniciarSSEDashboard() {
+  if (sseConnection) {
+    try { sseConnection.close(); } catch (e) {}
+    sseConnection = null;
+  }
+
+  const sseUrl = `${API_URL}/dashboard/stream`;
+  let es = null;
+  try {
+    es = new EventSource(sseUrl);
+    sseConnection = es;
+  } catch (err) {
+    console.warn('[SSE] Falha ao instanciar EventSource:', err);
+    return;
+  }
+
+  es.onopen = () => {
+    // Esconder aviso no onopen
+    document.querySelectorAll('.sse-aviso-reconectando, #sse-aviso-reconectando, #sse-aviso-reconectando-detalhado').forEach(el => {
+      el.style.display = 'none';
+    });
+  };
+
+  es.onmessage = (e) => {
+    try {
+      const data = JSON.parse(e.data);
+      atualizarDashboardComSSE(data);
+    } catch (err) {
+      console.warn('Erro ao decodificar JSON do SSE:', err);
+    }
+  };
+
+  es.onerror = () => {
+    // Mostrar aviso "Reconectando..." no onerror sem chamar es.close()
+    document.querySelectorAll('.sse-aviso-reconectando, #sse-aviso-reconectando, #sse-aviso-reconectando-detalhado').forEach(el => {
+      el.style.display = 'inline-flex';
+    });
+  };
+
+  // Encerra SSE no evento beforeunload
+  window.addEventListener('beforeunload', () => {
+    if (es) {
+      es.close();
+    }
+  });
+
+  // Encerra SSE se o usuário navegar para fora do dashboard no modo SPA
+  window.addEventListener('hashchange', () => {
+    if (window.location.hash !== '#/' && window.location.hash !== '#/dashboard') {
+      if (sseConnection) {
+        sseConnection.close();
+        sseConnection = null;
+      }
+    }
+  });
+}
 
 const DEFAULT_DADOS_GRAFICOS = {
   umidade_ar_24h: [61, 60, 59, 58, 60, 61, 63, 62],
@@ -580,7 +792,7 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
               <i data-lucide="sun" style="width: 26px; height: 26px; color: #F59E0B;"></i>
             </div>
             <div>
-              <div style="font-size: 28px; font-weight: 800; color: #1E293B; line-height: 1;" data-live="resumido-temp">28°C</div>
+              <div style="font-size: 28px; font-weight: 800; color: #1E293B; line-height: 1;" id="sse-temp-resumido" data-live="resumido-temp">28°C</div>
               <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Ensolarado • Vento 12 km/h</div>
             </div>
           </div>
@@ -595,7 +807,7 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
         </div>
 
         <div style="border-top: 1px solid #F1F5F9; padding-top: 12px; display: flex; justify-content: space-between; font-size: 11px; margin-top: auto;">
-          <div><span style="color:#94A3B8; font-size:10px;">UMIDADE</span><div style="font-weight:700; color:#1E293B;" data-live="umid-ar">62%</div></div>
+          <div><span style="color:#94A3B8; font-size:10px;">UMIDADE</span><div style="font-weight:700; color:#1E293B;" id="sse-umid-resumido" data-live="umid-ar">62%</div></div>
           <div><span style="color:#94A3B8; font-size:10px;">CHUVA</span><div style="font-weight:700; color:#1E293B;">0 mm</div></div>
           <div><span style="color:#94A3B8; font-size:10px;">UV</span><div style="font-weight:700; color:#047857;">Mod. 29°</div></div>
           <div><span style="color:#94A3B8; font-size:10px;">Qua</span><div style="font-weight:700; color:#334155;">28°</div></div>
@@ -780,7 +992,12 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
           <span style="font-size: 14px; font-weight: 700; color: #1E293B; letter-spacing: 0.5px; text-transform: uppercase;">
             TELEMETRIA DE CAMPO (24H)
           </span>
-          <p style="font-size: 12px; color: #94A3B8; margin-top: 2px;">Leituras em tempo real via ESP32 (DHT11 e Sensor de Umidade do Solo)</p>
+          <p style="font-size: 12px; color: #94A3B8; margin-top: 2px;">
+            Leituras em tempo real via ESP32 (DHT11 e Sensor de Umidade do Solo)
+            <span id="sse-origem-badge" class="card-status-pill pill-blue sse-origem-badge" style="font-size: 10px; padding: 2px 8px; margin-left: 8px;">Simulado</span>
+            <span id="sse-aviso-reconectando" class="sse-aviso-reconectando" style="display: none; margin-left: 8px; font-size: 11px; font-weight: 600; color: #D97706; background: #FFFBEB; border: 1px solid #FDE68A; padding: 2px 8px; border-radius: 6px;">Reconectando...</span>
+            <span id="sse-horario-leitura" class="sse-horario-leitura" style="margin-left: 8px; font-size: 11px; color: #64748B;"></span>
+          </p>
         </div>
 
         <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
@@ -799,7 +1016,7 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
         <div class="mini-chart-card">
           <div class="mini-chart-header">
             <span class="mini-chart-title">Umidade do Ar</span>
-            <span class="mini-chart-pill pill-green">62% Ideal</span>
+            <span class="mini-chart-pill pill-green" id="miniChart1-pill">62% Ideal</span>
           </div>
           <div class="chart-canvas-wrap">
             <canvas id="miniChart1"></canvas>
@@ -841,7 +1058,7 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
         <div class="mini-chart-card">
           <div class="mini-chart-header">
             <span class="mini-chart-title">Temperatura do Ar</span>
-            <span class="mini-chart-pill pill-green">27.8°C Ideal</span>
+            <span class="mini-chart-pill pill-green" id="miniChart4-pill">27.8°C Ideal</span>
           </div>
           <div class="chart-canvas-wrap">
             <canvas id="miniChart4"></canvas>
@@ -1033,9 +1250,17 @@ function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS, extras 
 
         <!-- Card: Condições de Cultivo -->
         <div class="dd-card dd-card-lg" style="padding: 22px 24px;">
-          <div style="margin-bottom: 12px;">
-            <h3 style="font-size: 16px; font-weight: 700; color: #1E293B; margin: 0;">Condições de cultivo</h3>
-            <span style="font-size: 11px; color: #94A3B8;">Últimas 24 horas</span>
+          <div style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 8px;">
+            <div>
+              <h3 style="font-size: 16px; font-weight: 700; color: #1E293B; margin: 0;">Condições de cultivo</h3>
+              <div style="font-size: 11px; color: #94A3B8; margin-top: 2px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                <span>Últimas 24 horas</span>
+                <span>•</span>
+                <span id="sse-origem-badge-detalhado" class="card-status-pill pill-blue sse-origem-badge" style="font-size: 10px; padding: 1px 7px;">Simulado</span>
+                <span id="sse-aviso-reconectando-detalhado" class="sse-aviso-reconectando" style="display: none; font-size: 10px; font-weight: 600; color: #D97706; background: #FFFBEB; border: 1px solid #FDE68A; padding: 1px 6px; border-radius: 4px;">Reconectando...</span>
+                <span id="sse-horario-leitura-detalhado" class="sse-horario-leitura" style="font-size: 10px; color: #64748B;"></span>
+              </div>
+            </div>
           </div>
 
           <div style="display: grid; grid-template-columns: 140px 1fr; gap: 24px; align-items: center; margin-top: 10px;">
@@ -1063,10 +1288,10 @@ function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS, extras 
               <div>
                 <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px;">
                   <span style="font-size: 11.5px; color: #475569;">Umidade do ar</span>
-                  <strong style="font-size: 16px; font-weight: 700; color: #1E293B;" data-live="umid-ar">${umidVal}%</strong>
+                  <strong style="font-size: 16px; font-weight: 700; color: #1E293B;" data-live="umid-ar" id="sse-detalhado-umid">${umidVal}%</strong>
                 </div>
                 <div style="width: 100%; height: 6px; background: #F1F5F9; border-radius: 9999px; overflow: hidden;">
-                  <div class="progress-bar-umid" style="width: ${umidVal}%; height: 100%; background: #059669; border-radius: 9999px; transition: width 0.6s ease;"></div>
+                  <div class="progress-bar-umid" id="sse-detalhado-umid-bar" style="width: ${umidVal}%; height: 100%; background: #059669; border-radius: 9999px; transition: width 0.6s ease;"></div>
                 </div>
               </div>
 
@@ -1074,7 +1299,7 @@ function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS, extras 
               <div>
                 <div style="display: flex; justify-content: space-between; align-items: baseline;">
                   <span style="font-size: 11.5px; color: #475569;">Temperatura</span>
-                  <strong style="font-size: 16px; font-weight: 700; color: #1E293B;" data-live="temp-ar">${tempVal}°C</strong>
+                  <strong style="font-size: 16px; font-weight: 700; color: #1E293B;" data-live="temp-ar" id="sse-detalhado-temp">${tempVal}°C</strong>
                 </div>
                 <span style="font-size: 10px; color: #94A3B8;">Leitura do ambiente</span>
               </div>
@@ -1207,7 +1432,8 @@ export async function setupDashboardEvents() {
     return;
   }
 
-  // Inicia SSE / Respiração em tempo real da telemetria
+  // Inicia conexão SSE do backend FastAPI (GET http://localhost:8000/dashboard/stream)
+  iniciarSSEDashboard();
   liveTelemetry.start();
 
   if (window.lucide) window.lucide.createIcons();
@@ -1574,6 +1800,7 @@ function criarMiniGraficoApple(canvasId, dataPoints, strokeColor) {
  * CONFIGURAÇÃO DOS EVENTOS INTERATIVOS DO DASHBOARD DO ANALISTA
  */
 function setupAnalistaDashboardEvents() {
+  iniciarSSEDashboard();
   liveTelemetry.start();
 
   // Sincronizar Ingestão ThingSpeak
@@ -2252,6 +2479,7 @@ function renderAdminDashboard() {
 }
 
 function setupAdminDashboardEvents() {
+  iniciarSSEDashboard();
   // Destrói instâncias anteriores de gráficos
   chartInstances.forEach(c => c && c.destroy());
   chartInstances = [];

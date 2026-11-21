@@ -1,4 +1,4 @@
-﻿/**
+/**
  * SERVIÇO DE SINCRONIZAÇÃO EM TEMPO REAL FRONTEND <-> BACKEND (SSE & POLLING)
  * Conecta via Server-Sent Events (SSE) nativo para que o dashboard "respire" ao vivo.
  * Atualiza dinamicamente KPIs de temperatura, umidade e telemetria com efeito de respiração.
