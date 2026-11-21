@@ -1,8 +1,13 @@
-# RAIZ Agro IoT - Frontend
+# RAIZ Agro IoT – Frontend
 
-Frontend moderno em **HTML5, CSS3 e JavaScript modular (ES Modules)** para a plataforma **RAIZ - Monitoramento Climático e Logístico de Frutas**.
+Interface frontend desenvolvida utilizando **HTML5, CSS3 e JavaScript modular (ES Modules)**, destinada à plataforma **RAIZ – Monitoramento Climático e Logístico de Frutas**.
 
-Desenvolvido com fidelidade visual aos estilos do Figma (tipografia Space Grotesk, Plus Jakarta Sans e Inter, paleta verde floresta `#193D2E` e `#15803D`, layout em curva orgânica e fluxo de autenticação MFA).
+A implementação segue uma abordagem orientada à fidelidade visual em relação aos layouts definidos no Figma, contemplando:
+
+- **Sistema tipográfico:** utilização das fontes Space Grotesk, Plus Jakarta Sans e Inter.
+- **Identidade visual:** aplicação da paleta cromática institucional em tons de verde floresta (`#193D2E` e `#15803D`).
+- **Composição visual:** estruturação do layout com elementos de curvas orgânicas.
+- **Autenticação:** implementação do fluxo de autenticação multifator (MFA – Multi-Factor Authentication).
 
 ---
 
