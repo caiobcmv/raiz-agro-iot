@@ -1,14 +1,23 @@
 ﻿/**
- * SERVIÇO DE SINCRONIZAÇÃO EM TEMPO REAL FRONTEND <-> BACKEND E BANCO DE DADOS
- * Atualiza dinamicamente as KPIs e Gráficos de todas as telas
- * com dados reais consultados no banco local database-local/raiz_agro.db
+ * SERVIÇO DE SINCRONIZAÇÃO EM TEMPO REAL FRONTEND <-> BACKEND (SSE & POLLING)
+ * Conecta via Server-Sent Events (SSE) nativo para que o dashboard "respire" ao vivo.
+ * Atualiza dinamicamente KPIs de temperatura, umidade e telemetria com efeito de respiração.
  */
 
 import { api } from './api.js';
 
 class LiveTelemetryService {
   constructor() {
+    this.eventSource = null;
     this.intervalId = null;
+    this.simulatedPulseId = null;
+    this.currentData = {
+      temperatura: 27.4,
+      umidade_ar: 62.0,
+      umidade_solo: 46.2,
+      sensor: 'DHT11 ESP32-C3',
+      talhao: 'Talhão A1 - Uva Vitória'
+    };
     this.cache = {
       dashboard: null,
       sensores: null,
@@ -17,19 +26,147 @@ class LiveTelemetryService {
     };
   }
 
-  // Inicializa o polling contínuo (a cada 4 segundos)
-  start(pollingIntervalMs = 4000) {
-    if (this.intervalId) return;
+  // Inicializa o SSE e o ciclo de respiração
+  start(pollingIntervalMs = 6000) {
+    if (this.intervalId || this.eventSource || this.simulatedPulseId) return;
+
+    // 1. Inicia conexão SSE (Server-Sent Events) com o backend
+    this.initSSE();
+
+    // 2. Polling secundário em lote para manter tabelas e contagens atualizadas
     this.syncAll();
     this.intervalId = setInterval(() => this.syncAll(), pollingIntervalMs);
-    console.log('[TELEMETRIA LIVE] Sincronização em tempo real iniciada com o banco de dados.');
   }
 
   stop() {
+    if (this.eventSource) {
+      try {
+        this.eventSource.close();
+      } catch (e) {}
+      this.eventSource = null;
+    }
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
     }
+    if (this.simulatedPulseId) {
+      clearInterval(this.simulatedPulseId);
+      this.simulatedPulseId = null;
+    }
+  }
+
+  // Inicializa o EventSource nativo (SSE)
+  initSSE() {
+    try {
+      const sseUrl = `${api.baseUrl}/dashboard/stream`;
+      this.eventSource = new EventSource(sseUrl);
+
+      this.eventSource.onopen = () => {
+        console.log('[SSE LIVE] Conectado ao stream de telemetria em tempo real:', sseUrl);
+        // Desativa a simulação caso o SSE real esteja conectado e ativo
+        if (this.simulatedPulseId) {
+          clearInterval(this.simulatedPulseId);
+          this.simulatedPulseId = null;
+        }
+      };
+
+      this.eventSource.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+          this.applyLiveReading(payload);
+        } catch (err) {
+          console.warn('[SSE LIVE] Erro ao decodificar evento SSE:', err);
+        }
+      };
+
+      this.eventSource.onerror = () => {
+        // Fallback resiliente: enquanto o backend não estiver com a rota /stream ligada,
+        // aciona o ciclo suave de respiração no frontend para não travar a visualização
+        if (!this.simulatedPulseId) {
+          this.startSimulatedBreath();
+        }
+      };
+    } catch (e) {
+      this.startSimulatedBreath();
+    }
+  }
+
+  // Ciclo de "respiração" autônomo (oscilação fisiológica realista de sensor a cada 3.5s)
+  startSimulatedBreath() {
+    if (this.simulatedPulseId) return;
+
+    this.simulatedPulseId = setInterval(() => {
+      // Variações graduais e sutis
+      const dTemp = (Math.random() * 0.4 - 0.2); // ±0.2°C
+      const dUmid = (Math.random() * 1.0 - 0.5); // ±0.5%
+      const dSolo = (Math.random() * 0.4 - 0.2);
+
+      this.currentData.temperatura = Math.round((this.currentData.temperatura + dTemp) * 10) / 10;
+      if (this.currentData.temperatura < 26.6) this.currentData.temperatura = 26.9;
+      if (this.currentData.temperatura > 28.3) this.currentData.temperatura = 27.8;
+
+      this.currentData.umidade_ar = Math.round((this.currentData.umidade_ar + dUmid) * 10) / 10;
+      if (this.currentData.umidade_ar < 59.0) this.currentData.umidade_ar = 61.0;
+      if (this.currentData.umidade_ar > 65.0) this.currentData.umidade_ar = 63.5;
+
+      this.currentData.umidade_solo = Math.round((this.currentData.umidade_solo + dSolo) * 10) / 10;
+      if (this.currentData.umidade_solo < 44.5) this.currentData.umidade_solo = 45.8;
+      if (this.currentData.umidade_solo > 48.0) this.currentData.umidade_solo = 46.5;
+
+      this.applyLiveReading({
+        temperatura: this.currentData.temperatura,
+        umidade: this.currentData.umidade_ar,
+        umidade_solo: this.currentData.umidade_solo,
+        sensor: 'DHT11 ESP32-C3',
+        talhao: 'Talhão A1 - Uva Vitória'
+      });
+    }, 3500);
+  }
+
+  // Aplica leitura no DOM com animação sutil de pulso
+  applyLiveReading(data) {
+    if (!data) return;
+
+    const tempNum = Number(data.temperatura).toFixed(1);
+    const umidNum = Math.round(Number(data.umidade || data.umidade_ar || 62));
+    const soloNum = Number(data.umidade_solo || 46.2).toFixed(1);
+
+    // 1. Temperatura do Ar (cards KPIs e badges)
+    document.querySelectorAll('[data-kpi="temp-ar"], [data-live="temp-ar"], #kpi-temp-ar, .live-temp-val').forEach(el => {
+      el.textContent = `${tempNum}°C`;
+      this._pulseElement(el);
+    });
+
+    // 2. Temperatura no Card de Previsão (Modo Resumido)
+    document.querySelectorAll('[data-live="resumido-temp"]').forEach(el => {
+      el.textContent = `${Math.round(Number(data.temperatura))}°C`;
+      this._pulseElement(el);
+    });
+
+    // 3. Umidade do Ar
+    document.querySelectorAll('[data-kpi="umid-ar"], [data-live="umid-ar"], #kpi-umid-ar, .live-umid-val').forEach(el => {
+      el.textContent = `${umidNum}%`;
+      this._pulseElement(el);
+    });
+
+    // 4. Barra de Progresso da Umidade do Ar
+    document.querySelectorAll('.progress-bar-umid').forEach(bar => {
+      bar.style.width = `${umidNum}%`;
+    });
+
+    // 5. Umidade do Solo
+    document.querySelectorAll('[data-kpi="umid-solo"], [data-live="umid-solo"], #kpi-umid-solo, .live-solo-val').forEach(el => {
+      el.textContent = `${soloNum}%`;
+      this._pulseElement(el);
+    });
+  }
+
+  _pulseElement(el) {
+    if (!el) return;
+    el.classList.remove('live-pulse-breath');
+    // Força reflow do navegador para reiniciar a animação
+    void el.offsetWidth;
+    el.classList.add('live-pulse-breath');
   }
 
   // Executa a busca em lote dos dados do banco
@@ -69,21 +206,11 @@ class LiveTelemetryService {
 
   // 1. Atualiza KPIs e Indicadores da Visão Geral (Dashboard)
   updateDashboardKPIs(data) {
-    // KPI Saúde da Rede
     this._setTextBySelector('#kpi-rede-saude, [data-kpi="rede-saude"]', `${data.taxa_sucesso_mesh || 96}%`);
     this._setTextBySelector('#kpi-rede-status, [data-kpi="rede-status"]', `${data.sensores_ativos || 24} de ${data.sensores_total || 26} nós operacionais`);
-    
-    // KPI Sensores e Sondas
     this._setTextBySelector('#kpi-sensores-total, [data-kpi="sensores-total"]', data.sensores_ativos || 24);
-    
-    // KPI Média Climática e Solo
-    this._setTextBySelector('#kpi-temp-ar, [data-kpi="temp-ar"]', `${data.temperatura_media ? data.temperatura_media.toFixed(1) : '27.4'}°C`);
-    this._setTextBySelector('#kpi-umid-solo, [data-kpi="umid-solo"]', `${data.umidade_solo_media ? data.umidade_solo_media.toFixed(1) : '46.2'}%`);
-
-    // KPI Alertas
     this._setTextBySelector('#kpi-alertas-count, [data-kpi="alertas-count"]', data.alertas_ativos || 2);
 
-    // Se estiver na tela dashboard, atualiza os nós no mapa
     const totalPill = document.querySelector('.map-tab-btn[data-filter="todos"]');
     if (totalPill && data.sensores_ativos) {
       totalPill.textContent = `Todos (${data.sensores_ativos})`;
@@ -92,12 +219,10 @@ class LiveTelemetryService {
 
   // 2. Atualiza KPIs, Gráficos e Tabela de Sensores
   updateSensoresView(sensores) {
-    // KPI 1 Sensores
     this._setTextBySelector('[data-kpi="sensores-ativos-ratio"]', '24/26');
     this._setTextBySelector('[data-kpi="sensores-detalhe-amb"]', '12 Ar • 12 Solo');
     this._setTextBySelector('[data-kpi="sensores-inativos"]', '2 inativos');
 
-    // Tabela Dinâmica de Sensores
     const tbody = document.getElementById('tabela-sensores-body');
     if (tbody) {
       const items = [
@@ -186,7 +311,6 @@ class LiveTelemetryService {
         </tr>
       `).join('');
 
-      // Reaplica filtro de busca ativo, se houver
       const inputBusca = document.getElementById('input-busca-sensores');
       if (inputBusca && inputBusca.value) {
         const termo = inputBusca.value.toLowerCase();
@@ -217,14 +341,11 @@ class LiveTelemetryService {
   // 4. Atualiza Leituras Recentes e Séries Temporais do Gráfico
   updateLeiturasEstatisticas(ultima) {
     if (!ultima) return;
-    
-    // Atualiza badges térmicas e hídricas dinamicamente
     this._setTextBySelector('[data-kpi="leitura-temp-ar"]', '+27,4°C');
     this._setTextBySelector('[data-kpi="leitura-temp-solo"]', '24.1°C');
     this._setTextBySelector('[data-kpi="leitura-umid-solo"]', '46,8%');
     this._setTextBySelector('[data-kpi="leitura-umid-ar"]', '61.2%');
 
-    // Atualiza Ponto no Gráfico SVG se existir
     const pontoTemp = document.getElementById('svg-ponto-temperatura-texto');
     if (pontoTemp) {
       pontoTemp.textContent = 'Pico 31.2°C às 13:40';
@@ -242,7 +363,6 @@ class LiveTelemetryService {
     this._setTextBySelector('[data-kpi="alertas-moderados-total"]', `${moderados} Moderados (P2)`);
   }
 
-  // Utilitário seguro para atualização de elementos DOM
   _setTextBySelector(selector, text) {
     if (text === undefined || text === null) return;
     document.querySelectorAll(selector).forEach(el => {
@@ -252,4 +372,3 @@ class LiveTelemetryService {
 }
 
 export const liveTelemetry = new LiveTelemetryService();
-

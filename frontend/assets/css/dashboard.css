@@ -661,6 +661,31 @@
   50% { opacity: .5; transform: scale(1.3); }
 }
 
+/* Efeito de respiração suave para telemetria em tempo real (SSE) */
+@keyframes live-breath-glow {
+  0% {
+    transform: scale(1);
+    color: inherit;
+    text-shadow: none;
+  }
+  35% {
+    transform: scale(1.04);
+    color: #059669;
+    text-shadow: 0 0 10px rgba(16, 185, 129, 0.35);
+  }
+  100% {
+    transform: scale(1);
+    color: inherit;
+    text-shadow: none;
+  }
+}
+
+.live-pulse-breath {
+  display: inline-block;
+  animation: live-breath-glow 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform, color;
+}
+
 /* Apple card genérico (reutilizado nas novas telas) */
 .apple-card {
   background: #FFFFFF;

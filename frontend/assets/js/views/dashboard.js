@@ -580,7 +580,7 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
               <i data-lucide="sun" style="width: 26px; height: 26px; color: #F59E0B;"></i>
             </div>
             <div>
-              <div style="font-size: 28px; font-weight: 800; color: #1E293B; line-height: 1;">28°C</div>
+              <div style="font-size: 28px; font-weight: 800; color: #1E293B; line-height: 1;" data-live="resumido-temp">28°C</div>
               <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Ensolarado • Vento 12 km/h</div>
             </div>
           </div>
@@ -595,7 +595,7 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
         </div>
 
         <div style="border-top: 1px solid #F1F5F9; padding-top: 12px; display: flex; justify-content: space-between; font-size: 11px; margin-top: auto;">
-          <div><span style="color:#94A3B8; font-size:10px;">UMIDADE</span><div style="font-weight:700; color:#1E293B;">62%</div></div>
+          <div><span style="color:#94A3B8; font-size:10px;">UMIDADE</span><div style="font-weight:700; color:#1E293B;" data-live="umid-ar">62%</div></div>
           <div><span style="color:#94A3B8; font-size:10px;">CHUVA</span><div style="font-weight:700; color:#1E293B;">0 mm</div></div>
           <div><span style="color:#94A3B8; font-size:10px;">UV</span><div style="font-weight:700; color:#047857;">Mod. 29°</div></div>
           <div><span style="color:#94A3B8; font-size:10px;">Qua</span><div style="font-weight:700; color:#334155;">28°</div></div>
@@ -1063,10 +1063,10 @@ function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS, extras 
               <div>
                 <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px;">
                   <span style="font-size: 11.5px; color: #475569;">Umidade do ar</span>
-                  <strong style="font-size: 16px; font-weight: 700; color: #1E293B;">${umidVal}%</strong>
+                  <strong style="font-size: 16px; font-weight: 700; color: #1E293B;" data-live="umid-ar">${umidVal}%</strong>
                 </div>
                 <div style="width: 100%; height: 6px; background: #F1F5F9; border-radius: 9999px; overflow: hidden;">
-                  <div style="width: ${umidVal}%; height: 100%; background: #059669; border-radius: 9999px;"></div>
+                  <div class="progress-bar-umid" style="width: ${umidVal}%; height: 100%; background: #059669; border-radius: 9999px; transition: width 0.6s ease;"></div>
                 </div>
               </div>
 
@@ -1074,7 +1074,7 @@ function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS, extras 
               <div>
                 <div style="display: flex; justify-content: space-between; align-items: baseline;">
                   <span style="font-size: 11.5px; color: #475569;">Temperatura</span>
-                  <strong style="font-size: 16px; font-weight: 700; color: #1E293B;">${tempVal}°C</strong>
+                  <strong style="font-size: 16px; font-weight: 700; color: #1E293B;" data-live="temp-ar">${tempVal}°C</strong>
                 </div>
                 <span style="font-size: 10px; color: #94A3B8;">Leitura do ambiente</span>
               </div>
@@ -1206,6 +1206,9 @@ export async function setupDashboardEvents() {
     setupAnalistaDashboardEvents();
     return;
   }
+
+  // Inicia SSE / Respiração em tempo real da telemetria
+  liveTelemetry.start();
 
   if (window.lucide) window.lucide.createIcons();
 
