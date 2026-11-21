@@ -19,7 +19,7 @@ python -m pip install -r requirements.txt
 
 echo.
 echo Iniciando servidor Uvicorn na porta 8000...
-echo Acesse a documentacao em: http://localhost:8000/docs
+echo Acesse a documentacao em:  http://localhost:8000/docs
 echo.
 python -m uvicorn src.api.app:app --reload --port 8000 --host 0.0.0.0
 
