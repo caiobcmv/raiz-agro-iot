@@ -4,6 +4,8 @@
 
 import { api } from '../api.js';
 import { toast } from '../components/toast.js';
+import { Modal } from '../components/modal.js';
+import { downloadCSV, downloadPDF, openExportChoiceModal } from '../utils/export-utils.js';
 
 let leafletMap = null;
 
@@ -19,9 +21,15 @@ export async function renderViagens() {
           <p style="color: #94A3B8; font-size: 14px;">Rastreamento de carretas frigoríficas em rota do Vale do São Francisco aos Portos (Pecém, Suape, Salvador, Natal).</p>
         </div>
 
-        <span class="badge badge-success" style="font-size: 14px; padding: 8px 16px;">
-          <span class="badge-dot"></span>${viagens.length} Viagens em Monitoramento
-        </span>
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+          <button id="btn-exportar-viagens-pdf-csv" style="padding: 8px 14px; background: #FFFFFF; border: 1px solid #CBD5E1; border-radius: 8px; font-size: 12px; font-weight: 700; color: #0F172A; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+            <i data-lucide="download" style="width: 14px; height: 14px; color: #059669;"></i>
+            <span>Exportar Manifesto (PDF/CSV)</span>
+          </button>
+          <span class="badge badge-success" style="font-size: 14px; padding: 8px 16px;">
+            <span class="badge-dot"></span>${viagens.length} Viagens em Monitoramento
+          </span>
+        </div>
       </div>
 
       <!-- Mapa Interativo Leaflet -->
@@ -158,6 +166,39 @@ export async function setupViagensEvents() {
           </div>
         `);
     }
+  });
+
+  // Exportar Manifesto de Viagens (PDF & CSV dedicados)
+  document.getElementById('btn-exportar-viagens-pdf-csv')?.addEventListener('click', () => {
+    const headers = ['Viagem', 'Lote', 'Volume', 'Origem', 'Porto Destino', 'Distancia (km)', 'Temp Reefer (C)', 'Status'];
+    const rows = (viagens || []).map(v => [
+      `#${v.id_viagem}`,
+      `Lote #${v.id_lote ?? v.lote?.id_lote ?? '-'}`,
+      `${v.quantidade ?? v.lote?.quantidade ?? '-'} ${v.unidade ?? v.lote?.unidade ?? ''}`,
+      v.origem_nome ?? v.origem ?? 'Petrolina - PE',
+      `${v.porto_nome ?? v.destino?.nome ?? '-'} (${v.porto_uf ?? v.destino?.uf ?? ''})`,
+      v.distancia_km ?? '-',
+      v.caminhao_temp ?? '-',
+      v.status_viagem ?? v.status ?? 'Em transito'
+    ]);
+    const dataTag = new Date().toISOString().slice(0, 10);
+    openExportChoiceModal(
+      Modal,
+      'Exportar Manifesto de Logística & Cadeia Fria',
+      () => {
+        downloadCSV(`manifesto_viagens_cadeia_fria_${dataTag}.csv`, headers, rows);
+        toast.success('CSV Exportado', `manifesto_viagens_cadeia_fria_${dataTag}.csv baixado.`);
+      },
+      () => {
+        downloadPDF(`manifesto_viagens_cadeia_fria_${dataTag}.pdf`, {
+          title: 'Manifesto de Logística & Cadeia do Frio',
+          subtitle: 'Rotas Refrigeradas do Vale do São Francisco aos Portos de Exportação',
+          headers,
+          rows
+        });
+        toast.success('PDF Exportado', `manifesto_viagens_cadeia_fria_${dataTag}.pdf baixado.`);
+      }
+    );
   });
 }
 

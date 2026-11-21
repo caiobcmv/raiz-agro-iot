@@ -7,6 +7,8 @@
 
 import { api } from '../api.js';
 import { toast } from '../components/toast.js';
+import { Modal } from '../components/modal.js';
+import { downloadCSV, downloadPDF, openExportChoiceModal } from '../utils/export-utils.js';
 
 // ==========================================
 // DADOS MOCKADOS (FALLBACK ENQUANTO NÃO HÁ DADOS NO BACKEND)

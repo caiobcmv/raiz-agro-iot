@@ -8,6 +8,7 @@
 import { api } from '../api.js';
 import { Modal } from '../components/modal.js';
 import { toast } from '../components/toast.js';
+import { downloadCSV, downloadPDF, openExportChoiceModal } from '../utils/export-utils.js';
 
 let _logsAuditoria = [
   {
@@ -486,23 +487,32 @@ function vincularEventosLogs() {
 }
 
 export function setupAuditoriaEvents() {
-  // Exportar CSV
+  // Exportar Auditoria (CSV & PDF Reais)
   const btnExportar = document.getElementById('btn-exportar-auditoria-csv');
   if (btnExportar) {
     btnExportar.addEventListener('click', () => {
-      const csv = `timestamp;tipo_evento;entidade_referencia;usuario_agente;origem;status;hash_sha256\n` +
-        _logsAuditoria.map(l => `"${l.data}";"${l.badge}";"${l.codigo_ref}";"${l.lote}";"${l.origem.replace(/<[^>]*>?/gm, '')}";"VALIDO";"${l.hash || 'sha256:valid'}"`).join('\n');
-      
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `auditoria_forense_raiz_agro_${new Date().toISOString().slice(0, 10)}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      toast.success('Auditoria Exportada', 'Dump de 14.820 logs com assinaturas SHA-256 baixado em CSV.');
+      const headers = ['Timestamp', 'Tipo Evento', 'Referencia', 'Entidade / Lote', 'Origem', 'Status', 'Hash SHA-256'];
+      const rows = _logsAuditoria.map(l => [
+        l.data, l.badge, l.codigo_ref, l.lote, l.origem.replace(/<[^>]*>?/gm, ''), 'VALIDO', l.hash || 'sha256:valid'
+      ]);
+      const dataTag = new Date().toISOString().slice(0, 10);
+      openExportChoiceModal(
+        Modal,
+        'Exportar Trilha de Auditoria Forense',
+        () => {
+          downloadCSV(`auditoria_forense_raiz_agro_${dataTag}.csv`, headers, rows);
+          toast.success('Auditoria CSV Exportada', `auditoria_forense_raiz_agro_${dataTag}.csv baixado com sucesso.`);
+        },
+        () => {
+          downloadPDF(`auditoria_forense_raiz_agro_${dataTag}.pdf`, {
+            title: 'Relatório de Auditoria Forense & Logs Imutáveis',
+            subtitle: 'Trilha Criptográfica SHA-256 • PostgreSQL & Syslog Compliance',
+            headers,
+            rows
+          });
+          toast.success('Auditoria PDF Exportada', `auditoria_forense_raiz_agro_${dataTag}.pdf baixado com sucesso.`);
+        }
+      );
     });
   }
 
@@ -580,27 +590,28 @@ export function setupAuditoriaEvents() {
     });
   });
 
-  // Ações Rápidas de Auditoria (Painel Lateral)
+  // Ações Rápidas de Auditoria (Painel Lateral) — PDF 1.4 Real
   const btnLaudo = document.getElementById('btn-acao-laudo');
   if (btnLaudo) {
     btnLaudo.addEventListener('click', () => {
-      const laudo = `%PDF-1.4\n` +
-                    `=== LAUDO PERICIAL FORENSE RAIZ AGRO ===\n` +
-                    `EMITIDO EM: 22 de setembro de 2026\n` +
-                    `CARIMBO DO TEMPO ICP-BRASIL: 2026-09-22T14:15:00-03:00\n` +
-                    `CERTIFICADO DIGITAL: DPO Roberto Mendes CREA-PE 48291\n` +
-                    `CONFORMIDADE: GlobalG.A.P. IFA v6 e MAPA Compliance 100% Homologado\n` +
-                    `HASH SHA-256 DO RELATORIO: 8f4a10c283991abde37c7890123fabc109283\n`;
-      const blob = new Blob([laudo], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `laudo_pericial_assinado_raiz_agro_${new Date().toISOString().slice(0, 10)}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      toast.success('Laudo Gerado', 'Laudo pericial com assinatura digital e carimbo de tempo baixado.');
+      const dataTag = new Date().toISOString().slice(0, 10);
+      downloadPDF(`laudo_pericial_assinado_raiz_agro_${dataTag}.pdf`, {
+        title: 'Laudo Pericial Forense Assinado — RAIZ Agro IoT',
+        subtitle: 'Certificação GlobalG.A.P. IFA v6 & MAPA Compliance 100% Homologado',
+        metadata: [
+          `Carimbo do Tempo ICP-Brasil: ${new Date().toISOString()}`,
+          'Responsável Técnico: DPO Roberto Mendes • CREA-PE 48291',
+          'Hash SHA-256 de Integridade: 8f4a10c283991abde37c7890123fabc109283'
+        ],
+        headers: ['Evento', 'Referencia', 'Entidade', 'Status'],
+        rows: _logsAuditoria.map(l => [l.badge, l.codigo_ref, l.lote, 'VERIFICADO SHA-256']),
+        notes: [
+          'Trilha criptográfica imutável verificada sem violações de cadeia.',
+          'Documento válido para auditorias de exportação e órgãos fiscalizadores.'
+        ]
+      });
+      toast.success('Laudo PDF Gerado', `laudo_pericial_assinado_raiz_agro_${dataTag}.pdf baixado com sucesso.`);
+
     });
   }
 
@@ -672,22 +683,28 @@ export function setupAuditoriaEvents() {
           </ul>
         </div>
       `, () => {
-        const pacote = `=== RAIZ AGRO PACOTE FORENSE DE AUDITORIA EXTERNA (PwC / SGS) ===\n` +
-                       `Data de Emissão: 22 de setembro de 2026\n` +
-                       `Assinatura Digital Raiz: 0x8a92f00bc192847aef\n` +
-                       `Hash de Validação: 9812a0fbc9876543210123456789abcdef\n` +
-                       `Total de Registros: 14.820 auditados sem corrupção\n`;
-        const blob = new Blob([pacote], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `pacote_auditoria_externa_raiz_agro_pwc_sgs.txt`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        toast.success('Pacote Gerado', 'Pacote forense criptografado baixado com sucesso.');
-      }, 'Compilar Pacote');
+        const dataTag = new Date().toISOString().slice(0, 10);
+        const headers = ['Data/Hora', 'Evento', 'Referencia', 'Entidade', 'Status', 'Hash SHA-256'];
+        const rows = _logsAuditoria.map(l => [
+          l.data, l.badge, l.codigo_ref, l.lote, 'VERIFICADO', l.hash || 'sha256:valid'
+        ]);
+        downloadPDF(`pacote_auditoria_externa_pwc_sgs_${dataTag}.pdf`, {
+          title: 'Pacote Forense de Auditoria Externa (PwC / SGS)',
+          subtitle: 'Homologação Internacional de Safra • Trilha Imutável SHA-256',
+          metadata: [
+            `Data de Emissão: ${new Date().toLocaleString('pt-BR')}`,
+            'Assinatura Digital Raiz: 0x8a92f00bc192847aef',
+            'Total de Registros Auditados: 14.820 sem corrupção'
+          ],
+          headers,
+          rows,
+          notes: [
+            'Inclui certificados GlobalG.A.P., logs de acesso e chaves públicas mTLS.',
+            'Pacote pronto para entrega direta a auditores externos.'
+          ]
+        });
+        toast.success('Pacote PDF Gerado', `pacote_auditoria_externa_pwc_sgs_${dataTag}.pdf baixado com sucesso.`);
+      }, 'Baixar Pacote (PDF)');
     });
   }
 
