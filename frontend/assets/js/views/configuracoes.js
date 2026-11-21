@@ -1209,18 +1209,6 @@ export async function renderConfiguracoes() {
         `}
       </div>
     </div>
-      <div>
-        ${isAdmin ? `
-          <button id="btn-salvar-configuracoes-admin" style="padding:11px 26px; background:#059669; color:#fff; border:none; border-radius:10px; font-size:13px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:8px; box-shadow:0 4px 14px rgba(5,150,105,.28); transition:transform .15s, opacity .2s;" onmouseover="this.style.opacity='.9'" onmouseout="this.style.opacity='1'">
-            <i data-lucide="save" style="width:15px;height:15px;"></i> Salvar Configurações do Sistema
-          </button>
-        ` : `
-          <button id="btn-solicitar-mudanca" style="padding:11px 24px; background:#DC2626; color:#fff; border:none; border-radius:10px; font-size:13px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:8px; box-shadow:0 4px 14px rgba(220,38,38,.28); transition:transform .15s, opacity .2s;" onmouseover="this.style.opacity='.9'" onmouseout="this.style.opacity='1'">
-            <i data-lucide="send" style="width:14px;height:14px;"></i> Solicitar Mudança ao Administrador
-          </button>
-        `}
-      </div>
-    </div>
 
   </div>
   `;

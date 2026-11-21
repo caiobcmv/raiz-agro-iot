@@ -4,14 +4,14 @@
 
 import { api } from './api.js';
 import { auth } from './auth.js';
-import { renderSidebar } from './components/sidebar.js?v=20261120-live31';
-import { renderHeader } from './components/header.js?v=20261120-live31';
-import { Modal } from './components/modal.js?v=20261120-live31';
-import { toast } from './components/toast.js?v=20261120-live31';
-import { showAccessDeniedModal } from './components/access-denied-modal.js?v=20261120-live31';
+import { renderSidebar } from './components/sidebar.js?v=20261120-live32';
+import { renderHeader } from './components/header.js?v=20261120-live32';
+import { Modal } from './components/modal.js?v=20261120-live32';
+import { toast } from './components/toast.js?v=20261120-live32';
+import { showAccessDeniedModal } from './components/access-denied-modal.js?v=20261120-live32';
 
 // Importação das Views
-import { renderLogin, setupLoginEvents } from './views/login.js?v=20261120-live31';
+import { renderLogin, setupLoginEvents } from './views/login.js?v=20261120-live32';
 import {
   renderPrimeiroAcesso, setupPrimeiroAcessoEvents,
   renderRecuperarSenha, setupRecuperarSenhaEvents,
@@ -19,21 +19,21 @@ import {
   renderRedefinirSenha, setupRedefinirSenhaEvents,
   renderSenhaAlterada, setupSenhaAlteradaEvents,
   renderContaBloqueada, setupContaBloqueadaEvents
-} from './views/auth-flow.js?v=20261120-live31';
-import { renderDashboard, setupDashboardEvents } from './views/dashboard.js?v=20261120-live31';
-import { renderSensores, setupSensoresEvents } from './views/sensores.js?v=20261120-live31';
-import { renderRedeEsp32, setupRedeEsp32Events } from './views/rede-esp32.js?v=20261120-live31';
-import { renderLeituras, setupLeiturasEvents } from './views/leituras.js?v=20261120-live31';
-import { renderLotes, setupLotesEvents } from './views/lotes.js?v=20261120-live31';
-import { renderViagens, setupViagensEvents } from './views/viagens.js?v=20261120-live31';
-import { renderAlertas, setupAlertasEvents } from './views/alertas.js?v=20261120-live31';
-import { renderPrevisoes } from './views/previsoes.js?v=20261120-live31';
-import { renderRelatorios, setupRelatoriosEvents } from './views/relatorios.js?v=20261120-live31';
-import { renderConfiguracoes, setupConfiguracoesEvents } from './views/configuracoes.js?v=20261120-live31';
-import { renderUsuarios, setupUsuariosEvents } from './views/usuarios.js?v=20261120-live31';
-import { renderRegrasAgronomicas, setupRegrasAgronomicasEvents } from './views/regras-agronomicas.js?v=20261120-live31';
-import { renderAuditoria, setupAuditoriaEvents } from './views/auditoria.js?v=20261120-live31';
-import { renderSensoresAdmin, setupSensoresAdminEvents } from './views/sensores-admin.js?v=20261120-live31';
+} from './views/auth-flow.js?v=20261120-live32';
+import { renderDashboard, setupDashboardEvents } from './views/dashboard.js?v=20261120-live32';
+import { renderSensores, setupSensoresEvents } from './views/sensores.js?v=20261120-live32';
+import { renderRedeEsp32, setupRedeEsp32Events } from './views/rede-esp32.js?v=20261120-live32';
+import { renderLeituras, setupLeiturasEvents } from './views/leituras.js?v=20261120-live32';
+import { renderLotes, setupLotesEvents } from './views/lotes.js?v=20261120-live32';
+import { renderViagens, setupViagensEvents } from './views/viagens.js?v=20261120-live32';
+import { renderAlertas, setupAlertasEvents } from './views/alertas.js?v=20261120-live32';
+import { renderPrevisoes } from './views/previsoes.js?v=20261120-live32';
+import { renderRelatorios, setupRelatoriosEvents } from './views/relatorios.js?v=20261120-live32';
+import { renderConfiguracoes, setupConfiguracoesEvents } from './views/configuracoes.js?v=20261120-live32';
+import { renderUsuarios, setupUsuariosEvents } from './views/usuarios.js?v=20261120-live32';
+import { renderRegrasAgronomicas, setupRegrasAgronomicasEvents } from './views/regras-agronomicas.js?v=20261120-live32';
+import { renderAuditoria, setupAuditoriaEvents } from './views/auditoria.js?v=20261120-live32';
+import { renderSensoresAdmin, setupSensoresAdminEvents } from './views/sensores-admin.js?v=20261120-live32';
 
 const routes = {
   '#/login': {
