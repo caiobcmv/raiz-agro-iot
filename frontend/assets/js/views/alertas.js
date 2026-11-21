@@ -1432,7 +1432,8 @@ export function setupAlertasEvents() {
   setupGestoraAlertasEvents();
 }
 
-function setupGestoraAlertasEvents()   if (window.lucide) {
+function setupGestoraAlertasEvents() {
+  if (window.lucide) {
     window.lucide.createIcons();
   }
 
