@@ -66,10 +66,10 @@ O frontend se conecta automaticamente à API FastAPI rodando em `http://localhos
 
 ---
 
-## 🛠 Bibliotecas Utilizadas
+## 🛠 Bibliotecas e Recursos Utilizados
 
-- **Chart.js 4.4**: Gráficos de telemetria climática e histórico.
-- **Leaflet 1.9**: Cartografia e rastreamento geoespacial de carretas e portos.
-- **Lucide Icons**: Ícones minimalistas modernos.
-- **Google Fonts**: Space Grotesk, Plus Jakarta Sans e Inter.
+- **Chart.js 4.4:** biblioteca utilizada para a implementação de gráficos de telemetria climática e visualização de dados históricos.
+- **Leaflet 1.9:** biblioteca utilizada para recursos de cartografia e rastreamento geoespacial de carretas e portos.
+- **Lucide Icons:** conjunto de ícones vetoriais utilizado na composição dos elementos visuais da interface.
+- **Google Fonts:** serviço de disponibilização de fontes tipográficas, utilizado para integração das famílias Space Grotesk, Plus Jakarta Sans e Inter.
 
