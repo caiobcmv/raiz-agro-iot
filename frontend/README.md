@@ -44,8 +44,7 @@ O frontend se conecta automaticamente à API FastAPI rodando em `http://localhos
 - **Alertas**: `GET /alertas/`, `PATCH /alertas/{id}/status`
 - **Parâmetros**: `GET /config_parametros/`
 
-> **Modo Demonstração Automático:** Se o backend ainda não estiver em execução, o frontend ativa o modo demonstração com dados realistas (Manga Tommy, Uva, Melão, ThingSpeak DHT11 ESP32, Portos de Pecém e Suape), permitindo testar e navegar por todas as telas e funcionalidades sem travamentos.
-
+> **Modo de Demonstração Automático:** Caso o backend não esteja em execução, o frontend realiza a ativação automática do modo de demonstração, utilizando dados realistas relacionados às culturas de Manga Tommy, Uva e Melão, ao dispositivo ThingSpeak DHT11 ESP32 e aos portos de Pecém e Suape. Esse modo possibilita a navegação e a utilização de todas as telas e funcionalidades disponíveis na aplicação, sem interrupções durante a execução.
 ---
 
 ## 📂 Estrutura de Rotas e Telas
