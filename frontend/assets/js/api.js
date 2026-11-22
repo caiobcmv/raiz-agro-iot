@@ -32,6 +32,114 @@ class ApiService {
     this.currentLoginEmail = null;
   }
 
+  // Renova o access_token utilizando o refresh_token salvo no localStorage
+  async refreshToken() {
+    const refreshToken = localStorage.getItem('refresh_token');
+    if (!refreshToken) {
+      throw new Error('Nenhum refresh token disponível no cliente');
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+    try {
+      const res = await fetch(`${this.baseUrl}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      if (!res.ok) {
+        const err = new Error(`Falha ao renovar token (${res.status})`);
+        err.status = res.status;
+        throw err;
+      }
+
+      const data = await res.json();
+      if (data && data.access_token) {
+        this.setTokens(data.access_token, data.refresh_token || refreshToken);
+        return data.access_token;
+      }
+      throw new Error('Resposta de refresh inválida');
+    } catch (error) {
+      clearTimeout(timeoutId);
+      throw error;
+    }
+  }
+
+  // Solicita ticket de uso único para o Server-Sent Events (POST /dashboard/stream/ticket)
+  async getDashboardStreamTicket() {
+    let token = this.getToken();
+    if (!token) {
+      const err = new Error('Usuário não autenticado');
+      err.status = 401;
+      throw err;
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+    try {
+      let res = await fetch(`${this.baseUrl}/dashboard/stream/ticket`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        signal: controller.signal
+      });
+
+      // Se deu 401, tenta renovar o token UMA vez
+      if (res.status === 401) {
+        try {
+          const novoToken = await this.refreshToken();
+          if (novoToken) {
+            token = novoToken;
+            res = await fetch(`${this.baseUrl}/dashboard/stream/ticket`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              signal: controller.signal
+            });
+          }
+        } catch (refreshErr) {
+          const authErr = new Error('Sessão expirada. Faça login novamente.');
+          authErr.status = 401;
+          throw authErr;
+        }
+      }
+
+      clearTimeout(timeoutId);
+
+      if (res.status === 401 || res.status === 403) {
+        const err = new Error('Acesso não autorizado para o stream');
+        err.status = res.status;
+        throw err;
+      }
+
+      if (res.status === 503) {
+        const err = new Error('Capacidade máxima de conexões atingida (503)');
+        err.status = 503;
+        throw err;
+      }
+
+      if (!res.ok) {
+        const err = new Error(`Erro ao solicitar ticket SSE (${res.status})`);
+        err.status = res.status;
+        throw err;
+      }
+
+      return await res.json();
+    } catch (error) {
+      clearTimeout(timeoutId);
+      throw error;
+    }
+  }
+
   // Verifica conectividade com o backend FastAPI
   async checkHealth() {
     try {

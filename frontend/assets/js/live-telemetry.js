@@ -5,10 +5,12 @@
  */
 
 import { api } from './api.js';
+import { dashboardStream } from './dashboard-stream.js';
 
 class LiveTelemetryService {
   constructor() {
     this.eventSource = null;
+    this.unsubscribeStream = null;
     this.intervalId = null;
     this.simulatedPulseId = null;
     this.currentData = {
@@ -39,6 +41,10 @@ class LiveTelemetryService {
   }
 
   stop() {
+    if (this.unsubscribeStream) {
+      this.unsubscribeStream();
+      this.unsubscribeStream = null;
+    }
     if (this.eventSource) {
       try {
         this.eventSource.close();
@@ -55,40 +61,30 @@ class LiveTelemetryService {
     }
   }
 
-  // Inicializa o EventSource nativo (SSE)
+  // Inicializa a escuta do stream SSE único via dashboardStream
   initSSE() {
-    try {
-      const sseUrl = `${api.baseUrl}/dashboard/stream`;
-      this.eventSource = new EventSource(sseUrl);
+    if (this.unsubscribeStream) {
+      this.unsubscribeStream();
+      this.unsubscribeStream = null;
+    }
 
-      this.eventSource.onopen = () => {
-        console.log('[SSE LIVE] Conectado ao stream de telemetria em tempo real:', sseUrl);
-        // Desativa a simulação caso o SSE real esteja conectado e ativo
-        if (this.simulatedPulseId) {
-          clearInterval(this.simulatedPulseId);
-          this.simulatedPulseId = null;
-        }
-      };
+    this.unsubscribeStream = dashboardStream.subscribe((payload) => {
+      this.applyLiveReading(payload);
+      if (this.simulatedPulseId) {
+        clearInterval(this.simulatedPulseId);
+        this.simulatedPulseId = null;
+      }
+    });
 
-      this.eventSource.onmessage = (event) => {
-        try {
-          const payload = JSON.parse(event.data);
-          this.applyLiveReading(payload);
-        } catch (err) {
-          console.warn('[SSE LIVE] Erro ao decodificar evento SSE:', err);
-        }
-      };
-
-      this.eventSource.onerror = () => {
-        // Fallback resiliente: enquanto o backend não estiver com a rota /stream ligada,
-        // aciona o ciclo suave de respiração no frontend para não travar a visualização
+    dashboardStream.onStatusChange((status) => {
+      if (status === 'reconectando' || status === 'servidor_cheio' || status === 'desconectado') {
         if (!this.simulatedPulseId) {
           this.startSimulatedBreath();
         }
-      };
-    } catch (e) {
-      this.startSimulatedBreath();
-    }
+      }
+    });
+
+    dashboardStream.start();
   }
 
   // Ciclo de "respiração" autônomo (oscilação fisiológica realista de sensor a cada 3.5s)

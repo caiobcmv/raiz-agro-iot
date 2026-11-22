@@ -1,6 +1,5 @@
-const API_URL = "http://localhost:8000";
-
 import { liveTelemetry } from '../live-telemetry.js';
+import { dashboardStream } from '../dashboard-stream.js';
 /**
  * VIEW: DASHBOARD PRINCIPAL - COM SUPORTE AOS MODOS RESUMIDO E DETALHADO DO FIGMA
  * E SUPORTE COMPLETO AO PERFIL ANALISTA (LUIZ FELIPE)
@@ -170,59 +169,29 @@ function atualizarDashboardComSSE(data) {
   }
 }
 
+let unsubscribeDashboardSSE = null;
+
 function iniciarSSEDashboard() {
-  if (sseConnection) {
-    try { sseConnection.close(); } catch (e) {}
-    sseConnection = null;
+  if (unsubscribeDashboardSSE) {
+    unsubscribeDashboardSSE();
+    unsubscribeDashboardSSE = null;
   }
 
-  const sseUrl = `${API_URL}/dashboard/stream`;
-  let es = null;
-  try {
-    es = new EventSource(sseUrl);
-    sseConnection = es;
-  } catch (err) {
-    console.warn('[SSE] Falha ao instanciar EventSource:', err);
-    return;
-  }
+  unsubscribeDashboardSSE = dashboardStream.subscribe((data) => {
+    atualizarDashboardComSSE(data);
+  });
 
-  es.onopen = () => {
-    // Esconder aviso no onopen
-    document.querySelectorAll('.sse-aviso-reconectando, #sse-aviso-reconectando, #sse-aviso-reconectando-detalhado').forEach(el => {
-      el.style.display = 'none';
-    });
-  };
-
-  es.onmessage = (e) => {
-    try {
-      const data = JSON.parse(e.data);
-      atualizarDashboardComSSE(data);
-    } catch (err) {
-      console.warn('Erro ao decodificar JSON do SSE:', err);
-    }
-  };
-
-  es.onerror = () => {
-    // Mostrar aviso "Reconectando..." no onerror sem chamar es.close()
-    document.querySelectorAll('.sse-aviso-reconectando, #sse-aviso-reconectando, #sse-aviso-reconectando-detalhado').forEach(el => {
-      el.style.display = 'inline-flex';
-    });
-  };
+  dashboardStream.start();
 
   // Encerra SSE no evento beforeunload
   window.addEventListener('beforeunload', () => {
-    if (es) {
-      es.close();
-    }
+    dashboardStream.stop();
   });
 
   // Encerra SSE se o usuário navegar para fora do dashboard no modo SPA
   window.addEventListener('hashchange', () => {
     if (window.location.hash !== '#/' && window.location.hash !== '#/dashboard') {
-      if (sseConnection) {
-        sseConnection.close();
-        sseConnection = null;
-      }
+      dashboardStream.stop();
     }
   });
 }

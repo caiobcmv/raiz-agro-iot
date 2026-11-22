@@ -386,6 +386,9 @@ class AuthState {
   }
 
   logout() {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('auth-logout'));
+    }
     api.clearTokens();
     this.user = null;
     this.activeProfile = null;
