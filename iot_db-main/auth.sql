@@ -1,5 +1,6 @@
 -- =====================================================================
 -- Migração de AUTENTICAÇÃO (login, refresh token, 2º fator por e-mail)
+-- Roda depois do schema.sql (depende de usuario e log_acesso).
 -- Pode ser rodada mais de uma vez (idempotente). Não altera nenhuma
 -- tabela existente de dados: só cria duas tabelas, um índice e, se
 -- preciso, alarga uma coluna de log_acesso.
@@ -58,10 +59,38 @@ BEGIN
     END IF;
 END $$;
 
+-- Tokens de recuperação de senha (só o hash SHA-256 é guardado; o token em si vai só no e-mail)
+CREATE TABLE IF NOT EXISTS senha_reset_token (
+    id_reset              BIGSERIAL PRIMARY KEY,
+    fk_usuario_id_usuario INTEGER     NOT NULL REFERENCES usuario(id_usuario) ON DELETE CASCADE,
+    token_hash            CHAR(64)    NOT NULL UNIQUE,
+    criado_em             TIMESTAMPTZ NOT NULL DEFAULT now(),
+    expira_em             TIMESTAMPTZ NOT NULL,
+    usado_em              TIMESTAMPTZ,
+    ip                    TEXT
+);
+
+-- Dono dos dispositivos e lotes (base da proteção contra IDOR).
+-- Rodar uma vez em cada banco.
+ALTER TABLE lote ADD COLUMN IF NOT EXISTS fk_usuario_id_usuario INTEGER REFERENCES usuario(id_usuario);
+ALTER TABLE sensor ADD COLUMN IF NOT EXISTS fk_usuario_id_usuario INTEGER REFERENCES usuario(id_usuario);
+CREATE INDEX IF NOT EXISTS idx_lote_dono ON lote(fk_usuario_id_usuario);
+CREATE INDEX IF NOT EXISTS idx_sensor_dono ON sensor(fk_usuario_id_usuario);
+
+-- Backfill: ajuste o id do Produtor/Exportador que será dono dos dados existentes.
+-- UPDATE lote   SET fk_usuario_id_usuario = <ID_DO_PRODUTOR> WHERE fk_usuario_id_usuario IS NULL;
+-- Sensores com lote herdam o dono do lote; sensores sem lote precisam de dono explícito:
+UPDATE sensor s
+   SET fk_usuario_id_usuario = l.fk_usuario_id_usuario
+  FROM lote l
+ WHERE l.id_lote = s.fk_lote_id_lote AND s.fk_usuario_id_usuario IS NULL;
+-- UPDATE sensor SET fk_usuario_id_usuario = <ID_DO_PRODUTOR> WHERE fk_usuario_id_usuario IS NULL;
+
+
+CREATE INDEX IF NOT EXISTS ix_senha_reset_usuario ON senha_reset_token (fk_usuario_id_usuario, criado_em DESC);
+
 -- O primeiro Administrador NÃO entra aqui (tem hash de senha). Crie assim:
---   INSERT INTO usuario (id_usuario, nome, email, senha, status, fk_perfil_id_perfil)
---   VALUES (3, 'Lorena Lira', 'lorena.lira@raizagro.agr.br', '<hash argon2>', 'ativo',
---           (SELECT id_perfil FROM perfil WHERE nome = 'Administrador'))
---   ON CONFLICT (id_usuario) DO UPDATE SET nome = EXCLUDED.nome, email = EXCLUDED.email;
--- Ou para atualizar banco existente:
---   UPDATE usuario SET nome = 'Lorena Lira', email = 'lorena.lira@raizagro.agr.br' WHERE id_usuario = 3;
+--   INSERT INTO usuario (nome, email, senha, status, fk_perfil_id_perfil)
+--   VALUES ('Nome', 'email@real.com', '<hash argon2>', 'ativo',
+--           (SELECT id_perfil FROM perfil WHERE nome = 'Administrador'));
+

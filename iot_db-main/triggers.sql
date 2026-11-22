@@ -23,14 +23,16 @@ DECLARE
     v_temp_fora_ant BOOLEAN := FALSE;
     v_umid_fora_ant BOOLEAN := FALSE;
 BEGIN
-    -- etapa do lote do sensor
+    -- etapa do lote do sensor (só sensores de AR: a faixa ideal é de temperatura/umidade do ar;
+    -- sensor de solo mede o solo, que tem outra faixa ideal, e por isso não passa por esta função)
     SELECT fn_etapa_lote(l.status) INTO v_etapa
     FROM sensor s
     JOIN lote l ON l.id_lote = s.fk_lote_id_lote
-    WHERE s.id_sensor = NEW.fk_sensor_id_sensor;
+    WHERE s.id_sensor = NEW.fk_sensor_id_sensor
+      AND s.ambiente = 'ar';
 
     IF v_etapa IS NULL THEN
-        RETURN NEW;  -- sem sensor, lote ou status
+        RETURN NEW;  -- sem sensor de ar, lote ou status
     END IF;
 
     -- faixa da fruta para a etapa. Transporte cai em armazenamento se não houver faixa própria.
@@ -56,8 +58,8 @@ BEGIN
     SELECT temperatura, umidade INTO v_ant
     FROM leitura_climatica
     WHERE fk_sensor_id_sensor = NEW.fk_sensor_id_sensor
-      AND id_leitura < NEW.id_leitura
-    ORDER BY id_leitura DESC
+      AND (data_hora, id_leitura) < (NEW.data_hora, NEW.id_leitura)
+    ORDER BY data_hora DESC, id_leitura DESC
     LIMIT 1;
 
     IF FOUND THEN
@@ -103,3 +105,49 @@ DROP TRIGGER IF EXISTS trg_bloquear_delete_usuario ON usuario;
 CREATE TRIGGER trg_bloquear_delete_usuario
 BEFORE DELETE ON usuario
 FOR EACH ROW EXECUTE FUNCTION fn_bloquear_delete_usuario();
+
+-- A variedade do lote precisa pertencer à fruta do lote
+CREATE OR REPLACE FUNCTION fn_lote_variedade_coerente()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.fk_variedade_id_variedade IS NOT NULL AND NOT EXISTS (
+        SELECT 1 FROM variedade v
+        WHERE v.id_variedade = NEW.fk_variedade_id_variedade
+          AND v.fk_fruta_id_fruta = NEW.fk_fruta_id_fruta
+    ) THEN
+        RAISE EXCEPTION 'Variedade % não pertence à fruta % do lote',
+            NEW.fk_variedade_id_variedade, NEW.fk_fruta_id_fruta;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_lote_variedade_coerente ON lote;
+CREATE TRIGGER trg_lote_variedade_coerente
+BEFORE INSERT OR UPDATE OF fk_fruta_id_fruta, fk_variedade_id_variedade ON lote
+FOR EACH ROW EXECUTE FUNCTION fn_lote_variedade_coerente();
+
+-- Sensor de SOLO só mede umidade do solo. A ingestão grava toda leitura em `umidade`;
+-- aqui o valor também é copiado para `umidade_solo` (coluna oficial do solo). `umidade` continua
+-- preenchida porque o backend (previsao_repo.ultima_leitura) e o dashboard ainda leem daí;
+-- as médias de ar nas views ignoram sensor de solo.
+CREATE OR REPLACE FUNCTION fn_leitura_solo()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM sensor s
+               WHERE s.id_sensor = NEW.fk_sensor_id_sensor AND s.ambiente = 'solo') THEN
+        IF NEW.umidade_solo IS NULL THEN
+            NEW.umidade_solo := NEW.umidade;
+        END IF;
+        IF NEW.umidade IS NULL THEN
+            NEW.umidade := NEW.umidade_solo;
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_leitura_solo ON leitura_climatica;
+CREATE TRIGGER trg_leitura_solo
+BEFORE INSERT ON leitura_climatica
+FOR EACH ROW EXECUTE FUNCTION fn_leitura_solo();

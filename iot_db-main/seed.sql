@@ -1,8 +1,11 @@
 -- seed.sql
--- Dados iniciais do banco. Pode rodar mais de uma vez: só insere o que não existe
--- e atualiza as faixas ideais de config_parametro.
--- Ordem: schema -> restricoes -> seed -> triggers -> views
--- Ajuste os valores da seção CONFIG antes de rodar.
+-- Script de carga inicial do banco de dados, com execução idempotente,
+-- permitindo reexecuções sem duplicação de registros existentes.
+-- Realiza a inserção de dados ausentes e a atualização dos parâmetros
+-- de configuração definidos em config_parametro.
+-- Ordem de execução: schema -> restricoes -> seed -> triggers -> views.
+-- Os valores da seção CONFIG devem ser revisados e ajustados previamente
+-- à execução do script.
 
 DO $$
 DECLARE
@@ -138,6 +141,3 @@ INSERT INTO cortes_alerta_preditivo (nivel, limiar_min, limiar_max, acao_recomen
 ('MEDIO', 0.50, 0.79, 'Ajuste preventivo do ambiente e verificacao dos sistemas de refrigeracao'),
 ('CRITICO', 0.80, 1.00, 'Intervencao logistica e operacional imediata no lote')
 ON CONFLICT (nivel) DO NOTHING;
-
--- Atualiza usuário Administrador para Lorena Lira se o banco já tiver o usuário 3
-UPDATE usuario SET nome = 'Lorena Lira', email = 'lorena.lira@raizagro.agr.br' WHERE id_usuario = 3;
