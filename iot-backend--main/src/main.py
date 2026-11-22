@@ -3,6 +3,7 @@ import time
 from src import config, thingspeak_client, database
 from src import agendador
 from src.api.services import notificacao
+from src.api.app import app  # Instância top-level FastAPI para servidores ASGI (uvicorn/plataformas de deploy)
 
 def main():
     print(f"Conectando no canal ThingSpeak {config.THINGSPEAK_CHANNEL_ID}...")
