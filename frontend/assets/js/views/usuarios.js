@@ -341,12 +341,12 @@ export async function renderUsuarios() {
 
         <!-- Paginação inferior -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; font-size: 11px; color: #64748B;">
-          <span>Exibindo 1-6 de 12 usuários</span>
+          <span id="users-pag-info">Exibindo 1-6 de 12 usuários</span>
           <div style="display: flex; gap: 6px;">
-            <button style="padding: 4px 10px; border: 1px solid #CBD5E1; background: #FFFFFF; border-radius: 4px; cursor: pointer;">&lt; Anterior</button>
-            <button style="padding: 4px 10px; border: 1px solid #183D2E; background: #183D2E; color: #FFFFFF; border-radius: 4px; font-weight: 700;">1</button>
-            <button style="padding: 4px 10px; border: 1px solid #CBD5E1; background: #FFFFFF; border-radius: 4px; cursor: pointer;">2</button>
-            <button style="padding: 4px 10px; border: 1px solid #CBD5E1; background: #FFFFFF; border-radius: 4px; cursor: pointer;">Próximo &gt;</button>
+            <button class="btn-pag-user" data-page="prev" style="padding: 4px 10px; border: 1px solid #CBD5E1; background: #FFFFFF; border-radius: 4px; cursor: pointer;">&lt; Anterior</button>
+            <button class="btn-pag-user active" data-page="1" style="padding: 4px 10px; border: 1px solid #183D2E; background: #183D2E; color: #FFFFFF; border-radius: 4px; font-weight: 700; cursor: pointer;">1</button>
+            <button class="btn-pag-user" data-page="2" style="padding: 4px 10px; border: 1px solid #CBD5E1; background: #FFFFFF; border-radius: 4px; cursor: pointer;">2</button>
+            <button class="btn-pag-user" data-page="next" style="padding: 4px 10px; border: 1px solid #CBD5E1; background: #FFFFFF; border-radius: 4px; cursor: pointer;">Próximo &gt;</button>
           </div>
         </div>
       </div>
@@ -408,22 +408,68 @@ export function setupUsuariosEvents() {
     });
   }
 
-  // Ações da tabela
+  // Ações da tabela (Editar, Permissões RBAC, Bloquear/Soft-Delete dinâmicos)
   document.querySelectorAll('.btn-acao-user').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const acao = e.currentTarget.dataset.acao;
       const id = e.currentTarget.dataset.id;
+      const row = e.currentTarget.closest('tr');
+      const nomeUser = row?.querySelector('td')?.textContent?.trim()?.split('\n')[0] || `Usuário #${id}`;
       if (acao === 'editar') {
-        toast.info('Editar Cadastro', `Abrindo formulário de edição do usuário #${id}`);
+        Modal.open(`Editar Cadastro — ${nomeUser}`, `
+          <div style="display:flex; flex-direction:column; gap:10px; font-size:12px; color:#334155;">
+            <label>Nome Completo:<input id="edit-user-nome" value="${nomeUser.replace(/"/g, '&quot;')}" style="width:100%; padding:8px; border:1px solid #CBD5E1; border-radius:6px; margin-top:4px; box-sizing:border-box;"></label>
+            <label>Papel RBAC:
+              <select id="edit-user-perfil" style="width:100%; padding:8px; border:1px solid #CBD5E1; border-radius:6px; margin-top:4px;">
+                <option>Produtor / Exportador</option>
+                <option>Analista de Dados</option>
+                <option>Administrador</option>
+              </select>
+            </label>
+          </div>
+        `, () => {
+          toast.success('Cadastro Atualizado', `Alterações de ${nomeUser} gravadas com auditoria em log_acesso.`);
+        }, 'Salvar Alterações');
       } else if (acao === 'permissoes') {
-        toast.info('Matriz de Permissões', `Ajustando chaves RBAC do usuário #${id}`);
+        Modal.open(`Matriz RBAC — ${nomeUser}`, `
+          <div style="font-size:12px; color:#475569; display:flex; flex-direction:column; gap:8px;">
+            <label style="display:flex; align-items:center; gap:8px;"><input type="checkbox" checked> Leitura de Telemetria e Dashboard</label>
+            <label style="display:flex; align-items:center; gap:8px;"><input type="checkbox" checked> Exportação de Relatórios (PDF / CSV)</label>
+            <label style="display:flex; align-items:center; gap:8px;"><input type="checkbox"> Edição de Limiares Fisiológicos (config_parametro)</label>
+            <label style="display:flex; align-items:center; gap:8px;"><input type="checkbox"> Governança de Usuários &amp; Auditoria</label>
+          </div>
+        `, () => {
+          toast.success('Permissões Atualizadas', `Escopo RBAC de ${nomeUser} sincronizado.`);
+        }, 'Aplicar RBAC');
       } else if (acao === 'bloquear') {
-        toast.warning('Bloqueio de Acesso', `Status do usuário #${id} alterado para inativo via soft-delete.`);
+        if (row) {
+          row.style.opacity = row.style.opacity === '0.55' ? '1' : '0.55';
+        }
+        toast.warning('Soft-Delete Aplicado', `Status de ${nomeUser} alternado via fn_bloquear_delete_usuario.`);
       }
     });
   });
 
-  // Filtros tabs
+  // Busca em tempo real na tabela de usuários
+  const buscaUserInput = document.querySelector('input[placeholder*="Buscar por nome"]');
+  let filtroPerfilAtual = 'todos';
+  const filtrarTabelaUsuarios = () => {
+    const termo = (buscaUserInput?.value || '').toLowerCase().trim();
+    document.querySelectorAll('tbody tr').forEach(tr => {
+      const txt = tr.textContent.toLowerCase();
+      const matchTermo = !termo || txt.includes(termo);
+      const matchPerfil =
+        filtroPerfilAtual === 'todos' ||
+        (filtroPerfilAtual === 'produtores' && txt.includes('produtor')) ||
+        (filtroPerfilAtual === 'analistas' && txt.includes('analista')) ||
+        (filtroPerfilAtual === 'administradores' && txt.includes('administrador')) ||
+        (filtroPerfilAtual === 'ativos' && txt.includes('ativo'));
+      tr.style.display = (matchTermo && matchPerfil) ? '' : 'none';
+    });
+  };
+  buscaUserInput?.addEventListener('input', filtrarTabelaUsuarios);
+
+  // Filtros tabs dinâmicos
   document.querySelectorAll('.tab-filtro-user').forEach(tab => {
     tab.addEventListener('click', (e) => {
       document.querySelectorAll('.tab-filtro-user').forEach(t => {
@@ -434,7 +480,36 @@ export function setupUsuariosEvents() {
       e.currentTarget.style.background = '#183D2E';
       e.currentTarget.style.color = '#FFFFFF';
       e.currentTarget.classList.add('active');
-      toast.info('Filtro Aplicado', `Filtrando usuários por: ${e.currentTarget.innerText}`);
+      const label = e.currentTarget.innerText.toLowerCase();
+      if (label.includes('produtor')) filtroPerfilAtual = 'produtores';
+      else if (label.includes('analista')) filtroPerfilAtual = 'analistas';
+      else if (label.includes('admin')) filtroPerfilAtual = 'administradores';
+      else if (label.includes('ativo')) filtroPerfilAtual = 'ativos';
+      else filtroPerfilAtual = 'todos';
+      filtrarTabelaUsuarios();
+      toast.info('Filtro Aplicado', `Exibindo: ${e.currentTarget.innerText}`);
+    });
+  });
+
+  // Paginação de usuários
+  let pagAtualUser = 1;
+  document.querySelectorAll('.btn-pag-user').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const p = btn.dataset.page;
+      if (p === 'prev') pagAtualUser = Math.max(1, pagAtualUser - 1);
+      else if (p === 'next') pagAtualUser = Math.min(2, pagAtualUser + 1);
+      else pagAtualUser = Number(p) || 1;
+      document.querySelectorAll('.btn-pag-user').forEach(b => {
+        const isActive = Number(b.dataset.page) === pagAtualUser;
+        b.classList.toggle('active', isActive);
+        b.style.background = isActive ? '#183D2E' : '#FFFFFF';
+        b.style.color = isActive ? '#FFFFFF' : '#475569';
+        b.style.borderColor = isActive ? '#183D2E' : '#CBD5E1';
+        b.style.fontWeight = isActive ? '700' : '400';
+      });
+      const info = document.getElementById('users-pag-info');
+      if (info) info.textContent = pagAtualUser === 1 ? 'Exibindo 1-6 de 12 usuários' : 'Exibindo 7-12 de 12 usuários';
+      toast.info('Paginação de Usuários', `Página ${pagAtualUser} de 2 selecionada.`);
     });
   });
 }

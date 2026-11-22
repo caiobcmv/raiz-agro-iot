@@ -6,14 +6,14 @@
 import { auth } from '../auth.js';
 
 const PAGE_META_ADMIN = {
-  '#/dashboard':           { h2: 'Visão Geral do Sistema',                     sub: 'Gerencie os usuários cadastrados, perfis de acesso e permissões na plataforma.' },
-  '#/usuarios':            { h2: 'Gerenciamento de Usuários',                  sub: 'Gerencie os usuários cadastrados, perfis de acesso e permissões na plataforma.' },
-  '#/lotes':               { h2: 'Lotes e Safra',                              sub: 'Gerencie os usuários cadastrados, perfis de acesso e permissões na plataforma.' },
-  '#/sensores':            { h2: 'Sensores e Telemetria de Campo',             sub: 'Gerencie os usuários cadastrados, perfis de acesso e permissões na plataforma.' },
-  '#/relatorios':          { h2: 'Relatórios e Documentos Oficiais',           sub: 'Gerencie os usuários cadastrados, perfis de acesso e permissões na plataforma.' },
-  '#/regras-agronomicas':  { h2: 'Regras Agronômicas e Limiares Fisiológicos', sub: 'Gerencie os usuários cadastrados, perfis de acesso e permissões na plataforma.' },
-  '#/auditoria':           { h2: 'Auditoria e Logs do Sistema v4.2',           sub: 'Gerencie os usuários cadastrados, perfis de acesso e permissões na plataforma.' },
-  '#/configuracoes':       { h2: 'Configurações e Meu Perfil',                 sub: 'Gerencie preferências da fazenda, parâmetros de sensores, notificações e acessos.' }
+  '#/dashboard':           { h2: 'Visão Geral do Sistema',                       sub: 'Gerencie preferências da fazenda, parâmetros de sensores, notificações e acessos.' },
+  '#/usuarios':            { h2: 'Gerenciamento de Usuários',                    sub: 'Gerencie os usuários cadastrados, perfis de acesso e permissões na plataforma.' },
+  '#/lotes':               { h2: 'Lotes e Safra',                                sub: 'Gerencie os usuários cadastrados, perfis de acesso e permissões na plataforma.' },
+  '#/sensores':            { h2: 'Sensores & Telemetria de Campo',               sub: 'Gerencie os usuários cadastrados, perfis de acesso e permissões na plataforma.' },
+  '#/relatorios':          { h2: 'Relatórios & Documentos Oficiais',             sub: 'Gerencie os usuários cadastrados, perfis de acesso e permissões na plataforma.' },
+  '#/regras-agronomicas':  { h2: 'Regras Agronômicas & Limiares Fisiológicos',   sub: 'Gerencie os usuários cadastrados, perfis de acesso e permissões na plataforma.' },
+  '#/auditoria':           { h2: 'Auditoria & Logs do Sistema v4.2',             sub: 'Gerencie os usuários cadastrados, perfis de acesso e permissões na plataforma.' },
+  '#/configuracoes':       { h2: 'Configurações do Administrador',               sub: 'Gerenciamento global de parâmetros da fazenda, infraestrutura de telemetria, segurança e governança de dados.' }
 };
 
 const PAGE_META_GESTOR = {

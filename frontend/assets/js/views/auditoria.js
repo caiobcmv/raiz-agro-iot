@@ -122,13 +122,13 @@ export async function renderAuditoria() {
           </span>
         </div>
 
-        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
           <div style="display: flex; background: #F1F5F9; padding: 3px; border-radius: 8px; font-size: 11px;">
             <button class="btn-time-filter active" data-periodo="24h" style="padding: 5px 12px; border: none; background: #FFFFFF; border-radius: 6px; font-weight: 700; color: #0F172A; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">24 Horas</button>
             <button class="btn-time-filter" data-periodo="7d" style="padding: 5px 12px; border: none; background: transparent; border-radius: 6px; color: #64748B; cursor: pointer;">7 Dias</button>
             <button class="btn-time-filter" data-periodo="30d" style="padding: 5px 12px; border: none; background: transparent; border-radius: 6px; color: #64748B; cursor: pointer;">30 Dias</button>
           </div>
-          <button class="btn btn-primary" id="btn-exportar-auditoria-csv" style="background: #183D2E; color: #FFFFFF; border: none; font-size: 11px; font-weight: 700; padding: 8px 16px; border-radius: 6px; display: flex; align-items: center; gap: 6px; cursor: pointer; transition: all 0.2s;">
+          <button class="btn btn-primary" id="btn-exportar-auditoria-csv" style="background: #0F172A; color: #FFFFFF; border: none; font-size: 11px; font-weight: 700; padding: 8px 18px; border-radius: 9999px; display: flex; align-items: center; gap: 6px; cursor: pointer; transition: all 0.2s;">
             <i data-lucide="download" style="width: 13px; height: 13px;"></i>
             <span>Exportar Relatório (CSV/PDF)</span>
           </button>
@@ -136,71 +136,76 @@ export async function renderAuditoria() {
       </div>
 
       <!-- 4 KPIs Superiores de Auditoria -->
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 24px;">
+      <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px;">
         <!-- KPI 1: TOTAL DE EVENTOS AUDITADOS -->
-        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 10px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">TOTAL DE EVENTOS AUDITADOS (30D)</span>
-            <div style="width: 26px; height: 26px; border-radius: 50%; background: #ECFDF5; color: #10B981; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800;">99.9%</div>
+        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 14px; padding: 18px 20px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+              <span style="font-size: 10px; font-weight: 800; color: #64748B; letter-spacing: 0.5px; display: block;">TOTAL DE EVENTOS<br>AUDITADOS (30D)</span>
+              <div style="font-size: 26px; font-weight: 800; color: #0F172A; line-height: 1.1; margin-top: 8px;">14.820</div>
+            </div>
+            <div style="width: 38px; height: 38px; border-radius: 50%; border: 3px solid #10B981; color: #047857; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 800; flex-shrink: 0;">99.9%</div>
           </div>
-          <div style="margin: 12px 0;">
-            <div style="font-size: 28px; font-weight: 800; color: #0F172A; line-height: 1;">14.820</div>
-          </div>
-          <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px;">
-            <span>Integridade de Logs</span>
-            <strong style="color: #047857;">0 Corrompidos &lt; 45ms</strong>
+          <div style="display: flex; flex-direction: column; gap: 4px; font-size: 10px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px; margin-top: 10px;">
+            <div style="display: flex; justify-content: space-between;"><span>Integridade de Logs</span><strong style="color: #0F172A;">0 Corrompidos</strong></div>
+            <div style="display: flex; justify-content: space-between;"><span>Latência Média</span><strong style="color: #0F172A;">&lt; 45ms</strong></div>
           </div>
         </div>
 
-        <!-- KPI 2: ACESSOS E SESSÕES -->
-        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 10px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">ACESSOS E SESSÕES (LOG_ACESSO)</span>
-            <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 2px 8px; border-radius: 12px;">+4.2%</span>
-          </div>
-          <div style="margin: 10px 0; display: flex; justify-content: space-between; align-items: flex-end;">
-            <div style="font-size: 28px; font-weight: 800; color: #0F172A; line-height: 1;">1.248</div>
-            <div style="display: flex; gap: 3px; align-items: flex-end; height: 24px;">
-              <span style="width: 4px; height: 12px; background: #10B981; border-radius: 2px;"></span>
-              <span style="width: 4px; height: 18px; background: #10B981; border-radius: 2px;"></span>
-              <span style="width: 4px; height: 24px; background: #10B981; border-radius: 2px;"></span>
+        <!-- KPI 2: ACESSOS & SESSÕES -->
+        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 14px; padding: 18px 20px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+              <span style="font-size: 10px; font-weight: 800; color: #64748B; letter-spacing: 0.5px; display: block;">ACESSOS &amp; SESSÕES<br>(LOG_ACESSO)</span>
+              <div style="display: flex; align-items: baseline; gap: 6px; margin-top: 8px;">
+                <span style="font-size: 26px; font-weight: 800; color: #0F172A; line-height: 1.1;">1.248</span>
+                <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 2px 6px; border-radius: 8px;">+4.2%</span>
+              </div>
+            </div>
+            <div style="display: flex; gap: 3px; align-items: flex-end; height: 28px;">
+              <span style="width: 5px; height: 10px; background: #A7F3D0; border-radius: 2px;"></span>
+              <span style="width: 5px; height: 16px; background: #6EE7B7; border-radius: 2px;"></span>
+              <span style="width: 5px; height: 22px; background: #10B981; border-radius: 2px;"></span>
+              <span style="width: 5px; height: 28px; background: #059669; border-radius: 2px;"></span>
             </div>
           </div>
-          <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px;">
-            <span>Autenticação Válida: <strong>1.240 (99.4%)</strong></span>
-            <span style="color: #D97706;">8 Falhas Prevenidas</span>
+          <div style="display: flex; flex-direction: column; gap: 4px; font-size: 10px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px; margin-top: 10px;">
+            <div style="display: flex; justify-content: space-between;"><span>Autenticação Válida</span><strong style="color: #0F172A;">1.240 (99.4%)</strong></div>
+            <div style="display: flex; justify-content: space-between;"><span>Falhas / MFA Bloq.</span><strong style="color: #DC2626;">8 Prevenidos</strong></div>
           </div>
         </div>
 
-        <!-- KPI 3: PROTOCOLOS E ALERTAS -->
-        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 10px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">PROTOCOLOS E ALERTAS</span>
-            <i data-lucide="bell" style="width: 14px; height: 14px; color: #10B981;"></i>
+        <!-- KPI 3: PROTOCOLOS & ALERTAS -->
+        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 14px; padding: 18px 20px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+              <span style="font-size: 10px; font-weight: 800; color: #64748B; letter-spacing: 0.5px; display: block;">PROTOCOLOS &amp;<br>ALERTAS</span>
+              <div style="font-size: 26px; font-weight: 800; color: #0F172A; line-height: 1.1; margin-top: 8px;">142</div>
+            </div>
+            <div style="width: 34px; height: 34px; border-radius: 10px; background: #ECFDF5; display: flex; align-items: center; justify-content: center;">
+              <i data-lucide="bell" style="width: 16px; height: 16px; color: #10B981;"></i>
+            </div>
           </div>
-          <div style="margin: 10px 0;">
-            <div style="font-size: 28px; font-weight: 800; color: #0F172A; line-height: 1;">142</div>
-            <div style="font-size: 11px; color: #64748B; margin-top: 4px;">Ações Mitigadas: <strong>88% Automático</strong></div>
-          </div>
-          <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px;">
-            <span>Canais Notificados</span>
-            <strong>Push, SMS e Webhook</strong>
+          <div style="display: flex; flex-direction: column; gap: 4px; font-size: 10px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px; margin-top: 10px;">
+            <div style="display: flex; justify-content: space-between;"><span>Ações Mitigadas</span><strong style="color: #059669;">88% Automático</strong></div>
+            <div style="display: flex; justify-content: space-between;"><span>Canais Notificados</span><strong style="color: #0F172A;">Push, SMS &amp; Webhook</strong></div>
           </div>
         </div>
 
-        <!-- KPI 4: GOVERNANÇA E REGRAS -->
-        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 10px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">GOVERNANÇA E REGRAS</span>
-            <i data-lucide="shield" style="width: 14px; height: 14px; color: #0284C7;"></i>
+        <!-- KPI 4: GOVERNANÇA & REGRAS -->
+        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 14px; padding: 18px 20px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+              <span style="font-size: 10px; font-weight: 800; color: #64748B; letter-spacing: 0.5px; display: block;">GOVERNANÇA &amp;<br>REGRAS</span>
+              <div style="font-size: 26px; font-weight: 800; color: #0F172A; line-height: 1.1; margin-top: 8px;">38 <span style="font-size: 12px; font-weight: 600; color: #64748B;">ações</span></div>
+            </div>
+            <div style="width: 34px; height: 34px; border-radius: 10px; background: #EFF6FF; display: flex; align-items: center; justify-content: center;">
+              <i data-lucide="shield" style="width: 16px; height: 16px; color: #1E3A8A;"></i>
+            </div>
           </div>
-          <div style="margin: 10px 0;">
-            <div style="font-size: 28px; font-weight: 800; color: #0F172A; line-height: 1;">38 <span style="font-size: 13px; font-weight: 600; color: #64748B;">ações</span></div>
-            <div style="font-size: 11px; color: #64748B; margin-top: 4px;">Rastreabilidade Total: <strong>100% Auditável</strong></div>
-          </div>
-          <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px;">
-            <span>Distribuição</span>
-            <strong>22 Agron • 11 IoT • 5 RBAC</strong>
+          <div style="display: flex; flex-direction: column; gap: 4px; font-size: 10px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px; margin-top: 10px;">
+            <div style="display: flex; justify-content: space-between;"><span>Rastreabilidade Total</span><strong style="color: #059669;">100% Auditável</strong></div>
+            <div style="display: flex; justify-content: space-between;"><span>Distribuição</span><strong style="color: #0F172A;">22 Agron • 11 IoT • 5 RBAC</strong></div>
           </div>
         </div>
       </div>
@@ -233,18 +238,18 @@ export async function renderAuditoria() {
       <div style="display: grid; grid-template-columns: 2.3fr 1fr; gap: 20px;">
         <!-- Coluna Esquerda: Feed de Logs de Auditoria -->
         <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
-            <div style="position: relative; flex: 1; max-width: 380px;">
-              <i data-lucide="search" style="position: absolute; left: 10px; top: 9px; width: 14px; height: 14px; color: #94A3B8;"></i>
-              <input type="text" id="input-busca-log" placeholder="Filtrar por usuário, IP, entidade (ex: config_parametro), lote..." style="width: 100%; padding: 7px 12px 7px 32px; font-size: 11px; border: 1px solid #CBD5E1; border-radius: 8px; background: #FFFFFF;">
+          <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px;">
+            <div style="position: relative; width: 100%;">
+              <i data-lucide="search" style="position: absolute; left: 12px; top: 10px; width: 14px; height: 14px; color: #94A3B8;"></i>
+              <input type="text" id="input-busca-log" placeholder="Filtrar por usuário, IP, entidade (ex: config_parametro), lote ou protocolo..." style="width: 100%; padding: 8px 12px 8px 34px; font-size: 11px; border: 1px solid #E2E8F0; border-radius: 9px; background: #F8FAFC; box-sizing: border-box;">
             </div>
-            <div style="display: flex; gap: 6px; overflow-x: auto;">
-              <button class="tab-filtro-log active" data-cat="todos" style="padding: 6px 10px; font-size: 10px; font-weight: 700; background: #183D2E; color: #FFFFFF; border: none; border-radius: 6px; cursor: pointer;">Todos (14.820)</button>
-              <button class="tab-filtro-log" data-cat="acessos" style="padding: 6px 10px; font-size: 10px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Acessos (1.248)</button>
-              <button class="tab-filtro-log" data-cat="disparos" style="padding: 6px 10px; font-size: 10px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Disparos (142)</button>
-              <button class="tab-filtro-log" data-cat="agronomia" style="padding: 6px 10px; font-size: 10px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Agronomia (22)</button>
-              <button class="tab-filtro-log" data-cat="hardware" style="padding: 6px 10px; font-size: 10px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Hardware (16)</button>
-              <button class="tab-filtro-log" data-cat="seguranca" style="padding: 6px 10px; font-size: 10px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Segurança (14)</button>
+            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+              <button class="tab-filtro-log active" data-cat="todos" style="padding: 5px 11px; font-size: 10px; font-weight: 700; background: #0F172A; color: #FFFFFF; border: none; border-radius: 6px; cursor: pointer;">Todos (14.820)</button>
+              <button class="tab-filtro-log" data-cat="acessos" style="padding: 5px 11px; font-size: 10px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Acessos (1.248)</button>
+              <button class="tab-filtro-log" data-cat="disparos" style="padding: 5px 11px; font-size: 10px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Disparos (142)</button>
+              <button class="tab-filtro-log" data-cat="agronomia" style="padding: 5px 11px; font-size: 10px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Agronomia (22)</button>
+              <button class="tab-filtro-log" data-cat="hardware" style="padding: 5px 11px; font-size: 10px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Hardware (16)</button>
+              <button class="tab-filtro-log" data-cat="seguranca" style="padding: 5px 11px; font-size: 10px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Segurança (14)</button>
             </div>
           </div>
 
@@ -707,6 +712,28 @@ export function setupAuditoriaEvents() {
       }, 'Baixar Pacote (PDF)');
     });
   }
+
+  // Paginação interativa de Auditoria
+  let pagAtualAudit = 1;
+  document.querySelectorAll('.btn-pag-audit').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const txt = btn.textContent.trim();
+      if (txt === 'Anterior') pagAtualAudit = Math.max(1, pagAtualAudit - 1);
+      else if (txt === 'Próximo') pagAtualAudit = Math.min(3, pagAtualAudit + 1);
+      else pagAtualAudit = Number(txt) || 1;
+
+      document.querySelectorAll('.btn-pag-audit').forEach(b => {
+        const isNum = /^\d+$/.test(b.textContent.trim());
+        const isActive = isNum && Number(b.textContent.trim()) === pagAtualAudit;
+        b.classList.toggle('active', isActive);
+        b.style.background = isActive ? '#183D2E' : '#FFFFFF';
+        b.style.color = isActive ? '#FFFFFF' : '#475569';
+        b.style.borderColor = isActive ? '#183D2E' : '#CBD5E1';
+        b.style.fontWeight = isActive ? '700' : '400';
+      });
+      toast.info('Paginação de Auditoria', `Exibindo página ${pagAtualAudit} de 3 da trilha de logs.`);
+    });
+  });
 
   vincularEventosLogs();
 }

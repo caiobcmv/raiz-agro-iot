@@ -111,17 +111,31 @@ export async function renderLotes() {
           <div style="font-size: 11px; color: #64748B;">Polo Irrigado Petrolina / Juazeiro</div>
         </div>
 
-        <div style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap;">
-          <div style="font-size: 11px; color: #64748B; text-align: right; line-height: 1.5;">
-            <div>Período Vigente: <strong style="color: #0F172A;">01/08/2025 - 30/07/2026</strong></div>
-            <div>Área Produtiva: <strong style="color: #0F172A;">1.250 ha cadastrados</strong></div>
+        <div style="display: flex; align-items: center; gap: 18px; flex-wrap: wrap;">
+          <div style="display: flex; gap: 18px; font-size: 11px; color: #64748B; line-height: 1.4;">
+            <div>
+              <div>Período</div>
+              <div>Vigente:</div>
+            </div>
+            <div style="font-weight: 700; color: #0F172A;">
+              <div>01/08/2025 -</div>
+              <div>30/07/2026</div>
+            </div>
+            <div>
+              <div>Área</div>
+              <div>Produtiva:</div>
+            </div>
+            <div style="font-weight: 700; color: #0F172A;">
+              <div>1.250 ha</div>
+              <div>cadastrados</div>
+            </div>
           </div>
-          <button class="btn" id="btn-exportar-lotes-pdf-csv" style="background: #FFFFFF; color: #0F172A; border: 1px solid #CBD5E1; font-size: 12px; font-weight: 700; padding: 9px 15px; border-radius: 8px; display: flex; align-items: center; gap: 7px; cursor: pointer;">
-            <i data-lucide="download" style="width: 14px; height: 14px; color: #059669;"></i>
-            <span>Exportar (PDF/CSV)</span>
+          <button class="btn" id="btn-exportar-lotes-pdf-csv" style="background: #F8FAFC; color: #334155; border: 1px solid #CBD5E1; font-size: 11px; font-weight: 700; padding: 8px 13px; border-radius: 8px; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+            <i data-lucide="download" style="width: 13px; height: 13px; color: #059669;"></i>
+            <span>PDF / CSV</span>
           </button>
-          <button class="btn btn-primary" id="btn-abrir-nova-safra" style="background: #183D2E; color: #FFFFFF; border: none; font-size: 12px; font-weight: 700; padding: 9px 18px; border-radius: 8px; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: all 0.2s;">
-            <i data-lucide="plus-circle" style="width: 15px; height: 15px;"></i>
+          <button class="btn btn-primary" id="btn-abrir-nova-safra" style="background: #FFFFFF; color: #047857; border: 1.5px solid #10B981; font-size: 12px; font-weight: 700; padding: 8px 16px; border-radius: 9px; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: all 0.2s;">
+            <i data-lucide="calendar-plus" style="width: 15px; height: 15px; color: #059669;"></i>
             <span>+ Abrir Nova Safra (2026/2027)</span>
           </button>
         </div>
@@ -215,16 +229,20 @@ export async function renderLotes() {
           </div>
         </div>
 
-        <!-- KPI 4: RITMO E CONFORMIDADE -->
+        <!-- KPI 4: RITMO & CONFORMIDADE -->
         <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
           <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 11px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">RITMO E CONFORMIDADE</span>
-            <span style="font-size: 10px; font-weight: 700; color: #047857; background: #DCFCE7; padding: 2px 8px; border-radius: 12px;">99.8% MAPA</span>
+            <span style="font-size: 11px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">RITMO &amp; CONFORMIDADE</span>
+            <span style="font-size: 10px; font-weight: 700; color: #047857; background: #DCFCE7; padding: 2px 8px; border-radius: 12px;">✓ 99.8% MAPA</span>
           </div>
           <div style="margin: 10px 0;">
-            <div style="font-size: 20px; font-weight: 800; color: #0F172A;">42 dias <span style="font-size: 11px; font-weight: 500; color: #64748B;">ciclo médio</span></div>
-            <div style="width: 100%; height: 7px; background: #E2E8F0; border-radius: 4px; overflow: hidden; margin-top: 10px;">
+            <div style="font-size: 18px; font-weight: 800; color: #0F172A;">42 <span style="font-size: 11px; font-weight: 500; color: #64748B;">dias ciclo médio</span></div>
+            <div style="width: 100%; height: 6px; background: #E2E8F0; border-radius: 4px; overflow: hidden; margin: 8px 0;">
               <div style="width: 85%; height: 100%; background: #10B981; border-radius: 4px;"></div>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B;">
+              <span>0% perdas cadastrais</span>
+              <strong style="color: #047857;">Fluxo sem gargalo</strong>
             </div>
           </div>
           <div style="display: flex; justify-content: space-between; font-size: 11px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px;">
@@ -343,73 +361,90 @@ export async function renderLotes() {
         </div>
       </div>
 
-      <!-- Seção: Qualidade e Brix Médio -->
-      <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+      <!-- Seção: Qualidade & Brix Médio -->
+      <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 14px; padding: 20px 22px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
           <h3 style="font-size: 14px; font-weight: 800; color: #0F172A; margin: 0; display: flex; align-items: center; gap: 8px;">
-            <i data-lucide="bar-chart-2" style="width: 16px; height: 16px; color: #0F172A;"></i>
-            Qualidade e Brix Médio
+            <i data-lucide="bar-chart-2" style="width: 16px; height: 16px; color: #15803D;"></i>
+            Qualidade &amp; Brix Médio
           </h3>
-          <span style="font-size: 10px; font-weight: 800; color: #047857; background: #D1FAE5; padding: 3px 8px; border-radius: 4px;">100% APROVADO</span>
+          <span style="font-size: 10px; font-weight: 800; color: #047857; background: #DCFCE7; padding: 4px 10px; border-radius: 9999px;">100% APROVADO</span>
         </div>
 
-        <div style="display: flex; flex-direction: column; gap: 14px;">
+        <div style="display: flex; flex-direction: column; gap: 12px;">
           <!-- Cultura 1: Uva Vitória -->
-          <div>
-            <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
+          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; margin-bottom: 8px;">
               <strong style="color: #0F172A;">Uva Vitória</strong>
-              <span style="color: #047857; font-weight: 700;">18.2°Bx (+0.2) <span style="font-size: 10px; color: #94A3B8; font-weight: 400;">Mín: 18.0°Bx</span></span>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 10px; color: #64748B; font-family: monospace;">Mín: 18.0°Bx</span>
+                <span style="background: #DCFCE7; color: #047857; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 6px;">18.2°Bx (+0.2)</span>
+              </div>
             </div>
-            <div style="width: 100%; height: 8px; background: #E2E8F0; border-radius: 4px; overflow: hidden;">
-              <div style="width: 90%; height: 100%; background: #0284C7; border-radius: 4px;"></div>
+            <div style="position: relative; width: 100%; height: 9px; background: #E2E8F0; border-radius: 9999px; overflow: hidden;">
+              <div style="width: 90%; height: 100%; background: #1D4ED8; border-radius: 9999px;"></div>
+              <div style="position: absolute; left: 85%; top: 0; width: 8px; height: 100%; background: #1E293B;"></div>
             </div>
-            <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B; margin-top: 4px;">
-              <span>Calibre &gt; 22mm (98% lote)</span>
-              <span style="color: #047857; font-weight: 600;">Exportação A+ OK</span>
+            <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B; margin-top: 7px;">
+              <span>Calibre: ≥ 22mm (98% lote)</span>
+              <span style="color: #047857; font-weight: 700;">Exportação A+ Ok</span>
             </div>
           </div>
 
-          <!-- Cultura 2: Manga Palmer e Tommy -->
-          <div>
-            <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
-              <strong style="color: #0F172A;">Manga Palmer e Tommy</strong>
-              <span style="color: #047857; font-weight: 700;">13.8°Bx (+0.8) <span style="font-size: 10px; color: #94A3B8; font-weight: 400;">Mín: 13.0°Bx</span></span>
+          <!-- Cultura 2: Manga Palmer & Tommy -->
+          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; margin-bottom: 8px;">
+              <strong style="color: #0F172A;">Manga Palmer &amp; Tommy</strong>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 10px; color: #64748B; font-family: monospace;">Mín: 13.0°Bx</span>
+                <span style="background: #DCFCE7; color: #047857; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 6px;">13.8°Bx (+0.8)</span>
+              </div>
             </div>
-            <div style="width: 100%; height: 8px; background: #E2E8F0; border-radius: 4px; overflow: hidden;">
-              <div style="width: 82%; height: 100%; background: #10B981; border-radius: 4px;"></div>
+            <div style="position: relative; width: 100%; height: 9px; background: #E2E8F0; border-radius: 9999px; overflow: hidden;">
+              <div style="width: 87%; height: 100%; background: #15803D; border-radius: 9999px;"></div>
+              <div style="position: absolute; left: 78%; top: 0; width: 8px; height: 100%; background: #1E293B;"></div>
             </div>
-            <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B; margin-top: 4px;">
-              <span>Peso médio: 395g (Faixa Ideal)</span>
-              <span style="color: #047857; font-weight: 600;">Aprovado União Europeia</span>
+            <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B; margin-top: 7px;">
+              <span>Peso médio: 395g (Faixa ideal)</span>
+              <span style="color: #047857; font-weight: 700;">Aprovado União Europeia</span>
             </div>
           </div>
 
           <!-- Cultura 3: Melão Amarelo -->
-          <div>
-            <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
+          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; margin-bottom: 8px;">
               <strong style="color: #0F172A;">Melão Amarelo</strong>
-              <span style="color: #047857; font-weight: 700;">12.4°Bx (+0.4) <span style="font-size: 10px; color: #94A3B8; font-weight: 400;">Mín: 12.0°Bx</span></span>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 10px; color: #64748B; font-family: monospace;">Mín: 12.0°Bx</span>
+                <span style="background: #DCFCE7; color: #047857; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 6px;">12.4°Bx (+0.4)</span>
+              </div>
             </div>
-            <div style="width: 100%; height: 8px; background: #E2E8F0; border-radius: 4px; overflow: hidden;">
-              <div style="width: 75%; height: 100%; background: #F59E0B; border-radius: 4px;"></div>
+            <div style="position: relative; width: 100%; height: 9px; background: #E2E8F0; border-radius: 9999px; overflow: hidden;">
+              <div style="width: 82%; height: 100%; background: #F59E0B; border-radius: 9999px;"></div>
+              <div style="position: absolute; left: 75%; top: 0; width: 8px; height: 100%; background: #1E293B;"></div>
             </div>
-            <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B; margin-top: 4px;">
+            <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B; margin-top: 7px;">
               <span>Sem manchas • Casca firme</span>
-              <span style="color: #047857; font-weight: 600;">Mercado Premium OK</span>
+              <span style="color: #047857; font-weight: 700;">Mercado Premium Ok</span>
             </div>
           </div>
         </div>
       </div>
 
       <!-- Rodapé com status da malha de telemetria -->
-      <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #64748B; padding: 8px 4px; flex-wrap: wrap; gap: 8px;">
-        <span style="display: flex; align-items: center; gap: 6px;">
-          <span style="width: 8px; height: 8px; border-radius: 50%; background: #10B981;"></span>
-          48 Sondas Telemétricas Ativas (Conexão ESP32 Mesh Ativa)
-        </span>
+      <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div style="width: 34px; height: 34px; border-radius: 10px; background: #ECFDF5; display: flex; align-items: center; justify-content: center; color: #059669; flex-shrink: 0;">
+            <i data-lucide="radio" style="width: 17px; height: 17px;"></i>
+          </div>
+          <div>
+            <div style="font-size: 12px; font-weight: 800; color: #0F172A;">48 Sondas Telemétricas Ativas</div>
+            <div style="font-size: 10px; color: #64748B;">Conexão ESP32 Mesh Ativa</div>
+          </div>
+        </div>
         <div style="text-align: right;">
-          <div>Integridade da Malha: <strong style="color: #047857;">100% Auditável</strong></div>
-          <div style="font-size: 10px; color: #94A3B8; font-family: monospace;">SQL Master: a 6ef 77b 2026 relational</div>
+          <div style="font-size: 11px; color: #64748B;">Integridade da Malha: <strong style="color: #047857;">100% Auditável</strong></div>
+          <div style="font-size: 10px; color: #94A3B8; font-family: monospace; margin-top: 2px;">UUID Master: p-sul-77b-2026-relational</div>
         </div>
       </div>
     </div>

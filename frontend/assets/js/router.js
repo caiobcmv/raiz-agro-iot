@@ -4,8 +4,8 @@
 
 import { api } from './api.js';
 import { auth } from './auth.js';
-import { renderSidebar } from './components/sidebar.js?v=20261120-live45';
-import { renderHeader } from './components/header.js?v=20261120-live35';
+import { renderSidebar } from './components/sidebar.js?v=20261122-adm1';
+import { renderHeader } from './components/header.js?v=20261122-adm1';
 import { Modal } from './components/modal.js?v=20261120-live33';
 import { toast } from './components/toast.js?v=20261120-live33';
 import { showAccessDeniedModal } from './components/access-denied-modal.js?v=20261120-live33';
@@ -24,15 +24,15 @@ import { renderDashboard, setupDashboardEvents } from './views/dashboard.js?v=20
 import { renderSensores, setupSensoresEvents } from './views/sensores.js?v=20261120-live45';
 import { renderRedeEsp32, setupRedeEsp32Events } from './views/rede-esp32.js?v=20261120-live45';
 import { renderLeituras, setupLeiturasEvents } from './views/leituras.js?v=20261120-live33';
-import { renderLotes, setupLotesEvents } from './views/lotes.js?v=20261120-live33';
+import { renderLotes, setupLotesEvents } from './views/lotes.js?v=20261122-adm2';
 import { renderViagens, setupViagensEvents } from './views/viagens.js?v=20261120-live33';
 import { renderAlertas, setupAlertasEvents } from './views/alertas.js?v=20261120-live45';
 import { renderPrevisoes } from './views/previsoes.js?v=20261120-live33';
 import { renderRelatorios, setupRelatoriosEvents } from './views/relatorios.js?v=20261120-live33';
-import { renderConfiguracoes, setupConfiguracoesEvents } from './views/configuracoes.js?v=20261120-live33';
-import { renderUsuarios, setupUsuariosEvents } from './views/usuarios.js?v=20261120-live33';
-import { renderRegrasAgronomicas, setupRegrasAgronomicasEvents } from './views/regras-agronomicas.js?v=20261120-live33';
-import { renderAuditoria, setupAuditoriaEvents } from './views/auditoria.js?v=20261120-live33';
+import { renderConfiguracoes, setupConfiguracoesEvents } from './views/configuracoes.js?v=20261122-adm3';
+import { renderUsuarios, setupUsuariosEvents } from './views/usuarios.js?v=20261122-adm3';
+import { renderRegrasAgronomicas, setupRegrasAgronomicasEvents } from './views/regras-agronomicas.js?v=20261122-adm3';
+import { renderAuditoria, setupAuditoriaEvents } from './views/auditoria.js?v=20261122-adm3';
 import { renderSensoresAdmin, setupSensoresAdminEvents } from './views/sensores-admin.js?v=20261120-live33';
 
 const routes = {

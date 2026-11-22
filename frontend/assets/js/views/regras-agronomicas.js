@@ -299,13 +299,13 @@ export async function renderRegrasAgronomicas() {
 
         <!-- Paginação -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; font-size: 11px; color: #64748B;">
-          <span>Exibindo 1-4 de 18 parâmetros agronômicos</span>
+          <span id="regras-pag-info">Exibindo 1-4 de 18 parâmetros agronômicos</span>
           <div style="display: flex; gap: 6px;">
-            <button style="padding: 4px 10px; border: 1px solid #CBD5E1; background: #FFFFFF; border-radius: 4px; cursor: pointer;">&lt;</button>
-            <button style="padding: 4px 10px; border: 1px solid #183D2E; background: #183D2E; color: #FFFFFF; border-radius: 4px; font-weight: 700;">1</button>
-            <button style="padding: 4px 10px; border: 1px solid #CBD5E1; background: #FFFFFF; border-radius: 4px; cursor: pointer;">2</button>
-            <button style="padding: 4px 10px; border: 1px solid #CBD5E1; background: #FFFFFF; border-radius: 4px; cursor: pointer;">3</button>
-            <button style="padding: 4px 10px; border: 1px solid #CBD5E1; background: #FFFFFF; border-radius: 4px; cursor: pointer;">&gt;</button>
+            <button class="btn-pag-regras" data-page="prev" style="padding: 4px 10px; border: 1px solid #CBD5E1; background: #FFFFFF; border-radius: 4px; cursor: pointer;">&lt;</button>
+            <button class="btn-pag-regras active" data-page="1" style="padding: 4px 10px; border: 1px solid #183D2E; background: #183D2E; color: #FFFFFF; border-radius: 4px; font-weight: 700; cursor: pointer;">1</button>
+            <button class="btn-pag-regras" data-page="2" style="padding: 4px 10px; border: 1px solid #CBD5E1; background: #FFFFFF; border-radius: 4px; cursor: pointer;">2</button>
+            <button class="btn-pag-regras" data-page="3" style="padding: 4px 10px; border: 1px solid #CBD5E1; background: #FFFFFF; border-radius: 4px; cursor: pointer;">3</button>
+            <button class="btn-pag-regras" data-page="next" style="padding: 4px 10px; border: 1px solid #CBD5E1; background: #FFFFFF; border-radius: 4px; cursor: pointer;">&gt;</button>
           </div>
         </div>
       </div>
@@ -754,6 +754,33 @@ export function setupRegrasAgronomicasEvents() {
 
       _filtroCatRegras = tab.dataset.cat || 'todos';
       atualizarCardsRegras();
+    });
+  });
+
+  // Paginação das Regras Agronômicas
+  let pagAtualRegras = 1;
+  document.querySelectorAll('.btn-pag-regras').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const p = btn.dataset.page;
+      if (p === 'prev') pagAtualRegras = Math.max(1, pagAtualRegras - 1);
+      else if (p === 'next') pagAtualRegras = Math.min(3, pagAtualRegras + 1);
+      else pagAtualRegras = Number(p) || 1;
+
+      document.querySelectorAll('.btn-pag-regras').forEach(b => {
+        const isActive = Number(b.dataset.page) === pagAtualRegras;
+        b.classList.toggle('active', isActive);
+        b.style.background = isActive ? '#183D2E' : '#FFFFFF';
+        b.style.color = isActive ? '#FFFFFF' : '#475569';
+        b.style.borderColor = isActive ? '#183D2E' : '#CBD5E1';
+        b.style.fontWeight = isActive ? '700' : '400';
+      });
+      const info = document.getElementById('regras-pag-info');
+      if (info) {
+        const start = (pagAtualRegras - 1) * 4 + 1;
+        const end = Math.min(18, pagAtualRegras * 4);
+        info.textContent = `Exibindo ${start}-${end} de 18 parâmetros agronômicos`;
+      }
+      toast.info('Regras Agronômicas', `Página ${pagAtualRegras} de 3 carregada.`);
     });
   });
 

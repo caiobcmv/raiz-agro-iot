@@ -64,7 +64,7 @@ export function renderSidebar(currentPath) {
 
         <a href="#/auditoria" class="sidebar-menu-item ${currentPath === '#/auditoria' ? 'active' : ''}">
           <i data-lucide="shield-check"></i>
-          <span>Auditoria e Logs</span>
+          <span>Auditoria &amp; Logs</span>
         </a>
 
         <a href="#/configuracoes" class="sidebar-menu-item ${currentPath === '#/configuracoes' ? 'active' : ''}">
