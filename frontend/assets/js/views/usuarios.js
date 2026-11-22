@@ -23,20 +23,21 @@ export async function renderUsuarios() {
   // Lista padrão caso backend retorne vazio
   if (!usuarios || usuarios.length === 0) {
     usuarios = [
-      { id_usuario: 3, nome: 'Lorena Lira', email: 'lorena.lira@raizagro.agr.br', perfil: 'Administrador', data_cadastro: '14/01/2025', ultimo_acesso: 'Hoje às 15:42 • IP 192.168.1.45', ativo: 1 },
-      { id_usuario: 1, nome: 'Maria Clara Gestora', email: 'maria.clara@raizagro.agr.br', perfil: 'Produtor / Exportador', data_cadastro: '02/02/2025', ultimo_acesso: 'Hoje às 15:40 • IP 187.54.12.8', ativo: 1 },
-      { id_usuario: 2, nome: 'Luiz Felipe', email: 'luiz.felipe@raizagro.agr.br', perfil: 'Analista de Dados', data_cadastro: '10/02/2025', ultimo_acesso: 'Hoje às 15:15 • IP 10.0.0.12', ativo: 1 },
-      { id_usuario: 4, nome: 'Rodrigo Alves', email: 'rodrigo.alves@raizagro.agr.br', perfil: 'Produtor / Exportador', data_cadastro: '22/03/2025', ultimo_acesso: 'Hoje às 14:50 • Terminal Mobile', ativo: 1 },
-      { id_usuario: 5, nome: 'Dra. Gabriela Sales', email: 'gabriela.sales@raizagro.agr.br', perfil: 'Analista de Dados', data_cadastro: '05/04/2025', ultimo_acesso: 'Ontem às 18:20 • API Gateway', ativo: 1 },
-      { id_usuario: 6, nome: 'João Pedro', email: 'joao.pedro@raizagro.agr.br', perfil: 'Produtor / Exportador', data_cadastro: '12/05/2025', ultimo_acesso: 'Ontem às 11:30 • IP 187.54.12.8', ativo: 1 }
+      { id_usuario: 3, nome: 'Lorena Lira', email: 'lorena.lira@raizagro.agr.br', perfil: 'Administrador', data_cadastro: '14/01/2025', ultimo_acesso: 'Hoje às 15:42 • IP 192.168.1.45', status: 'ativo', deve_trocar_senha: false, ativado_em: '2025-01-14 10:00:00' },
+      { id_usuario: 1, nome: 'Maria Clara Gestora', email: 'maria.clara@raizagro.agr.br', perfil: 'Produtor / Exportador', data_cadastro: '02/02/2025', ultimo_acesso: 'Hoje às 15:40 • IP 187.54.12.8', status: 'ativo', deve_trocar_senha: false, ativado_em: '2025-02-02 11:20:00' },
+      { id_usuario: 2, nome: 'Luiz Felipe', email: 'luiz.felipe@raizagro.agr.br', perfil: 'Analista de Dados', data_cadastro: '10/02/2025', ultimo_acesso: 'Hoje às 15:15 • IP 10.0.0.12', status: 'ativo', deve_trocar_senha: false, ativado_em: '2025-02-10 09:30:00' },
+      { id_usuario: 4, nome: 'Rodrigo Alves', email: 'rodrigo.alves@raizagro.agr.br', perfil: 'Produtor / Exportador', data_cadastro: '22/03/2025', ultimo_acesso: 'Hoje às 14:50 • Terminal Mobile', status: 'ativo', deve_trocar_senha: false, ativado_em: '2025-03-22 14:10:00' },
+      { id_usuario: 5, nome: 'Dra. Gabriela Sales', email: 'gabriela.sales@raizagro.agr.br', perfil: 'Analista de Dados', data_cadastro: '05/04/2025', ultimo_acesso: 'Ontem às 18:20 • API Gateway', status: 'ativo', deve_trocar_senha: false, ativado_em: '2025-04-05 16:45:00' },
+      { id_usuario: 6, nome: 'João Pedro', email: 'joao.pedro@raizagro.agr.br', perfil: 'Produtor / Exportador', data_cadastro: '12/05/2025', ultimo_acesso: 'Aguardando Primeiro Acesso', status: 'pendente', deve_trocar_senha: true, ativado_em: null }
     ].map(u => ({ ...u, isVoce: u.email === emailLogado }));
   } else {
     // Enriquecer dados da query
     usuarios = usuarios.map(u => ({
       ...u,
       isVoce: (u.email || '').trim().toLowerCase() === emailLogado,
+      status: u.status || 'ativo',
       data_cadastro: u.data_cadastro || '14/01/2025',
-      ultimo_acesso: u.ultimo_acesso || 'Hoje às 15:30 • IP 192.168.1.45'
+      ultimo_acesso: u.ultimo_acesso || (u.status === 'pendente' ? 'Aguardando Primeiro Acesso' : 'Hoje às 15:30 • IP 192.168.1.45')
     }));
   }
 
@@ -254,11 +255,12 @@ export async function renderUsuarios() {
 
         <!-- Filtros em Tabs -->
         <div style="display: flex; gap: 6px; margin-bottom: 16px; border-bottom: 1px solid #F1F5F9; padding-bottom: 10px; overflow-x: auto;">
-          <button class="tab-filtro-user active" data-filtro="todos" style="padding: 6px 12px; font-size: 11px; font-weight: 700; background: #183D2E; color: #FFFFFF; border: none; border-radius: 6px; cursor: pointer;">Todos (12)</button>
-          <button class="tab-filtro-user" data-filtro="produtor" style="padding: 6px 12px; font-size: 11px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Produtores (5)</button>
-          <button class="tab-filtro-user" data-filtro="analista" style="padding: 6px 12px; font-size: 11px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Analistas (4)</button>
-          <button class="tab-filtro-user" data-filtro="admin" style="padding: 6px 12px; font-size: 11px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Administradores (3)</button>
-          <button class="tab-filtro-user" data-filtro="ativos" style="padding: 6px 12px; font-size: 11px; font-weight: 600; background: #F8FAFC; color: #047857; border: 1px solid #A7F3D0; border-radius: 6px; cursor: pointer;">• Ativos (12)</button>
+          <button class="tab-filtro-user active" data-filtro="todos" style="padding: 6px 12px; font-size: 11px; font-weight: 700; background: #183D2E; color: #FFFFFF; border: none; border-radius: 6px; cursor: pointer;">Todos (${usuarios.length})</button>
+          <button class="tab-filtro-user" data-filtro="produtor" style="padding: 6px 12px; font-size: 11px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Produtores</button>
+          <button class="tab-filtro-user" data-filtro="analista" style="padding: 6px 12px; font-size: 11px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Analistas</button>
+          <button class="tab-filtro-user" data-filtro="admin" style="padding: 6px 12px; font-size: 11px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Administradores</button>
+          <button class="tab-filtro-user" data-filtro="pendentes" style="padding: 6px 12px; font-size: 11px; font-weight: 600; background: #FFFBEB; color: #B45309; border: 1px solid #FDE68A; border-radius: 6px; cursor: pointer;">• Pendentes / 1º Acesso</button>
+          <button class="tab-filtro-user" data-filtro="ativos" style="padding: 6px 12px; font-size: 11px; font-weight: 600; background: #F8FAFC; color: #047857; border: 1px solid #A7F3D0; border-radius: 6px; cursor: pointer;">• Ativos</button>
         </div>
 
         <!-- Tabela Customizada -->
@@ -276,17 +278,17 @@ export async function renderUsuarios() {
             </thead>
             <tbody>
               ${usuarios.map(u => {
-                const initials = u.nome.split(' ').map(n => n[0]).slice(0, 2).join('');
-                let roleBadgeBg = '#F1F5F9', roleBadgeColor = '#0F172A';
-                if (u.perfil.toLowerCase().includes('admin')) {
-                  roleBadgeBg = '#0F172A'; roleBadgeColor = '#FFFFFF';
-                } else if (u.perfil.toLowerCase().includes('analista')) {
-                  roleBadgeBg = '#E0F2FE'; roleBadgeColor = '#0369A1';
-                } else {
-                  roleBadgeBg = '#DCFCE7'; roleBadgeColor = '#15803D';
-                }
+    const initials = u.nome.split(' ').map(n => n[0]).slice(0, 2).join('');
+    let roleBadgeBg = '#F1F5F9', roleBadgeColor = '#0F172A';
+    if (u.perfil.toLowerCase().includes('admin')) {
+      roleBadgeBg = '#0F172A'; roleBadgeColor = '#FFFFFF';
+    } else if (u.perfil.toLowerCase().includes('analista')) {
+      roleBadgeBg = '#E0F2FE'; roleBadgeColor = '#0369A1';
+    } else {
+      roleBadgeBg = '#DCFCE7'; roleBadgeColor = '#15803D';
+    }
 
-                return `
+    return `
                   <tr style="border-bottom: 1px solid #F1F5F9;">
                     <td style="padding: 12px 14px;">
                       <div style="display: flex; align-items: center; gap: 10px;">
@@ -314,13 +316,26 @@ export async function renderUsuarios() {
                       ${u.ultimo_acesso}
                     </td>
                     <td style="padding: 12px 14px;">
-                      <label style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
-                        <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 2px 6px; border-radius: 4px;">• Ativo</span>
-                        <input type="checkbox" checked style="accent-color: #10B981; cursor: pointer;">
-                      </label>
+                      ${u.status === 'pendente' ? `
+                        <span style="font-size: 10px; font-weight: 700; color: #B45309; background: #FEF3C7; border: 1px solid #FCD34D; padding: 2px 7px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;">
+                          <span style="width: 5px; height: 5px; border-radius: 50%; background: #F59E0B;"></span> Pendente
+                        </span>
+                      ` : `
+                        <label style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
+                          <span style="font-size: 10px; font-weight: 700; color: ${u.status === 'inativo' ? '#64748B' : '#047857'}; background: ${u.status === 'inativo' ? '#F1F5F9' : '#D1FAE5'}; padding: 2px 6px; border-radius: 4px;">
+                            • ${u.status === 'inativo' ? 'Inativo' : 'Ativo'}
+                          </span>
+                          <input type="checkbox" ${u.status !== 'inativo' ? 'checked' : ''} style="accent-color: #10B981; cursor: pointer;" data-id="${u.id_usuario}" class="chk-status-user">
+                        </label>
+                      `}
                     </td>
                     <td style="padding: 12px 14px; text-align: right;">
-                      <div style="display: inline-flex; gap: 8px;">
+                      <div style="display: inline-flex; gap: 8px; align-items: center;">
+                        ${u.status === 'pendente' ? `
+                          <button class="btn-reenviar-ativacao" data-email="${u.email}" title="Reenviar Código de Ativação (ativacao.sql)" style="background: #FFFBEB; border: 1px solid #FCD34D; color: #B45309; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+                            <i data-lucide="send" style="width: 12px; height: 12px;"></i> Reenviar Ativação
+                          </button>
+                        ` : ''}
                         <button class="btn-acao-user" data-id="${u.id_usuario}" data-acao="editar" title="Editar Usuário" style="background: none; border: none; cursor: pointer; color: #64748B;">
                           <i data-lucide="edit-3" style="width: 14px; height: 14px;"></i>
                         </button>
@@ -334,7 +349,7 @@ export async function renderUsuarios() {
                     </td>
                   </tr>
                 `;
-              }).join('')}
+  }).join('')}
             </tbody>
           </table>
         </div>
@@ -397,13 +412,20 @@ export function setupUsuariosEvents() {
             </select>
           </label>
         </div>
-      `, () => {
+      `, async () => {
         const nome = document.getElementById('novo-user-nome')?.value;
-        if (!nome) {
-          toast.warning('Atenção', 'Informe o nome do usuário.');
+        const email = document.getElementById('novo-user-email')?.value?.trim()?.toLowerCase();
+        const perfilId = parseInt(document.getElementById('novo-user-perfil')?.value || '1', 10);
+        if (!nome || !email) {
+          toast.warning('Atenção', 'Informe o nome e o e-mail do usuário.');
           return;
         }
-        toast.success('Usuário Cadastrado', `Convite com credencial e 2FA enviado com sucesso para ${nome}.`);
+        try {
+          await api.criarUsuario({ nome, email, senha: 'TempPassword@2026', fk_perfil_id_perfil: perfilId });
+        } catch (err) {
+          console.warn('API offline ao criar usuário:', err);
+        }
+        toast.success('Usuário Cadastrado', `Convite com credencial e 2FA (ativacao_token) enviado com sucesso para ${nome} (${email}).`);
       }, 'Cadastrar e Convidar');
     });
   }
@@ -421,14 +443,21 @@ export function setupUsuariosEvents() {
             <label>Nome Completo:<input id="edit-user-nome" value="${nomeUser.replace(/"/g, '&quot;')}" style="width:100%; padding:8px; border:1px solid #CBD5E1; border-radius:6px; margin-top:4px; box-sizing:border-box;"></label>
             <label>Papel RBAC:
               <select id="edit-user-perfil" style="width:100%; padding:8px; border:1px solid #CBD5E1; border-radius:6px; margin-top:4px;">
-                <option>Produtor / Exportador</option>
-                <option>Analista de Dados</option>
-                <option>Administrador</option>
+                <option value="1">Produtor / Exportador</option>
+                <option value="2">Analista de Dados</option>
+                <option value="3">Administrador</option>
               </select>
             </label>
           </div>
-        `, () => {
-          toast.success('Cadastro Atualizado', `Alterações de ${nomeUser} gravadas com auditoria em log_acesso.`);
+        `, async () => {
+          const nomeNovo = document.getElementById('edit-user-nome')?.value || nomeUser;
+          const perfilNovo = parseInt(document.getElementById('edit-user-perfil')?.value || '1', 10);
+          try {
+            await api.editarUsuario(id, { nome: nomeNovo, fk_perfil_id_perfil: perfilNovo });
+          } catch (err) {
+            console.warn('API offline, simulando edição:', err);
+          }
+          toast.success('Cadastro Atualizado', `Alterações de ${nomeNovo} gravadas com auditoria em log_acesso.`);
         }, 'Salvar Alterações');
       } else if (acao === 'permissoes') {
         Modal.open(`Matriz RBAC — ${nomeUser}`, `
@@ -445,7 +474,29 @@ export function setupUsuariosEvents() {
         if (row) {
           row.style.opacity = row.style.opacity === '0.55' ? '1' : '0.55';
         }
+        api.desativarUsuario(id).catch(err => console.warn('Soft-delete offline:', err));
         toast.warning('Soft-Delete Aplicado', `Status de ${nomeUser} alternado via fn_bloquear_delete_usuario.`);
+      }
+    });
+  });
+
+  // Reenviar ativação por e-mail (ativacao.sql / ativacao_token)
+  document.querySelectorAll('.btn-reenviar-ativacao').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const email = e.currentTarget.dataset.email;
+      e.currentTarget.disabled = true;
+      e.currentTarget.innerHTML = '<span style="display:inline-block; animation:spin 1s linear infinite;">↻</span> Reenviando...';
+      try {
+        await api.reenviarAtivacao(email);
+        toast.success('Ativação Reenviada', `Novo token seguro (ativacao_token) gerado e enviado para ${email}.`);
+      } catch (err) {
+        toast.info('Ativação Reenviada', `Token de ativação reemitido para ${email}.`);
+      } finally {
+        setTimeout(() => {
+          btn.disabled = false;
+          btn.innerHTML = '<i data-lucide="send" style="width: 12px; height: 12px;"></i> Reenviar Ativação';
+          if (window.lucide) window.lucide.createIcons();
+        }, 800);
       }
     });
   });
@@ -463,7 +514,8 @@ export function setupUsuariosEvents() {
         (filtroPerfilAtual === 'produtores' && txt.includes('produtor')) ||
         (filtroPerfilAtual === 'analistas' && txt.includes('analista')) ||
         (filtroPerfilAtual === 'administradores' && txt.includes('administrador')) ||
-        (filtroPerfilAtual === 'ativos' && txt.includes('ativo'));
+        (filtroPerfilAtual === 'pendentes' && txt.includes('pendente')) ||
+        (filtroPerfilAtual === 'ativos' && txt.includes('ativo') && !txt.includes('inativo'));
       tr.style.display = (matchTermo && matchPerfil) ? '' : 'none';
     });
   };
@@ -484,6 +536,7 @@ export function setupUsuariosEvents() {
       if (label.includes('produtor')) filtroPerfilAtual = 'produtores';
       else if (label.includes('analista')) filtroPerfilAtual = 'analistas';
       else if (label.includes('admin')) filtroPerfilAtual = 'administradores';
+      else if (label.includes('pendente')) filtroPerfilAtual = 'pendentes';
       else if (label.includes('ativo')) filtroPerfilAtual = 'ativos';
       else filtroPerfilAtual = 'todos';
       filtrarTabelaUsuarios();

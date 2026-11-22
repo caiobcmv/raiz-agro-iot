@@ -644,7 +644,7 @@ function setupAnalistaConfiguracoesEvents() {
     btn.disabled = true;
     btn.textContent = 'Testando...';
     const t0 = performance.now();
-    await api.checkHealth().catch(() => {});
+    await api.checkHealth().catch(() => { });
     const ms = Math.max(45, Math.round(performance.now() - t0));
     setTimeout(() => {
       const lat = document.getElementById('analista-latencia-txt');
@@ -715,7 +715,7 @@ function setupAnalistaConfiguracoesEvents() {
       if (rejBadge && resumo?.ingestao_24h) {
         rejBadge.textContent = `Rejeitadas 24h: ${resumo.ingestao_24h.rejeitadas ?? 0}`;
       }
-    }).catch(() => {});
+    }).catch(() => { });
   }
 }
 
@@ -803,7 +803,7 @@ function renderAdminConfiguracoes() {
             <div style="display: flex; gap: 8px;">
               <div style="flex: 1; display: flex; align-items: center; gap: 8px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 9px; padding: 0 12px;">
                 <i data-lucide="map-pin" style="width: 14px; height: 14px; color: #64748B;"></i>
-                <input id="admin-farm-gps" value="-21.177502, -47.810331" style="width: 100%; padding: 10px 0; background: transparent; border: none; font-size: 12px; font-family: monospace; color: #0F172A; outline: none;">
+                <input id="admin-farm-gps" value="-9.389100, -40.502700" style="width: 100%; padding: 10px 0; background: transparent; border: none; font-size: 12px; font-family: monospace; color: #0F172A; outline: none;">
               </div>
               <button id="btn-admin-recalibrar-gps" style="padding: 9px 14px; background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 9px; font-size: 11px; font-weight: 700; color: #1D4ED8; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;">
                 <i data-lucide="crosshair" style="width: 13px; height: 13px;"></i> Recalibrar GPS
@@ -845,7 +845,7 @@ function renderAdminConfiguracoes() {
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
             <div>
               <label style="display: block; font-size: 10px; font-weight: 700; color: #64748B; text-transform: uppercase; margin-bottom: 5px;">FUSO HORÁRIO OPERACIONAL</label>
-              <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 9px 11px; font-size: 12px; font-weight: 600; color: #0F172A;">América/Sao_Paulo (UTC-3)</div>
+              <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 9px 11px; font-size: 12px; font-weight: 600; color: #0F172A;">América/Recife (UTC-3)</div>
             </div>
             <div>
               <label style="display: block; font-size: 10px; font-weight: 700; color: #64748B; text-transform: uppercase; margin-bottom: 5px;">SISTEMA DE UNIDADES</label>
@@ -855,7 +855,7 @@ function renderAdminConfiguracoes() {
         </div>
 
         <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 12px; border-top: 1px solid #F1F5F9; font-size: 11px;">
-          <span style="color: #64748B; display: inline-flex; align-items: center; gap: 5px;"><i data-lucide="refresh-cw" style="width: 12px; height: 12px;"></i> Sincronizado com tabela <code style="font-size: 10px; color: #0F172A;">ambiente_safra</code></span>
+          <span style="color: #64748B; display: inline-flex; align-items: center; gap: 5px;"><i data-lucide="refresh-cw" style="width: 12px; height: 12px;"></i> Sincronizado com tabela <code style="font-size: 10px; color: #0F172A;">propriedade</code></span>
           <a href="javascript:void(0)" id="btn-admin-editar-kml" style="color: #059669; font-weight: 700; text-decoration: none;">Editar Geometria KML</a>
         </div>
       </div>
@@ -1134,8 +1134,8 @@ function setupAdminConfiguracoesEvents() {
     const nome = document.getElementById('admin-farm-nome');
     const gps = document.getElementById('admin-farm-gps');
     if (nome) nome.value = 'Fazenda RaizTech — Polo Sul (Petrolina/PE)';
-    if (gps) gps.value = '-21.177502, -47.810331';
-    toast.info('Padrões Globais Restaurados', 'Configurações revertidas para o baseline Schema Raiz Precision v4.2.');
+    if (gps) gps.value = '-9.389100, -40.502700';
+    toast.info('Padrões Globais Restaurados', 'Configurações revertidas para o baseline Schema Raiz Precision v4.2 (Petrolina/PE).');
   });
 
   // Recalibrar GPS
@@ -1178,7 +1178,7 @@ function setupAdminConfiguracoesEvents() {
     btn.disabled = true;
     btn.textContent = 'Ping...';
     const t0 = performance.now();
-    await api.checkHealth().catch(() => {});
+    await api.checkHealth().catch(() => { });
     const ms = Math.max(42, Math.round(performance.now() - t0));
     setTimeout(() => {
       btn.disabled = false;
@@ -1316,20 +1316,20 @@ export async function renderConfiguracoes() {
             <label style="display: block; font-size: 11px; font-weight: 600; color: #475569; margin-bottom: 8px;">Cor do Avatar</label>
             <div style="display: flex; flex-wrap: wrap; gap: 8px;">
               ${[
-                { key: 'esmeralda', name: 'Esmeralda', dot: '#059669', bg: '#ECFDF5', border: '#10B981', color: '#065F46' },
-                { key: 'floresta',  name: 'Floresta',  dot: '#22C55E', bg: '#F0FDF4', border: '#22C55E', color: '#166534' },
-                { key: 'azul',      name: 'Azul Céu',  dot: '#3B82F6', bg: '#EFF6FF', border: '#3B82F6', color: '#1E40AF' },
-                { key: 'ambar',     name: 'Âmbar',     dot: '#F59E0B', bg: '#FFFBEB', border: '#F59E0B', color: '#92400E' },
-                { key: 'violeta',   name: 'Violeta',   dot: '#8B5CF6', bg: '#F5F3FF', border: '#8B5CF6', color: '#5B21B6' },
-                { key: 'rosa',      name: 'Rosa',      dot: '#EC4899', bg: '#FDF2F8', border: '#EC4899', color: '#831843' }
-              ].map(p => {
-                const isActive = (profile.avatarKey || 'esmeralda') === p.key;
-                return `
+      { key: 'esmeralda', name: 'Esmeralda', dot: '#059669', bg: '#ECFDF5', border: '#10B981', color: '#065F46' },
+      { key: 'floresta', name: 'Floresta', dot: '#22C55E', bg: '#F0FDF4', border: '#22C55E', color: '#166534' },
+      { key: 'azul', name: 'Azul Céu', dot: '#3B82F6', bg: '#EFF6FF', border: '#3B82F6', color: '#1E40AF' },
+      { key: 'ambar', name: 'Âmbar', dot: '#F59E0B', bg: '#FFFBEB', border: '#F59E0B', color: '#92400E' },
+      { key: 'violeta', name: 'Violeta', dot: '#8B5CF6', bg: '#F5F3FF', border: '#8B5CF6', color: '#5B21B6' },
+      { key: 'rosa', name: 'Rosa', dot: '#EC4899', bg: '#FDF2F8', border: '#EC4899', color: '#831843' }
+    ].map(p => {
+      const isActive = (profile.avatarKey || 'esmeralda') === p.key;
+      return `
                   <button class="avatar-color-pill ${isActive ? 'active' : ''}" data-color="${p.key}" style="padding: 6px 12px; background: ${p.bg}; border: ${isActive ? '1.5px solid #10B981' : '1px solid #E2E8F0'}; border-radius: 20px; font-size: 12px; font-weight: ${isActive ? '700' : '500'}; color: ${isActive ? '#065F46' : '#475569'}; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
                     <span style="width: 8px; height: 8px; border-radius: 50%; background: ${p.dot};"></span> ${p.name}
                   </button>
                 `;
-              }).join('')}
+    }).join('')}
             </div>
           </div>
         </div>
@@ -1499,9 +1499,9 @@ export async function renderConfiguracoes() {
 
         <!-- Localização -->
         <div style="margin-bottom:14px;">
-          <label style="display:block; font-size:11px; font-weight:600; color:#475569; margin-bottom:5px;">Localização e Coordenadas Geográficas</label>
+          <label style="display:block; font-size:11px; font-weight:600; color:#475569; margin-bottom:5px;">Localização e Coordenadas Geográficas (Petrolina/PE)</label>
           <div style="display:flex; gap:10px; align-items:flex-start; flex-wrap:wrap;">
-            <input id="cfg-farm-coords" value="-21.177502, -47.616331" ${readOnlyAttr} style="flex:1; min-width:140px; padding:10px 12px; border:1px solid #E2E8F0; border-radius:9px; font-size:12px; color:#0F172A; outline:none; background:${inputBg}; box-sizing:border-box; cursor:${inputCursor};">
+            <input id="cfg-farm-coords" value="-9.389100, -40.502700" ${readOnlyAttr} style="flex:1; min-width:140px; padding:10px 12px; border:1px solid #E2E8F0; border-radius:9px; font-size:12px; color:#0F172A; outline:none; background:${inputBg}; box-sizing:border-box; cursor:${inputCursor};">
             <div style="background:#F0FDF4; border-radius:8px; padding:8px 12px; font-size:11px; font-weight:700; color:#065F46; min-width:160px;">
               Petrolina – Setor 04 (Submédio São Francisco)
             </div>
@@ -1637,6 +1637,27 @@ export async function renderConfiguracoes() {
             </label>
           </div>
         </div>
+
+        <!-- Governança de Canais de Envio (notificacoes.sql: notificacao_preferencia) -->
+        <div style="background:#F0FDF4; border:1px solid #BBF7D0; border-radius:10px; padding:14px 16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <div style="font-size:12px; font-weight:800; color:#166534; display:flex; align-items:center; gap:6px;">
+              <i data-lucide="bell-ring" style="width:14px; height:14px;"></i> Canais Ativos (notificacao_preferencia)
+            </div>
+            <span style="font-size:10px; color:#15803D; font-weight:700; background:#DCFCE7; padding:2px 8px; border-radius:4px;">Nível Mínimo: Baixo</span>
+          </div>
+          <div style="display:flex; gap:20px; flex-wrap:wrap; font-size:12px; font-weight:600; color:#0F172A;">
+            <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+              <input type="checkbox" id="notif-pref-email" checked style="accent-color:#10B981; width:15px; height:15px;"> Canal E-mail (SMTP)
+            </label>
+            <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+              <input type="checkbox" id="notif-pref-webhook" checked style="accent-color:#10B981; width:15px; height:15px;"> Webhook Agro / MQTT
+            </label>
+            <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+              <input type="checkbox" id="notif-pref-sms" style="accent-color:#10B981; width:15px; height:15px;"> SMS / Mensageria Crítica
+            </label>
+          </div>
+        </div>
       </div>
 
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
@@ -1724,11 +1745,11 @@ export async function setupConfiguracoesEvents() {
   // A) Mudança da Cor do Avatar
   const avatarColors = {
     esmeralda: { bg: '#D1FAE5', border: '#10B981', color: '#065F46' },
-    floresta:  { bg: '#DCFCE7', border: '#22C55E', color: '#14532D' },
-    azul:      { bg: '#DBEAFE', border: '#3B82F6', color: '#1E3A8A' },
-    ambar:     { bg: '#FEF3C7', border: '#F59E0B', color: '#78350F' },
-    violeta:   { bg: '#EDE9FE', border: '#8B5CF6', color: '#4C1D95' },
-    rosa:      { bg: '#FCE7F3', border: '#EC4899', color: '#831843' }
+    floresta: { bg: '#DCFCE7', border: '#22C55E', color: '#14532D' },
+    azul: { bg: '#DBEAFE', border: '#3B82F6', color: '#1E3A8A' },
+    ambar: { bg: '#FEF3C7', border: '#F59E0B', color: '#78350F' },
+    violeta: { bg: '#EDE9FE', border: '#8B5CF6', color: '#4C1D95' },
+    rosa: { bg: '#FCE7F3', border: '#EC4899', color: '#831843' }
   };
 
   // Aplica a cor salva no carregamento da página
@@ -1933,7 +1954,7 @@ export async function setupConfiguracoesEvents() {
   // J) Salvar Configurações do Sistema (Apenas Perfil Administrador)
   document.getElementById('btn-salvar-configuracoes-admin')?.addEventListener('click', () => {
     const farmName = document.getElementById('cfg-farm-name')?.value || 'Fazenda Vale das Uvas';
-    const farmCoords = document.getElementById('cfg-farm-coords')?.value || '-21.177502, -47.616331';
+    const farmCoords = document.getElementById('cfg-farm-coords')?.value || '-9.389100, -40.502700';
     const farmArea = document.getElementById('cfg-farm-area')?.value || '1.250';
     const tipoSolo = document.getElementById('cfg-tipo-solo')?.value || '';
     const bio = document.getElementById('cfg-profile-bio')?.value || '';

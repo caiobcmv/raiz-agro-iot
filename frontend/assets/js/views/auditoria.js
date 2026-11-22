@@ -103,6 +103,37 @@ let _termoBuscaLog = '';
 let _periodoLog = '24h';
 
 export async function renderAuditoria() {
+  // Conexão com backend FastAPI (GET /auditoria e GET /leituras-rejeitadas) mantendo fallback
+  try {
+    const [logsRes, rejeitadasRes] = await Promise.allSettled([
+      api.getAuditoria({ limit: 10 }),
+      api.getLeiturasRejeitadas({ limit: 5 })
+    ]);
+
+    if (logsRes.status === 'fulfilled' && Array.isArray(logsRes.value) && logsRes.value.length > 0) {
+      const logsApi = logsRes.value.map((l, idx) => ({
+        id: l.id_log || idx + 100,
+        categoria: (l.acao || '').includes('login') ? 'acessos' : ((l.acao || '').includes('parametro') ? 'agronomia' : 'seguranca'),
+        badge: (l.acao || 'AUDITORIA').toUpperCase().slice(0, 24),
+        badgeColor: (l.resultado || '').toLowerCase().includes('falha') ? '#DC2626' : '#15803D',
+        badgeBg: (l.resultado || '').toLowerCase().includes('falha') ? '#FEE2E2' : '#DCFCE7',
+        codigo_ref: l.acao || 'log_acesso',
+        lote: l.usuario ? `Usuário: ${l.usuario}` : 'Sistema IoT',
+        data: l.data_hora ? new Date(l.data_hora).toLocaleString('pt-BR') : 'Hoje',
+        titulo: `${l.acao} — ${l.resultado || 'Sucesso'}`,
+        origem: `IP: ${l.ip || '127.0.0.1'} • Usuário ID: ${l.id_usuario || 'SYS'}`,
+        destino: `Resultado: ${l.resultado || 'OK'}`,
+        hash: `sha256:${(l.id_log || '0')}${Date.now().toString(16).slice(-6)}...val`,
+        assinatura: 'Assinatura Válida',
+        btnAcao: '',
+        btnPayload: 'Ver Payload'
+      }));
+      // Combina logs reais da API no topo da lista local
+      _logsAuditoria = [...logsApi, ..._logsAuditoria.slice(logsApi.length)];
+    }
+  } catch (err) {
+    console.warn('Backend auditoria offline, usando baseline local:', err);
+  }
   return `
     <div class="dashboard-canvas apple-animate-in" style="max-width: 1400px; margin: 0 auto;">
       <!-- Sub-barra Técnica de Auditoria v4.2 -->

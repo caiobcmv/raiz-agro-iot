@@ -555,10 +555,12 @@ function abrirModalInspecaoLote(loteId) {
         <div>
           <span style="font-size: 10px; color: #64748B;">Volume Registrado:</span>
           <div style="font-weight: 700; color: #0F172A;">${lote.volume}</div>
+          <span style="font-size: 9px; color: #047857;">Unidade: <strong>kg</strong> (válidas: kg, caixa, t)</span>
         </div>
         <div>
           <span style="font-size: 10px; color: #64748B;">Destino Comercial:</span>
           <div style="font-weight: 700; color: #047857;">${lote.destino}</div>
+          <span style="font-size: 9px; color: #64748B;">Dono (IDOR): <strong>ID 1 (Maria Clara)</strong></span>
         </div>
       </div>
 
@@ -668,16 +670,25 @@ export function setupLotesEvents() {
           </div>
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
             <label>Data Início:
-              <input type="date" value="2026-08-01" style="width: 100%; padding: 8px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
+              <input type="date" id="campo-nova-safra-inicio" value="2026-08-01" style="width: 100%; padding: 8px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
             </label>
-            <label>Data Término:
-              <input type="date" value="2027-07-30" style="width: 100%; padding: 8px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
+            <label>Data Término (data_fim >= data_inicio):
+              <input type="date" id="campo-nova-safra-fim" value="2027-07-30" style="width: 100%; padding: 8px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
             </label>
           </div>
         </div>
       `, () => {
         const ciclo = document.getElementById('campo-nova-safra-ciclo')?.value || 'Safra 2026/2027';
-        toast.success('Safra Homologada', `${ciclo} cadastrada com sucesso no banco relacional.`);
+        const dInicio = document.getElementById('campo-nova-safra-inicio')?.value;
+        const dFim = document.getElementById('campo-nova-safra-fim')?.value;
+
+        // Validação de restrição de safra: data_fim >= data_inicio
+        if (dInicio && dFim && new Date(dFim) < new Date(dInicio)) {
+          toast.error('Erro de Validação', 'A data de término da safra deve ser maior ou igual à data de início (data_fim >= data_inicio).');
+          return;
+        }
+
+        toast.success('Safra Homologada', `${ciclo} cadastrada com sucesso no banco relacional (Período: ${dInicio} a ${dFim}).`);
       }, 'Homologar Safra');
     });
   }

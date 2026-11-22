@@ -361,9 +361,9 @@ export async function renderSensoresAdmin() {
 
           <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 14px;">
             <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px;">
-              <span style="font-size: 10px; color: #64748B;">Temp. Solo: <strong style="color: #0F172A;">24.1°C</strong></span>
-              <div style="font-size: 11px; color: #047857; font-weight: 600; margin-top: 2px;">• Ideal para raiz</div>
-              <div style="font-size: 10px; color: #64748B; margin-top: 4px;">Umidade Solo: <strong>46.8%</strong> (Faixa VWC ótima)</div>
+              <span style="font-size: 10px; color: #64748B;">Umidade Solo (VWC): <strong style="color: #0F172A;">46.8%</strong></span>
+              <div style="font-size: 11px; color: #047857; font-weight: 600; margin-top: 2px;">• Faixa VWC ótima para raiz</div>
+              <div style="font-size: 10px; color: #64748B; margin-top: 4px;">Sensor de solo registra apenas umidade (schema.sql)</div>
             </div>
 
             <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px;">
@@ -725,8 +725,23 @@ export function setupSensoresAdminEvents() {
             </label>
             <label>Tipo do Sensor:
               <select id="novo-sensor-tipo" style="width: 100%; padding: 7px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
-                <option value="Sensor de Umidade do Solo">Sensor de Umidade do Solo</option>
+                <option value="Sensor de Umidade do Solo">Sensor de Umidade do Solo (Apenas VWC)</option>
                 <option value="Sensor DHT11 (Temp/Umid Ar)">Sensor DHT11 (Temp/Umid Ar)</option>
+              </select>
+            </label>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <label>Ambiente (ambiente IN 'ar', 'solo'):
+              <select id="novo-sensor-ambiente" style="width: 100%; padding: 7px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
+                <option value="solo">Solo (Subsolo Radicular)</option>
+                <option value="ar">Ar (Dossel Vegetativo)</option>
+              </select>
+            </label>
+            <label>Proprietário / Responsável (fk_usuario_id_usuario):
+              <select id="novo-sensor-usuario" style="width: 100%; padding: 7px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
+                <option value="1">Maria Clara (Produtor / Exportador)</option>
+                <option value="2">Luiz Felipe (Analista de Dados)</option>
+                <option value="3" selected>Lorena Lira (Administrador)</option>
               </select>
             </label>
           </div>
@@ -751,14 +766,18 @@ export function setupSensoresAdminEvents() {
       `, () => {
         const id = document.getElementById('novo-sensor-id')?.value || `SNS-SL-0${_sensoresList.length + 1}`;
         const tipo = document.getElementById('novo-sensor-tipo')?.value || 'Sensor de Umidade do Solo';
+        const ambiente = document.getElementById('novo-sensor-ambiente')?.value || 'solo';
+        const fkUsuario = document.getElementById('novo-sensor-usuario')?.value || '3';
         const talhao = document.getElementById('novo-sensor-talhao')?.value || 'Talhão A1';
         const firmware = document.getElementById('novo-sensor-firmware')?.value || 'v4.2.1-prod';
-        const isAr = tipo.includes('Ar');
+        const isAr = ambiente === 'ar' || tipo.includes('Ar');
 
         _sensoresList.unshift({
           id,
           tipo,
           status: 'Ativo',
+          ambiente: isAr ? 'ar' : 'solo',
+          fk_usuario_id_usuario: parseInt(fkUsuario, 10),
           categoria: isAr ? 'microclima' : 'solo',
           talhao: `${talhao} • Novo nó provisionado`,
           vwc: isAr ? '27.8°C • 58.2% UR' : '45.0% VWC',
@@ -772,7 +791,7 @@ export function setupSensoresAdminEvents() {
         });
 
         atualizarTabelaSensores();
-        toast.success('Sensor Provisionado', `Nó #${id} cadastrado com sucesso e chave de sessão OTAA gerada.`);
+        toast.success('Sensor Provisionado', `Nó #${id} cadastrado com sucesso (Ambiente: ${isAr ? 'Ar' : 'Solo'} | Dono ID: ${fkUsuario}).`);
       }, 'Provisionar Nó');
     });
   }
