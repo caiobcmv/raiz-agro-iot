@@ -1,4 +1,4 @@
-﻿/**
+/**
  * RAIZ AGRO IOT - CLIENTE API CENTRALIZADO (100% REAL - FASTAPI + POSTGRESQL)
  * Todas as requisições utilizam o backend real com autenticação JWT Bearer.
  * Zero mocks, zero dados sintéticos e zero fallbacks de demonstração.

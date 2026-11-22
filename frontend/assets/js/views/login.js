@@ -1,4 +1,4 @@
-﻿/**
+/**
  * VIEW: TELA DE LOGIN (Figma Pixel Perfect + MFA Flow)
  */
 
