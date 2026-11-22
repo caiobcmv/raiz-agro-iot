@@ -14,6 +14,8 @@ from src.api import calculos_previsao as calc
 from src.api import previsao_repo as repo
 from src.api.auditoria import auditar
 from src.api.deps import get_conn
+from src.api.deps_auth import get_current_user
+from src.api.escopo import exigir_lote, id_dono
 from src.api.routers.previsoes import _id_modelo, _iso, _lotes_em_campo
 
 router = APIRouter(prefix="/previsoes", tags=["previsoes"])
@@ -189,18 +191,23 @@ def gerar_irrigacao(
 
 @router.get("/irrigacao", response_model=List[IrrigacaoOut])
 def consultar_irrigacao(id_lote: Optional[int] = None, limite: int = Query(30, ge=1, le=200),
-                        conn=Depends(get_conn)):
+                        conn=Depends(get_conn), user=Depends(get_current_user)):
     """Sem id_lote: a última previsão de cada lote. Com id_lote: histórico (mais recentes primeiro)."""
     base = """SELECT {d} id_previsao_irrigacao, fk_lote_id_lote AS id_lote, necessita_irrigacao,
                      quantidade_agua_mm, temperatura, umidade, data_previsao
               FROM previsao_irrigacao"""
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        exigir_lote(cur, user, id_lote)  # 404 se o lote não existir OU for de outro dono
         if id_lote is None:
+            # Produtor: só lotes dele (None = escopo total)
             cur.execute(base.format(d="DISTINCT ON (fk_lote_id_lote)")
-                        + " ORDER BY fk_lote_id_lote, data_previsao DESC")
+                        + " WHERE (%(dono)s::int IS NULL OR fk_lote_id_lote IN"
+                          " (SELECT id_lote FROM lote WHERE fk_usuario_id_usuario = %(dono)s))"
+                        + " ORDER BY fk_lote_id_lote, data_previsao DESC",
+                        {"dono": id_dono(user)})
         else:
-            cur.execute(base.format(d="") + " WHERE fk_lote_id_lote = %s ORDER BY data_previsao DESC LIMIT %s",
-                        (id_lote, limite))
+            cur.execute(base.format(d="") + " WHERE fk_lote_id_lote = %(id_lote)s ORDER BY data_previsao DESC LIMIT %(limite)s",
+                        {"id_lote": id_lote, "limite": limite})
         linhas = cur.fetchall()
     for r in linhas:
         r["data_previsao"] = _iso(r["data_previsao"])

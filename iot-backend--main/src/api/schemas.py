@@ -23,7 +23,7 @@ OrigemAPI = Annotated[str, PlainSerializer(_origem_api, return_type=str)]
 class StatusUsuario(str, Enum):
     ativo = "ativo"
     inativo = "inativo"
-
+    pendente = "pendente"
 
 class PerfilOut(BaseModel):
     id_perfil: int
@@ -65,6 +65,8 @@ class LeituraOut(BaseModel):
     id_sensor: Optional[int] = None
     temperatura: Optional[float] = None
     umidade: Optional[float] = None
+    umidade_solo: Optional[float] = None
+    temperatura_solo: Optional[float] = None
     data_hora: Optional[DataUTC] = None
     data_recebimento: Optional[DataUTC] = None
     origem: Optional[OrigemAPI] = None
@@ -125,6 +127,8 @@ class SensorOut(BaseModel):
     ultima_leitura: Optional[DataUTC] = None
     temperatura: Optional[float] = None
     umidade: Optional[float] = None
+    umidade_solo: Optional[float] = None
+    temperatura_solo: Optional[float] = None
     origem: Optional[OrigemAPI] = None
 
 
@@ -256,6 +260,7 @@ class ParecerEstruturadoSchema(BaseModel):
 class ParecerIAResponse(BaseModel):
     id_lote: int
     modelo: str
-    origem: str  # 'CACHE', 'GEMINI' ou 'FALLBACK_TEMPLATE'
+    origem: str  # 'CACHE' (já gerado), 'IA' (gerado agora) ou 'FALLBACK_TEMPLATE' (IA indisponível)
     conteudo: ParecerEstruturadoSchema
-    data_geracao: datetime    
+    data_geracao: datetime
+    expira_em: datetime  # a partir daí o próximo GET gera um parecer novo

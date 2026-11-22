@@ -7,6 +7,8 @@ from pydantic import BaseModel, Field
 
 from src.api.auditoria import auditar
 from src.api.deps import get_conn
+from src.api.deps_auth import get_current_user
+from src.api.escopo import exigir_lote, filtrar_por_dono
 
 router = APIRouter(prefix="/lotes", tags=["lotes"])
 
@@ -83,8 +85,10 @@ def listar_lotes(
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),
     conn=Depends(get_conn),
+    user=Depends(get_current_user),
 ):
     where, params = [], []
+    filtrar_por_dono(user, "l.fk_usuario_id_usuario", where, params)
     if status:
         where.append("l.status = %s::status_lote")
         params.append(status)
@@ -100,8 +104,9 @@ def listar_lotes(
 
 
 @router.get("/{id_lote}", response_model=LoteOut)
-def obter_lote(id_lote: int, conn=Depends(get_conn)):
+def obter_lote(id_lote: int, conn=Depends(get_conn), user=Depends(get_current_user)):
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        exigir_lote(cur, user, id_lote)
         lote = _buscar(cur, id_lote)
     if lote is None:
         raise HTTPException(status_code=404, detail="Lote não encontrado")

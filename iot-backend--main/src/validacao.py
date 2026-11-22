@@ -29,6 +29,13 @@ def _validar_medida(nome: str, valor, bruto, minimo: float, maximo: float, unida
     return []
 
 
+def _validar_opcional(nome, valor, bruto, minimo, maximo, unidade) -> List[str]:
+    """Medida de solo: campo vazio vira NULL (não rejeita); valor presente e inválido rejeita."""
+    if valor is None and (bruto is None or str(bruto).strip() == ""):
+        return []
+    return _validar_medida(nome, valor, bruto, minimo, maximo, unidade)
+
+
 def validar_leitura(leitura: dict) -> List[str]:
     motivos: List[str] = []
 
@@ -46,4 +53,14 @@ def validar_leitura(leitura: dict) -> List[str]:
         "umidade", leitura.get("umidade"), leitura.get("umidade_bruta"),
         config.UMIDADE_MIN_VALIDA, config.UMIDADE_MAX_VALIDA, "%",
     )
+    if "umidade_solo" in leitura:
+        motivos += _validar_opcional(
+            "umidade_solo", leitura.get("umidade_solo"), leitura.get("umidade_solo_bruta"),
+            config.UMIDADE_MIN_VALIDA, config.UMIDADE_MAX_VALIDA, "%",
+        )
+    if "temperatura_solo" in leitura:
+        motivos += _validar_opcional(
+            "temperatura_solo", leitura.get("temperatura_solo"), leitura.get("temperatura_solo_bruta"),
+            config.TEMP_MIN_VALIDA, config.TEMP_MAX_VALIDA, "°C",
+        )
     return motivos

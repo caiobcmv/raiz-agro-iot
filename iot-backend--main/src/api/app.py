@@ -2,16 +2,43 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src import config
-from src.api.deps_auth import ADMIN, PRODUTOR_EXPORTADOR, require_role
-from src.api.routers import (alertas, alertas_preditivos, auditoria, auth, clima,
-                             config_parametros, dados_mercado, dashboard, frutas, ia,
-                             leituras, leituras_rejeitadas, lotes, perfis, preferencias,
-                             previsoes, previsoes_ia, recomendacoes, relatorios,
+from src.api.deps_auth import (ADMIN, ANALISTA, PRODUTOR_EXPORTADOR, get_current_user, require_role,
+                               require_role_por_metodo)
+from src.api.routers import (alertas, alertas_preditivos, analista, central_alertas, auditoria, auth,
+                             catalogo, clima, config_parametros, dados_mercado,
+                             dashboard, frutas, ia, leituras, leituras_rejeitadas, lotes,
+                             perfis, previsoes, previsoes_ia, recomendacoes, relatorios,
                              relatorios_gerados, risco, sensor_leituras, sensores,
-                             usuarios, viagens)
+                             usuarios, pareceres, notificacoes, parecer_ia, dashboard_stream, calibracao,
+                             preferencias, viagens)
 
+# O Administrador passa em TODAS as regras (bypass em deps_auth), então não é listado aqui.
+# O Produtor/Exportador é somente leitura: nenhuma regra lhe dá POST/PUT/PATCH/DELETE.
+
+# só Administrador
 admin = [Depends(require_role(ADMIN))]
-produtor = [Depends(require_role(PRODUTOR_EXPORTADOR, ADMIN))]  # já inclui o Admin
+
+# Analista e Produtor consultam (GET); só o Admin escreve.
+# O parecer automático de IA (GET /ia/parecer) fica aqui: os 3 perfis só leem, ninguém gera.
+consulta = [Depends(require_role_por_metodo(
+    leitura=(ANALISTA, PRODUTOR_EXPORTADOR), escrita=()))]
+
+# Analista consulta e edita (sem excluir); Produtor só consulta; Admin faz tudo
+analista_edita = [Depends(require_role_por_metodo(
+    leitura=(ANALISTA, PRODUTOR_EXPORTADOR), escrita=(ANALISTA,), exclusao=()))]
+
+# Analista consulta e gera (sem excluir); Produtor fora; Admin faz tudo
+analista_so_ae = [Depends(require_role_por_metodo(
+    leitura=(ANALISTA,), escrita=(ANALISTA,), exclusao=()))]
+
+# Só Analista consulta (Produtor fora); Admin faz tudo.
+# Telas e relatórios que agregam dados de TODOS os donos: o Produtor não tem escopo para eles.
+so_analista = [Depends(require_role_por_metodo(
+    leitura=(ANALISTA,), escrita=()))]
+
+# Só Produtor consulta (Analista fora); Admin faz tudo
+so_produtor = [Depends(require_role_por_metodo(
+    leitura=(PRODUTOR_EXPORTADOR,), escrita=()))]
 
 app = FastAPI(title="API - Dashboard Climático e Logístico")
 
@@ -19,63 +46,39 @@ app = FastAPI(title="API - Dashboard Climático e Logístico")
 def raiz():
     return {"status": "ok", "docs": "/docs"}
 
-@app.get("/api/diag", include_in_schema=False)
-def diag():
-    import traceback
-    try:
-        from src import database
-        conn = database.conectar()
-        with conn.cursor() as cur:
-            cur.execute("SELECT 1")
-            v = cur.fetchone()[0]
-            cur.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")
-            tables = [r[0] for r in cur.fetchall()]
-        conn.close()
-        return {"status": "connected", "select_1": v, "tables": tables}
-    except Exception as e:
-        return {"status": "db_error", "error": str(e), "traceback": traceback.format_exc()}
-
-# Suporte universal a CORS para qualquer subdomínio da Vercel (*.vercel.app), localhost e produção
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_origin_regex=r"^https?://.*",
-    allow_credentials=False,
+    allow_origins=config.CORS_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-@app.middleware("http")
-async def add_universal_cors_headers(request, call_next):
-    origin = request.headers.get("origin") or "*"
-    if request.method == "OPTIONS":
-        from fastapi.responses import Response
-        res = Response(status_code=200)
-    else:
-        try:
-            res = await call_next(request)
-        except Exception as exc:
-            from fastapi.responses import JSONResponse
-            res = JSONResponse(
-                status_code=200,
-                content={"status": "error_handled", "detail": str(exc)}
-            )
-    res.headers["Access-Control-Allow-Origin"] = origin
-    res.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
-    res.headers["Access-Control-Allow-Headers"] = "*"
-    return res
-
-# público (login, refresh, 2FA e sincronização de preferências por usuário)
+# público (login, refresh, 2FA) — /auth/me exige token
 app.include_router(auth.router)
+app.include_router(notificacoes.router)
 app.include_router(preferencias.router)
+app.include_router(dashboard_stream.router)  # SSE: o GET usa ticket de uso único (POST /dashboard/stream/ticket exige login)
 
-# só Administrador
 for r in (perfis, usuarios):
     app.include_router(r.router, dependencies=admin)
 
-# Produtor/Exportador (e Admin)
-for r in (leituras, leituras_rejeitadas, auditoria, clima, sensores, config_parametros,
-          dashboard, sensor_leituras, lotes, alertas, frutas, dados_mercado,
-          relatorios, relatorios_gerados, viagens, risco,
-          previsoes, alertas_preditivos, ia, recomendacoes, previsoes_ia):
-    app.include_router(r.router, dependencies=produtor)
+for r in (leituras, leituras_rejeitadas, sensor_leituras, dashboard, clima, lotes, frutas,
+          risco, previsoes, parecer_ia, viagens):
+    app.include_router(r.router, dependencies=consulta)
+
+# resumos agregados (sem filtro por dono): só Analista/Admin
+app.include_router(analista.router, dependencies=so_analista)
+app.include_router(calibracao.router, dependencies=analista_edita)
+
+for r in (sensores, config_parametros, alertas, alertas_preditivos, catalogo,
+          relatorios, pareceres, central_alertas):
+    app.include_router(r.router, dependencies=analista_edita)
+
+# relatórios gerados/exportados cobrem todos os donos: Analista consulta e gera; Produtor fora
+app.include_router(relatorios_gerados.router, dependencies=analista_so_ae)
+
+for r in (dados_mercado, ia, recomendacoes, previsoes_ia):
+    app.include_router(r.router, dependencies=so_produtor)
+
+# log de acesso (IPs, ações de todos os usuários): só Administrador
+app.include_router(auditoria.router, dependencies=admin)

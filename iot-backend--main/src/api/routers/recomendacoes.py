@@ -6,6 +6,8 @@ from pydantic import BaseModel
 
 from src.api import calculos_previsao as calc
 from src.api.deps import get_conn
+from src.api.deps_auth import get_current_user
+from src.api.escopo import exigir_lote
 
 router = APIRouter(prefix="/recomendacoes", tags=["recomendacoes"])
 
@@ -22,12 +24,10 @@ class RecomendacoesOut(BaseModel):
 
 
 @router.get("", response_model=RecomendacoesOut)
-def recomendacoes_por_lote(id_lote: int = Query(...), conn=Depends(get_conn)):
+def recomendacoes_por_lote(id_lote: int = Query(...), conn=Depends(get_conn), user=Depends(get_current_user)):
     """Regras iniciais (árvore de decisão manual) sobre as últimas previsões gravadas do lote."""
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
-        cur.execute("SELECT 1 FROM lote WHERE id_lote = %s", (id_lote,))
-        if cur.fetchone() is None:
-            raise HTTPException(404, "Lote não encontrado")
+        exigir_lote(cur, user, id_lote)  # 404 se o lote não existir OU for de outro dono
         cur.execute("""SELECT i.necessita_irrigacao, i.quantidade_agua_mm, i.temperatura, i.umidade,
                               p.vpd_limite_kpa
                        FROM previsao_irrigacao i

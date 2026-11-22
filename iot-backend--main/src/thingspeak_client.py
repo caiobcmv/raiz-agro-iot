@@ -1,4 +1,4 @@
-# field1 = temperatura, field2 = umidade
+# Por padrão: field1 = temperatura, field2 = umidade (configurável em TS_FIELD_* no .env).
 import requests
 from src import config
 
@@ -19,15 +19,7 @@ def buscar_ultima_leitura():
     if not dado or dado.get("entry_id") is None:
         return None
 
-    return {
-       "entry_id": dado["entry_id"],
-        "created_at": dado["created_at"],
-        "temperatura": _float_seguro(dado.get("field1")),
-        "umidade": _float_seguro(dado.get("field2")),
-        # valores originais usados no log de leituras rejeitadas
-        "temperatura_bruta": dado.get("field1"),
-        "umidade_bruta": dado.get("field2"),
-    }
+    return _montar_leitura(dado)
 
 
 def buscar_leituras(quantidade=100):
@@ -44,15 +36,47 @@ def buscar_leituras(quantidade=100):
     for feed in dado.get("feeds", []):
         if feed.get("entry_id") is None:
             continue
-        leituras.append({
-            "entry_id": feed["entry_id"],
-            "created_at": feed["created_at"],
-            "temperatura": _float_seguro(feed.get("field1")),
-            "umidade": _float_seguro(feed.get("field2")),
-            "temperatura_bruta": feed.get("field1"),
-            "umidade_bruta": feed.get("field2"),
-        })
+        leituras.append(_montar_leitura(feed))
     return leituras
+
+
+def _campo(feed, numero):
+    """Valor do field N do feed (None se o field não foi mapeado)."""
+    return feed.get(f"field{numero}") if numero else None
+
+
+def _raw_para_pct(raw):
+    """Converte a leitura bruta do ADC (0-4095) do sensor de solo em % de umidade.
+    Sensor capacitivo: quanto mais seco, maior o valor bruto."""
+    if raw is None:
+        return None
+    seco, molhado = config.SOLO_RAW_SECO, config.SOLO_RAW_MOLHADO
+    if seco == molhado:
+        return None
+    pct = (seco - raw) / (seco - molhado) * 100
+    return round(max(0.0, min(100.0, pct)), 1)
+
+
+def _montar_leitura(feed):
+    """Converte um feed do ThingSpeak no dicionário usado pelo resto do sistema.
+    Os números dos fields vêm do .env (TS_FIELD_*). Solo só entra se estiver mapeado."""
+    leitura = {
+        "entry_id": feed["entry_id"],
+        "created_at": feed["created_at"],
+        "temperatura": _float_seguro(_campo(feed, config.TS_FIELD_TEMPERATURA)),
+        "umidade": _float_seguro(_campo(feed, config.TS_FIELD_UMIDADE)),
+        # valores originais usados no log de leituras rejeitadas
+        "temperatura_bruta": _campo(feed, config.TS_FIELD_TEMPERATURA),
+        "umidade_bruta": _campo(feed, config.TS_FIELD_UMIDADE),
+    }
+    if config.TS_FIELD_UMIDADE_SOLO:
+        bruto = _campo(feed, config.TS_FIELD_UMIDADE_SOLO)
+        leitura["umidade_solo"] = _raw_para_pct(_float_seguro(bruto))
+        leitura["umidade_solo_bruta"] = bruto
+    if config.TS_FIELD_TEMPERATURA_SOLO:
+        leitura["temperatura_solo"] = _float_seguro(_campo(feed, config.TS_FIELD_TEMPERATURA_SOLO))
+        leitura["temperatura_solo_bruta"] = _campo(feed, config.TS_FIELD_TEMPERATURA_SOLO)
+    return leitura
 
 
 def _float_seguro(valor):

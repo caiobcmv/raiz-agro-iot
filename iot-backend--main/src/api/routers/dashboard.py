@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends
 from psycopg2.extras import RealDictCursor
 
 from src.api.deps import get_conn
+from src.api.deps_auth import get_current_user
+from src.api.escopo import id_dono
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
@@ -40,7 +42,9 @@ def _condicao_geral(selos: dict) -> dict:
 
 
 @router.get("/resumo")
-def resumo(conn=Depends(get_conn)):
+def resumo(conn=Depends(get_conn), user=Depends(get_current_user)):
+    # Produtor: todos os números abaixo consideram só os sensores/lotes dele (None = escopo total)
+    p = {"dono": id_dono(user)}
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
         # Cartão "Sensores ativos": real = tem leitura com origem 'thingspeak'
         cur.execute("""
@@ -53,7 +57,8 @@ def resumo(conn=Depends(get_conn)):
                                        AND lower(l.origem) = 'thingspeak')
                    )::int AS reais
             FROM sensor s
-        """)
+            WHERE (%(dono)s::int IS NULL OR s.fk_usuario_id_usuario = %(dono)s)
+        """, p)
         sensores = cur.fetchone()
 
         # Cartão "Lotes monitorados": só lotes não finalizados
@@ -66,23 +71,32 @@ def resumo(conn=Depends(get_conn)):
                    )::int AS com_sensor_ativo
             FROM lote l
             WHERE l.status::text <> 'Finalizado'
-        """)
+              AND (%(dono)s::int IS NULL OR l.fk_usuario_id_usuario = %(dono)s)
+        """, p)
         lotes = cur.fetchone()
 
         # Cartão "Alertas ativos"
         cur.execute("""
             SELECT COUNT(*)::int AS abertos,
-                   COUNT(*) FILTER (WHERE fk_leitura_id_leitura IS NOT NULL)::int AS reativos,
-                   COUNT(*) FILTER (WHERE fk_leitura_id_leitura IS NULL
-                                      AND fk_previsao_id_previsao IS NOT NULL)::int AS preditivos,
-                   MAX(nivel)::text AS maior_nivel
-            FROM alerta
-            WHERE lower(status) = lower(%s)
-        """, (STATUS_ALERTA_ABERTO,))
+                   COUNT(*) FILTER (WHERE a.fk_leitura_id_leitura IS NOT NULL)::int AS reativos,
+                   COUNT(*) FILTER (WHERE a.fk_leitura_id_leitura IS NULL
+                                      AND a.fk_previsao_id_previsao IS NOT NULL)::int AS preditivos,
+                   MAX(a.nivel)::text AS maior_nivel
+            FROM alerta a
+            LEFT JOIN leitura_climatica r ON r.id_leitura = a.fk_leitura_id_leitura
+            LEFT JOIN sensor s ON s.id_sensor = r.fk_sensor_id_sensor
+            WHERE lower(a.status) = lower(%(status)s)
+              AND (%(dono)s::int IS NULL OR s.fk_usuario_id_usuario = %(dono)s)
+        """, {**p, "status": STATUS_ALERTA_ABERTO})
         alertas = cur.fetchone()
 
         # "Fluxo operacional dos lotes"
-        cur.execute("SELECT status::text AS status, COUNT(*)::int AS qtd FROM lote GROUP BY 1")
+        cur.execute("""
+            SELECT l.status::text AS status, COUNT(*)::int AS qtd
+            FROM lote l
+            WHERE (%(dono)s::int IS NULL OR l.fk_usuario_id_usuario = %(dono)s)
+            GROUP BY 1
+        """, p)
         por_status = {r["status"]: r["qtd"] for r in cur.fetchall()}
 
         # Cartão "Condição geral": selos da vw_lote_saude (só ar, últimas 24 h)
@@ -91,8 +105,9 @@ def resumo(conn=Depends(get_conn)):
             FROM vw_lote_saude v
             JOIN lote l ON l.id_lote = v.id_lote
             WHERE l.status::text <> 'Finalizado'
+              AND (%(dono)s::int IS NULL OR l.fk_usuario_id_usuario = %(dono)s)
             GROUP BY v.selo
-        """)
+        """, p)
         selos = {r["selo"]: r["qtd"] for r in cur.fetchall()}
 
         # Cartão "Resumo das condições": % dentro da faixa (media ponderada dos lotes)
@@ -102,7 +117,8 @@ def resumo(conn=Depends(get_conn)):
             FROM vw_lote_saude v
             JOIN lote l ON l.id_lote = v.id_lote
             WHERE l.status::text <> 'Finalizado'
-        """)
+              AND (%(dono)s::int IS NULL OR l.fk_usuario_id_usuario = %(dono)s)
+        """, p)
         faixa = cur.fetchone()
 
         # ... medias do ar nas ultimas 24 h e VPD (Tetens, FAO-56) leitura a leitura
@@ -118,7 +134,8 @@ def resumo(conn=Depends(get_conn)):
             WHERE s.ambiente = 'ar'
               AND lower(r.origem) = 'thingspeak'
               AND r.data_hora >= (now() AT TIME ZONE 'UTC') - interval '24 hours'
-        """)
+              AND (%(dono)s::int IS NULL OR s.fk_usuario_id_usuario = %(dono)s)
+        """, p)
         ar = cur.fetchone()
 
         # Área da propriedade (para converter mm de irrigação em litros: 1 mm em 1 ha = 10.000 L)

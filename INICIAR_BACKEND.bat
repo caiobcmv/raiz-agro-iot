@@ -14,14 +14,17 @@ if not exist ".env" (
     )
 )
 
+set "PY_BIN=python"
+if exist ".venv\Scripts\python.exe" set "PY_BIN=.venv\Scripts\python.exe"
+
 echo Verificando dependencias Python...
-python -m pip install -r requirements.txt
+"%PY_BIN%" -m pip install -r requirements.txt
 
 echo.
 echo Iniciando servidor Uvicorn na porta 8000...
 echo Acesse a documentacao em:  http://localhost:8000/docs
 echo.
-python -m uvicorn src.api.app:app --reload --port 8000 --host 0.0.0.0
+"%PY_BIN%" -m uvicorn src.api.app:app --reload --port 8000 --host 0.0.0.0
 
 pause
 

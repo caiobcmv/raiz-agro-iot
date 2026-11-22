@@ -76,7 +76,7 @@ def horas_fora_da_faixa(cur, id_fruta, etapa, janela_dias):
 
 
 def ultima_leitura(cur, solo: bool):
-    cur.execute(f"""SELECT l.temperatura, l.umidade, l.data_hora, s.origem
+    cur.execute(f"""SELECT l.temperatura, l.umidade, l.data_hora, l.origem
                     FROM leitura_climatica l JOIN sensor s ON s.id_sensor = l.fk_sensor_id_sensor
                     WHERE s.ambiente {'=' if solo else '<>'} 'solo'
                     ORDER BY l.data_hora DESC LIMIT 1""")   

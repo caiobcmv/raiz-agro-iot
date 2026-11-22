@@ -7,6 +7,8 @@ from pydantic import BaseModel
 from src.api.routers import previsao_regras as regras
 from src.api.auditoria import auditar
 from src.api.deps import get_conn
+from src.api.deps_auth import get_current_user
+from src.api.escopo import exigir_lote, id_dono
 from src.api.routers import clima
 
 router = APIRouter(prefix="/previsoes", tags=["previsoes"])
@@ -106,16 +108,20 @@ _SELECT_JANELA = """
 
 @router.get("/janela-colheita", response_model=List[JanelaColheitaOut])
 def janela_colheita(id_lote: Optional[int] = None, limite: int = Query(30, ge=1, le=200),
-                    conn=Depends(get_conn)):
+                    conn=Depends(get_conn), user=Depends(get_current_user)):
     """Sem id_lote: a última janela de cada lote. Com id_lote: histórico (mais recentes primeiro)."""
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        exigir_lote(cur, user, id_lote)   # 404 se o lote não existir OU for de outro dono
         if id_lote is None:
+            # Produtor: só lotes dele (None = escopo total)
             cur.execute(_SELECT_JANELA.format(distinct="DISTINCT ON (p.fk_lote_id_lote)")
-                        + " ORDER BY p.fk_lote_id_lote, p.gerado_em DESC")
+                        + " AND (%(dono)s::int IS NULL OR l.fk_usuario_id_usuario = %(dono)s)"
+                        + " ORDER BY p.fk_lote_id_lote, p.gerado_em DESC",
+                        {"dono": id_dono(user)})
         else:
             cur.execute(_SELECT_JANELA.format(distinct="")
-                        + " AND p.fk_lote_id_lote = %s ORDER BY p.gerado_em DESC LIMIT %s",
-                        (id_lote, limite))
+                        + " AND p.fk_lote_id_lote = %(id_lote)s ORDER BY p.gerado_em DESC LIMIT %(limite)s",
+                        {"id_lote": id_lote, "limite": limite})
         return [_saida_janela(r) for r in cur.fetchall()]
 
 

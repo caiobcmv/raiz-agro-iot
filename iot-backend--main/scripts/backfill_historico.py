@@ -1,4 +1,4 @@
-# Importa de uma vez as últimas leituras do canal pro banco.
+# Importa de uma vez as últimas leituras do canal pro banco..
 from src import thingspeak_client, database
 
 

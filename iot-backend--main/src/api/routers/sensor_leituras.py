@@ -6,6 +6,8 @@ from psycopg2.extras import RealDictCursor
 
 from src import config
 from src.api.deps import get_conn
+from src.api.deps_auth import get_current_user
+from src.api.escopo import exigir_sensor
 
 router = APIRouter(prefix="/sensores", tags=["sensores"])
 
@@ -32,12 +34,14 @@ def _iso_utc(dt: datetime) -> str:
 
 
 @router.get("/{id_sensor}/leituras")
-def leituras_agregadas(id_sensor: int, periodo: Periodo = Periodo.h24, conn=Depends(get_conn)):
+def leituras_agregadas(id_sensor: int, periodo: Periodo = Periodo.h24, conn=Depends(get_conn),
+                       user=Depends(get_current_user)):
     janela, agregacao = REGRAS[periodo]
     fim = datetime.now(timezone.utc).replace(tzinfo=None)
     inicio = fim - janela
 
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        exigir_sensor(cur, user, id_sensor)  # 404 se não existir OU for de outro dono
         cur.execute("SELECT ambiente FROM sensor WHERE id_sensor = %s", (id_sensor,))
         sensor = cur.fetchone()
         if sensor is None:
@@ -56,6 +60,8 @@ def leituras_agregadas(id_sensor: int, periodo: Periodo = Periodo.h24, conn=Depe
             SELECT {instante_sql} AS instante,
                    ROUND(AVG(l.temperatura)::numeric, 2) AS temperatura,
                    ROUND(AVG(l.umidade)::numeric, 2)     AS umidade,
+                   ROUND(AVG(l.umidade_solo)::numeric, 2)      AS umidade_solo,
+                   ROUND(AVG(l.temperatura_solo)::numeric, 2)  AS temperatura_solo,
                    COUNT(*)::int                         AS n_leituras,
                    bool_and(lower(COALESCE(l.origem, '')) = 'thingspeak') AS todas_reais
             FROM leitura_climatica l
@@ -77,6 +83,8 @@ def leituras_agregadas(id_sensor: int, periodo: Periodo = Periodo.h24, conn=Depe
                 "instante": _iso_utc(r["instante"]),
                 "temperatura": float(r["temperatura"]) if r["temperatura"] is not None else None,
                 "umidade": float(r["umidade"]) if r["umidade"] is not None else None,
+                "umidade_solo": float(r["umidade_solo"]) if r["umidade_solo"] is not None else None,
+                "temperatura_solo": float(r["temperatura_solo"]) if r["temperatura_solo"] is not None else None,
                 "n_leituras": r["n_leituras"],
                 "origem": "real" if r["todas_reais"] else "simulado",
             }

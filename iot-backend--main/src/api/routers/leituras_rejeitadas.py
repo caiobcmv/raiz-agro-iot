@@ -5,7 +5,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from psycopg2.extras import RealDictCursor
 
 from src.api.deps import get_conn
-from src.api.filtros import clausula, garantir_sensor, montar_where
+from src.api.deps_auth import get_current_user
+from src.api.escopo import exigir_sensor, filtrar_leituras_por_dono, id_dono
+from src.api.filtros import clausula, montar_where
 from src.api.schemas import LeituraRejeitadaOut
 
 router = APIRouter(prefix="/leituras-rejeitadas", tags=["leituras-rejeitadas"])
@@ -27,6 +29,7 @@ def listar_leituras_rejeitadas(
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),
     conn=Depends(get_conn),
+    user=Depends(get_current_user),
 ):
     where, params = [], []
     if id_sensor is not None:
@@ -36,9 +39,10 @@ def listar_leituras_rejeitadas(
         where.append("motivo ILIKE %s")
         params.append(f"%{motivo}%")
     montar_where("data_rejeicao", inicio, fim, where, params)
+    filtrar_leituras_por_dono(user, "fk_sensor_id_sensor", where, params)
 
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
-        garantir_sensor(cur, id_sensor)
+        exigir_sensor(cur, user, id_sensor)
         cur.execute(
             SELECT_BASE + clausula(where) + " ORDER BY data_rejeicao DESC, id_rejeicao DESC LIMIT %s OFFSET %s",
             params + [limit, offset],
@@ -47,9 +51,13 @@ def listar_leituras_rejeitadas(
 
 
 @router.get("/{id_rejeicao}", response_model=LeituraRejeitadaOut)
-def obter_leitura_rejeitada(id_rejeicao: int, conn=Depends(get_conn)):
+def obter_leitura_rejeitada(id_rejeicao: int, conn=Depends(get_conn), user=Depends(get_current_user)):
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
-        cur.execute(SELECT_BASE + " WHERE id_rejeicao = %s", (id_rejeicao,))
+        cur.execute(
+            SELECT_BASE + " WHERE id_rejeicao = %s AND (%s::int IS NULL OR fk_sensor_id_sensor IN"
+            " (SELECT id_sensor FROM sensor WHERE fk_usuario_id_usuario = %s))",
+            (id_rejeicao, id_dono(user), id_dono(user)),
+        )
         registro = cur.fetchone()
     if registro is None:
         raise HTTPException(status_code=404, detail="Registro de rejeição não encontrado")

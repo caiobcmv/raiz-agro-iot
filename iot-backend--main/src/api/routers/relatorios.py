@@ -6,7 +6,9 @@ from psycopg2.extras import RealDictCursor
 from pydantic import BaseModel
 
 from src.api.deps import get_conn
-from src.api.filtros import clausula, garantir_sensor, montar_where
+from src.api.deps_auth import get_current_user
+from src.api.escopo import exigir_lote, exigir_sensor, filtrar_por_dono
+from src.api.filtros import clausula, montar_where
 
 router = APIRouter(prefix="/relatorios", tags=["relatorios"])
 
@@ -52,11 +54,13 @@ def saidas_faixa(
     inicio: Optional[datetime] = Query(None, description="Data/hora inicial (ISO 8601, UTC se sem fuso)"),
     fim: Optional[datetime] = Query(None, description="Data/hora final (ISO 8601, UTC se sem fuso)"),
     conn=Depends(get_conn),
+    user=Depends(get_current_user),
 ):
     """Contagem de leituras fora da faixa ideal (temperatura e/ou umidade), agrupada
     por período. Só entram leituras de lotes com fruta e etapa configuradas em
     config_parametro — sem faixa cadastrada, não há como avaliar e a leitura fica de fora."""
     where, params = [], []
+    filtrar_por_dono(user, "s.fk_usuario_id_usuario", where, params)  # Produtor: só sensores dele
     if id_lote is not None:
         where.append("lo.id_lote = %s")
         params.append(id_lote)
@@ -77,7 +81,8 @@ def saidas_faixa(
         ORDER BY periodo
     """
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
-        garantir_sensor(cur, id_sensor)
+        exigir_sensor(cur, user, id_sensor)
+        exigir_lote(cur, user, id_lote)
         cur.execute(sql, params + [_UNIDADE_TRUNC[agrupamento]])
         linhas = cur.fetchall()
 

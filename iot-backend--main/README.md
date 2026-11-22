@@ -1,11 +1,11 @@
 # Raiz - Backend
 
-Backend do **Raiz**, uma plataforma de monitoramento agrícola por sensores. Reúne dois programas que compartilham o mesmo banco PostgreSQL:
+Backend da plataforma **Raiz**, desenvolvida para o monitoramento agrícola por meio de sensores. A aplicação é composta por dois programas independentes que compartilham a mesma instância de banco de dados PostgreSQL:
 
-* um **serviço de ingestão** que lê o canal ThingSpeak (ESP32/DHT11), valida e grava as leituras;
-* uma **API REST (FastAPI)** que alimenta o dashboard: sensores, lotes, leituras, alertas, faixas ideais, mercado, viagens, riscos, relatórios, usuários e auditoria.
+- **Serviço de ingestão de dados:** responsável pela leitura dos dados provenientes do canal ThingSpeak (ESP32/DHT11), validação das informações recebidas e persistência das leituras no banco de dados.
+- **API REST (FastAPI):** responsável por disponibilizar os dados e funcionalidades consumidos pelo dashboard, abrangendo sensores, lotes, leituras, alertas, faixas ideais, mercado, riscos, relatórios, usuários e auditoria.
 
-> **Projeto em desenvolvimento.** A API já cobre a maior parte do dashboard, mas **ainda não tem login nem controle de acesso: nenhuma rota exige autenticação** (veja [Autenticação e Segurança](#autenticação-e-segurança)). Estrutura e banco podem mudar. Este README reflete o estado atual do código.
+> **Status do projeto: em desenvolvimento.** A API já implementa a maior parte das funcionalidades necessárias ao dashboard. Entretanto, ainda não possui mecanismos de autenticação ou controle de acesso, de modo que nenhuma rota exige autenticação atualmente (consulte [Autenticação e Segurança](#autenticação-e-segurança)). A estrutura da aplicação e o esquema do banco de dados ainda estão sujeitos a alterações. Este README documenta o estado atual da implementação.
 
 ## Fluxo
 
@@ -84,7 +84,6 @@ Documentação interativa (Swagger) em `/docs` com a API rodando. Todas as lista
 | **Dados de mercado** | `GET /dados-mercado` (`?id_fruta=&inicio=&fim=`), `GET /{id}`, `POST`, `PATCH /{id}` | |
 | **Dashboard** | `GET /dashboard/resumo` | Cartões: sensores ativos (reais e simulados), lotes monitorados, alertas abertos, condição geral, % das leituras na faixa nas últimas 24 h, médias do ar e VPD, fluxo dos lotes por etapa. |
 | **Relatórios** | `GET /relatorios/saidas-faixa` (`?agrupamento=dia\|semana\|mes&id_lote=&id_sensor=&inicio=&fim=`) | Leituras fora da faixa ideal por período. |
-| **Viagens** | `GET /viagens` (`?status=`), `GET /viagens/{id}` | Progresso, ETA, atraso e posição **estimada** sobre o traçado da rota, mais o risco mais recente do lote. |
 | **Riscos** | `GET /riscos/prejuizo`, `GET /riscos/climatico` (`?id_lote=&nivel=&limite=`) | Sem `id_lote`: última previsão de cada lote. Com `id_lote`: histórico. |
 | **Clima** | `GET /clima/previsao` (`?dias=1-7&latitude=&longitude=`) | Previsão da Open-Meteo, com cache em memória. |
 | **Auditoria** | `GET /auditoria` (`?id_usuario=&acao=&resultado=&inicio=&fim=`), `GET /auditoria/{id}` | |
@@ -111,7 +110,7 @@ Segredos (`.env`, chaves, senhas) não devem ser versionados.
 
 O banco fica em outro repositório: <https://github.com/LorenaLira05/iot_db>. Este backend **não cria nem altera o banco**: ele se conecta a um banco já preparado com os scripts de lá.
 
-Rode, na ordem: `schema.sql`, `restricoes.sql`, `seed.sql`, `triggers.sql`, `views.sql`. Para os endpoints de **riscos** e **viagens** rode também `implementação_ia.sql` (tabelas de modelos e previsões).
+Rode, na ordem: `schema.sql`, `restricoes.sql`, `seed.sql`, `triggers.sql`, `views.sql`. Para os endpoints de **riscos** rode também `implementação_ia.sql` (tabelas de modelos e previsões).
 
 O código usa:
 
@@ -121,12 +120,12 @@ O código usa:
 | `usuario`, `perfil`, `log_acesso` | usuários, perfis, auditoria |
 | `lote`, `fruta`, `config_parametro`, `dados_mercado` | lotes, frutas, faixas, mercado |
 | `alerta` | alertas (criados pelo trigger `trg_alerta_faixa`) |
-| `viagem`, `porto`, `rota`, `previsao_prejuizo`, `risco_climatico`, `ia_modelo` | viagens e riscos |
+| `previsao_prejuizo`, `risco_climatico`, `ia_modelo` | riscos |
 | `fn_etapa_lote()`, `vw_lote_saude` | lotes, dashboard, relatórios |
 
-O `seed.sql` não cadastra rotas, viagens nem previsões de IA; sem esses dados, `/viagens` e `/riscos/*` retornam listas vazias. Se o esquema do banco mudar, este backend precisará acompanhar.
+O `seed.sql` não cadastra previsões de IA; sem esses dados, `/riscos/*` retorna listas vazias. Se o esquema do banco mudar, este backend precisará acompanhar.
 
-## Como Executar
+## Como Executar:
 
 ### 1. Clonar o repositório
 
@@ -205,7 +204,7 @@ Disponível em `http://127.0.0.1:8000`, com a documentação em `/docs`. A colet
 * [x] Consulta de leituras, estatísticas e séries agregadas por sensor
 * [x] Alertas (consulta e atualização de status)
 * [x] Dashboard, relatório de saídas de faixa e dados de mercado
-* [x] Viagens com posição estimada, e riscos (prejuízo e climático)
+* [x] Riscos (prejuízo e climático)
 * [x] Previsão do tempo (Open-Meteo)
 * [x] Auditoria de ações
 
@@ -219,7 +218,7 @@ Disponível em `http://127.0.0.1:8000`, com a documentação em `/docs`. A colet
 * [ ] Recuperação de senha
 * [ ] Testes automatizados
 * [ ] Implementação de IA
-* [ ] Envio de alertas por E-mail corporativo
+* [ ] Envio de alertas pelo Whatsapp/Telegram
 * [ ] Logs estruturados em vez de `print`
 * [ ] Deploy
 

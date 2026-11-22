@@ -1,6 +1,7 @@
 # Serviços e Requisições
 requests==2.32.3
 python-dotenv==1.0.1
+httpx
 
 # Banco de Dados
 psycopg2-binary==2.9.13
@@ -9,12 +10,12 @@ psycopg2-binary==2.9.13
 fastapi
 uvicorn[standard]
 pydantic[email]
-google-genai
 
 # Segurança e Criptografia
 bcrypt
 argon2-cffi
 pyjwt
 
-#Testes
+# Testes
 pytest
+

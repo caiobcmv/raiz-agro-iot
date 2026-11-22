@@ -12,3 +12,12 @@ __pycache__/
 # Editor
 .vscode/
 .idea/
+
+# Cache de testes e zips de entrega
+.pytest_cache/
+*.zip
+.env.*
+!.env.example
+
+*.patch
+qa-api/reports/

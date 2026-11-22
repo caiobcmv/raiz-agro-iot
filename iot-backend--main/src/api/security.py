@@ -1,12 +1,12 @@
-import bcrypt
+from .security_auth import hash_senha as _hash, verificar_senha as _verificar
 
 
 def hash_senha(senha: str) -> str:
-    return bcrypt.hashpw(senha.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+        return _hash(senha)
 
 
 def verificar_senha(senha: str, hash_salvo: str) -> bool:
     try:
-        return bcrypt.checkpw(senha.encode("utf-8"), hash_salvo.encode("utf-8"))
+       return _verificar(senha, hash_salvo)
     except ValueError:
         return False

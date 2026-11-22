@@ -5,9 +5,10 @@ import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
 
+import bcrypt
 import jwt
 from argon2 import PasswordHasher
-from argon2.exceptions import InvalidHashError, VerifyMismatchError
+from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatchError
 from fastapi import HTTPException, status
 
 JWT_SECRET = os.environ["JWT_SECRET"]
@@ -19,24 +20,46 @@ REFRESH_DIAS = 7
 
 _ph = PasswordHasher()  # argon2id com parâmetros padrão
 
-# hash falso para gastar o mesmo tempo quando o e-mail não existe (evita enumeração de usuários)
-DUMMY_HASH = _ph.hash("senha-falsa-tempo-constante")
+
+# ---------- senhas ----------
+# hash fixo usado quando o e-mail não existe (tempo de resposta igual; evita enumeração de usuários)
+DUMMY_HASH = _ph.hash("dummy-password-for-timing-equalization")
+
+_PREFIXOS_BCRYPT = ("$2a$", "$2b$", "$2y$")
 
 
-# ---------- senha ----------
+def _eh_bcrypt(h: str) -> bool:
+    return h.startswith(_PREFIXOS_BCRYPT)
+
+
 def hash_senha(senha: str) -> str:
+    """Única função que gera hash de senha no sistema. Sempre argon2id."""
     return _ph.hash(senha)
 
 
-def verificar_senha(senha: str, hash_: str) -> bool:
+def verificar_senha(senha: str, h: str | None) -> bool:
+    """Aceita argon2id (atual) e bcrypt (legado). Nunca lança exceção: hash inválido = False."""
+    if not h:
+        return False
+    if _eh_bcrypt(h):
+        try:
+            return bcrypt.checkpw(senha.encode("utf-8")[:72], h.encode("utf-8"))
+        except ValueError:
+            return False
     try:
-        return _ph.verify(hash_, senha)
-    except (VerifyMismatchError, InvalidHashError):
+        return _ph.verify(h, senha)
+    except (VerifyMismatchError, VerificationError, InvalidHashError):
         return False
 
 
-def precisa_rehash(hash_: str) -> bool:
-    return _ph.check_needs_rehash(hash_)
+def precisa_rehash(h: str | None) -> bool:
+    """True para bcrypt legado ou argon2 com parâmetros antigos. O login regrava com hash_senha."""
+    if not h or _eh_bcrypt(h):
+        return True
+    try:
+        return _ph.check_needs_rehash(h)
+    except InvalidHashError:
+        return True
 
 
 # ---------- JWT ----------
@@ -79,9 +102,8 @@ def decodificar(token: str, typ: str) -> dict:
     return p
 
 
-# ---------- refresh token (opaco, só o hash vai pro banco) ----------
+# ---------- refresh token ----------
 def hash_token(raw: str) -> str:
-    # token tem 384 bits de entropia, então sha256 basta (argon2 aqui seria custo à toa)
     return hashlib.sha256(raw.encode()).hexdigest()
 
 
@@ -96,5 +118,33 @@ def gerar_codigo_email() -> str:
 
 
 def hash_codigo_email(id_usuario: int, codigo: str) -> str:
-    # HMAC com chave do servidor: só 1 milhão de combinações, então SHA-256 puro seria quebrável offline
     return hmac.new(EMAIL_OTP_KEY.encode(), f"{id_usuario}:{codigo}".encode(), hashlib.sha256).hexdigest()
+
+ALFABETO_ATIVACAO = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+
+
+def gerar_codigo_ativacao() -> str:
+    c = "".join(secrets.choice(ALFABETO_ATIVACAO) for _ in range(10))
+    return f"{c[:5]}-{c[5:]}"
+
+
+def normalizar_codigo_ativacao(codigo: str) -> str:
+    return codigo.replace("-", "").replace(" ", "").upper()
+
+
+def validar_politica_senha(senha: str, email: str = "") -> list[str]:
+    faltando = []
+    if len(senha) < 8:
+        faltando.append("minimo_8_caracteres")
+    if not any(c.isupper() for c in senha):
+        faltando.append("letra_maiuscula")
+    if not any(c.islower() for c in senha):
+        faltando.append("letra_minuscula")
+    if not any(c.isdigit() for c in senha):
+        faltando.append("numero")
+    if not any(not c.isalnum() and not c.isspace() for c in senha):
+        faltando.append("caractere_especial")
+    local = email.split("@")[0].lower()
+    if len(local) >= 3 and local in senha.lower():
+        faltando.append("nao_conter_email")
+    return faltando    

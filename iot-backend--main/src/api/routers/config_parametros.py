@@ -111,6 +111,12 @@ def criar_config(dados: ConfigParametroCreate, request: Request, conn=Depends(ge
                 )
             except errors.UniqueViolation:
                 raise HTTPException(status_code=409, detail="Já existe faixa para esta fruta e etapa")
+            except errors.CheckViolation:
+                raise HTTPException(
+                    status_code=422,
+                    detail="Faixa inválida: o mínimo deve ser menor que o máximo (temperatura e umidade)",
+                )
+            
             novo_id = cur.fetchone()["id_config"]
             config = _buscar_config(cur, novo_id)
         conn.commit()

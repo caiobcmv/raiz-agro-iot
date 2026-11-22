@@ -1,5 +1,9 @@
 from typing import List, Optional
 
+import secrets
+from fastapi import BackgroundTasks
+from src.api.services.ativacao import emitir_ativacao
+
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from psycopg2 import errors
 from psycopg2.extras import RealDictCursor
@@ -71,10 +75,14 @@ def obter_usuario(id_usuario: int, conn=Depends(get_conn)):
 
 
 @router.post("", response_model=UsuarioOut, status_code=201)
-def criar_usuario(dados: UsuarioCreate, request: Request, conn=Depends(get_conn)):
+def criar_usuario(dados: UsuarioCreate, request: Request, background: BackgroundTasks, conn=Depends(get_conn)):
     email = dados.email.lower()
     with auditar(request, "criar_usuario") as ctx:
         ctx.detalhe = f"email={email}"
+        if dados.senha:
+            status_ini, senha_hash, trocar = "ativo", hash_senha(dados.senha), True
+        else:
+            status_ini, senha_hash, trocar = "pendente", hash_senha(secrets.token_urlsafe(32)), False
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             if not _perfil_existe(cur, dados.id_perfil):
                 raise HTTPException(status_code=400, detail="Perfil inexistente")
@@ -84,18 +92,23 @@ def criar_usuario(dados: UsuarioCreate, request: Request, conn=Depends(get_conn)
                 cur.execute(
                     """
                     INSERT INTO usuario
-                        (nome, email, senha, status, data_cadastro, fk_perfil_id_perfil)
-                    VALUES (%s, %s, %s, 'ativo', CURRENT_DATE, %s)
+                        (nome, email, senha, status, data_cadastro, fk_perfil_id_perfil, deve_trocar_senha, ativado_em)
+                    VALUES (%s, %s, %s, %s, CURRENT_DATE, %s, %s, CASE WHEN %s THEN now() END)
                     RETURNING id_usuario
                     """,
-                    (dados.nome, email, hash_senha(dados.senha), dados.id_perfil),
+                    (dados.nome, email, senha_hash, status_ini, dados.id_perfil, trocar, status_ini == "ativo"),
                 )
             except errors.UniqueViolation:
                 raise HTTPException(status_code=409, detail="E-mail já cadastrado")
             novo_id = cur.fetchone()["id_usuario"]
+            if status_ini == "pendente":
+                emitir_ativacao(
+                    conn, {"id_usuario": novo_id, "nome": dados.nome, "email": email},
+                    request.client.host if request.client else None, background,
+                )
             usuario = _buscar_usuario(cur, novo_id)
         conn.commit()
-        ctx.detalhe = f"id={novo_id} email={email}"
+        ctx.detalhe = f"id={novo_id} email={email} status={status_ini}"
     return usuario
 
 
@@ -108,7 +121,7 @@ def editar_usuario(id_usuario: int, dados: UsuarioUpdate, request: Request, conn
             raise HTTPException(status_code=400, detail="Nenhum campo para atualizar")
 
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            _ou_404(_buscar_usuario(cur, id_usuario))
+            atual = _ou_404(_buscar_usuario(cur, id_usuario))
 
             sets, params = [], []
             if "nome" in campos:
@@ -126,8 +139,11 @@ def editar_usuario(id_usuario: int, dados: UsuarioUpdate, request: Request, conn
                 sets.append("fk_perfil_id_perfil = %s")
                 params.append(campos["id_perfil"])
             if "status" in campos:
+                novo = campos["status"].value
+            if novo == "pendente" or (novo == "ativo" and atual["status"] == "pendente"):
+                raise HTTPException(status_code=400, detail="Usuário pendente só é ativado pelo código de ativação")
                 sets.append("status = %s")
-                params.append(campos["status"].value)
+                params.append(novo)
 
             params.append(id_usuario)
             try:
@@ -152,6 +168,19 @@ def desativar_usuario(id_usuario: int, request: Request, conn=Depends(get_conn))
                 "UPDATE usuario SET status = 'inativo' WHERE id_usuario = %s",
                 (id_usuario,),
             )
+        conn.commit()
+    return Response(status_code=204)
+
+
+@router.post("/{id_usuario}/reenviar-ativacao", status_code=204)
+def reenviar_ativacao(id_usuario: int, request: Request, background: BackgroundTasks, conn=Depends(get_conn)):
+    with auditar(request, "reenviar_ativacao") as ctx:
+        ctx.detalhe = f"id={id_usuario}"
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            u = _ou_404(_buscar_usuario(cur, id_usuario))
+        if u["status"] != "pendente":
+            raise HTTPException(status_code=409, detail="Usuário não está pendente de ativação")
+        emitir_ativacao(conn, u, request.client.host if request.client else None, background)
         conn.commit()
     return Response(status_code=204)
 

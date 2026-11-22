@@ -1,4 +1,4 @@
-# conexão principal. E um erro ao gravar o log nunca derruba a requisição.
+# Conexão principal. E um erro ao gravar o log nunca derruba a requisição.
 import ipaddress
 from contextlib import closing, contextmanager
 from typing import Optional

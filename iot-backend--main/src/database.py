@@ -1,14 +1,10 @@
-import urllib.parse
 import psycopg2
 from src import config, validacao
 
 
 def conectar():
-    db_url = config.DATABASE_URL
-    if db_url:
-        # Se DATABASE_URL estiver configurada (ex: Neon PostgreSQL no Render)
-        return psycopg2.connect(db_url)
-    
+    if getattr(config, "DATABASE_URL", None):
+        return psycopg2.connect(config.DATABASE_URL)
     return psycopg2.connect(
         host=config.DB_HOST,
         port=config.DB_PORT,
@@ -18,24 +14,31 @@ def conectar():
     )
 
 
+def montar_insert_leitura(leitura: dict, sensor_id: int):
+    """Monta o INSERT. Colunas de solo só entram quando a leitura as traz (TS_FIELD_* no .env)."""
+    colunas = ["fk_sensor_id_sensor", "entry_id_thingspeak", "temperatura", "umidade"]
+    valores = [sensor_id, leitura["entry_id"], leitura["temperatura"], leitura["umidade"]]
+    for coluna in ("umidade_solo", "temperatura_solo"):
+        if coluna in leitura:
+            colunas.append(coluna)
+            valores.append(leitura[coluna])
+    colunas += ["data_hora", "data_recebimento", "origem"]
+    valores.append(leitura["created_at"])
+    marcadores = ", ".join(["%s"] * len(valores))
+    sql = (
+        f"INSERT INTO leitura_climatica ({', '.join(colunas)}) "
+        f"VALUES ({marcadores}, now() AT TIME ZONE 'UTC', 'thingspeak') "
+        "ON CONFLICT (fk_sensor_id_sensor, entry_id_thingspeak) DO NOTHING;"
+    )
+    return sql, valores
+
+
 def inserir_leitura(leitura: dict, sensor_id: int = None):
     sensor_id = sensor_id or config.SENSOR_ID
-    sql = """
-    INSERT INTO leitura_climatica
-        (fk_sensor_id_sensor, entry_id_thingspeak, temperatura, umidade,
-         data_hora, data_recebimento, origem)
-    VALUES (%s, %s, %s, %s, %s, now() AT TIME ZONE 'UTC', 'thingspeak')
-    ON CONFLICT (fk_sensor_id_sensor, entry_id_thingspeak) DO NOTHING;
-    """
+    sql, valores = montar_insert_leitura(leitura, sensor_id)
     with conectar() as conn:
         with conn.cursor() as cur:
-            cur.execute(sql, (
-                sensor_id,
-                leitura["entry_id"],
-                leitura["temperatura"],
-                leitura["umidade"],
-                leitura["created_at"],
-            ))
+            cur.execute(sql, valores)
             linhas_afetadas = cur.rowcount
         conn.commit()
     return linhas_afetadas > 0
