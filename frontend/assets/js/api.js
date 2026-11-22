@@ -405,6 +405,16 @@ class ApiService {
     }
   }
 
+  async getUltimaLeitura(idSensor = null) {
+    try {
+      const qs = idSensor != null ? `?id_sensor=${encodeURIComponent(idSensor)}` : '';
+      return await this.request(`/leituras/ultima${qs}`);
+    } catch (e) {
+      console.warn(`[API] Falha ao obter última leitura (sensor ${idSensor}):`, e.message);
+      return null;
+    }
+  }
+
   // ==========================================
   // LEITURAS CLIMÁTICAS E VPD
   // ==========================================
