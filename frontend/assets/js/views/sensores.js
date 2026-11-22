@@ -1030,7 +1030,7 @@ function renderPreditivosDonutBoxHtml() {
   }
 
   return `
-    <div class="chart-header-row">
+    <div class="chart-header-row" style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 16px;">
       <div>
         <h4 style="font-size: 14px; font-weight: 700; color: #0F172A; display: flex; align-items: center; gap: 8px;">
           <i data-lucide="pie-chart" style="width: 16px; height: 16px; color: #10B981;"></i>
@@ -1040,7 +1040,7 @@ function renderPreditivosDonutBoxHtml() {
           Distribuição de risco probabilístico configurada por cortes preditivos
         </p>
       </div>
-      <span style="font-size: 10px; background: #ECFDF5; color: #047857; font-weight: 600; padding: 2px 8px; border-radius: 4px;">
+      <span style="font-size: 10px; background: #ECFDF5; color: #047857; font-weight: 600; padding: 2px 8px; border-radius: 4px; white-space: nowrap; flex-shrink: 0;">
         Classificação Ativa
       </span>
     </div>
@@ -1057,9 +1057,9 @@ function renderPreditivosDonutBoxHtml() {
           <!-- Vermelho: Alta -->
           <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#EF4444" stroke-width="3.8" stroke-dasharray="${pctAlta}, 100" stroke-dashoffset="-${pctBaixa + pctMod}"/>
         </svg>
-        <div class="donut-center-wrap" style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">
-          <div style="font-size: 18px; font-weight: 800; color: #0F172A;">${pctBaixa}%</div>
-          <div style="font-size: 9px; font-weight: 700; color: #059669;">BAIXA</div>
+        <div class="donut-center-wrap">
+          <div class="donut-center-val">${pctBaixa}%</div>
+          <div class="donut-center-sub" style="color: #059669;">BAIXA</div>
         </div>
       </div>
 
@@ -1138,7 +1138,7 @@ function renderAuditoriaBoxHtml() {
   }
 
   return `
-    <div class="chart-header-row">
+    <div class="chart-header-row" style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 16px;">
       <div>
         <h4 style="font-size: 14px; font-weight: 700; color: #0F172A; display: flex; align-items: center; gap: 8px;">
           <i data-lucide="clipboard-x" style="width: 16px; height: 16px; color: #EF4444;"></i>
@@ -1148,7 +1148,7 @@ function renderAuditoriaBoxHtml() {
           Descartes por inconsistência física ou falha de telemetria
         </p>
       </div>
-      <span style="font-size: 11px; background: #ECFDF5; color: #047857; font-weight: 600; padding: 3px 8px; border-radius: 6px;">
+      <span style="font-size: 11px; background: #ECFDF5; color: #047857; font-weight: 600; padding: 3px 8px; border-radius: 6px; white-space: nowrap; flex-shrink: 0;">
         ● Auditoria ativa
       </span>
     </div>

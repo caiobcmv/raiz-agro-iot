@@ -115,7 +115,7 @@
       var app = document.getElementById('app');
       if (app && app.innerHTML.includes('Carregando módulos')) {
         console.warn('Failsafe ativado: forçando montagem dos módulos...');
-        import('/assets/js/app.js?v=20261120-live40').catch(function(e) {
+        import('/assets/js/app.js?v=20261120-live41').catch(function(e) {
           console.error('Erro no failsafe:', e);
         });
       }
@@ -123,6 +123,6 @@
   </script>
 
   <!-- Ponto de Entrada da Aplicação com Cache-Busting -->
-  <script type="module" src="/assets/js/app.js?v=20261120-live40"></script>
+  <script type="module" src="/assets/js/app.js?v=20261120-live41"></script>
 </body>
 </html>
