@@ -11,93 +11,63 @@ import { Modal } from '../components/modal.js';
 import { toast } from '../components/toast.js';
 import { downloadCSV, downloadPDF, openExportChoiceModal } from '../utils/export-utils.js';
 
-let _lotesData = [
-  {
-    id: 'LT-2026-084',
-    codigo: '#LT-2026-084',
-    cultura: 'Manga Tommy',
-    talhao: 'Talhão C1 (14.5ha)',
-    status: 'Em Produção',
-    statusBadge: 'Em Campo',
-    statusClass: 'em-campo',
-    corBarra: '#10B981',
-    colheita: '28/09',
-    volume: '450.000 kg',
-    destino: 'Pecém (UE)',
-    rodape: '• 12 sensores ok',
-    corRodape: '#047857',
-    icone: 'sprout',
-    corIcone: '#10B981',
-    brix: 13.5,
-    temp: 11.2,
-    sensores: ['SNS-SL-019', 'SNS-AR-005', 'SNS-SL-020']
-  },
-  {
-    id: 'LT-2026-079',
-    codigo: '#LT-2026-079',
-    cultura: 'Uva Vitória',
-    talhao: 'Talhão A1 (12.4ha)',
-    status: 'Pronto Colheita',
-    statusBadge: 'Pronto',
-    statusClass: 'pronto',
-    corBarra: '#0284C7',
-    colheita: '22/09',
-    volume: '180.000 kg',
-    destino: 'Suape (UK)',
-    rodape: '• Brix 18.2°Bx (A+)',
-    corRodape: '#D97706',
-    icone: 'grape',
-    corIcone: '#3B82F6',
-    brix: 18.2,
-    temp: 0.8,
-    sensores: ['SNS-SL-001', 'SNS-AR-002']
-  },
-  {
-    id: 'LT-2026-068',
-    codigo: '#LT-2026-068',
-    cultura: 'Melão Amarelo',
-    talhao: 'Talhão B2 (8.5ha)',
-    status: 'Colhido',
-    statusBadge: 'Colhido',
-    statusClass: 'colhido',
-    corBarra: '#F59E0B',
-    colheita: '15/09',
-    volume: '120.000 kg',
-    destino: 'Ceasa SP',
-    rodape: 'No Packing House',
-    corRodape: '#64748B',
-    icone: 'circle-dot',
-    corIcone: '#F59E0B',
-    brix: 12.4,
-    temp: 10.5,
-    sensores: ['SNS-SL-008', 'SNS-AR-004']
-  },
-  {
-    id: 'LT-2026-052',
-    codigo: '#LT-2026-052',
-    cultura: 'Manga Palmer',
-    talhao: 'Talhão C2 (15.0ha)',
-    status: 'Em Transporte',
-    statusBadge: 'Trânsito',
-    statusClass: 'transito',
-    corBarra: '#3B82F6',
-    colheita: 'Frio: 12.0°C',
-    volume: '320.000 kg',
-    destino: 'Salvador Port',
-    rodape: 'GPS e Termo Ativo',
-    corRodape: '#0284C7',
-    icone: 'truck',
-    corIcone: '#8B5CF6',
-    brix: 14.1,
-    temp: 12.0,
-    sensores: ['SNS-REEFER-04', 'SNS-GPS-09']
-  }
-];
+let _lotesData = [];
 
 let _filtroAtivoLotes = 'todos';
 let _termoBuscaLotes = '';
 
+function mapearLoteParaCard(l) {
+  const st = String(l.status || 'Em produção');
+  const stLow = st.toLowerCase();
+  let statusClass = 'em-campo';
+  let corBarra = '#10B981';
+  let statusBadge = st;
+  if (stLow.includes('pronto')) {
+    statusClass = 'pronto';
+    corBarra = '#0284C7';
+  } else if (stLow.includes('colhido')) {
+    statusClass = 'colhido';
+    corBarra = '#F59E0B';
+  } else if (stLow.includes('transporte')) {
+    statusClass = 'transito';
+    corBarra = '#3B82F6';
+  } else if (stLow.includes('armazenado')) {
+    statusClass = 'armazenado';
+    corBarra = '#64748B';
+  }
+
+  return {
+    id: `LT-${l.id_lote}`,
+    id_lote: l.id_lote,
+    codigo: `#LT-${l.id_lote}`,
+    cultura: l.fruta || l.nome_fruta || 'Cultura',
+    talhao: l.localizacao || l.nome_talhao || `Lote #${l.id_lote}`,
+    status: st,
+    statusBadge,
+    statusClass,
+    corBarra,
+    colheita: l.data_colheita ? new Date(l.data_colheita).toLocaleDateString('pt-BR') : 'Em andamento',
+    volume: l.quantidade != null ? `${Number(l.quantidade).toLocaleString('pt-BR')} ${l.unidade || 'kg'}` : '—',
+    destino: l.destino || 'Não informado',
+    rodape: l.etapa ? `Etapa: ${l.etapa}` : 'Monitorado via IoT',
+    corRodape: '#047857',
+    icone: 'sprout',
+    corIcone: corBarra,
+    brix: l.brix || '—',
+    temp: l.temperatura_atual || '—',
+    sensores: l.sensores || []
+  };
+}
+
 export async function renderLotes() {
+  let lotesRaw = [];
+  try {
+    const res = await api.getLotes();
+    lotesRaw = Array.isArray(res) ? res : (res?.lotes || []);
+  } catch (err) {
+    console.error('[Lotes] Erro ao carregar lotes reais:', err);
+  }
+  _lotesData = lotesRaw.map(mapearLoteParaCard);
   return `
     <div class="dashboard-canvas apple-animate-in" style="max-width: 1400px; margin: 0 auto;">
       <!-- Sub-barra: Governança Agronômica e Ciclo Safra Vigente -->

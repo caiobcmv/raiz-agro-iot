@@ -240,13 +240,20 @@ export async function renderDashboard() {
     ...(graficos || {})
   };
 
-  // Modo detalhado: recomendação de irrigação e sensores (para checar se há sensor de solo real)
-  let extrasDetalhado = { irrigacao: null, sensores: null };
+  // Modo detalhado: recomendação de irrigação, sensores, mercado e janela de colheita
+  let extrasDetalhado = { irrigacao: null, sensores: null, mercado: null, janelas: null };
   if (!isResumido) {
-    const [irr, sens] = await Promise.allSettled([api.getPrevisoesIrrigacao(), api.getSensores()]);
+    const [irr, sens, merc, jan] = await Promise.allSettled([
+      api.getPrevisoesIrrigacao(),
+      api.getSensores(),
+      api.request('/dados-mercado'),
+      api.request('/previsoes/janela-colheita')
+    ]);
     extrasDetalhado = {
       irrigacao: irr.status === 'fulfilled' ? irr.value : null,
-      sensores: sens.status === 'fulfilled' ? sens.value : null
+      sensores: sens.status === 'fulfilled' ? sens.value : null,
+      mercado: merc.status === 'fulfilled' && Array.isArray(merc.value) ? merc.value : [],
+      janelas: jan.status === 'fulfilled' && Array.isArray(jan.value) ? jan.value : []
     };
   }
 
@@ -1339,10 +1346,10 @@ function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS, extras 
   const condDotCor = cond.nivel === 'critica' ? '#EF4444' : cond.nivel === 'atencao' ? '#F59E0B' : '#059669';
 
   // --- Lotes em operação ---
-  const lotesTotal = r.lotes_monitorados?.total ?? 6;
+  const lotesTotal = r.lotes_monitorados?.total ?? 0;
 
   // --- Alertas ativos ---
-  const alertasAbertos = Number(r.alertas?.abertos ?? 2);
+  const alertasAbertos = Number(r.alertas?.abertos ?? 0);
   const alertaTexto = alertasAbertos > 0 ? `${alertasAbertos} para revisar` : 'Sem alertas';
   const alertaPillTxt = alertasAbertos === 0 ? 'Sem alertas' : 'Atenção leve';
 
@@ -1372,11 +1379,51 @@ function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS, extras 
 
   // --- Condições de cultivo ---
   const rc = r.resumo_condicoes || {};
-  const confPct = temValor(rc.pct_na_faixa) ? Math.round(Number(rc.pct_na_faixa)) : Number(dg.conformidade_geral_pct ?? 90);
-  const umidVal = temValor(rc.umidade_ar_media) ? Math.round(Number(rc.umidade_ar_media)) : 67;
-  const tempVal = temValor(rc.temperatura_ar_media) ? fmtNum(rc.temperatura_ar_media, 0) : '27';
+  const confPct = temValor(rc.pct_na_faixa) ? Math.round(Number(rc.pct_na_faixa)) : 0;
+  const umidVal = temValor(rc.umidade_ar_media) ? Math.round(Number(rc.umidade_ar_media)) : '—';
+  const tempVal = temValor(rc.temperatura_ar_media) ? fmtNum(rc.temperatura_ar_media, 1) : '—';
   const vpdVal = temValor(rc.vpd_medio_kpa) ? `${fmtNum(rc.vpd_medio_kpa, 2)} kPa` : '— kPa';
   const vpdSub = temValor(rc.vpd_medio_kpa) ? 'Déficit de pressão' : 'Valor não informado';
+
+  // --- Janela de colheita real ---
+  const janLista = Array.isArray(extras.janelas) ? extras.janelas : [];
+  const primeiraJanela = janLista[0] || null;
+  const janProb = primeiraJanela?.probabilidade != null ? Math.round(Number(primeiraJanela.probabilidade)) : 0;
+  const janDiasHtml = (primeiraJanela && Array.isArray(primeiraJanela.dias) && primeiraJanela.dias.length > 0)
+    ? primeiraJanela.dias.slice(0, 7).map(d => {
+        const dt = new Date(d.data || d);
+        const diaSem = isNaN(dt.getTime()) ? '' : dt.toLocaleDateString('pt-BR', { weekday: 'short' }).toUpperCase().replace('.', '');
+        const diaNum = isNaN(dt.getTime()) ? String(d) : String(dt.getDate()).padStart(2, '0');
+        return `<div class="harvest-day-box"><span class="harvest-day-name">${diaSem}</span><strong class="harvest-day-num">${diaNum}</strong></div>`;
+      }).join('')
+    : '<div style="grid-column: 1 / -1; text-align: center; font-size: 12px; color: #64748B; padding: 12px;">Sem previsão de janela cadastrada</div>';
+
+  // --- Mercado real ---
+  const mercadoLista = Array.isArray(extras.mercado) ? extras.mercado : [];
+  const mercadoCardsHtml = mercadoLista.length > 0
+    ? mercadoLista.slice(0, 2).map(m => `
+        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px 14px; position: relative;">
+          <div style="font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px;">${m.fruta || m.cultura || 'Cultura'}</div>
+          <div style="display: flex; align-items: baseline; justify-content: space-between;">
+            <span style="font-size: 20px; font-weight: 800; color: #1E293B;">R$ ${m.preco_kg != null ? Number(m.preco_kg).toFixed(2).replace('.', ',') : '—'}</span>
+            <span style="background: #ECFDF5; color: #059669; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 6px;">${m.demanda || m.tendencia || 'Ativo'}</span>
+          </div>
+          <div style="font-size: 10px; color: #94A3B8; margin-top: 2px; margin-bottom: 10px;">por kg</div>
+          <div style="width: 100%; height: 3px; background: #059669; border-radius: 2px;"></div>
+        </div>
+      `).join('')
+    : '<div style="grid-column: 1 / -1; text-align: center; font-size: 12px; color: #64748B; padding: 18px;">Nenhum dado de mercado cadastrado</div>';
+
+  // --- Clima real ---
+  const climaAtual = clima?.atual || clima || {};
+  const climaTemp = climaAtual.temperatura != null ? `${Math.round(Number(climaAtual.temperatura))}°C` : '—';
+  const climaDesc = climaAtual.condicao || climaAtual.descricao || 'Dados meteorológicos';
+  const climaUmid = climaAtual.umidade != null ? `${Math.round(Number(climaAtual.umidade))}% umidade` : '— umidade';
+  const climaVento = climaAtual.vento_kmh != null ? `Vento ${Math.round(Number(climaAtual.vento_kmh))} km/h` : 'Vento —';
+  const climaDias = Array.isArray(clima?.dias) ? clima.dias.slice(0, 6) : [];
+  const climaDiasHtml = climaDias.length > 0
+    ? climaDias.map(d => `<div><span style="font-size: 10px; color: #94A3B8; display: block;">${d.data || ''}</span><strong style="font-size: 11px; color: #1E293B;">${d.temp_max ?? '—'}° / ${d.temp_min ?? '—'}°</strong></div>`).join('')
+    : '<div style="grid-column: 1 / -1; text-align: center; font-size: 11px; color: #94A3B8; padding: 6px;">Previsão estendida indisponível</div>';
 
   // SVG Donut calculation: raio = 44, circunferência = 2 * PI * 44 = 276.46
   const circ = 276.46;
@@ -1445,53 +1492,26 @@ function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS, extras 
           </div>
 
           <div style="font-size: 28px; font-weight: 800; color: #1E293B; letter-spacing: -0.5px; margin: 4px 0 2px;">
-            28 set — 04 out
+            ${primeiraJanela ? `${primeiraJanela.janela_inicio || ''} — ${primeiraJanela.janela_fim || ''}` : 'Sem janela prevista'}
           </div>
           <p style="font-size: 11px; color: #64748B; margin: 0 0 16px 0;">
-            Período recomendado · setembro / outubro
+            ${primeiraJanela ? `${primeiraJanela.fruta || 'Cultura'} · ${primeiraJanela.categoria || 'Recomendado'}` : 'Aguardando geração de previsão no backend'}
           </p>
 
           <!-- 7 Dias da Janela de Colheita -->
           <div class="harvest-days-grid" style="margin-bottom: 20px;">
-            <div class="harvest-day-box">
-              <span class="harvest-day-name">SEG</span>
-              <strong class="harvest-day-num">28</strong>
-            </div>
-            <div class="harvest-day-box">
-              <span class="harvest-day-name">TER</span>
-              <strong class="harvest-day-num">29</strong>
-            </div>
-            <div class="harvest-day-box">
-              <span class="harvest-day-name">QUA</span>
-              <strong class="harvest-day-num">30</strong>
-            </div>
-            <div class="harvest-day-box">
-              <span class="harvest-day-name">QUI</span>
-              <strong class="harvest-day-num">01</strong>
-            </div>
-            <div class="harvest-day-box">
-              <span class="harvest-day-name">SEX</span>
-              <strong class="harvest-day-num">02</strong>
-            </div>
-            <div class="harvest-day-box">
-              <span class="harvest-day-name">SÁB</span>
-              <strong class="harvest-day-num">03</strong>
-            </div>
-            <div class="harvest-day-box">
-              <span class="harvest-day-name">DOM</span>
-              <strong class="harvest-day-num">04</strong>
-            </div>
+            ${janDiasHtml}
           </div>
 
-          <!-- Probabilidade com aro circular 88% -->
+          <!-- Probabilidade com aro circular -->
           <div style="display: flex; align-items: center; gap: 14px; padding-top: 4px;">
             <div style="position: relative; width: 40px; height: 40px; flex-shrink: 0;">
               <svg width="40" height="40" viewBox="0 0 40 40" style="transform: rotate(-90deg);">
                 <circle cx="20" cy="20" r="15.5" fill="none" stroke="#E2E8F0" stroke-width="3.5" />
-                <circle cx="20" cy="20" r="15.5" fill="none" stroke="#059669" stroke-width="3.5" stroke-dasharray="97.4" stroke-dashoffset="11.7" stroke-linecap="round" />
+                <circle cx="20" cy="20" r="15.5" fill="none" stroke="#059669" stroke-width="3.5" stroke-dasharray="97.4" stroke-dashoffset="${Math.round(97.4 - (janProb / 100) * 97.4)}" stroke-linecap="round" />
               </svg>
               <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 10.5px; font-weight: 800; color: #1E293B;">
-                88%
+                ${janProb}%
               </div>
             </div>
             <span style="font-size: 11.5px; color: #475569; line-height: 1.4;">
@@ -1579,29 +1599,7 @@ function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS, extras 
           </div>
 
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
-            <!-- Uva Vitória -->
-            <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px 14px; position: relative;">
-              <div style="font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px;">Uva Vitória</div>
-              <div style="display: flex; align-items: baseline; justify-content: space-between;">
-                <span style="font-size: 20px; font-weight: 800; color: #1E293B;">R$ 14,20</span>
-                <span style="background: #ECFDF5; color: #059669; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 6px;">+8%</span>
-              </div>
-              <div style="font-size: 10px; color: #94A3B8; margin-top: 2px; margin-bottom: 10px;">por kg</div>
-              <div style="width: 100%; height: 3px; background: #059669; border-radius: 2px;"></div>
-            </div>
-
-            <!-- Manga Palmer -->
-            <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px 14px; position: relative;">
-              <div style="font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px;">Manga Palmer</div>
-              <div style="display: flex; align-items: baseline; justify-content: space-between;">
-                <span style="font-size: 20px; font-weight: 800; color: #1E293B;">R$ 6,80</span>
-                <span style="background: #F1F5F9; color: #64748B; font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 6px;">Estável</span>
-              </div>
-              <div style="font-size: 10px; color: #94A3B8; margin-top: 2px; margin-bottom: 10px;">por kg</div>
-              <div style="width: 100%; height: 3px; background: #E2E8F0; border-radius: 2px; overflow: hidden;">
-                <div style="width: 45%; height: 100%; background: #059669;"></div>
-              </div>
-            </div>
+            ${mercadoCardsHtml}
           </div>
         </div>
 
@@ -1609,23 +1607,18 @@ function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS, extras 
         <div class="dd-card dd-card-lg" style="padding: 20px 22px;">
           <h3 style="font-size: 15px; font-weight: 700; color: #1E293B; margin: 0 0 12px;">Previsão do tempo</h3>
           <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
-            <span style="font-size: 28px; font-weight: 800; color: #1E293B; line-height: 1;">28°C</span>
+            <span style="font-size: 28px; font-weight: 800; color: #1E293B; line-height: 1;">${climaTemp}</span>
             <div>
-              <div style="font-size: 12.5px; font-weight: 700; color: #1E293B;">Ensolarado</div>
-              <div style="font-size: 10.5px; color: #64748B;">Sensação térmica 30°C</div>
+              <div style="font-size: 12.5px; font-weight: 700; color: #1E293B;">${climaDesc}</div>
+              <div style="font-size: 10.5px; color: #64748B;">${climaAtual.cidade || 'Open-Meteo'}</div>
             </div>
             <div style="font-size: 10.5px; color: #64748B; line-height: 1.5; text-align: right;">
-              <div>62% umidade · 0 mm chuva</div>
-              <div>Vento 12 km/h · UV moderado</div>
+              <div>${climaUmid}</div>
+              <div>${climaVento}</div>
             </div>
           </div>
           <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; border-top: 1px solid #F1F5F9; padding-top: 10px; text-align: center;">
-            <div><span style="font-size: 10px; color: #94A3B8; display: block;">Qua 23/09</span><strong style="font-size: 11px; color: #1E293B;">29° / 20°</strong></div>
-            <div><span style="font-size: 10px; color: #94A3B8; display: block;">Qui 24/09</span><strong style="font-size: 11px; color: #1E293B;">28° / 19°</strong></div>
-            <div><span style="font-size: 10px; color: #94A3B8; display: block;">Sex 25/09</span><strong style="font-size: 11px; color: #1E293B;">27° / 19°</strong></div>
-            <div><span style="font-size: 10px; color: #94A3B8; display: block;">Sáb 26/09</span><strong style="font-size: 11px; color: #1E293B;">27° / 18°</strong></div>
-            <div><span style="font-size: 10px; color: #94A3B8; display: block;">Dom 27/09</span><strong style="font-size: 11px; color: #1E293B;">26° / 18°</strong></div>
-            <div><span style="font-size: 10px; color: #94A3B8; display: block;">Seg 28/09</span><strong style="font-size: 11px; color: #1E293B;">27° / 19°</strong></div>
+            ${climaDiasHtml}
           </div>
         </div>
       </div>

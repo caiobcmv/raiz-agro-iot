@@ -1377,6 +1377,9 @@ export function renderAlertaCard(detalhe) {
           </div>
         `;
       }
+      if (auth.getActiveProfile() === 'gestor') {
+        return '';
+      }
       return `
         <button type="button" class="btn-card-reconhecer" data-id="${alerta.id_alerta}" style="padding: 8px 16px; background: #059669; border: none; border-radius: 8px; font-size: 12px; font-weight: 700; color: #FFFFFF; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 1px 3px rgba(5,150,105,0.25); transition: background 0.15s;" onmouseover="this.style.background='#047857'" onmouseout="this.style.background='#059669'">
           <i data-lucide="check" style="width: 14px; height: 14px;"></i>
@@ -1662,10 +1665,12 @@ function renderGestoraAlertas(alertas = [], clima = {}) {
       </div>
 
       <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        ${auth.getActiveProfile() !== 'gestor' ? `
         <button id="btn-reconhecer-todos" style="padding: 8px 14px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 12px; font-weight: 600; color: #475569; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.02); transition: all 0.2s;" onmouseover="this.style.background='#F8FAFC'" onmouseout="this.style.background='#FFFFFF'">
           <i data-lucide="check" style="width: 14px; height: 14px; color: #059669;"></i>
           Reconhecer Todos
         </button>
+        ` : ''}
 
         <button id="btn-exportar-csv" style="padding: 8px 14px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 12px; font-weight: 600; color: #475569; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.02); transition: all 0.2s;" onmouseover="this.style.background='#F8FAFC'" onmouseout="this.style.background='#FFFFFF'">
           <i data-lucide="download" style="width: 14px; height: 14px; color: #475569;"></i>
