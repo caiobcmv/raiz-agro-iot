@@ -1,8 +1,8 @@
 /**
- * VIEW: AUDITORIA E LOGS DO SISTEMA v4.2 (FIGMA MOCKUP ADM)
- * Trilha Criptográfica Imutável, Sincronização em Tempo Real (Syslog e PostgreSQL),
- * Hash SHA-256 Validado, 4 KPIs Superiores, Trilha de Eventos Auditados com busca e filtros,
- * Painel Lateral de Conformidade e LGPD e Ações Rápidas de Auditoria com download e modais funcionais.
+ * VIEW: AUDITORIA E LOGS DO SISTEMA (CONFORME SCHEMA iot_db: log_acesso)
+ * Trilha de Auditoria e Rastreabilidade Operacional, Sincronização com PostgreSQL,
+ * 4 KPIs Superiores, Trilha de Eventos Auditados com busca e filtros,
+ * Painel Lateral de Conformidade e LGPD e Ações Rápidas de Auditoria com exportação.
  */
 
 import { api } from '../api.js';
@@ -22,11 +22,10 @@ let _logsAuditoria = [
     data: '22/09/2026 14:12:08',
     titulo: 'Disparo de Alerta Crítico #ALT-2026-084 — Desvio Térmico em Manga Tommy Atkins',
     origem: 'Origem: Regra Agronômica #R-04 • Local: Câmara Frigorífica 02',
-    destino: 'Destino: SMS Emergência + Push Luiz Felipe',
-    hash: 'sha256:a7f83b99120ce...9c1',
-    assinatura: 'Assinatura Válida',
+    destino: 'Destino: Notificação Operacional • Luiz Felipe',
+    registro_banco: 'Tabela alerta • ID #ALT-2026-084',
     btnAcao: 'Inspecionar Lote',
-    btnPayload: 'Ver Payload Completo'
+    btnPayload: 'Ver Registro'
   },
   {
     id: 2,
@@ -34,16 +33,15 @@ let _logsAuditoria = [
     badge: 'LOGIN / ACESSO',
     badgeColor: '#15803D',
     badgeBg: '#DCFCE7',
-    codigo_ref: 'MFA TOTP Validado',
+    codigo_ref: 'log_acesso',
     lote: 'Petrolina/PE',
     data: '22/09/2026 13:45:20',
-    titulo: 'Autenticação Bem-sucedida via MFA — Dra. Gabriela Sales (Analista Agronômica)',
-    origem: 'IP: 187.54.210.12 • Navegador: Chrome 128 / macOS • Perfil: Analista Agronômico',
-    destino: 'Status: Sessão Ativa (#SESS-8991)',
-    hash: '',
-    assinatura: '',
+    titulo: 'Autenticação Bem-sucedida — Dra. Gabriela Sales (Analista Agronômica)',
+    origem: 'IP: 187.54.210.12 • Perfil: Analista Agronômico • fk_usuario: 2',
+    destino: 'Resultado: sucesso (login)',
+    registro_banco: 'Tabela log_acesso • ID #103',
     btnAcao: '',
-    btnPayload: 'Ver Detalhes da Sessão'
+    btnPayload: 'Ver Registro'
   },
   {
     id: 3,
@@ -57,8 +55,7 @@ let _logsAuditoria = [
     titulo: 'Edição de Limiar Fisiológico em Uva Vitória (Sem Semente)',
     origem: 'temp_min_segura: <span style="color:#DC2626; text-decoration:line-through;">-1.0°C</span> &rarr; <span style="color:#047857; font-weight:700;">-0.5°C</span>',
     destino: 'Justificativa: Homologação Embrapa Semiárido • Protocolo EMB-2026-V',
-    hash: '',
-    assinatura: '',
+    registro_banco: 'Tabela config_parametro • ID #12',
     btnAcao: 'Reverter Alteração',
     btnPayload: 'Ver Histórico'
   },
@@ -71,13 +68,12 @@ let _logsAuditoria = [
     codigo_ref: 'leitura_rejeitada',
     lote: 'Sonda #SNS-SL-019',
     data: '22/09/2026 10:15:02',
-    titulo: 'Descarte de Outlier Térmico — Sensor de Umidade do Solo Talhão C1 (Manga)',
-    origem: 'Valor Detectado: 62.4°C (Teto físico de 55.0°C excedido) • Canal ThingSpeak: #3500765',
+    titulo: 'Descarte de Outlier de Umidade — Sensor Solo Talhão C1 (Manga)',
+    origem: 'Valor Detectado: 95.4% VWC (Teto físico excedido) • Canal ThingSpeak: #3500765',
     destino: 'Ação: Isolamento preventivo de registro',
-    hash: '',
-    assinatura: '',
+    registro_banco: 'Tabela leitura_rejeitada • ID #8',
     btnAcao: 'Inspecionar Sonda',
-    btnPayload: 'Log ThingSpeak'
+    btnPayload: 'Log Sonda'
   },
   {
     id: 5,
@@ -85,14 +81,13 @@ let _logsAuditoria = [
     badge: 'SEGURANÇA RBAC',
     badgeColor: '#0F172A',
     badgeBg: '#F1F5F9',
-    codigo_ref: 'Tabela usuario',
+    codigo_ref: 'usuario',
     lote: 'Ativado por Carlos Silva',
     data: '21/09/2026 17:40:00',
     titulo: 'Criação de Novo Operador de Campo — João Pedro (Irrigação)',
-    origem: 'Perfil Concedido: Operador de Campo',
+    origem: 'Perfil Concedido: Operador de Campo • fk_perfil: 3',
     destino: 'Permissões: Leitura em Talhões A1/B2 • Sem acesso a parâmetros',
-    hash: '',
-    assinatura: '',
+    registro_banco: 'Tabela usuario • ID #5',
     btnAcao: '',
     btnPayload: 'Ver Perfil RBAC'
   }
@@ -123,10 +118,9 @@ export async function renderAuditoria() {
         titulo: `${l.acao} — ${l.resultado || 'Sucesso'}`,
         origem: `IP: ${l.ip || '127.0.0.1'} • Usuário ID: ${l.id_usuario || 'SYS'}`,
         destino: `Resultado: ${l.resultado || 'OK'}`,
-        hash: `sha256:${(l.id_log || '0')}${Date.now().toString(16).slice(-6)}...val`,
-        assinatura: 'Assinatura Válida',
+        registro_banco: `Registro #${l.id_log || idx + 100} • Tabela log_acesso`,
         btnAcao: '',
-        btnPayload: 'Ver Payload'
+        btnPayload: 'Ver Registro'
       }));
       // Combina logs reais da API no topo da lista local
       _logsAuditoria = [...logsApi, ..._logsAuditoria.slice(logsApi.length)];
@@ -136,20 +130,20 @@ export async function renderAuditoria() {
   }
   return `
     <div class="dashboard-canvas apple-animate-in" style="max-width: 1400px; margin: 0 auto;">
-      <!-- Sub-barra Técnica de Auditoria v4.2 -->
+      <!-- Sub-barra Técnica de Auditoria -->
       <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 12px 20px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
         <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 11px;">
           <span style="font-weight: 700; color: #047857; background: #ECFDF5; border: 1px solid #A7F3D0; padding: 3px 10px; border-radius: 20px;">
-            • v4.2 - Trilha Criptográfica Imutável
+            • Trilha de Auditoria &amp; Rastreabilidade
           </span>
           <span style="color: #64748B;">
             Ambiente de Produção • Petrolina / Juazeiro
           </span>
           <span style="color: #059669; font-weight: 600;">
-            ✓ Sincronização em Tempo Real (Syslog e PostgreSQL)
+            ✓ Sincronização no Banco (iot_db: log_acesso)
           </span>
           <span style="color: #0284C7; font-weight: 600;">
-            ✓ Hash SHA-256 Validado
+            ✓ Sessões e Operações Auditadas
           </span>
         </div>
 
@@ -173,13 +167,13 @@ export async function renderAuditoria() {
           <div style="display: flex; justify-content: space-between; align-items: flex-start;">
             <div>
               <span style="font-size: 10px; font-weight: 800; color: #64748B; letter-spacing: 0.5px; display: block;">TOTAL DE EVENTOS<br>AUDITADOS (30D)</span>
-              <div style="font-size: 26px; font-weight: 800; color: #0F172A; line-height: 1.1; margin-top: 8px;">14.820</div>
+              <div style="font-size: 26px; font-weight: 800; color: #0F172A; line-height: 1.1; margin-top: 8px;">1.438</div>
             </div>
-            <div style="width: 38px; height: 38px; border-radius: 50%; border: 3px solid #10B981; color: #047857; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 800; flex-shrink: 0;">99.9%</div>
+            <div style="width: 38px; height: 38px; border-radius: 50%; border: 3px solid #10B981; color: #047857; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 800; flex-shrink: 0;">100%</div>
           </div>
           <div style="display: flex; flex-direction: column; gap: 4px; font-size: 10px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px; margin-top: 10px;">
-            <div style="display: flex; justify-content: space-between;"><span>Integridade de Logs</span><strong style="color: #0F172A;">0 Corrompidos</strong></div>
-            <div style="display: flex; justify-content: space-between;"><span>Latência Média</span><strong style="color: #0F172A;">&lt; 45ms</strong></div>
+            <div style="display: flex; justify-content: space-between;"><span>Tabela PostgreSQL</span><strong style="color: #0F172A;">log_acesso</strong></div>
+            <div style="display: flex; justify-content: space-between;"><span>Rastreio de Origem</span><strong style="color: #0F172A;">IP e fk_usuario</strong></div>
           </div>
         </div>
 
@@ -432,10 +426,10 @@ function renderFeedLogsHtml() {
         <div>${l.destino}</div>
       </div>
 
-      ${l.hash ? `
+      ${l.registro_banco ? `
         <div style="display: flex; justify-content: space-between; align-items: center; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 6px; padding: 6px 10px; font-size: 10px; margin-bottom: 8px;">
-          <code style="color: #64748B; font-family: monospace;">Hash Criptográfico: ${l.hash}</code>
-          <span style="color: #047857; font-weight: 700;">${l.assinatura}</span>
+          <span style="color: #64748B; font-family: monospace;">${l.registro_banco}</span>
+          <span style="color: #047857; font-weight: 700;">Auditado via PostgreSQL</span>
         </div>
       ` : ''}
 
@@ -482,7 +476,7 @@ function vincularEventosLogs() {
               <div><strong>Lote:</strong> ${l?.lote}</div>
               <div><strong>Origem:</strong> ${l?.origem}</div>
               <div><strong>Horário:</strong> ${l?.data}</div>
-              <div><strong>Hash:</strong> <code>${l?.hash || 'sha256:d82910fae120...'}</code></div>
+              <div><strong>Registro:</strong> <code>${l?.registro_banco || 'Tabela log_acesso'}</code></div>
             </div>
           </div>
         `, () => {
@@ -497,26 +491,25 @@ function vincularEventosLogs() {
             </div>
           </div>
         `, () => {
-          toast.success('Rollback Executado', 'Limiar fisiológico restabelecido para -1.0°C com assinatura digital.');
+          toast.success('Rollback Executado', 'Limiar fisiológico restabelecido para -1.0°C.');
         }, 'Confirmar Reversão');
       } else {
-        Modal.open(`Payload Criptográfico — ${l?.titulo}`, `
+        Modal.open(`Registro de Auditoria — ${l?.titulo}`, `
           <div style="font-family: monospace; font-size: 11px; background: #0F172A; color: #38BDF8; padding: 14px; border-radius: 8px; line-height: 1.6; max-height: 300px; overflow-y: auto;">
             {<br>
-            &nbsp;&nbsp;"audit_id": "${l?.id}",<br>
-            &nbsp;&nbsp;"timestamp": "${l?.data}",<br>
-            &nbsp;&nbsp;"event_category": "${l?.categoria}",<br>
-            &nbsp;&nbsp;"code_reference": "${l?.codigo_ref}",<br>
-            &nbsp;&nbsp;"raw_details": "${l?.origem.replace(/<[^>]*>?/gm, '')}",<br>
-            &nbsp;&nbsp;"cipher_algorithm": "AES-256-GCM",<br>
-            &nbsp;&nbsp;"sha256_checksum": "${l?.hash || 'sha256:4a8b79e102f91c98a3b82710'}",<br>
-            &nbsp;&nbsp;"storage_worm_tier": "IMMUTABLE_5Y",<br>
-            &nbsp;&nbsp;"compliance_certifications": ["GlobalG.A.P.", "MAPA-PE", "LGPD-BR"]<br>
+            &nbsp;&nbsp;"id_log": "${l?.id}",<br>
+            &nbsp;&nbsp;"data_hora": "${l?.data}",<br>
+            &nbsp;&nbsp;"categoria": "${l?.categoria}",<br>
+            &nbsp;&nbsp;"codigo_ref": "${l?.codigo_ref}",<br>
+            &nbsp;&nbsp;"origem": "${l?.origem.replace(/<[^>]*>?/gm, '')}",<br>
+            &nbsp;&nbsp;"tabela_origem": "log_acesso",<br>
+            &nbsp;&nbsp;"banco_dados": "PostgreSQL (iot_db)",<br>
+            &nbsp;&nbsp;"conformidade": ["GlobalG.A.P.", "MAPA-PE", "LGPD-BR"]<br>
             }
           </div>
         `, () => {
-          toast.success('Copiado', 'Hash e payload copiados para a área de transferência.');
-        }, 'Copiar Payload');
+          toast.success('Copiado', 'Registro copiado para a área de transferência.');
+        }, 'Copiar Registro');
       }
     });
   });
@@ -527,17 +520,17 @@ export function setupAuditoriaEvents() {
   const btnExportar = document.getElementById('btn-exportar-auditoria-csv');
   if (btnExportar) {
     btnExportar.addEventListener('click', () => {
-      const headers = ['Timestamp', 'Tipo Evento', 'Referencia', 'Entidade / Lote', 'Origem', 'Status', 'Hash SHA-256'];
+      const headers = ['Timestamp', 'Tipo Evento', 'Referencia', 'Entidade / Lote', 'Origem', 'Status', 'Registro Banco'];
       const rows = _logsAuditoria.map(l => [
-        l.data, l.badge, l.codigo_ref, l.lote, l.origem.replace(/<[^>]*>?/gm, ''), 'VALIDO', l.hash || 'sha256:valid'
+        l.data, l.badge, l.codigo_ref, l.lote, l.origem.replace(/<[^>]*>?/gm, ''), 'VALIDO', l.registro_banco || 'iot_db: log_acesso'
       ]);
       const dataTag = new Date().toISOString().slice(0, 10);
       openExportChoiceModal(
         Modal,
-        'Exportar Trilha de Auditoria Forense',
+        'Exportar Trilha de Auditoria',
         () => {
-          downloadCSV(`auditoria_forense_raiz_agro_${dataTag}.csv`, headers, rows);
-          toast.success('Auditoria CSV Exportada', `auditoria_forense_raiz_agro_${dataTag}.csv baixado com sucesso.`);
+          downloadCSV(`auditoria_raiz_agro_${dataTag}.csv`, headers, rows);
+          toast.success('Auditoria CSV Exportada', `auditoria_raiz_agro_${dataTag}.csv baixado com sucesso.`);
         },
         () => {
           downloadPDF(`auditoria_forense_raiz_agro_${dataTag}.pdf`, {
@@ -720,17 +713,17 @@ export function setupAuditoriaEvents() {
         </div>
       `, () => {
         const dataTag = new Date().toISOString().slice(0, 10);
-        const headers = ['Data/Hora', 'Evento', 'Referencia', 'Entidade', 'Status', 'Hash SHA-256'];
+        const headers = ['Data/Hora', 'Evento', 'Referencia', 'Entidade', 'Status', 'Registro Banco'];
         const rows = _logsAuditoria.map(l => [
-          l.data, l.badge, l.codigo_ref, l.lote, 'VERIFICADO', l.hash || 'sha256:valid'
+          l.data, l.badge, l.codigo_ref, l.lote, 'VERIFICADO', l.registro_banco || 'iot_db: log_acesso'
         ]);
         downloadPDF(`pacote_auditoria_externa_pwc_sgs_${dataTag}.pdf`, {
-          title: 'Pacote Forense de Auditoria Externa (PwC / SGS)',
-          subtitle: 'Homologação Internacional de Safra • Trilha Imutável SHA-256',
+          title: 'Pacote de Auditoria Externa (PwC / SGS)',
+          subtitle: 'Homologação de Safra • Trilha de Auditoria (PostgreSQL iot_db)',
           metadata: [
             `Data de Emissão: ${new Date().toLocaleString('pt-BR')}`,
-            'Assinatura Digital Raiz: 0x8a92f00bc192847aef',
-            'Total de Registros Auditados: 14.820 sem corrupção'
+            'Tabela: log_acesso',
+            'Total de Registros Auditados: 1.438 verificados'
           ],
           headers,
           rows,

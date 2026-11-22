@@ -13,108 +13,122 @@ import { downloadCSV, downloadPDF, openExportChoiceModal } from '../utils/export
 let _sensoresList = [
   {
     id: 'SNS-SL-001',
+    nome: 'Sensor Solo Talhão A1',
     tipo: 'Sensor de Umidade do Solo',
     status: 'Ativo',
     categoria: 'solo',
-    talhao: 'Talhão A1 (Uva Vitória) • Lote #LT-2026-079 • Prof. 30cm',
-    vwc: '48.2% VWC',
-    bateria: '96%',
-    rssi: '-78 dBm',
+    ambiente: 'solo',
+    talhao: 'Talhão A1 (Uva Vitória) • Lote #1',
+    channel_id: 3500765,
+    dono: 'Maria Clara (Produtor)',
+    fk_usuario_id_usuario: 1,
+    leitura: '48.2% VWC',
     statusClass: 'ativo',
     icone: 'droplet',
     corIcone: '#10B981',
-    offset: 0.0,
-    firmware: 'v4.2.0-prod'
+    offset: 0.0
   },
   {
     id: 'SNS-AR-002',
+    nome: 'Estação Microclima A1',
     tipo: 'Sensor DHT11 (Temp/Umid Ar)',
     status: 'Ativo',
     categoria: 'microclima',
-    talhao: 'Talhão A1 (Uva Vitória) • Torre Climatológica 2.0m • Mesh ID 3x4B',
-    vwc: '28.1°C • 59.4% UR',
-    bateria: '92%',
-    rssi: '-80 dBm',
+    ambiente: 'ar',
+    talhao: 'Talhão A1 (Uva Vitória) • Torre Dossel',
+    channel_id: 3500765,
+    dono: 'Luiz Felipe (Analista)',
+    fk_usuario_id_usuario: 2,
+    leitura: '28.1°C • 59.4% UR',
     statusClass: 'ativo',
     icone: 'thermometer',
     corIcone: '#0284C7',
-    offset: 0.0,
-    firmware: 'v4.2.0-prod'
+    offset: 0.0
   },
   {
     id: 'SNS-SL-003',
-    tipo: 'TDR Analítico Solo',
-    status: 'Ativo',
-    categoria: 'solo',
-    talhao: 'Talhão A2 (Uva Crimson) • Lote #LT-2026-041 • Prof. 45cm',
-    vwc: '37.8% VWC',
-    bateria: '95%',
-    rssi: '-82 dBm',
-    statusClass: 'ativo',
-    icone: 'activity',
-    corIcone: '#10B981',
-    offset: 0.0,
-    firmware: 'v4.2.0-prod'
-  },
-  {
-    id: 'SNS-SL-019',
-    tipo: 'Sensor de Umidade do Solo',
-    status: 'Atenção / Calibração',
-    categoria: 'atencao',
-    talhao: 'Talhão C1 (Manga Tommy) • Lote #LT-2026-054 • Leitura Isolada',
-    vwc: 'Outlier Térmico: 62.4°C (Sanitizado)',
-    bateria: '74%',
-    rssi: '-89 dBm',
-    statusClass: 'atencao',
-    icone: 'alert-triangle',
-    corIcone: '#EF4444',
-    offset: -35.3,
-    firmware: 'v4.1.9-patch'
-  },
-  {
-    id: 'SNS-ESP-025',
-    tipo: 'Bancada ESP32-C3 Teste',
-    status: 'Homologação',
-    categoria: 'homologacao',
-    talhao: 'Sem talhão vinculado • Antena Omnidirecional 3dBi • Firmware v4.2.1-rc',
-    vwc: 'Calibração 0-100% OK',
-    bateria: '100%',
-    rssi: '-65 dBm',
-    statusClass: 'homologacao',
-    icone: 'cpu',
-    corIcone: '#8B5CF6',
-    offset: 0.0,
-    firmware: 'v4.2.1-rc'
-  },
-  {
-    id: 'SNS-SL-004',
+    nome: 'Sensor Solo Talhão A2',
     tipo: 'Sensor de Umidade do Solo',
     status: 'Ativo',
     categoria: 'solo',
-    talhao: 'Talhão B2 (Melão Amarelo) • Lote #LT-2026-068 • Prof. 30cm',
-    vwc: '32.4% VWC',
-    bateria: '94%',
-    rssi: '-79 dBm',
+    ambiente: 'solo',
+    talhao: 'Talhão A2 (Uva Crimson) • Lote #2',
+    channel_id: 3500765,
+    dono: 'Lorena Lira (Administrador)',
+    fk_usuario_id_usuario: 3,
+    leitura: '37.8% VWC',
     statusClass: 'ativo',
     icone: 'droplet',
     corIcone: '#10B981',
-    offset: 0.0,
-    firmware: 'v4.2.0-prod'
+    offset: 0.0
+  },
+  {
+    id: 'SNS-SL-019',
+    nome: 'Sensor Solo Talhão C1',
+    tipo: 'Sensor de Umidade do Solo',
+    status: 'Atenção / Calibração',
+    categoria: 'atencao',
+    ambiente: 'solo',
+    talhao: 'Talhão C1 (Manga Tommy) • Lote #4',
+    channel_id: 3500765,
+    dono: 'Lorena Lira (Administrador)',
+    fk_usuario_id_usuario: 3,
+    leitura: 'Outlier Sanitizado (leitura_rejeitada)',
+    statusClass: 'atencao',
+    icone: 'alert-triangle',
+    corIcone: '#EF4444',
+    offset: -35.3
+  },
+  {
+    id: 'SNS-ESP-025',
+    nome: 'Bancada Testes Laboratório',
+    tipo: 'Sensor de Teste Homologação',
+    status: 'Homologação',
+    categoria: 'homologacao',
+    ambiente: 'ar',
+    talhao: 'Sede Petrolina • Bancada Laboratorial',
+    channel_id: null,
+    dono: 'Lorena Lira (Administrador)',
+    fk_usuario_id_usuario: 3,
+    leitura: 'Calibração 0-100% OK',
+    statusClass: 'homologacao',
+    icone: 'cpu',
+    corIcone: '#8B5CF6',
+    offset: 0.0
+  },
+  {
+    id: 'SNS-SL-004',
+    nome: 'Sensor Solo Talhão B2',
+    tipo: 'Sensor de Umidade do Solo',
+    status: 'Ativo',
+    categoria: 'solo',
+    ambiente: 'solo',
+    talhao: 'Talhão B2 (Melão Amarelo) • Lote #3',
+    channel_id: 3500765,
+    dono: 'Maria Clara (Produtor)',
+    fk_usuario_id_usuario: 1,
+    leitura: '32.4% VWC',
+    statusClass: 'ativo',
+    icone: 'droplet',
+    corIcone: '#10B981',
+    offset: 0.0
   },
   {
     id: 'SNS-AR-005',
+    nome: 'Estação Microclima C2',
     tipo: 'Sensor DHT11 (Temp/Umid Ar)',
     status: 'Ativo',
     categoria: 'microclima',
-    talhao: 'Talhão C2 (Manga Palmer) • Estação Secundária • Mesh ID 5x1C',
-    vwc: '29.3°C • 54.1% UR',
-    bateria: '88%',
-    rssi: '-83 dBm',
+    ambiente: 'ar',
+    talhao: 'Talhão C2 (Manga Palmer) • Lote #5',
+    channel_id: 3500765,
+    dono: 'Lorena Lira (Administrador)',
+    fk_usuario_id_usuario: 3,
+    leitura: '29.3°C • 54.1% UR',
     statusClass: 'ativo',
     icone: 'thermometer',
     corIcone: '#0284C7',
-    offset: 0.0,
-    firmware: 'v4.2.0-prod'
+    offset: 0.0
   }
 ];
 
@@ -167,7 +181,7 @@ export async function renderSensoresAdmin() {
             </div>
             <div>
               <div style="font-size: 15px; font-weight: 800; color: #0F172A;">24 / 25 <span style="font-size: 11px; font-weight: 500; color: #64748B;">operacionais</span></div>
-              <div style="font-size: 10px; color: #94A3B8; margin-top: 2px;">Latência: 118ms</div>
+              <div style="font-size: 10px; color: #047857; margin-top: 2px;">Canal ThingSpeak #3500765 Ativo</div>
             </div>
           </div>
           <div style="font-size: 10px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px;">
@@ -225,24 +239,24 @@ export async function renderSensoresAdmin() {
           </div>
         </div>
 
-        <!-- KPI 4 -->
+        <!-- KPI 4: Governança e Vínculos RBAC (iot_db) -->
         <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
           <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 11px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">QUALIDADE RSSI • BATERIA</span>
-            <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 2px 8px; border-radius: 12px;">Solar + Li-ion</span>
+            <span style="font-size: 11px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">GOVERNANÇA & VÍNCULOS (RBAC)</span>
+            <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 2px 8px; border-radius: 12px;">fk_usuario_id_usuario</span>
           </div>
-          <div style="margin: 10px 0; display: flex; justify-content: space-between;">
+          <div style="margin: 10px 0; display: flex; justify-content: space-between; align-items: baseline;">
             <div>
-              <div style="font-size: 20px; font-weight: 800; color: #0F172A;">-81 <span style="font-size: 11px; font-weight: 600; color: #64748B;">dBm</span></div>
-              <div style="font-size: 10px; color: #047857; font-weight: 600;">RSSI Médio Excelente</div>
+              <div style="font-size: 20px; font-weight: 800; color: #0F172A;">100 %</div>
+              <div style="font-size: 10px; color: #047857; font-weight: 600;">Hardware com dono atribuído</div>
             </div>
             <div style="text-align: right;">
-              <div style="font-size: 20px; font-weight: 800; color: #0F172A;">94 %</div>
-              <div style="font-size: 10px; color: #64748B;">Carga Média OK</div>
+              <div style="font-size: 12px; font-weight: 700; color: #64748B;">uq_sensor_channel</div>
+              <div style="font-size: 10px; color: #94A3B8;">Canal único ThingSpeak</div>
             </div>
           </div>
           <div style="font-size: 10px; color: #047857; border-top: 1px solid #F1F5F9; padding-top: 8px;">
-            Fluxo estável sem perda de pacotes
+            Conforme com schema.sql e auth.sql
           </div>
         </div>
       </div>
@@ -273,7 +287,7 @@ export async function renderSensoresAdmin() {
           <div class="card-filtro-talhao-sensor" data-talhao="Talhão B2" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px; border-left: 3px solid #F59E0B; cursor: pointer;">
             <strong style="font-size: 12px; color: #0F172A; display: block;">Talhão B2</strong>
             <span style="font-size: 10px; color: #64748B;">Melão Amarelo • 4 Nós</span>
-            <div style="font-size: 10px; color: #047857; font-weight: 600; margin-top: 2px;">Umidade e CE (100% Online)</div>
+            <div style="font-size: 10px; color: #047857; font-weight: 600; margin-top: 2px;">Umidade Solo VWC (100% Online)</div>
           </div>
 
           <div class="card-filtro-talhao-sensor" data-talhao="Talhão C1" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px; border-left: 3px solid #EF4444; cursor: pointer;">
@@ -409,11 +423,11 @@ export async function renderSensoresAdmin() {
             <button class="btn-infra-rapida" data-action="topologia" style="background: none; border: none; text-align: left; color: #0284C7; font-weight: 600; cursor: pointer; padding: 4px 0; display: flex; justify-content: space-between;">
               <span>Topologia Espacial ESP32</span> &rarr;
             </button>
-            <button class="btn-infra-rapida" data-action="ota" style="background: none; border: none; text-align: left; color: #0284C7; font-weight: 600; cursor: pointer; padding: 4px 0; display: flex; justify-content: space-between;">
-              <span>Firmware OTA v4.2.1 (Deploy Lote)</span> &rarr;
+            <button class="btn-infra-rapida" data-action="auditoria" style="background: none; border: none; text-align: left; color: #0284C7; font-weight: 600; cursor: pointer; padding: 4px 0; display: flex; justify-content: space-between;">
+              <span>Auditoria Geral &amp; Logs (log_acesso)</span> &rarr;
             </button>
-            <button class="btn-infra-rapida" data-action="gateways" style="background: none; border: none; text-align: left; color: #0284C7; font-weight: 600; cursor: pointer; padding: 4px 0; display: flex; justify-content: space-between;">
-              <span>Auditoria Geral de Gateways</span> &rarr;
+            <button class="btn-infra-rapida" data-action="rejeitadas" style="background: none; border: none; text-align: left; color: #0284C7; font-weight: 600; cursor: pointer; padding: 4px 0; display: flex; justify-content: space-between;">
+              <span>Leituras Rejeitadas (leitura_rejeitada)</span> &rarr;
             </button>
           </div>
         </div>
@@ -480,7 +494,7 @@ function renderLinhasSensoresHtml() {
             ${s.talhao}
           </div>
           <div style="font-size: 12px; font-weight: 700; color: #0F172A; margin-top: 4px;">
-            ${s.vwc} ${s.bateria ? `<span style="font-weight: 400; color: #64748B; font-size: 11px; margin-left: 8px;">• Carga: ${s.bateria} • RSSI: ${s.rssi}</span>` : ''}
+            ${s.leitura || s.vwc} <span style="font-weight: 500; color: #64748B; font-size: 11px; margin-left: 8px;">• Ambiente: <strong>${s.ambiente === 'solo' ? 'Solo (VWC)' : 'Ar (Microclima)'}</strong> • Dono: ${s.dono || 'Lorena Lira (Administrador)'}</span>
           </div>
         </div>
       </div>
@@ -679,10 +693,10 @@ export function setupSensoresAdminEvents() {
   const btnSync = document.getElementById('btn-sync-esp32');
   if (btnSync) {
     btnSync.addEventListener('click', () => {
-      toast.info('Sincronizando Nós ESP32', 'Enviando comando de ping para os 25 nós...');
+      toast.info('Sincronizando Nós ESP32', 'Atualizando leituras do ThingSpeak e verificando canais...');
       setTimeout(() => {
-        toast.success('ESP32 Sincronizado', '25 nós responderam com telemetria e carga de bateria atualizadas.');
-      }, 1000);
+        toast.success('ESP32 Sincronizado', 'Leituras climáticas sincronizadas com a tabela leitura_climatica.');
+      }, 800);
     });
   }
 
@@ -690,8 +704,8 @@ export function setupSensoresAdminEvents() {
   const btnExport = document.getElementById('btn-export-leituras');
   if (btnExport) {
     btnExport.addEventListener('click', () => {
-      const headers = ['ID Sensor', 'Tipo', 'Talhao', 'Status', 'Leitura Atual', 'Bateria', 'RSSI (dBm)', 'Firmware'];
-      const rows = _sensoresList.map(s => [s.id, s.tipo, s.talhao, s.status, s.vwc, s.bateria, s.rssi, s.firmware]);
+      const headers = ['ID Sensor', 'Nome', 'Tipo', 'Ambiente', 'Talhao', 'Status', 'Leitura Atual', 'Dono / Responsavel'];
+      const rows = _sensoresList.map(s => [s.id, s.nome || s.tipo, s.tipo, s.ambiente || 'solo', s.talhao, s.status, s.leitura || s.vwc, s.dono || 'Lorena Lira']);
       const dataTag = new Date().toISOString().slice(0, 10);
       openExportChoiceModal(
         Modal,
@@ -703,7 +717,7 @@ export function setupSensoresAdminEvents() {
         () => {
           downloadPDF(`sensores_telemetria_raiz_agro_${dataTag}.pdf`, {
             title: 'Relatório de Telemetria & Parque de Sensores',
-            subtitle: 'Auditoria Administrativa de Hardware LoRaWAN & ESP32',
+            subtitle: 'Auditoria Administrativa de Hardware e Leituras Climáticas (iot_db)',
             headers,
             rows
           });
@@ -717,7 +731,7 @@ export function setupSensoresAdminEvents() {
   const btnProvisionar = document.getElementById('btn-provisionar-sensor');
   if (btnProvisionar) {
     btnProvisionar.addEventListener('click', () => {
-      Modal.open('Provisionar Novo Nó ESP32 (DHT11 / Solo)', `
+      Modal.open('Provisionar Novo Sensor (iot_db: sensor)', `
         <div style="font-size: 12px; color: #475569; display: flex; flex-direction: column; gap: 10px;">
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
             <label>Identificador (ID):
@@ -755,11 +769,14 @@ export function setupSensoresAdminEvents() {
             </select>
           </label>
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-            <label>Versão Firmware:
-              <input type="text" id="novo-sensor-firmware" value="v4.2.1-prod" style="width: 100%; padding: 7px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
+            <label>Canal ThingSpeak (channel_id único):
+              <input type="number" id="novo-sensor-channel" value="3500765" style="width: 100%; padding: 7px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
             </label>
-            <label>MAC Address ESP32 (Wi-Fi):
-              <input type="text" value="A8:40:41:1F:18:20" style="width: 100%; padding: 7px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px; font-family: monospace;">
+            <label>Status Inicial:
+              <select id="novo-sensor-status" style="width: 100%; padding: 7px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
+                <option value="ativo" selected>Ativo (Operacional)</option>
+                <option value="inativo">Inativo / Reserva</option>
+              </select>
             </label>
           </div>
         </div>
@@ -769,29 +786,45 @@ export function setupSensoresAdminEvents() {
         const ambiente = document.getElementById('novo-sensor-ambiente')?.value || 'solo';
         const fkUsuario = document.getElementById('novo-sensor-usuario')?.value || '3';
         const talhao = document.getElementById('novo-sensor-talhao')?.value || 'Talhão A1';
-        const firmware = document.getElementById('novo-sensor-firmware')?.value || 'v4.2.1-prod';
+        const channelId = parseInt(document.getElementById('novo-sensor-channel')?.value || '3500765', 10);
+        const statusVal = document.getElementById('novo-sensor-status')?.value || 'ativo';
         const isAr = ambiente === 'ar' || tipo.includes('Ar');
 
-        _sensoresList.unshift({
+        const donoNome = fkUsuario === '1' ? 'Maria Clara (Produtor)' : (fkUsuario === '2' ? 'Luiz Felipe (Analista)' : 'Lorena Lira (Administrador)');
+
+        const novoSensorObj = {
           id,
+          nome: `${tipo} - ${talhao}`,
           tipo,
-          status: 'Ativo',
+          status: statusVal === 'ativo' ? 'Ativo' : 'Inativo',
           ambiente: isAr ? 'ar' : 'solo',
+          channel_id: channelId,
           fk_usuario_id_usuario: parseInt(fkUsuario, 10),
+          dono: donoNome,
           categoria: isAr ? 'microclima' : 'solo',
           talhao: `${talhao} • Novo nó provisionado`,
-          vwc: isAr ? '27.8°C • 58.2% UR' : '45.0% VWC',
-          bateria: '100%',
-          rssi: '-75 dBm',
-          statusClass: 'ativo',
+          leitura: isAr ? '27.8°C • 58.2% UR' : '45.0% VWC',
+          statusClass: statusVal === 'ativo' ? 'ativo' : 'inativo',
           icone: isAr ? 'thermometer' : 'droplet',
           corIcone: isAr ? '#0284C7' : '#10B981',
-          offset: 0.0,
-          firmware
-        });
+          offset: 0.0
+        };
 
+        try {
+          api.criarSensor({
+            nome: novoSensorObj.nome,
+            tipo_sensor: tipo,
+            localizacao: talhao,
+            channel_id: channelId,
+            ambiente: isAr ? 'ar' : 'solo',
+            id_usuario: parseInt(fkUsuario, 10),
+            status: statusVal
+          }).catch(e => console.warn('Backend offline para criarSensor:', e));
+        } catch (e) {}
+
+        _sensoresList.unshift(novoSensorObj);
         atualizarTabelaSensores();
-        toast.success('Sensor Provisionado', `Nó #${id} cadastrado com sucesso (Ambiente: ${isAr ? 'Ar' : 'Solo'} | Dono ID: ${fkUsuario}).`);
+        toast.success('Sensor Provisionado', `Nó #${id} cadastrado com sucesso (Ambiente: ${isAr ? 'Ar' : 'Solo'} | Dono: ${donoNome}).`);
       }, 'Provisionar Nó');
     });
   }
@@ -890,18 +923,10 @@ export function setupSensoresAdminEvents() {
       const act = e.currentTarget.dataset.action;
       if (act === 'topologia') {
         window.location.hash = '#/rede-esp32';
-      } else if (act === 'ota') {
-        Modal.open('Deploy OTA v4.2.1 em Lote', `
-          <div style="font-size: 12px; color: #475569;">
-            <p>O pacote binário <code>firmware_raiz_v4.2.1.bin</code> será transmitido via Wi-Fi OTA para os 25 nós ESP32.</p>
-            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; padding: 10px; border-radius: 6px; margin-top: 10px;">
-              <strong>Tempo estimado:</strong> 4 minutos e 20 segundos.<br>
-              <strong>Bateria mínima requerida:</strong> 60%.
-            </div>
-          </div>
-        `, () => {
-          toast.success('OTA Iniciado', 'Transmissão Wi-Fi OTA em lote iniciada.');
-        }, 'Iniciar Atualização OTA');
+      } else if (act === 'auditoria') {
+        window.location.hash = '#/auditoria';
+      } else if (act === 'rejeitadas') {
+        window.location.hash = '#/auditoria';
       } else {
         window.location.hash = '#/auditoria';
       }

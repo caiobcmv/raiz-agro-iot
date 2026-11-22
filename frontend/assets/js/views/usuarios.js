@@ -58,11 +58,9 @@ export async function renderUsuarios() {
   const usuarioLogado = auth.getUser();
   const emailLogado = usuarioLogado ? (usuarioLogado.email || '').trim().toLowerCase() : '';
 
-  if (!Array.isArray(usuarios)) {
-    usuarios = [];
-  }
+  const listaSegura = Array.isArray(usuarios) ? usuarios : [];
 
-  usuarios = usuarios.map(u => {
+  usuarios = listaSegura.map(u => {
     const nomeSeguro = String(u?.nome || 'Usuário').trim() || 'Usuário';
     const perfilSeguro = String(u?.perfil || (u?.id_perfil === 3 ? 'Administrador' : (u?.id_perfil === 2 ? 'Analista de Dados' : 'Produtor / Exportador')));
     return {
@@ -77,9 +75,9 @@ export async function renderUsuarios() {
     };
   });
 
-  const totalUsuarios = usuarios.length;
-  const totalAtivos = usuarios.filter(u => u.status !== 'inativo').length;
-  const totalInativos = usuarios.filter(u => u.status === 'inativo').length;
+  const totalUsuarios = Array.isArray(usuarios) ? usuarios.length : 0;
+  const totalAtivos = (Array.isArray(usuarios) ? usuarios : []).filter(u => u && u.status !== 'inativo').length;
+  const totalInativos = (Array.isArray(usuarios) ? usuarios : []).filter(u => u && u.status === 'inativo').length;
 
   return `
     <div class="dashboard-canvas apple-animate-in">
@@ -295,7 +293,7 @@ export async function renderUsuarios() {
 
         <!-- Filtros em Tabs -->
         <div style="display: flex; gap: 6px; margin-bottom: 16px; border-bottom: 1px solid #F1F5F9; padding-bottom: 10px; overflow-x: auto;">
-          <button class="tab-filtro-user active" data-filtro="todos" style="padding: 6px 12px; font-size: 11px; font-weight: 700; background: #183D2E; color: #FFFFFF; border: none; border-radius: 6px; cursor: pointer;">Todos (${usuarios.length})</button>
+          <button class="tab-filtro-user active" data-filtro="todos" style="padding: 6px 12px; font-size: 11px; font-weight: 700; background: #183D2E; color: #FFFFFF; border: none; border-radius: 6px; cursor: pointer;">Todos (${Array.isArray(usuarios) ? usuarios.length : 0})</button>
           <button class="tab-filtro-user" data-filtro="produtor" style="padding: 6px 12px; font-size: 11px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Produtores</button>
           <button class="tab-filtro-user" data-filtro="analista" style="padding: 6px 12px; font-size: 11px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Analistas</button>
           <button class="tab-filtro-user" data-filtro="admin" style="padding: 6px 12px; font-size: 11px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Administradores</button>
@@ -317,7 +315,7 @@ export async function renderUsuarios() {
               </tr>
             </thead>
             <tbody>
-              ${usuarios.map(u => {
+              ${(Array.isArray(usuarios) ? usuarios : []).map(u => {
     const nomeStr = String(u.nome || 'US');
     const initials = nomeStr.split(/\s+/).filter(Boolean).map(n => n[0]).slice(0, 2).join('').toUpperCase() || 'US';
     const perfilStr = String(u.perfil || 'Produtor / Exportador');

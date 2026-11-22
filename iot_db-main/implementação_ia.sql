@@ -172,8 +172,6 @@ CREATE TABLE IF NOT EXISTS parecer_ia (
 
 /* ===== ÍNDICES ===== */
 CREATE INDEX IF NOT EXISTS idx_parecer_ia_lote_expiracao ON parecer_ia (id_lote, data_expiracao DESC);
-CREATE INDEX IF NOT EXISTS idx_chat_conversa_usuario     ON chat_conversa (fk_usuario_id_usuario, data_ultima_mensagem DESC);
-CREATE INDEX IF NOT EXISTS idx_chat_mensagem_conversa    ON chat_mensagem (fk_conversa_id_conversa, data_hora);
 CREATE INDEX IF NOT EXISTS idx_alerta_preditivo_lote     ON alerta_preditivo (fk_lote_id_lote, status, data_previsao DESC);
 CREATE INDEX IF NOT EXISTS idx_prejuizo_lote             ON previsao_prejuizo (fk_lote_id_lote, data_previsao DESC);
 CREATE INDEX IF NOT EXISTS idx_irrigacao_lote            ON previsao_irrigacao (fk_lote_id_lote, data_previsao DESC);

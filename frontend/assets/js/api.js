@@ -1387,7 +1387,7 @@ class ApiService {
     }
   }
 
-  async reconhecerTodosAlertas(perfil = '', reset = false) {
+  async reconhecerTodosAlertasPreferencias(perfil = '', reset = false) {
     const qs = `?perfil=${encodeURIComponent(perfil)}&reset=${Boolean(reset)}`;
     return await this.request(`/preferencias/alertas/reconhecer-todos${qs}`, {
       method: 'POST'
@@ -1553,13 +1553,18 @@ class ApiService {
 
   // ===== MÉTODOS DE ADMINISTRAÇÃO & COMPATIBILIDADE POSTGRESQL =====
   async getUsuarios(status = null) {
-    const qs = status ? `?status=${encodeURIComponent(status)}` : '';
-    const res = await this.request(`/usuarios${qs}`);
-    if (Array.isArray(res)) return res;
-    if (res && Array.isArray(res.usuarios)) return res.usuarios;
-    if (res && Array.isArray(res.items)) return res.items;
-    if (res && Array.isArray(res.data)) return res.data;
-    return [];
+    try {
+      const qs = status ? `?status=${encodeURIComponent(status)}` : '';
+      const res = await this.request(`/usuarios${qs}`);
+      if (Array.isArray(res)) return res;
+      if (res && Array.isArray(res.usuarios)) return res.usuarios;
+      if (res && Array.isArray(res.items)) return res.items;
+      if (res && Array.isArray(res.data)) return res.data;
+      return [];
+    } catch (err) {
+      console.warn('Falha na requisição getUsuarios, usando fallback:', err);
+      return [];
+    }
   }
 
   async criarUsuario(dados) {
@@ -1591,13 +1596,17 @@ class ApiService {
     });
   }
 
-  async reenviarAtivacao(email) {
+  async reenviarAtivacao(idOrEmail, emailFallback = '') {
+    const isId = idOrEmail != null && !String(idOrEmail).includes('@') && /^\d+$/.test(String(idOrEmail));
+    if (isId) {
+      return await this.request(`/usuarios/${idOrEmail}/reenviar-ativacao`, {
+        method: 'POST'
+      });
+    }
+    const email = emailFallback || idOrEmail;
     return await this.request('/auth/solicitar-ativacao', {
       method: 'POST',
       body: JSON.stringify({ email })
-    }).catch(async () => {
-      // Fallback gracioso
-      return { ok: true, mensagem: `Código de ativação reenviado para ${email}` };
     });
   }
 
@@ -1614,11 +1623,28 @@ class ApiService {
     return await this.request(`/auditoria${qs ? '?' + qs : ''}`);
   }
 
+  async getRelatorios(params = {}) {
+    const searchParams = new URLSearchParams();
+    if (params.tipo) searchParams.append('tipo', params.tipo);
+    if (params.limite != null) searchParams.append('limite', params.limite);
+    const qs = searchParams.toString();
+    return await this.request(`/relatorios${qs ? '?' + qs : ''}`);
+  }
+
   async postRelatorioGerado(dados) {
     return await this.request('/relatorios', {
       method: 'POST',
       body: JSON.stringify(dados)
     });
+  }
+
+  async baixarRelatorioCsv(idRelatorio) {
+    const token = this.getToken();
+    const res = await fetch(`${this.baseUrl}/relatorios/${encodeURIComponent(idRelatorio)}/csv`, {
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+    });
+    if (!res.ok) throw new Error(`Falha ao exportar relatório CSV (${res.status})`);
+    return await res.blob();
   }
 
   async postConfigParametro(dados) {
@@ -1639,9 +1665,64 @@ class ApiService {
     return await this.request(`/alertas-preditivos/cortes/${encodeURIComponent(nivel)}`, {
       method: 'PUT',
       body: JSON.stringify(dados)
-    }).catch(async () => {
-      // Fallback
-      return { nivel, ...dados };
+    });
+  }
+
+  async updateLote(idLote, dados) {
+    return await this.request(`/lotes/${encodeURIComponent(idLote)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(dados)
+    });
+  }
+
+  async updateSensor(idSensor, dados) {
+    return await this.request(`/sensores/${encodeURIComponent(idSensor)}`, {
+      method: 'PUT',
+      body: JSON.stringify(dados)
+    });
+  }
+
+  async desativarSensor(idSensor) {
+    return await this.request(`/sensores/${encodeURIComponent(idSensor)}`, {
+      method: 'DELETE'
+    });
+  }
+
+  async getVariedades(idFruta = null) {
+    const qs = idFruta != null ? `?id_fruta=${encodeURIComponent(idFruta)}` : '';
+    return await this.request(`/variedades${qs}`);
+  }
+
+  async getFrutas() {
+    return await this.request('/frutas');
+  }
+
+  async getPerdasRisco() {
+    return await this.request('/perdas-risco');
+  }
+
+  async criarSafraCatalogo(dados) {
+    return await this.request('/safras', {
+      method: 'POST',
+      body: JSON.stringify(dados)
+    });
+  }
+
+  async updatePropriedade(idPropriedade, dados) {
+    return await this.request(`/propriedades/${encodeURIComponent(idPropriedade)}`, {
+      method: 'PUT',
+      body: JSON.stringify(dados)
+    });
+  }
+
+  async getNotificacoesPreferencias() {
+    return await this.request('/notificacoes/preferencias');
+  }
+
+  async salvarNotificacaoPreferencia(canal, dados) {
+    return await this.request(`/notificacoes/preferencias/${encodeURIComponent(canal)}`, {
+      method: 'PUT',
+      body: JSON.stringify(dados)
     });
   }
 }

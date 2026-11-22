@@ -11,7 +11,7 @@ import { toast } from './components/toast.js?v=20261120-live33';
 import { showAccessDeniedModal } from './components/access-denied-modal.js?v=20261120-live33';
 
 // Importação das Views
-import { renderLogin, setupLoginEvents } from './views/login.js?v=20261120-live33';
+import { renderLogin, setupLoginEvents } from './views/login.js?v=20261122-adm6';
 import {
   renderPrimeiroAcesso, setupPrimeiroAcessoEvents,
   renderRecuperarSenha, setupRecuperarSenhaEvents,
@@ -19,21 +19,21 @@ import {
   renderRedefinirSenha, setupRedefinirSenhaEvents,
   renderSenhaAlterada, setupSenhaAlteradaEvents,
   renderContaBloqueada, setupContaBloqueadaEvents
-} from './views/auth-flow.js?v=20261120-live33';
-import { renderDashboard, setupDashboardEvents } from './views/dashboard.js?v=20261120-live45';
-import { renderSensores, setupSensoresEvents } from './views/sensores.js?v=20261120-live45';
-import { renderRedeEsp32, setupRedeEsp32Events } from './views/rede-esp32.js?v=20261120-live45';
-import { renderLeituras, setupLeiturasEvents } from './views/leituras.js?v=20261120-live33';
-import { renderLotes, setupLotesEvents } from './views/lotes.js?v=20261122-adm2';
-import { renderViagens, setupViagensEvents } from './views/viagens.js?v=20261120-live33';
-import { renderAlertas, setupAlertasEvents } from './views/alertas.js?v=20261122-fix5';
-import { renderPrevisoes } from './views/previsoes.js?v=20261120-live33';
-import { renderRelatorios, setupRelatoriosEvents } from './views/relatorios.js?v=20261120-live33';
-import { renderConfiguracoes, setupConfiguracoesEvents } from './views/configuracoes.js?v=20261122-fix5';
-import { renderUsuarios, setupUsuariosEvents } from './views/usuarios.js?v=20261122-fix5';
-import { renderRegrasAgronomicas, setupRegrasAgronomicasEvents } from './views/regras-agronomicas.js?v=20261122-adm3';
-import { renderAuditoria, setupAuditoriaEvents } from './views/auditoria.js?v=20261122-adm3';
-import { renderSensoresAdmin, setupSensoresAdminEvents } from './views/sensores-admin.js?v=20261120-live33';
+} from './views/auth-flow.js?v=20261122-adm6';
+import { renderDashboard, setupDashboardEvents } from './views/dashboard.js?v=20261122-adm6';
+import { renderSensores, setupSensoresEvents } from './views/sensores.js?v=20261122-adm6';
+import { renderRedeEsp32, setupRedeEsp32Events } from './views/rede-esp32.js?v=20261122-adm6';
+import { renderLeituras, setupLeiturasEvents } from './views/leituras.js?v=20261122-adm6';
+import { renderLotes, setupLotesEvents } from './views/lotes.js?v=20261122-adm6';
+import { renderViagens, setupViagensEvents } from './views/viagens.js?v=20261122-adm6';
+import { renderAlertas, setupAlertasEvents } from './views/alertas.js?v=20261122-adm6';
+import { renderPrevisoes } from './views/previsoes.js?v=20261122-adm6';
+import { renderRelatorios, setupRelatoriosEvents } from './views/relatorios.js?v=20261122-adm6';
+import { renderConfiguracoes, setupConfiguracoesEvents } from './views/configuracoes.js?v=20261122-adm6';
+import { renderUsuarios, setupUsuariosEvents } from './views/usuarios.js?v=20261122-adm6';
+import { renderRegrasAgronomicas, setupRegrasAgronomicasEvents } from './views/regras-agronomicas.js?v=20261122-adm6';
+import { renderAuditoria, setupAuditoriaEvents } from './views/auditoria.js?v=20261122-adm6';
+import { renderSensoresAdmin, setupSensoresAdminEvents } from './views/sensores-admin.js?v=20261122-adm6';
 
 const routes = {
   '#/login': {

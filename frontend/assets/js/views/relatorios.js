@@ -54,12 +54,12 @@ let _relatoriosList = [
     id: 3,
     titulo: 'Auditoria Forense de Sensores e Rejeições ThingSpeak',
     tipo_label: 'auditoria_sensores',
-    codigo_ref: 'Dump Diário Automatizado',
-    gerado_por: 'Rotina Automática',
-    cargo_gerador: 'Agendador Cron',
-    iniciais: 'RA',
-    avatarBg: '#F1F5F9',
-    avatarColor: '#475569',
+    codigo_ref: 'Dump Mensal Consolidado',
+    gerado_por: 'Lorena Lira',
+    cargo_gerador: 'Administradora',
+    iniciais: 'LL',
+    avatarBg: '#DCFCE7',
+    avatarColor: '#047857',
     data: '20 de Set 03:00 BRT',
     formato: 'CSV',
     tamanho: '1.4 MB',
@@ -132,18 +132,18 @@ export async function renderRelatorios() {
           </div>
         </div>
 
-        <!-- KPI 3 -->
+        <!-- KPI 3: Tipos de Documentos Oficiais (iot_db: relatorio) -->
         <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
           <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 11px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">AGENDAMENTOS AUTOMÁTICOS</span>
-            <span style="font-size: 10px; font-weight: 700; color: #0284C7; background: #F0F9FF; padding: 2px 8px; border-radius: 12px;">Cron Service</span>
+            <span style="font-size: 11px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">TIPOS NO BANCO DE DADOS</span>
+            <span style="font-size: 10px; font-weight: 700; color: #0284C7; background: #F0F9FF; padding: 2px 8px; border-radius: 12px;">Tabela relatorio</span>
           </div>
           <div style="margin: 12px 0;">
             <div style="font-size: 28px; font-weight: 800; color: #0F172A; line-height: 1;">4</div>
-            <div style="font-size: 11px; color: #64748B; margin-top: 4px;">rotinas ativas</div>
+            <div style="font-size: 11px; color: #64748B; margin-top: 4px;">tipos oficiais homologados</div>
           </div>
           <div style="font-size: 10px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px;">
-            Fechamento Semanal • Dump Sensores • Auditoria Mensal • Safra
+            saidas_faixa • qualidade • auditoria • fechamento_safra (fim &gt;= inicio)
           </div>
         </div>
       </div>
