@@ -73,6 +73,16 @@ export async function renderAlertas() {
       });
     }
 
+    // Aplica sempre os status persistidos localmente (inclusive para alertas de fallback)
+    const statusMap = typeof api.getAlertasStatusMap === 'function' ? api.getAlertasStatusMap() : {};
+    listaAlertas = listaAlertas.map(a => {
+      const idKey = String(a.id_alerta ?? a.id ?? '');
+      if (idKey && statusMap[idKey]) {
+        return { ...a, status: statusMap[idKey] };
+      }
+      return a;
+    });
+
     // 2. Busca clima atual para compor KPI ambiental real
     const clima = await api.getClimaAtual().catch(() => ({ temperatura: 28.5, umidade: 60 }));
 
@@ -1845,7 +1855,7 @@ function renderGestoraAlertas(alertas = [], clima = {}) {
       <button class="alert-filter-tab" data-filter="resolvidos" style="padding: 7px 14px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 9999px; font-size: 12px; font-weight: 600; color: #059669; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
         <i data-lucide="check" style="width: 13px; height: 13px;"></i>
         Reconhecidos
-        <span style="background: #DCFCE7; color: #15803D; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 9999px;">${resolvidosCount}</span>
+        <span id="tab-reconhecidos-count" style="background: #DCFCE7; color: #15803D; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 9999px;">${resolvidosCount}</span>
       </button>
     </div>
 
@@ -1971,10 +1981,40 @@ function setupGestoraAlertasEvents() {
   // 1. Carregamento sob demanda (IntersectionObserver) para GET /alertas/{id}/detalhe
   const cardElements = document.querySelectorAll('.alerta-card-wrapper');
 
+  function atualizarContadoresAlertas() {
+    let ativos = 0;
+    let reconhecidos = 0;
+    document.querySelectorAll('.alerta-card-wrapper').forEach(el => {
+      const st = String(el.dataset.status || '').toLowerCase();
+      const isRec = st === 'reconhecido' || st === 'resolvido' || el.querySelector('.incident-card')?.classList.contains('resolved');
+      if (isRec) {
+        reconhecidos += 1;
+      } else {
+        ativos += 1;
+      }
+    });
+    const kpiCountEl = document.getElementById('kpi-alertas-count');
+    if (kpiCountEl) kpiCountEl.textContent = String(ativos);
+    const tabRecEl = document.getElementById('tab-reconhecidos-count');
+    if (tabRecEl) tabRecEl.textContent = String(reconhecidos);
+  }
+
   async function carregarDetalhe(id, containerEl) {
-    if (detalhesCache.has(id)) {
-      containerEl.innerHTML = renderAlertaCard(detalhesCache.get(id));
-      vincularEventosCard(containerEl, detalhesCache.get(id));
+    const cacheKey = String(id);
+    const statusMap = typeof api.getAlertasStatusMap === 'function' ? api.getAlertasStatusMap() : {};
+    const statusSalvo = statusMap[cacheKey];
+
+    if (detalhesCache.has(cacheKey)) {
+      const cached = detalhesCache.get(cacheKey);
+      if (statusSalvo && cached?.alerta) {
+        cached.alerta.status = statusSalvo;
+      }
+      if (cached?.alerta?.status) {
+        containerEl.dataset.status = cached.alerta.status;
+      }
+      containerEl.innerHTML = renderAlertaCard(cached);
+      vincularEventosCard(containerEl, cached);
+      atualizarContadoresAlertas();
       if (window.lucide) window.lucide.createIcons();
       return;
     }
@@ -1982,12 +2022,19 @@ function setupGestoraAlertasEvents() {
     try {
       const meta = {
         nivel: containerEl?.dataset?.nivel,
-        status: containerEl?.dataset?.status
+        status: statusSalvo || containerEl?.dataset?.status
       };
       const detalhe = await api.getAlertaDetalhe(id, meta);
-      detalhesCache.set(id, detalhe);
+      if (statusSalvo && detalhe?.alerta) {
+        detalhe.alerta.status = statusSalvo;
+      }
+      detalhesCache.set(cacheKey, detalhe);
+      if (detalhe?.alerta?.status) {
+        containerEl.dataset.status = detalhe.alerta.status;
+      }
       containerEl.innerHTML = renderAlertaCard(detalhe);
       vincularEventosCard(containerEl, detalhe);
+      atualizarContadoresAlertas();
       if (window.lucide) window.lucide.createIcons();
     } catch (err) {
       console.error(`Erro ao carregar detalhe do alerta #${id}:`, err);
@@ -2013,7 +2060,7 @@ function setupGestoraAlertasEvents() {
         if (entry.isIntersecting) {
           const el = entry.target;
           const id = el.dataset.id;
-          if (id && !detalhesCache.has(id)) {
+          if (id && !detalhesCache.has(String(id))) {
             obs.unobserve(el);
             carregarDetalhe(id, el);
           }
@@ -2030,30 +2077,25 @@ function setupGestoraAlertasEvents() {
     const btnReconhecer = cardEl.querySelector('.btn-card-reconhecer');
     if (btnReconhecer) {
       btnReconhecer.addEventListener('click', async () => {
-        const idAlerta = btnReconhecer.dataset.id;
+        const idAlerta = String(btnReconhecer.dataset.id || cardEl.dataset.id || '');
         btnReconhecer.disabled = true;
         btnReconhecer.innerHTML = '<span style="display:inline-block;animation:spin 1s infinite linear;">↻</span> Reconhecendo...';
 
         try {
-          // PATCH /alertas/{id}/status com {"status": "reconhecido"}
+          // PATCH /alertas/{id}/status com {"status": "reconhecido"} + persistência local
           await api.atualizarStatusAlertaById(idAlerta, 'reconhecido');
 
-          toast.success('Alerta Reconhecido', `Alerta #${idAlerta} marcado como reconhecido no banco de dados.`);
+          toast.success('Alerta Reconhecido', `Alerta #${idAlerta} marcado como reconhecido.`);
 
-          // Atualiza cache e re-renderiza o card com o novo estado
+          // Atualiza cache, dataset e re-renderiza o card com o novo estado
+          cardEl.dataset.status = 'reconhecido';
           if (detalhe && detalhe.alerta) {
             detalhe.alerta.status = 'reconhecido';
             detalhesCache.set(idAlerta, detalhe);
           }
           cardEl.innerHTML = renderAlertaCard(detalhe);
           vincularEventosCard(cardEl, detalhe);
-
-          // Atualiza contadores visuais
-          const kpiCountEl = document.getElementById('kpi-alertas-count');
-          if (kpiCountEl) {
-            const current = parseInt(kpiCountEl.textContent, 10) || 1;
-            kpiCountEl.textContent = String(Math.max(0, current - 1));
-          }
+          atualizarContadoresAlertas();
 
           if (window.lucide) window.lucide.createIcons();
         } catch (err) {
@@ -2148,29 +2190,36 @@ function setupGestoraAlertasEvents() {
   document.getElementById('btn-reconhecer-todos')?.addEventListener('click', async () => {
     try {
       toast.info('Reconhecendo Alertas...', 'Atualizando status de todos os incidentes abertos.');
-      const buttons = document.querySelectorAll('.btn-card-reconhecer');
-      for (const btn of buttons) {
-        const id = btn.dataset.id;
-        if (id) {
+      const wrappers = Array.from(document.querySelectorAll('.alerta-card-wrapper'));
+      const idsPendentes = wrappers
+        .map(el => String(el.dataset.id || ''))
+        .filter(Boolean);
+
+      if (typeof api.reconhecerTodosAlertas === 'function') {
+        await api.reconhecerTodosAlertas(idsPendentes);
+      } else {
+        for (const id of idsPendentes) {
           await api.atualizarStatusAlertaById(id, 'reconhecido').catch(() => {});
         }
       }
-      toast.success('Concluído', 'Todos os alertas pendentes foram marcados como reconhecidos.');
-      // Atualiza visual
-      const kpi = document.getElementById('kpi-alertas-count');
-      if (kpi) kpi.textContent = '0';
-      document.querySelectorAll('.btn-card-reconhecer').forEach(btn => {
-        const parent = btn.parentElement;
-        if (parent) {
-          parent.innerHTML = `
-            <div style="background: #ECFDF5; border: 1px solid #A7F3D0; color: #047857; font-size: 11px; font-weight: 700; padding: 7px 14px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px;">
-              <i data-lucide="check-check" style="width: 14px; height: 14px;"></i>
-              Alerta Reconhecido
-            </div>
-          `;
+
+      wrappers.forEach(cardEl => {
+        const id = String(cardEl.dataset.id || '');
+        cardEl.dataset.status = 'reconhecido';
+        if (id && detalhesCache.has(id)) {
+          const det = detalhesCache.get(id);
+          if (det && det.alerta) {
+            det.alerta.status = 'reconhecido';
+            detalhesCache.set(id, det);
+            cardEl.innerHTML = renderAlertaCard(det);
+            vincularEventosCard(cardEl, det);
+          }
         }
       });
+
+      atualizarContadoresAlertas();
       if (window.lucide) window.lucide.createIcons();
+      toast.success('Concluído', 'Todos os alertas pendentes foram marcados como reconhecidos.');
     } catch (e) {
       toast.error('Erro', 'Não foi possível reconhecer todos os alertas.');
     }

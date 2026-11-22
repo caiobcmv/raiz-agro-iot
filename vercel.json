@@ -1,5 +1,19 @@
 {
   "cleanUrls": true,
+  "headers": [
+    {
+      "source": "/assets/js/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/frontend/assets/js/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+      ]
+    }
+  ],
   "rewrites": [
     { "source": "/assets/(.*)", "destination": "/frontend/assets/$1" },
     { "source": "/pages/assets/(.*)", "destination": "/frontend/assets/$1" },

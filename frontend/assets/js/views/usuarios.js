@@ -58,13 +58,28 @@ export async function renderUsuarios() {
   const usuarioLogado = auth.getUser();
   const emailLogado = usuarioLogado ? (usuarioLogado.email || '').trim().toLowerCase() : '';
 
-  usuarios = usuarios.map(u => ({
-    ...u,
-    isVoce: (u.email || '').trim().toLowerCase() === emailLogado,
-    status: u.status || 'ativo',
-    data_cadastro: u.data_cadastro || '14/01/2025',
-    ultimo_acesso: u.ultimo_acesso || (u.status === 'pendente' ? 'Aguardando Primeiro Acesso' : 'Hoje às 15:30 • IP 192.168.1.45')
-  }));
+  if (!Array.isArray(usuarios)) {
+    usuarios = [];
+  }
+
+  usuarios = usuarios.map(u => {
+    const nomeSeguro = String(u?.nome || 'Usuário').trim() || 'Usuário';
+    const perfilSeguro = String(u?.perfil || (u?.id_perfil === 3 ? 'Administrador' : (u?.id_perfil === 2 ? 'Analista de Dados' : 'Produtor / Exportador')));
+    return {
+      ...u,
+      nome: nomeSeguro,
+      email: String(u?.email || ''),
+      perfil: perfilSeguro,
+      isVoce: String(u?.email || '').trim().toLowerCase() === emailLogado,
+      status: u?.status || 'ativo',
+      data_cadastro: u?.data_cadastro || '14/01/2025',
+      ultimo_acesso: u?.ultimo_acesso || (u?.status === 'pendente' ? 'Aguardando Primeiro Acesso' : 'Hoje às 15:30 • IP 192.168.1.45')
+    };
+  });
+
+  const totalUsuarios = usuarios.length;
+  const totalAtivos = usuarios.filter(u => u.status !== 'inativo').length;
+  const totalInativos = usuarios.filter(u => u.status === 'inativo').length;
 
   return `
     <div class="dashboard-canvas apple-animate-in">
@@ -77,7 +92,7 @@ export async function renderUsuarios() {
             <div style="width: 24px; height: 24px; border-radius: 50%; background: #ECFDF5; color: #10B981; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800;">100%</div>
           </div>
           <div style="margin: 12px 0;">
-            <div style="font-size: 26px; font-weight: 800; color: #0F172A; line-height: 1;">12</div>
+            <div style="font-size: 26px; font-weight: 800; color: #0F172A; line-height: 1;">${totalUsuarios}</div>
             <div style="font-size: 11px; color: #64748B; margin-top: 4px;">usuários cadastrados</div>
           </div>
           <div style="font-size: 11px; color: #059669; font-weight: 600; display: flex; align-items: center; gap: 4px;">
@@ -122,11 +137,11 @@ export async function renderUsuarios() {
           </div>
           <div style="margin: 12px 0; display: flex; justify-content: space-between; align-items: baseline;">
             <div>
-              <div style="font-size: 26px; font-weight: 800; color: #0F172A; line-height: 1;">12</div>
+              <div style="font-size: 26px; font-weight: 800; color: #0F172A; line-height: 1;">${totalAtivos}</div>
               <div style="font-size: 11px; color: #059669; font-weight: 600; margin-top: 4px;">Ativas</div>
             </div>
             <div style="text-align: right;">
-              <div style="font-size: 16px; font-weight: 700; color: #64748B;">/ 0</div>
+              <div style="font-size: 16px; font-weight: 700; color: #64748B;">/ ${totalInativos}</div>
               <div style="font-size: 10px; color: #94A3B8;">Inativas</div>
             </div>
           </div>
@@ -303,11 +318,13 @@ export async function renderUsuarios() {
             </thead>
             <tbody>
               ${usuarios.map(u => {
-    const initials = u.nome.split(' ').map(n => n[0]).slice(0, 2).join('');
+    const nomeStr = String(u.nome || 'US');
+    const initials = nomeStr.split(/\s+/).filter(Boolean).map(n => n[0]).slice(0, 2).join('').toUpperCase() || 'US';
+    const perfilStr = String(u.perfil || 'Produtor / Exportador');
     let roleBadgeBg = '#F1F5F9', roleBadgeColor = '#0F172A';
-    if (u.perfil.toLowerCase().includes('admin')) {
+    if (perfilStr.toLowerCase().includes('admin')) {
       roleBadgeBg = '#0F172A'; roleBadgeColor = '#FFFFFF';
-    } else if (u.perfil.toLowerCase().includes('analista')) {
+    } else if (perfilStr.toLowerCase().includes('analista')) {
       roleBadgeBg = '#E0F2FE'; roleBadgeColor = '#0369A1';
     } else {
       roleBadgeBg = '#DCFCE7'; roleBadgeColor = '#15803D';
@@ -470,7 +487,8 @@ export function setupUsuariosEvents() {
         }
 
         try {
-          const listaAtual = JSON.parse(localStorage.getItem('RAIZ_USUARIOS_LIST') || '[]');
+          const parsedLista = JSON.parse(localStorage.getItem('RAIZ_USUARIOS_LIST') || '[]');
+          const listaAtual = Array.isArray(parsedLista) ? parsedLista : [];
           listaAtual.unshift(novoUserObj);
           localStorage.setItem('RAIZ_USUARIOS_LIST', JSON.stringify(listaAtual));
         } catch (e) {}
@@ -519,7 +537,8 @@ export function setupUsuariosEvents() {
           }
 
           try {
-            const listaAtual = JSON.parse(localStorage.getItem('RAIZ_USUARIOS_LIST') || '[]');
+            const parsedLista = JSON.parse(localStorage.getItem('RAIZ_USUARIOS_LIST') || '[]');
+            const listaAtual = Array.isArray(parsedLista) ? parsedLista : [];
             const idx = listaAtual.findIndex(u => String(u.id_usuario) === String(id));
             if (idx !== -1) {
               listaAtual[idx].nome = nomeNovo;
@@ -557,7 +576,8 @@ export function setupUsuariosEvents() {
           novoStatus = row.style.opacity === '0.55' ? 'inativo' : 'ativo';
         }
         try {
-          const listaAtual = JSON.parse(localStorage.getItem('RAIZ_USUARIOS_LIST') || '[]');
+          const parsedLista = JSON.parse(localStorage.getItem('RAIZ_USUARIOS_LIST') || '[]');
+          const listaAtual = Array.isArray(parsedLista) ? parsedLista : [];
           const idx = listaAtual.findIndex(u => String(u.id_usuario) === String(id));
           if (idx !== -1) {
             listaAtual[idx].status = novoStatus;
@@ -567,6 +587,41 @@ export function setupUsuariosEvents() {
         api.desativarUsuario(id).catch(err => console.warn('Soft-delete offline:', err));
         toast.warning('Soft-Delete Aplicado', `Status de ${nomeUser} alternado via fn_bloquear_delete_usuario.`);
       }
+    });
+  });
+
+  // Alternar status ativo/inativo pelo checkbox da linha
+  document.querySelectorAll('.chk-status-user').forEach(chk => {
+    chk.addEventListener('change', async (e) => {
+      const id = e.currentTarget.dataset.id;
+      const novoStatus = e.currentTarget.checked ? 'ativo' : 'inativo';
+      try {
+        const parsedLista = JSON.parse(localStorage.getItem('RAIZ_USUARIOS_LIST') || '[]');
+        const listaAtual = Array.isArray(parsedLista) ? parsedLista : [];
+        const idx = listaAtual.findIndex(u => String(u.id_usuario) === String(id));
+        if (idx !== -1) {
+          listaAtual[idx].status = novoStatus;
+          localStorage.setItem('RAIZ_USUARIOS_LIST', JSON.stringify(listaAtual));
+        }
+      } catch (err) {}
+
+      try {
+        if (novoStatus === 'inativo') {
+          await api.desativarUsuario(id);
+        } else {
+          await api.editarUsuario(id, { status: 'ativo' });
+        }
+      } catch (err) {
+        console.warn('Falha ao sincronizar status no backend, mantido localmente:', err);
+      }
+
+      const labelSpan = e.currentTarget.parentElement?.querySelector('span');
+      if (labelSpan) {
+        labelSpan.textContent = `• ${novoStatus === 'inativo' ? 'Inativo' : 'Ativo'}`;
+        labelSpan.style.color = novoStatus === 'inativo' ? '#64748B' : '#047857';
+        labelSpan.style.background = novoStatus === 'inativo' ? '#F1F5F9' : '#D1FAE5';
+      }
+      toast.success('Status Atualizado', `Conta marcada como ${novoStatus}.`);
     });
   });
 

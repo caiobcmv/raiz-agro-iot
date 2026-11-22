@@ -673,11 +673,38 @@ class ApiService {
   // ==========================================
   // ALERTAS REATIVOS E PREDITIVOS
   // ==========================================
-  async getAlertas() {
+  // ==========================================
+  // ALERTAS (CRUD + PERSISTÊNCIA RESILIENTE)
+  // ==========================================
+  getAlertasStatusMap() {
     try {
-      return await this.request('/alertas');
+      const parsed = JSON.parse(localStorage.getItem('RAIZ_ALERTAS_STATUS_MAP') || '{}');
+      return (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) ? parsed : {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  saveAlertaStatusLocal(id, status) {
+    if (id == null) return;
+    try {
+      const statusMap = this.getAlertasStatusMap();
+      statusMap[String(id)] = status;
+      localStorage.setItem('RAIZ_ALERTAS_STATUS_MAP', JSON.stringify(statusMap));
+    } catch (e) {}
+  }
+
+  async getAlertas() {
+    let lista = [];
+    try {
+      const res = await this.request('/alertas');
+      lista = Array.isArray(res) ? res : (res && Array.isArray(res.alertas) ? res.alertas : []);
     } catch (err) {
-      return [
+      lista = [];
+    }
+
+    if (!Array.isArray(lista) || lista.length === 0) {
+      lista = [
         {
           id_alerta: 41,
           tipo_alerta: 'Temperatura Crítica no Pomar',
@@ -690,29 +717,42 @@ class ApiService {
         },
         {
           id_alerta: 42,
-          tipo_alerta: 'Umidade do Ar em Declínio',
-          descricao: 'Umidade atmosférica em 48% com vento moderado gerando alta demanda evaporativa.',
+          tipo_alerta: 'Déficit de Umidade Relativa',
+          descricao: 'Queda acentuada da umidade do ar registrada no setor com vento moderado, elevando o risco de estresse evaporativo.',
           nivel: 'MODERADO',
           status: 'aberto',
           data_hora: new Date(Date.now() - 40 * 60000).toISOString(),
           id_sensor: 2,
-          id_lote: 12
+          id_lote: 15
         },
         {
           id_alerta: 43,
           tipo_alerta: 'Oscilação Térmica Noturna',
-          descricao: 'Leitura dentro da faixa normalizada após ajuste de ventilação no setor.',
+          descricao: 'Leitura dentro da faixa normalizada após aeração matinal do setor, operando em parâmetros de conforto fisiológico.',
           nivel: 'BAIXO',
-          status: 'resolvido',
+          status: 'reconhecido',
           data_hora: new Date(Date.now() - 180 * 60000).toISOString(),
           id_sensor: 3,
-          id_lote: 14
+          id_lote: 18
         }
       ];
     }
+
+    const statusMap = this.getAlertasStatusMap();
+    lista = lista.map(a => {
+      const idKey = String(a.id_alerta ?? a.id ?? '');
+      if (idKey && statusMap[idKey]) {
+        return { ...a, status: statusMap[idKey] };
+      }
+      return a;
+    });
+
+    return lista;
   }
 
   async resolveAlerta(id) {
+    this.saveAlertaStatusLocal(id, 'resolvido');
+
     try {
       return await this.request(`/alertas/${id}/status`, {
         method: 'PATCH',
@@ -725,14 +765,23 @@ class ApiService {
 
   // Buscar detalhe dinâmico do alerta (GET /alertas/{id}/detalhe)
   async getAlertaDetalhe(id, meta = {}) {
+    const numId = Number(id);
+    const statusMap = this.getAlertasStatusMap();
+    const overrideStatus = statusMap[String(id)] || statusMap[String(numId)] || null;
+    const effectiveStatus = overrideStatus || meta?.status;
+
     try {
       const res = await this.request(`/alertas/${id}/detalhe`);
-      if (res && res.alerta && res.metricas) return res;
+      if (res && res.alerta && res.metricas) {
+        if (overrideStatus) {
+          res.alerta.status = overrideStatus;
+        }
+        return res;
+      }
       throw new Error('Formato inválido do endpoint de detalhe');
     } catch (err) {
       console.warn(`[API] Gerando detalhe dinâmico por nível para o alerta #${id}:`, err.message);
 
-      const numId = Number(id);
       const nivel = String(meta?.nivel || '').toUpperCase();
 
       // 1. Alerta Moderado (ID 42 ou ID 2 ou nivel MODERADO / MEDIO / P2)
@@ -743,7 +792,7 @@ class ApiService {
             tipo_alerta: meta?.tipo_alerta || 'Déficit de Umidade Relativa',
             descricao: meta?.descricao || 'Queda acentuada da umidade do ar registrada no setor com vento moderado, elevando o risco de estresse evaporativo.',
             nivel: 'MODERADO',
-            status: meta?.status || 'aberto',
+            status: effectiveStatus || 'aberto',
             data_hora: new Date(Date.now() - 40 * 60000).toISOString(),
             id_sensor: 2,
             id_lote: 15
@@ -820,7 +869,7 @@ class ApiService {
             tipo_alerta: meta?.tipo_alerta || 'Oscilação Térmica Noturna',
             descricao: meta?.descricao || 'Leitura dentro da faixa normalizada após aeração matinal do setor, operando em parâmetros de conforto fisiológico.',
             nivel: 'BAIXO',
-            status: meta?.status || 'reconhecido',
+            status: effectiveStatus || 'reconhecido',
             data_hora: new Date(Date.now() - 180 * 60000).toISOString(),
             id_sensor: 3,
             id_lote: 18
@@ -896,7 +945,7 @@ class ApiService {
           tipo_alerta: meta?.tipo_alerta || 'Temperatura Crítica no Pomar',
           descricao: meta?.descricao || 'Temperatura atmosférica no dossel atingiu 34,1°C por mais de 25 minutos consecutivos, gerando estresse térmico agudo na cultura.',
           nivel: 'CRITICO',
-          status: meta?.status || 'aberto',
+          status: effectiveStatus || 'aberto',
           data_hora: new Date(Date.now() - 25 * 60000).toISOString(),
           id_sensor: 1,
           id_lote: 12
@@ -968,14 +1017,32 @@ class ApiService {
 
   // Atualizar status de um alerta específico (PATCH /alertas/{id}/status)
   async atualizarStatusAlertaById(id, status = 'reconhecido') {
+    this.saveAlertaStatusLocal(id, status);
+
     try {
       return await this.request(`/alertas/${id}/status`, {
         method: 'PATCH',
         body: JSON.stringify({ status })
       });
     } catch (err) {
-      console.warn(`[API] Erro ao atualizar status do alerta #${id}:`, err.message);
+      console.warn(`[API] Erro ao atualizar status do alerta #${id} no backend, mantido em cache local:`, err.message);
       return { success: true, id_alerta: id, status };
+    }
+  }
+
+  // Reconhecer todos os alertas abertos (POST /alertas/reconhecer-todos + persistência local)
+  async reconhecerTodosAlertas(ids = []) {
+    if (Array.isArray(ids)) {
+      ids.forEach(id => this.saveAlertaStatusLocal(id, 'reconhecido'));
+    }
+
+    try {
+      return await this.request('/alertas/reconhecer-todos', {
+        method: 'POST'
+      });
+    } catch (err) {
+      console.warn('[API] Erro ao reconhecer todos no backend, mantido em cache local:', err.message);
+      return { reconhecidos: Array.isArray(ids) ? ids.length : 0, offline: true };
     }
   }
 
@@ -1487,7 +1554,12 @@ class ApiService {
   // ===== MÉTODOS DE ADMINISTRAÇÃO & COMPATIBILIDADE POSTGRESQL =====
   async getUsuarios(status = null) {
     const qs = status ? `?status=${encodeURIComponent(status)}` : '';
-    return await this.request(`/usuarios${qs}`);
+    const res = await this.request(`/usuarios${qs}`);
+    if (Array.isArray(res)) return res;
+    if (res && Array.isArray(res.usuarios)) return res.usuarios;
+    if (res && Array.isArray(res.items)) return res.items;
+    if (res && Array.isArray(res.data)) return res.data;
+    return [];
   }
 
   async criarUsuario(dados) {

@@ -27,6 +27,10 @@ consulta = [Depends(require_role_por_metodo(
 analista_edita = [Depends(require_role_por_metodo(
     leitura=(ANALISTA, PRODUTOR_EXPORTADOR), escrita=(ANALISTA,), exclusao=()))]
 
+# Analista e Produtor consultam e editam alertas (reconhecimento e status operacional de incidentes)
+analista_e_produtor_editam = [Depends(require_role_por_metodo(
+    leitura=(ANALISTA, PRODUTOR_EXPORTADOR), escrita=(ANALISTA, PRODUTOR_EXPORTADOR), exclusao=()))]
+
 # Analista consulta e gera (sem excluir); Produtor fora; Admin faz tudo
 analista_so_ae = [Depends(require_role_por_metodo(
     leitura=(ANALISTA,), escrita=(ANALISTA,), exclusao=()))]
@@ -70,8 +74,11 @@ for r in (leituras, leituras_rejeitadas, sensor_leituras, dashboard, clima, lote
 app.include_router(analista.router, dependencies=so_analista)
 app.include_router(calibracao.router, dependencies=analista_edita)
 
-for r in (sensores, config_parametros, alertas, alertas_preditivos, catalogo,
-          relatorios, pareceres, central_alertas):
+for r in (alertas, central_alertas):
+    app.include_router(r.router, dependencies=analista_e_produtor_editam)
+
+for r in (sensores, config_parametros, alertas_preditivos, catalogo,
+          relatorios, pareceres):
     app.include_router(r.router, dependencies=analista_edita)
 
 # relatórios gerados/exportados cobrem todos os donos: Analista consulta e gera; Produtor fora
