@@ -1030,8 +1030,8 @@ function renderPreditivosDonutBoxHtml() {
   }
 
   return `
-    <div class="chart-header-row" style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 16px;">
-      <div>
+    <div class="chart-header-row" style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 16px; flex-wrap: nowrap;">
+      <div style="flex: 1; min-width: 0;">
         <h4 style="font-size: 14px; font-weight: 700; color: #0F172A; display: flex; align-items: center; gap: 8px;">
           <i data-lucide="pie-chart" style="width: 16px; height: 16px; color: #10B981;"></i>
           Alertas Preditivos por Sensor
@@ -1040,7 +1040,7 @@ function renderPreditivosDonutBoxHtml() {
           Distribuição de risco probabilístico configurada por cortes preditivos
         </p>
       </div>
-      <span style="font-size: 10px; background: #ECFDF5; color: #047857; font-weight: 600; padding: 2px 8px; border-radius: 4px; white-space: nowrap; flex-shrink: 0;">
+      <span style="font-size: 10px; background: #ECFDF5; color: #047857; font-weight: 600; padding: 2px 8px; border-radius: 4px; white-space: nowrap; flex-shrink: 0; margin-left: auto;">
         Classificação Ativa
       </span>
     </div>
@@ -1057,9 +1057,9 @@ function renderPreditivosDonutBoxHtml() {
           <!-- Vermelho: Alta -->
           <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#EF4444" stroke-width="3.8" stroke-dasharray="${pctAlta}, 100" stroke-dashoffset="-${pctBaixa + pctMod}"/>
         </svg>
-        <div class="donut-center-wrap">
-          <div class="donut-center-val">${pctBaixa}%</div>
-          <div class="donut-center-sub" style="color: #059669;">BAIXA</div>
+        <div class="donut-center-wrap" style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; pointer-events: none;">
+          <div class="donut-center-val" style="font-size: 22px; font-weight: 800; color: #0F172A; line-height: 1; font-family: 'Space Grotesk', sans-serif;">${pctBaixa}%</div>
+          <div class="donut-center-sub" style="font-size: 9px; font-weight: 700; color: #059669; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px;">BAIXA</div>
         </div>
       </div>
 

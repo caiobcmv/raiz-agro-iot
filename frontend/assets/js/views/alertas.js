@@ -127,8 +127,8 @@ function renderAnalistaAlertas() {
                 <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#FEE2E2" stroke-width="4"/>
                 <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#EF4444" stroke-width="4" stroke-dasharray="33, 100"/>
               </svg>
-              <div class="donut-center-wrap">
-                <span style="font-size: 16px; font-weight: 800; color: #0F172A;" data-kpi="alertas-pendentes-total">3</span>
+              <div class="donut-center-wrap" style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; pointer-events: none;">
+                <span style="font-size: 16px; font-weight: 800; color: #0F172A; line-height: 1;" data-kpi="alertas-pendentes-total">3</span>
               </div>
             </div>
             <div style="font-size: 11px; color: #64748B;">
@@ -363,9 +363,9 @@ function renderAnalistaAlertas() {
                   <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#F59E0B" stroke-width="4.5" stroke-dasharray="33, 100" stroke-dashoffset="-33"/>
                   <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#EF4444" stroke-width="4.5" stroke-dasharray="33, 100"/>
                 </svg>
-                <div class="donut-center-wrap">
-                  <div style="font-size: 13px; font-weight: 800; color: #0F172A;">3</div>
-                  <div style="font-size: 7px; color: #64748B; font-weight: 700;">Alertas</div>
+                <div class="donut-center-wrap" style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; pointer-events: none;">
+                  <div style="font-size: 13px; font-weight: 800; color: #0F172A; line-height: 1;">3</div>
+                  <div style="font-size: 7px; color: #64748B; font-weight: 700; margin-top: 2px;">Alertas</div>
                 </div>
               </div>
 
