@@ -77,85 +77,6 @@ function extrairArraySeguro(val) {
 }
 
 // ==========================================
-// FALLBACK DE DEMONSTRAÇÃO
-// ==========================================
-const MOCK_REDE_FALLBACK = {
-  resumo: {
-    sensores: {
-      total: 24,
-      ativos: 22,
-      inativos: 2,
-      total_solo: 16,
-      total_ar: 8,
-      ativos_solo: 15,
-      ativos_ar: 7
-    },
-    ingestao_24h: {
-      gravadas: 1420,
-      rejeitadas: 2,
-      taxa_sucesso_pct: 99.8,
-      ultima_leitura: new Date(Date.now() - 3 * 60000).toISOString(),
-      atraso_medio_s: 14
-    },
-    coleta: {
-      canal: 248901,
-      intervalo_s: 300
-    },
-    rejeitadas_hoje: 2,
-    rejeitadas_hoje_por_tipo: {
-      outlier_termico: 1,
-      leitura_invalida: 1,
-      outros: 0
-    }
-  },
-  topologia: {
-    propriedade: {
-      nome: 'Fazenda Modelo Petrolina',
-      area_ha: 45.0,
-      local: 'Petrolina - PE'
-    },
-    contadores: {
-      todos: 24,
-      ativos: 22,
-      em_alerta: 2,
-      solo: 16,
-      ar: 8
-    },
-    coordenada_ilustrativa: true,
-    nota_transparencia: 'Posição ilustrativa: Coordenadas espaciais projetadas para visualização topológica da malha de campo.',
-    sensores: [
-      { id_sensor: 1, codigo: 'SNS-SL-01', nome: 'Sonda Solo 1A', ambiente: 'solo', tipo_sensor: 'Sensor Solo (FDR)', estado_mapa: 'ativo', lat: -9.388, lng: -40.505, id_lote: 1, fruta: 'Uva Niágara', localizacao: 'Talhão 1A', channel_id: '248901', origem: 'real' },
-      { id_sensor: 2, codigo: 'SNS-AR-02', nome: 'Estação Clima 1A', ambiente: 'ar', tipo_sensor: 'DHT11', estado_mapa: 'ativo', lat: -9.385, lng: -40.502, id_lote: 1, fruta: 'Uva Niágara', localizacao: 'Talhão 1A', channel_id: '248901', origem: 'real' },
-      { id_sensor: 3, codigo: 'SNS-SL-03', nome: 'Sonda Solo 2B', ambiente: 'solo', tipo_sensor: 'Sensor Solo (FDR)', estado_mapa: 'atencao', lat: -9.392, lng: -40.500, id_lote: 2, fruta: 'Uva Crimson', localizacao: 'Talhão 2B', channel_id: '248902', origem: 'real' },
-      { id_sensor: 4, codigo: 'SNS-AR-04', nome: 'Estação Clima 2B', ambiente: 'ar', tipo_sensor: 'DHT11', estado_mapa: 'ativo', lat: -9.390, lng: -40.498, id_lote: 2, fruta: 'Uva Crimson', localizacao: 'Talhão 2B', channel_id: '248902', origem: 'simulado' },
-      { id_sensor: 5, codigo: 'SNS-SL-05', nome: 'Sonda Solo 3C', ambiente: 'solo', tipo_sensor: 'Sensor Solo (FDR)', estado_mapa: 'rejeicao', lat: -9.382, lng: -40.508, id_lote: 3, fruta: 'Manga Palmer', localizacao: 'Talhão 3C', channel_id: '248903', origem: 'real' },
-      { id_sensor: 6, codigo: 'SNS-AR-06', nome: 'Estação Clima 3C', ambiente: 'ar', tipo_sensor: 'DHT11', estado_mapa: 'ativo', lat: -9.387, lng: -40.504, id_lote: 3, fruta: 'Manga Palmer', localizacao: 'Talhão 3C', channel_id: '248903', origem: 'real' }
-    ]
-  },
-  sensores: [
-    { id_sensor: 1, codigo: 'SNS-SL-01', nome: 'Sonda Umidade Talhão 1A', tipo_sensor: 'Sensor Solo (FDR)', localizacao: 'Talhão 1A Norte', channel_id: '248901', status: 'ativo', id_lote: 1, fruta: 'Uva Niágara', ambiente: 'solo', origem: 'real' },
-    { id_sensor: 2, codigo: 'SNS-AR-02', nome: 'Estação Microclima 1A', tipo_sensor: 'DHT11', localizacao: 'Talhão 1A Centro', channel_id: '248901', status: 'ativo', id_lote: 1, fruta: 'Uva Niágara', ambiente: 'ar', origem: 'real' },
-    { id_sensor: 3, codigo: 'SNS-SL-03', nome: 'Sonda Umidade Talhão 2B', tipo_sensor: 'Sensor Solo (FDR)', localizacao: 'Talhão 2B Sul', channel_id: '248902', status: 'ativo', id_lote: 2, fruta: 'Uva Crimson', ambiente: 'solo', origem: 'real' },
-    { id_sensor: 4, codigo: 'SNS-AR-04', nome: 'Estação Microclima 2B', tipo_sensor: 'DHT11', localizacao: 'Talhão 2B Leste', channel_id: '248902', status: 'ativo', id_lote: 2, fruta: 'Uva Crimson', ambiente: 'ar', origem: 'simulado' },
-    { id_sensor: 5, codigo: 'SNS-SL-05', nome: 'Sonda Umidade Talhão 3C', tipo_sensor: 'Sensor Solo (FDR)', localizacao: 'Talhão 3C Oeste', channel_id: '248903', status: 'inativo', id_lote: null, fruta: null, ambiente: 'solo', origem: 'real' },
-    { id_sensor: 6, codigo: 'SNS-AR-06', nome: 'Estação Microclima 3C', tipo_sensor: 'DHT11', localizacao: 'Talhão 3C Torre', channel_id: '248903', status: 'ativo', id_lote: 3, fruta: 'Manga Palmer', ambiente: 'ar', origem: 'real' }
-  ],
-  historicoRede: {
-    periodo: '24h',
-    rssi_disponivel: false,
-    pontos: [
-      { hora: '00:00', pdr_pct: 99.8, rssi_dbm: null },
-      { hora: '04:00', pdr_pct: 99.5, rssi_dbm: null },
-      { hora: '08:00', pdr_pct: 100.0, rssi_dbm: null },
-      { hora: '12:00', pdr_pct: 99.4, rssi_dbm: null },
-      { hora: '16:00', pdr_pct: 99.9, rssi_dbm: null },
-      { hora: '20:00', pdr_pct: 99.7, rssi_dbm: null },
-      { hora: 'Agora', pdr_pct: 99.8, rssi_dbm: null }
-    ]
-  }
-};
-
-// Estado da View
 let redeState = {
   resumo: null,
   topologia: null,
@@ -190,20 +111,6 @@ export async function renderRedeEsp32() {
     redeState.historico = (historicoRes.status === 'fulfilled' && historicoRes.value && typeof historicoRes.value === 'object') ? historicoRes.value : null;
   } catch (err) {
     console.warn('[RedeESP32] Erro ao carregar dados:', err);
-  }
-
-  // Fallbacks transparentes
-  if (!redeState.resumo || !redeState.resumo.sensores || Number(redeState.resumo.sensores.total) === 0) {
-    redeState.resumo = MOCK_REDE_FALLBACK.resumo;
-  }
-  if (!redeState.topologia || !redeState.topologia.sensores || redeState.topologia.sensores.length === 0) {
-    redeState.topologia = MOCK_REDE_FALLBACK.topologia;
-  }
-  if (!redeState.sensores || redeState.sensores.length === 0) {
-    redeState.sensores = MOCK_REDE_FALLBACK.sensores;
-  }
-  if (!redeState.historico || !redeState.historico.pontos || redeState.historico.pontos.length === 0) {
-    redeState.historico = MOCK_REDE_FALLBACK.historicoRede;
   }
 
   const role = auth.getActiveProfile();
@@ -829,13 +736,7 @@ export function setupRedeEsp32Events() {
     cardRejeitadas.addEventListener('click', async () => {
       try {
         const listaRaw = await api.getLeiturasRejeitadas({ limit: 10 });
-        let lista = extrairArraySeguro(listaRaw);
-        if (!lista || lista.length === 0) {
-          lista = MOCK_REDE_FALLBACK.resumo.rejeitadas_hoje_por_tipo ? [
-            { data_rejeicao: new Date().toISOString(), motivo: 'PICO_TERMICO_OUTLIER', id_sensor: 2, temperatura_bruta: 78.4, umidade_bruta: 12.0 },
-            { data_rejeicao: new Date().toISOString(), motivo: 'LEITURA_INVALIDA', id_sensor: 5, temperatura_bruta: null, umidade_bruta: -4.2 }
-          ] : [];
-        }
+        const lista = extrairArraySeguro(listaRaw);
 
         let linhas = '';
         if (lista.length === 0) {

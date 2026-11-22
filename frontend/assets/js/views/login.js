@@ -3,7 +3,7 @@
  */
 
 import { api } from '../api.js';
-import { auth, USUARIOS } from '../auth.js';
+import { auth } from '../auth.js';
 import { toast } from '../components/toast.js';
 import { limparTentativas } from './auth-flow.js';
 
@@ -160,13 +160,6 @@ export function setupLoginEvents() {
         return;
       }
 
-      // ValidaÃ§Ã£o de e-mail por comparaÃ§Ã£o no mapa de USUARIOS
-      const usuarioAutorizado = USUARIOS[email];
-      if (false /* bypass */) {
-        toast.error('Acesso Negado', 'E-mail nÃ£o autorizado. Apenas usuÃ¡rios cadastrados podem acessar o sistema.');
-        return;
-      }
-
       limparTentativas(email);
 
       submitBtn.classList.add('loading');
@@ -175,23 +168,24 @@ export function setupLoginEvents() {
       try {
         const response = await api.login(email, senha);
         if (response && response.access_token) {
+          await auth.startSession(response.usuario);
           window.location.hash = '#/dashboard';
           return;
         }
 
-        // Direciona sempre para os 2 Fatores (MFA / 2FA)
-        sessionStorage.setItem('mfa_contexto', 'login');
-        sessionStorage.setItem('mfa_email', email);
-        sessionStorage.setItem('mfa_token_temporario', (response && response.token_temporario) || ('demo_token_2fa_' + Date.now()));
-        sessionStorage.setItem('mfa_metodo', (response && response.metodo) || 'email');
-        window.location.hash = '#/verificacao';
+        if (response && response.requer_2fa && response.token_temporario) {
+          sessionStorage.setItem('mfa_contexto', 'login');
+          sessionStorage.setItem('mfa_email', email);
+          sessionStorage.setItem('mfa_token_temporario', response.token_temporario);
+          sessionStorage.setItem('mfa_metodo', response.metodo || 'email');
+          window.location.hash = '#/verificacao';
+          return;
+        }
+
+        toast.error('Erro no Login', 'Resposta inesperada do servidor de autenticação.');
       } catch (err) {
-        console.warn('Login direcionando para 2FA:', err);
-        sessionStorage.setItem('mfa_contexto', 'login');
-        sessionStorage.setItem('mfa_email', email);
-        sessionStorage.setItem('mfa_token_temporario', 'demo_token_2fa_' + Date.now());
-        sessionStorage.setItem('mfa_metodo', 'email');
-        window.location.hash = '#/verificacao';
+        console.error('Falha no login:', err);
+        toast.error('Falha na Autenticação', err.message || 'E-mail ou senha incorretos.');
       } finally {
         submitBtn.classList.remove('loading');
         submitBtn.textContent = 'ENTRAR';

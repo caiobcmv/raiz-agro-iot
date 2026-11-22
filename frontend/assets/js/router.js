@@ -11,7 +11,7 @@ import { toast } from './components/toast.js?v=20261120-live33';
 import { showAccessDeniedModal } from './components/access-denied-modal.js?v=20261120-live33';
 
 // Importação das Views
-import { renderLogin, setupLoginEvents } from './views/login.js?v=20261120-live33';
+import { renderLogin, setupLoginEvents } from './views/login.js?v=20261122-real1';
 import {
   renderPrimeiroAcesso, setupPrimeiroAcessoEvents,
   renderRecuperarSenha, setupRecuperarSenhaEvents,
@@ -19,14 +19,14 @@ import {
   renderRedefinirSenha, setupRedefinirSenhaEvents,
   renderSenhaAlterada, setupSenhaAlteradaEvents,
   renderContaBloqueada, setupContaBloqueadaEvents
-} from './views/auth-flow.js?v=20261120-live33';
-import { renderDashboard, setupDashboardEvents } from './views/dashboard.js?v=20261120-live45';
-import { renderSensores, setupSensoresEvents } from './views/sensores.js?v=20261120-live45';
-import { renderRedeEsp32, setupRedeEsp32Events } from './views/rede-esp32.js?v=20261120-live45';
-import { renderLeituras, setupLeiturasEvents } from './views/leituras.js?v=20261120-live33';
+} from './views/auth-flow.js?v=20261122-real1';
+import { renderDashboard, setupDashboardEvents } from './views/dashboard.js?v=20261122-real1';
+import { renderSensores, setupSensoresEvents } from './views/sensores.js?v=20261122-real1';
+import { renderRedeEsp32, setupRedeEsp32Events } from './views/rede-esp32.js?v=20261122-real1';
+import { renderLeituras, setupLeiturasEvents } from './views/leituras.js?v=20261122-real1';
 import { renderLotes, setupLotesEvents } from './views/lotes.js?v=20261120-live33';
 import { renderViagens, setupViagensEvents } from './views/viagens.js?v=20261120-live33';
-import { renderAlertas, setupAlertasEvents } from './views/alertas.js?v=20261120-live45';
+import { renderAlertas, setupAlertasEvents } from './views/alertas.js?v=20261122-real1';
 import { renderPrevisoes } from './views/previsoes.js?v=20261120-live33';
 import { renderRelatorios, setupRelatoriosEvents } from './views/relatorios.js?v=20261120-live33';
 import { renderConfiguracoes, setupConfiguracoesEvents } from './views/configuracoes.js?v=20261120-live33';

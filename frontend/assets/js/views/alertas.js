@@ -24,57 +24,19 @@ export async function renderAlertas() {
     const res = await api.getAlertas().catch(() => []);
     let listaAlertas = Array.isArray(res) ? res : (res && Array.isArray(res.alertas) ? res.alertas : []);
 
-    if (!listaAlertas || listaAlertas.length === 0) {
-      listaAlertas = [
-        {
-          id_alerta: 41,
-          tipo_alerta: 'Temperatura Crítica no Pomar',
-          descricao: 'Temperatura de 34.1°C ultrapassou o teto fisiológico de 32.0°C para uva em fase de maturação.',
-          nivel: 'CRITICO',
-          status: 'aberto',
-          data_hora: new Date(Date.now() - 25 * 60000).toISOString(),
-          id_sensor: 1,
-          id_lote: 12
-        },
-        {
-          id_alerta: 42,
-          tipo_alerta: 'Déficit de Umidade Relativa',
-          descricao: 'Queda acentuada da umidade do ar registrada no setor com vento moderado, elevando o risco de estresse evaporativo.',
-          nivel: 'MODERADO',
-          status: 'aberto',
-          data_hora: new Date(Date.now() - 40 * 60000).toISOString(),
-          id_sensor: 2,
-          id_lote: 15
-        },
-        {
-          id_alerta: 43,
-          tipo_alerta: 'Oscilação Térmica Noturna',
-          descricao: 'Leitura dentro da faixa normalizada após aeração matinal do setor, operando em parâmetros de conforto fisiológico.',
-          nivel: 'BAIXO',
-          status: 'reconhecido',
-          data_hora: new Date(Date.now() - 180 * 60000).toISOString(),
-          id_sensor: 3,
-          id_lote: 18
-        }
-      ];
-    } else {
-      // Normaliza garantindo que cada alerta tenha nível e tipo distintos
-      listaAlertas = listaAlertas.map((a, idx) => {
-        let nivelNorm = String(a.nivel || '').toUpperCase();
-        if (nivelNorm === 'MEDIO') nivelNorm = 'MODERADO';
-        if (!nivelNorm) nivelNorm = idx === 0 ? 'CRITICO' : (idx === 1 ? 'MODERADO' : 'BAIXO');
-        return {
-          ...a,
-          id_alerta: a.id_alerta != null ? a.id_alerta : (idx === 0 ? 41 : (idx === 1 ? 42 : 43)),
-          tipo_alerta: a.tipo_alerta || a.titulo || (nivelNorm === 'CRITICO' ? 'Temperatura Crítica no Pomar' : (nivelNorm === 'MODERADO' ? 'Déficit de Umidade Relativa' : 'Oscilação Térmica Noturna')),
-          nivel: nivelNorm,
-          status: a.status || (nivelNorm === 'BAIXO' ? 'reconhecido' : 'aberto')
-        };
-      });
-    }
+    listaAlertas = listaAlertas.map((a) => {
+      let nivelNorm = String(a.nivel || '').toUpperCase();
+      if (nivelNorm === 'MEDIO') nivelNorm = 'MODERADO';
+      return {
+        ...a,
+        tipo_alerta: a.tipo_alerta || a.titulo || 'Alerta',
+        nivel: nivelNorm || 'BAIXO',
+        status: a.status || 'aberto'
+      };
+    });
 
     // 2. Busca clima atual para compor KPI ambiental real
-    const clima = await api.getClimaAtual().catch(() => ({ temperatura: 28.5, umidade: 60 }));
+    const clima = await api.getClimaAtual().catch(() => ({}));
 
     return renderGestoraAlertas(listaAlertas, clima);
   } catch (err) {
@@ -1682,10 +1644,12 @@ function renderGestoraAlertas(alertas = [], clima = {}) {
 
   // Contagem de sensores únicos identificados nos alertas
   const sensoresSet = new Set(alertas.map(a => a.id_sensor).filter(Boolean));
-  const sensoresAtivosCount = sensoresSet.size || 24;
+  const sensoresAtivosCount = sensoresSet.size;
 
-  const tempClima = clima.temperatura != null ? `${clima.temperatura > 0 ? '+' : ''}${clima.temperatura.toFixed(1)}°C` : '+29,5°C';
-  const umidClima = clima.umidade != null ? `${clima.umidade}% UR` : '52% UR';
+  const tempVal = clima?.temperatura ?? clima?.temperatura_atual;
+  const umidVal = clima?.umidade ?? clima?.umidade_atual;
+  const tempClima = tempVal != null ? `${tempVal > 0 ? '+' : ''}${Number(tempVal).toFixed(1)}°C` : '—';
+  const umidClima = umidVal != null ? `${umidVal}% UR` : '—';
 
   return `
   <div class="dashboard-canvas apple-animate-in" style="padding: 24px 32px 48px; overflow-y: auto;">

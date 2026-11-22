@@ -11,251 +11,6 @@ import { Modal } from '../components/modal.js';
 import { downloadCSV, downloadPDF, openExportChoiceModal } from '../utils/export-utils.js';
 
 // ==========================================
-// DADOS MOCKADOS (FALLBACK ENQUANTO NÃO HÁ DADOS NO BACKEND)
-// ==========================================
-const DADOS_MOCK_HISTORICO_SAFRA = {
-  safras: [
-    {
-      id_safra: 1,
-      nome: 'Safra 2025/2026',
-      ciclo: '2025/2026',
-      ativa: true,
-      data_inicio: '2025-08-01',
-      data_fim: '2026-04-30',
-      meta_ton_ha: 32.0,
-      area_ha: 42.5,
-      produtividade_ton_ha: 34.2,
-      volume_total_ton: 1453.5
-    },
-    {
-      id_safra: 2,
-      nome: 'Safra 2024/2025',
-      ciclo: '2024/2025',
-      ativa: false,
-      data_inicio: '2024-08-01',
-      data_fim: '2025-04-30',
-      meta_ton_ha: 30.0,
-      area_ha: 40.0,
-      produtividade_ton_ha: 30.5,
-      volume_total_ton: 1220.0
-    },
-    {
-      id_safra: 3,
-      nome: 'Safra 2023/2024',
-      ciclo: '2023/2024',
-      ativa: false,
-      data_inicio: '2023-08-01',
-      data_fim: '2024-04-30',
-      meta_ton_ha: 28.0,
-      area_ha: 38.0,
-      produtividade_ton_ha: 28.4,
-      volume_total_ton: 1079.2
-    }
-  ],
-  propriedade: {
-    id_propriedade: 1,
-    nome: 'Fazenda Vale das Uvas',
-    area_ha: 42.5,
-    cidade: 'Petrolina',
-    uf: 'PE'
-  },
-  classificacao: {
-    safra_id: 1,
-    categorias: [
-      { categoria: 'Exportação (Europa/EUA)', quantidade_kg: 988380, percentual: 68.0 },
-      { categoria: 'Mercado Interno Premium', quantidade_kg: 334305, percentual: 23.0 },
-      { categoria: 'Processamento & Indústria', quantidade_kg: 130815, percentual: 9.0 }
-    ]
-  },
-  lotes: [
-    {
-      id_lote: 101,
-      fruta: 'Uva Vitória',
-      quantidade: 280000,
-      unidade: 'kg',
-      etapa: 'armazenamento',
-      status: 'Armazenado',
-      destino: 'Porto de Pecém - CE (Exportação Roterdã)',
-      data_colheita: '2025-10-14'
-    },
-    {
-      id_lote: 102,
-      fruta: 'Manga Palmer',
-      quantidade: 320,
-      unidade: 't',
-      etapa: 'campo',
-      status: 'Colhido',
-      destino: 'Mercado Interno (CEAGESP - SP)',
-      data_colheita: '2025-11-02'
-    },
-    {
-      id_lote: 103,
-      fruta: 'Uva Thompson',
-      quantidade: 195000,
-      unidade: 'kg',
-      etapa: 'transporte',
-      status: 'Em transporte',
-      destino: 'Exportação Hamburgo (Alemanha)',
-      data_colheita: '2025-11-20'
-    },
-    {
-      id_lote: 104,
-      fruta: 'Manga Tommy',
-      quantidade: 410,
-      unidade: 't',
-      etapa: 'armazenamento',
-      status: 'Câmara Fria',
-      destino: 'Porto de Suape - PE (Reino Unido)',
-      data_colheita: '2025-12-05'
-    },
-    {
-      id_lote: 105,
-      fruta: 'Uva Crimson',
-      quantidade: 248500,
-      unidade: 'kg',
-      etapa: 'armazenamento',
-      status: 'Armazenado',
-      destino: 'Exportação Filadélfia (EUA)',
-      data_colheita: '2026-01-18'
-    },
-    {
-      id_lote: 106,
-      fruta: 'Manga Palmer',
-      quantidade: 500,
-      unidade: 'caixa',
-      etapa: 'transporte',
-      status: 'Em transporte',
-      destino: 'Mercado Regional Nordeste',
-      data_colheita: '2026-02-10'
-    },
-    // Lotes Safra 2024/2025
-    {
-      id_lote: 91,
-      fruta: 'Uva Vitória',
-      quantidade: 620,
-      unidade: 't',
-      etapa: 'armazenamento',
-      status: 'Finalizado',
-      destino: 'Exportação Europa',
-      data_colheita: '2024-10-10'
-    },
-    {
-      id_lote: 92,
-      fruta: 'Manga Palmer',
-      quantidade: 600000,
-      unidade: 'kg',
-      etapa: 'transporte',
-      status: 'Finalizado',
-      destino: 'Mercado Interno (SP)',
-      data_colheita: '2024-11-15'
-    },
-    // Lotes Safra 2023/2024
-    {
-      id_lote: 81,
-      fruta: 'Uva Crimson',
-      quantidade: 540,
-      unidade: 't',
-      etapa: 'armazenamento',
-      status: 'Finalizado',
-      destino: 'Exportação EUA',
-      data_colheita: '2023-10-12'
-    },
-    {
-      id_lote: 82,
-      fruta: 'Uva Thompson',
-      quantidade: 539200,
-      unidade: 'kg',
-      etapa: 'armazenamento',
-      status: 'Finalizado',
-      destino: 'Mercado Interno',
-      data_colheita: '2023-11-18'
-    }
-  ],
-  sensores: [
-    {
-      id_sensor: 1,
-      nome: 'DHT11 ESP32-C3',
-      tipo_sensor: 'DHT11',
-      ambiente: 'ar',
-      localizacao: 'Câmara Fria 01 - Bancada A'
-    },
-    {
-      id_sensor: 2,
-      nome: 'Sensor DHT22 Estufa 02',
-      tipo_sensor: 'DHT22',
-      ambiente: 'ar',
-      localizacao: 'Talhão A1 - Pomar Uva'
-    }
-  ]
-};
-
-/**
- * Gera leituras mockadas de telemetria contínuas, suaves e realistas para 7d ou 30d
- */
-function gerarLeiturasTelemetriaMock(periodo = '7d') {
-  const agora = Date.now();
-  const totalHoras = periodo === '30d' ? 30 * 24 : 7 * 24;
-  const passoHoras = periodo === '30d' ? 6 : 2; // passo de 2h para suavidade orgânica no 7d
-  const lista = [];
-
-  for (let h = totalHoras; h >= 0; h -= passoHoras) {
-    const timestamp = new Date(agora - h * 3600 * 1000);
-    const hora = timestamp.getHours();
-
-    // Variação solar senoidal suave (madrugada fresca ~22.5°C, meio-dia/tarde ~28°C)
-    const radianoSolar = ((hora - 6) / 24) * 2 * Math.PI;
-    const cicloDiurno = Math.sin(radianoSolar);
-
-    // Variação atmosférica suave ao longo dos dias (pequenas frentes de 3 dias)
-    const diaFrac = (totalHoras - h) / 24;
-    const derivaClimatica = Math.sin(diaFrac * 1.05) * 1.1;
-
-    const temp = Number((25.5 + cicloDiurno * 2.8 + derivaClimatica).toFixed(1));
-    const umid = Number((66.0 - cicloDiurno * 9.5 - derivaClimatica * 1.8).toFixed(1));
-
-    lista.push({
-      instante: timestamp.toISOString(),
-      temperatura: temp,
-      umidade: Math.min(88, Math.max(48, umid)),
-      n_leituras: 12,
-      todas_reais: true
-    });
-  }
-
-  return lista;
-}
-
-/**
- * Converte array de pontos {x, y} em caminho SVG cúbico Bézier suave (Catmull-Rom spline)
- */
-function gerarCaminhoBezierSuave(pontos) {
-  if (!pontos || pontos.length === 0) return '';
-  if (pontos.length === 1) return `M ${pontos[0].x.toFixed(1)},${pontos[0].y.toFixed(1)}`;
-  if (pontos.length === 2) return `M ${pontos[0].x.toFixed(1)},${pontos[0].y.toFixed(1)} L ${pontos[1].x.toFixed(1)},${pontos[1].y.toFixed(1)}`;
-
-  let d = `M ${pontos[0].x.toFixed(1)},${pontos[0].y.toFixed(1)}`;
-
-  for (let i = 0; i < pontos.length - 1; i++) {
-    const p0 = pontos[i === 0 ? 0 : i - 1];
-    const p1 = pontos[i];
-    const p2 = pontos[i + 1];
-    const p3 = pontos[i + 2 < pontos.length ? i + 2 : i + 1];
-
-    const cp1x = p1.x + (p2.x - p0.x) / 6;
-    const cp1y = p1.y + (p2.y - p0.y) / 6;
-
-    const cp2x = p2.x - (p3.x - p1.x) / 6;
-    const cp2y = p2.y - (p3.y - p1.y) / 6;
-
-    d += ` C ${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${cp2x.toFixed(1)},${cp2y.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`;
-  }
-
-  return d;
-}
-
-// ==========================================
-// ESTADO LOCAL DA TELA
-// ==========================================
 let _estado = {
   carregando: true,
   erro: null,
@@ -1192,11 +947,10 @@ export async function renderLeituras() {
     const lotesApi = lotesRes.status === 'fulfilled' && Array.isArray(lotesRes.value) ? lotesRes.value : [];
     const sensoresApi = sensoresRes.status === 'fulfilled' && Array.isArray(sensoresRes.value) ? sensoresRes.value : [];
 
-    // Fallback gracioso com dados mockados enquanto não ligados ao backend
-    _estado.safras = safrasApi.length > 0 ? safrasApi : DADOS_MOCK_HISTORICO_SAFRA.safras;
-    _estado.propriedade = propsApi || DADOS_MOCK_HISTORICO_SAFRA.propriedade;
-    _estado.lotes = lotesApi.length > 0 ? lotesApi : DADOS_MOCK_HISTORICO_SAFRA.lotes;
-    _estado.sensores = sensoresApi.length > 0 ? sensoresApi : DADOS_MOCK_HISTORICO_SAFRA.sensores;
+    _estado.safras = safrasApi;
+    _estado.propriedade = propsApi;
+    _estado.lotes = lotesApi;
+    _estado.sensores = sensoresApi;
 
     // Seleciona por padrão a safra com ativa === true ou a primeira da lista
     if (!_estado.safraSelecionadaId && _estado.safras.length > 0) {
@@ -1204,18 +958,15 @@ export async function renderLeituras() {
       _estado.safraSelecionadaId = safraAtiva.id_safra;
     }
 
-    // Carrega a classificação comercial para a safra selecionada (com fallback mockado)
     if (_estado.safraSelecionadaId) {
       try {
         const classRes = await api.getClassificacaoResumo(_estado.safraSelecionadaId);
-        _estado.classificacao = (classRes && Array.isArray(classRes.categorias) && classRes.categorias.length > 0)
-          ? classRes
-          : DADOS_MOCK_HISTORICO_SAFRA.classificacao;
+        _estado.classificacao = (classRes && Array.isArray(classRes.categorias)) ? classRes : null;
       } catch (errClass) {
-        _estado.classificacao = DADOS_MOCK_HISTORICO_SAFRA.classificacao;
+        _estado.classificacao = null;
       }
     } else {
-      _estado.classificacao = DADOS_MOCK_HISTORICO_SAFRA.classificacao;
+      _estado.classificacao = null;
     }
 
     // Seleciona por padrão o primeiro sensor
@@ -1223,31 +974,28 @@ export async function renderLeituras() {
       _estado.sensorSelecionadoId = _estado.sensores[0].id_sensor;
     }
 
-    // Carrega leituras do sensor selecionado (com fallback mockado de 7d/30d)
     if (_estado.sensorSelecionadoId) {
       try {
         const leiturasApi = await api.getSensorLeituras(_estado.sensorSelecionadoId, _estado.periodoTelemetria);
-        _estado.leiturasTelemetria = (Array.isArray(leiturasApi) && leiturasApi.length > 0)
-          ? leiturasApi
-          : gerarLeiturasTelemetriaMock(_estado.periodoTelemetria);
+        _estado.leiturasTelemetria = Array.isArray(leiturasApi) ? leiturasApi : (leiturasApi?.pontos || []);
       } catch (errLeit) {
-        _estado.leiturasTelemetria = gerarLeiturasTelemetriaMock(_estado.periodoTelemetria);
+        _estado.leiturasTelemetria = [];
       }
     } else {
-      _estado.leiturasTelemetria = gerarLeiturasTelemetriaMock(_estado.periodoTelemetria);
+      _estado.leiturasTelemetria = [];
     }
 
     _estado.carregando = false;
   } catch (err) {
-    console.warn('Backend safras offline, ativando fallback mockado:', err);
-    _estado.safras = DADOS_MOCK_HISTORICO_SAFRA.safras;
-    _estado.propriedade = DADOS_MOCK_HISTORICO_SAFRA.propriedade;
-    _estado.lotes = DADOS_MOCK_HISTORICO_SAFRA.lotes;
-    _estado.sensores = DADOS_MOCK_HISTORICO_SAFRA.sensores;
-    _estado.safraSelecionadaId = DADOS_MOCK_HISTORICO_SAFRA.safras[0].id_safra;
-    _estado.classificacao = DADOS_MOCK_HISTORICO_SAFRA.classificacao;
-    _estado.sensorSelecionadoId = DADOS_MOCK_HISTORICO_SAFRA.sensores[0].id_sensor;
-    _estado.leiturasTelemetria = gerarLeiturasTelemetriaMock(_estado.periodoTelemetria);
+    console.error('Erro ao carregar histórico de safras:', err);
+    _estado.safras = [];
+    _estado.propriedade = null;
+    _estado.lotes = [];
+    _estado.sensores = [];
+    _estado.safraSelecionadaId = null;
+    _estado.classificacao = null;
+    _estado.sensorSelecionadoId = null;
+    _estado.leiturasTelemetria = [];
     _estado.carregando = false;
   }
 
@@ -1330,14 +1078,11 @@ export function setupLeiturasEvents() {
       _estado.safraSelecionadaId = e.target.value;
       _estado.paginaLotes = 1;
 
-      // Recarrega classificação comercial para a nova safra (com fallback mockado)
       try {
         const classRes = await api.getClassificacaoResumo(_estado.safraSelecionadaId);
-        _estado.classificacao = (classRes && Array.isArray(classRes.categorias) && classRes.categorias.length > 0)
-          ? classRes
-          : DADOS_MOCK_HISTORICO_SAFRA.classificacao;
+        _estado.classificacao = (classRes && Array.isArray(classRes.categorias)) ? classRes : null;
       } catch (err) {
-        _estado.classificacao = DADOS_MOCK_HISTORICO_SAFRA.classificacao;
+        _estado.classificacao = null;
       }
 
       // Re-renderiza a tela no contêiner principal

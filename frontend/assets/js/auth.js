@@ -1,39 +1,10 @@
 /**
- * GERENCIAMENTO DE ESTADO DE AUTENTICAÇÃO, SESSÃO MULTI-PERFIL E PREFERÊNCIAS PERSISTIDAS NO BANCO
- * Suporta 3 perfis dinâmicos vinculados ao PostgreSQL:
- * 1. Gestora de Operações: Maria Clara (id_usuario: 1)
- * 2. Analista IoT e Telemetria: Luiz Felipe (id_usuario: 2)
- * 3. Administradora da Plataforma: Lorena Lira (id_usuario: 3)
+ * GERENCIAMENTO DE ESTADO DE AUTENTICAÇÃO E SESSÃO MULTI-PERFIL (100% REAL - POSTGRESQL)
+ * Sem listas de usuários hardcoded; o perfil e dados do usuário vêm estritamente de /auth/me.
  */
 
 import { api } from './api.js';
 import { toast } from './components/toast.js';
-
-export const USUARIOS = {
-  'lorena.lira@raizagro.agr.br': {
-    id_usuario: 3,
-    nome: 'Lorena Lira',
-    email: 'lorena.lira@raizagro.agr.br',
-    perfil: 'Administradora da Plataforma',
-    profile: 'admin'
-  },
-  'maria.clara@raizagro.agr.br': {
-    id_usuario: 1,
-    nome: 'Maria Clara',
-    email: 'maria.clara@raizagro.agr.br',
-    perfil: 'Gestora de Operações',
-    profile: 'gestor'
-  },
-  'luiz.felipe@raizagro.agr.br': {
-    id_usuario: 2,
-    nome: 'Luiz Felipe',
-    email: 'luiz.felipe@raizagro.agr.br',
-    perfil: 'Analista IoT e Telemetria',
-    profile: 'analista'
-  }
-};
-
-export const EMAILS_AUTORIZADOS = Object.keys(USUARIOS);
 
 export const AVATAR_PALETTES = {
   esmeralda: { bg: '#D1FAE5', border: '#10B981', color: '#065F46', name: 'Esmeralda' },
@@ -50,6 +21,20 @@ export const AVATAR_PALETTES = {
   pink:      { bg: '#FCE7F3', border: '#EC4899', color: '#831843', name: 'Rosa' }
 };
 
+function resolverChavePerfil(perfilStr) {
+  const p = String(perfilStr || '').toLowerCase();
+  if (p.includes('admin')) return 'admin';
+  if (p.includes('analista')) return 'analista';
+  return 'gestor';
+}
+
+function extrairIniciais(nome) {
+  const partes = String(nome || '').trim().split(/\s+/).filter(Boolean);
+  if (partes.length === 0) return 'US';
+  if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase();
+  return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
+}
+
 class AuthState {
   constructor() {
     this.user = this.loadUser();
@@ -59,16 +44,12 @@ class AuthState {
   }
 
   saveAvatarTheme(colorKey) {
-    const active = this.getActiveProfile();
-    const profileId = active === 'analista' ? 'analista' : 'gestor';
+    const active = this.getActiveProfile() || 'gestor';
     const palette = AVATAR_PALETTES[colorKey] || AVATAR_PALETTES.esmeralda;
     localStorage.setItem('USER_AVATAR_KEY', colorKey);
-    localStorage.setItem('user_avatar_key_' + profileId, colorKey);
-    localStorage.setItem('user_avatar_key_gestor', colorKey);
-    localStorage.setItem('user_avatar_key_analista', colorKey);
+    localStorage.setItem('user_avatar_key_' + active, colorKey);
     localStorage.setItem('USER_AVATAR_THEME', JSON.stringify(palette));
-    
-    // Atualização imediata no DOM em tempo real
+
     document.querySelectorAll('.avatar-initials-pill').forEach(el => {
       el.style.background = palette.bg;
       el.style.borderColor = palette.border;
@@ -90,15 +71,8 @@ class AuthState {
       const data = localStorage.getItem('user_data');
       if (data && data !== 'undefined' && data !== 'null') {
         const parsed = JSON.parse(data);
-        if (parsed && typeof parsed === 'object' && parsed.email) {
-          const email = String(parsed.email).trim().toLowerCase();
-          if (USUARIOS[email]) {
-            return {
-              ...USUARIOS[email],
-              ...parsed,
-              email
-            };
-          }
+        if (parsed && typeof parsed === 'object' && (parsed.email || parsed.id_usuario)) {
+          return parsed;
         }
       }
     } catch (e) {
@@ -122,24 +96,24 @@ class AuthState {
     if (!this.user) {
       this.user = this.loadUser();
     }
-    if (this.user && this.user.email) {
-      const email = String(this.user.email).trim().toLowerCase();
-      if (USUARIOS[email]) {
-        return USUARIOS[email].profile;
-      }
+    if (this.user) {
+      return resolverChavePerfil(this.user.perfil || this.user.profile);
     }
     return null;
   }
 
-  async startSession(email) {
-    const cleanEmail = (email || '').trim().toLowerCase();
-    const usuario = USUARIOS[cleanEmail];
+  async startSession(userObj = null) {
+    let usuario = userObj && typeof userObj === 'object' ? userObj : this.loadUser();
+    if (!usuario && api.getToken()) {
+      usuario = await api.getMe();
+    }
     if (!usuario) {
       return false;
     }
 
-    this.user = { ...usuario };
-    this.activeProfile = usuario.profile;
+    const profileKey = resolverChavePerfil(usuario.perfil || usuario.profile);
+    this.user = { ...usuario, profile: profileKey };
+    this.activeProfile = profileKey;
 
     try {
       localStorage.setItem('user_data', JSON.stringify(this.user));
@@ -148,7 +122,6 @@ class AuthState {
       console.warn('Erro ao salvar sessão no localStorage:', e);
     }
 
-    // Carrega preferências salvas no banco de dados vinculadas ao ID do usuário
     await this.syncPreferencesFromDB();
 
     window.dispatchEvent(new CustomEvent('profile-changed', {
@@ -161,17 +134,14 @@ class AuthState {
     if (!this.user || !this.user.id_usuario) return null;
     try {
       const prefs = await api.getPreferenciasUsuario(this.user.id_usuario);
-      if (prefs) {
-        this.preferences = prefs;
-        if (prefs.nome) this.user.nome = prefs.nome;
-        if (prefs.cargo) this.user.cargo = prefs.cargo;
-        localStorage.setItem('user_data', JSON.stringify(this.user));
+      if (prefs && typeof prefs === 'object') {
+        this.preferences = Array.isArray(prefs) ? { canais: prefs } : prefs;
         this.applyVisualPreferences();
         this.refreshHeaderAndSidebarDOM();
-        return prefs;
+        return this.preferences;
       }
     } catch (e) {
-      console.warn('Falha ao sincronizar preferências do banco:', e);
+      console.warn('Falha ao sincronizar preferências do banco:', e.message);
     }
     return null;
   }
@@ -180,31 +150,8 @@ class AuthState {
     if (!this.user || !this.user.id_usuario) {
       throw new Error('Usuário não autenticado.');
     }
-    const mergedPayload = {
-      nome: payload.nome ?? this.preferences?.nome ?? this.user.nome,
-      cargo: payload.cargo ?? this.preferences?.cargo ?? this.getProfileData().cargo,
-      bio: payload.bio ?? this.preferences?.bio ?? '',
-      telefone: payload.telefone ?? this.preferences?.telefone ?? '',
-      avatar_iniciais: payload.avatar_iniciais ?? this.preferences?.avatar_iniciais ?? this.getProfileData().iniciais,
-      avatar_cor: payload.avatar_cor ?? this.preferences?.avatar_cor ?? 'emerald',
-      avatar_url: payload.avatar_url ?? this.preferences?.avatar_url ?? '',
-      tema: payload.tema ?? this.preferences?.tema ?? 'claro',
-      efeitos_visuais: payload.efeitos_visuais ?? this.preferences?.efeitos_visuais ?? true,
-      atualizacao_tempo_real: payload.atualizacao_tempo_real ?? this.preferences?.atualizacao_tempo_real ?? true,
-      idioma: payload.idioma ?? this.preferences?.idioma ?? 'pt-BR',
-      fuso_horario: payload.fuso_horario ?? this.preferences?.fuso_horario ?? 'America/Recife',
-      moeda: payload.moeda ?? this.preferences?.moeda ?? 'BRL',
-      notificacoes_json: payload.notificacoes_json ?? this.preferences?.notificacoes_json ?? {},
-      propriedade_json: payload.propriedade_json ?? this.preferences?.propriedade_json ?? {},
-      preferencias_extras: payload.preferencias_extras ?? this.preferences?.preferencias_extras ?? {}
-    };
-
-    const saved = await api.salvarPreferenciasUsuario(this.user.id_usuario, mergedPayload);
-    this.preferences = saved;
-    if (saved.nome) this.user.nome = saved.nome;
-    if (saved.cargo) this.user.cargo = saved.cargo;
-    localStorage.setItem('user_data', JSON.stringify(this.user));
-
+    const saved = await api.salvarPreferenciasUsuario(this.user.id_usuario, payload);
+    this.preferences = saved || payload;
     this.applyVisualPreferences();
     this.refreshHeaderAndSidebarDOM();
 
@@ -247,8 +194,8 @@ class AuthState {
 
     const sidebarFarmName = document.querySelector('.sidebar .farm-name');
     const sidebarFarmSub = document.querySelector('.sidebar .farm-sub');
-    if (sidebarFarmName) sidebarFarmName.textContent = profile.farm;
-    if (sidebarFarmSub) sidebarFarmSub.textContent = profile.farmSub;
+    if (sidebarFarmName && profile.farm) sidebarFarmName.textContent = profile.farm;
+    if (sidebarFarmSub && profile.farmSub) sidebarFarmSub.textContent = profile.farmSub;
   }
 
   getPreferences() {
@@ -259,91 +206,38 @@ class AuthState {
   }
 
   getProfileData() {
-    const current = this.getActiveProfile();
+    const user = this.user || this.loadUser() || {};
+    const current = this.getActiveProfile() || 'gestor';
     const prefs = this.getPreferences();
     const propJson = prefs.propriedade_json || {};
 
-    let base;
-    if (current === 'admin') {
-      base = {
-        id: 'admin',
-        id_usuario: 3,
-        nome: 'Lorena Lira',
-        sobrenome: 'Lira',
-        cargo: 'Administradora',
-        tituloCompleto: 'Administradora da Plataforma',
-        iniciais: 'LL',
-        email: 'lorena.lira@raizagro.agr.br',
-        paletteKey: 'forest',
-        avatarBg: '#DCFCE7',
-        avatarBorder: '#86EFAC',
-        avatarColor: '#166534',
-        gatewayPill: 'ESP32',
-        gatewayStatus: 'Conectado',
-        farm: 'Vale das Uvas',
-        farmSub: 'Petrolina - Setor 04',
-        bio: 'Responsável pela governança de usuários, regras agronômicas e auditoria criptográfica.'
-      };
-    } else if (current === 'analista') {
-      base = {
-        id: 'analista',
-        id_usuario: 2,
-        nome: 'Luiz Felipe',
-        sobrenome: 'Almeida',
-        cargo: 'Analista',
-        tituloCompleto: 'Analista IoT e Telemetria',
-        iniciais: 'LF',
-        email: 'luiz.felipe@raizagro.agr.br',
-        paletteKey: 'sky',
-        avatarBg: '#E0F2FE',
-        avatarBorder: '#0284C7',
-        avatarColor: '#0369A1',
-        gatewayPill: 'ESP32',
-        gatewayStatus: 'Conectado',
-        farm: 'Vale das Uvas',
-        farmSub: 'Petrolina - Setor 04',
-        bio: 'Especialista em telemetria ESP32 (DHT11 e umidade do solo) e análise preditiva.'
-      };
-    } else {
-      base = {
-        id: 'gestor',
-        id_usuario: 1,
-        nome: 'Maria Clara',
-        sobrenome: 'Souza',
-        cargo: 'Gestora Técnica',
-        tituloCompleto: 'Gestora de Operações',
-        iniciais: 'MC',
-        email: 'maria.clara@raizagro.agr.br',
-        paletteKey: 'emerald',
-        avatarBg: '#D1FAE5',
-        avatarBorder: '#10B981',
-        avatarColor: '#065F46',
-        gatewayPill: 'ESP32',
-        gatewayStatus: 'Conectado',
-        farm: 'Vale das Uvas',
-        farmSub: 'Petrolina - Setor 04',
-        bio: 'Gestão operacional de colheita, irrigação de precisão e logística de cadeia fria.'
-      };
-    }
-
+    const defaultPaletteKey = current === 'admin' ? 'forest' : (current === 'analista' ? 'sky' : 'emerald');
     const localAvatarKey = localStorage.getItem('user_avatar_key_' + current) || localStorage.getItem('USER_AVATAR_KEY');
-    const chosenPaletteKey = localAvatarKey && AVATAR_PALETTES[localAvatarKey] ? localAvatarKey : (prefs.avatar_cor && AVATAR_PALETTES[prefs.avatar_cor] ? prefs.avatar_cor : base.paletteKey);
+    const chosenPaletteKey = (localAvatarKey && AVATAR_PALETTES[localAvatarKey])
+      ? localAvatarKey
+      : (prefs.avatar_cor && AVATAR_PALETTES[prefs.avatar_cor] ? prefs.avatar_cor : defaultPaletteKey);
     const palette = AVATAR_PALETTES[chosenPaletteKey] || AVATAR_PALETTES.emerald;
 
+    const nome = prefs.nome || user.nome || 'Usuário';
+    const cargo = prefs.cargo || user.perfil || (current === 'admin' ? 'Administrador' : current === 'analista' ? 'Analista de Dados' : 'Produtor/Exportador');
+
     return {
-      ...base,
-      nome: prefs.nome || base.nome,
-      cargo: prefs.cargo || base.cargo,
-      iniciais: (prefs.avatar_iniciais || base.iniciais).toUpperCase().slice(0, 3),
-      bio: prefs.bio !== undefined && prefs.bio !== null && prefs.bio !== '' ? prefs.bio : base.bio,
-      telefone: prefs.telefone || '(87) 99842-1104',
+      id: current,
+      id_usuario: user.id_usuario || null,
+      nome,
+      cargo,
+      tituloCompleto: user.perfil || cargo,
+      iniciais: (prefs.avatar_iniciais || extrairIniciais(nome)).toUpperCase().slice(0, 3),
+      email: user.email || '',
+      bio: prefs.bio || '',
+      telefone: prefs.telefone || '',
       paletteKey: chosenPaletteKey,
       avatarKey: chosenPaletteKey,
       avatarBg: palette.bg,
       avatarBorder: palette.border,
       avatarColor: palette.color,
-      farm: propJson.farmName || base.farm,
-      farmSub: propJson.farmSub || base.farmSub,
+      farm: propJson.farmName || '',
+      farmSub: propJson.farmSub || '',
       tema: prefs.tema || 'claro',
       efeitos_visuais: prefs.efeitos_visuais !== false,
       atualizacao_tempo_real: prefs.atualizacao_tempo_real !== false,
@@ -357,15 +251,8 @@ class AuthState {
     if (!this.user) {
       this.user = this.loadUser();
     }
-    if (!this.user || !this.user.email) {
-      return false;
-    }
-    const cleanEmail = String(this.user.email).trim().toLowerCase();
-    if (!USUARIOS[cleanEmail]) {
-      return false;
-    }
     const token = api.getToken() || localStorage.getItem('access_token');
-    return Boolean(token);
+    return Boolean(this.user && token);
   }
 
   getUser() {

@@ -8,7 +8,7 @@
  */
 
 import { api } from '../api.js';
-import { auth, USUARIOS } from '../auth.js';
+import { auth } from '../auth.js';
 import { toast } from '../components/toast.js';
 
 /* =====================================================================
@@ -247,55 +247,42 @@ export function setupPrimeiroAcessoEvents() {
 
   // Submissão do formulário
   if (form) {
-    form.addEventListener('submit', (e) => {
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const email = (emailInput.value || '').trim().toLowerCase();
       const token = (tokenInput.value || '').trim().toUpperCase();
       const senha = senhaInput.value;
       const confirma = confirmaInput.value;
 
-      // 1. E-mail autorizado
-      const usuario = USUARIOS[email];
-      if (!usuario) {
-        toast.error('Acesso Negado', 'E-mail não autorizado. Apenas usuários cadastrados podem ativar conta.');
-        return;
-      }
-
-      // 2. Token no padrão RZ-XXXX-XX
-      const tokenRegex = /^RZ-\d{4}-[A-Z]{2}$/;
-      if (!tokenRegex.test(token)) {
-        toast.warning('Token Inválido', 'O código de ativação deve seguir o padrão RZ-XXXX-XX (ex.: RZ-8492-OK).');
-        return;
-      }
-
-      // 3. Requisitos de senha
-      if (!checkRequirements(senha)) {
-        toast.warning('Senha Fraca', 'A senha deve ter no mínimo 8 dígitos, conter maiúscula, número e símbolo.');
-        return;
-      }
-
-      // 4. Confirmação de senha
-      if (senha !== confirma) {
-        toast.warning('Senhas Divergentes', 'A confirmação de senha deve ser idêntica à nova senha.');
-        return;
-      }
-
-      // 5. Termos
-      if (!termosCheckbox || !termosCheckbox.checked) {
-        toast.warning('Termos Obrigatórios', 'Você deve concordar com os Termos e Políticas de Segurança.');
-        return;
-      }
-
       submitBtn.classList.add('loading');
       submitBtn.textContent = 'ATIVANDO CONTA...';
 
-      // Simulação de ativação: inicia a sessão e vai para o dashboard
-      setTimeout(() => {
-        api.setTokens('demo_jwt_token_' + usuario.profile, 'demo_refresh_' + usuario.profile);
-        auth.startSession(email);
-        toast.success('Primeiro Acesso Concluído', `Bem-vindo(a), ${usuario.nome}! Sua conta foi ativada com sucesso.`);
-        window.location.hash = '#/dashboard';
-      }, 600);
+      try {
+        const res = await api.request('/auth/ativar-conta', {
+          method: 'POST',
+          body: JSON.stringify({
+            email,
+            codigo_ativacao: token,
+            nova_senha: senha,
+            aceite_termos: true
+          })
+        });
+        if (res && res.access_token) {
+          api.setTokens(res.access_token, res.refresh_token);
+          const usr = res.usuario || await api.getMe();
+          await auth.startSession(usr);
+          toast.success('Primeiro Acesso Concluído', `Bem-vindo(a), ${usr?.nome || 'Usuário'}! Sua conta foi ativada com sucesso.`);
+          window.location.hash = '#/dashboard';
+        } else {
+          toast.success('Conta Ativada', 'Sua conta foi ativada. Faça login para continuar.');
+          window.location.hash = '#/login';
+        }
+      } catch (err) {
+        toast.error('Falha na Ativação', err.message || 'Não foi possível ativar a conta.');
+      } finally {
+        submitBtn.classList.remove('loading');
+        submitBtn.textContent = 'ATIVAR CONTA E ACESSAR';
+      }
     });
   }
 }
@@ -408,34 +395,30 @@ export function setupRecuperarSenhaEvents() {
   }
 
   if (form) {
-    form.addEventListener('submit', (e) => {
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const valor = (inputEl.value || '').trim().toLowerCase();
-
-      // Para validar o usuário cadastrado
-      let emailAlvo = valor;
-
-      // Se for número de telefone ou outro formato, busca o primeiro usuário correspondente ou valida por e-mail
-      const usuarioEncontrado = USUARIOS[emailAlvo] || Object.values(USUARIOS).find(u => u.email === valor);
-
-      if (!usuarioEncontrado) {
-        toast.error('Acesso Negado', 'E-mail corporativo não encontrado na base de usuários autorizados.');
+      const emailAlvo = (inputEl.value || '').trim().toLowerCase();
+      if (!emailAlvo) {
+        toast.warning('Atenção', 'Informe o e-mail cadastrado.');
         return;
       }
 
       submitBtn.classList.add('loading');
       submitBtn.textContent = 'ENVIANDO...';
 
-      // Salva estado para a tela de verificação
-      sessionStorage.setItem('mfa_contexto', 'recuperacao');
-      sessionStorage.setItem('mfa_email', usuarioEncontrado.email);
-      sessionStorage.setItem('mfa_token_temporario', 'recup_token_' + Date.now());
-      sessionStorage.setItem('mfa_metodo', metodoAtual);
-
-      setTimeout(() => {
-        toast.success('Código Enviado', `Código de 6 dígitos enviado para seu ${metodoAtual === 'sms' ? 'SMS' : 'e-mail'}.`);
-        window.location.hash = '#/verificacao';
-      }, 500);
+      try {
+        await api.request('/auth/esqueci-senha', {
+          method: 'POST',
+          body: JSON.stringify({ email: emailAlvo })
+        });
+        toast.success('Solicitação Enviada', 'Se o e-mail existir na base, você receberá as instruções de recuperação.');
+        window.location.hash = '#/login';
+      } catch (err) {
+        toast.error('Erro', err.message || 'Não foi possível solicitar a recuperação de senha.');
+      } finally {
+        submitBtn.classList.remove('loading');
+        submitBtn.textContent = 'ENVIAR CÓDIGO';
+      }
     });
   }
 }
@@ -526,10 +509,10 @@ export function renderVerificacao() {
 export function setupVerificacaoEvents() {
   const contexto = sessionStorage.getItem('mfa_contexto');
   const email = sessionStorage.getItem('mfa_email');
-  const tokenTemporario = sessionStorage.getItem('mfa_token_temporario') || ('demo_token_2fa_' + Date.now());
+  const tokenTemporario = sessionStorage.getItem('mfa_token_temporario');
 
   // Sem estado válido, redireciona para login
-  if (!contexto || !email) {
+  if (!contexto || !email || !tokenTemporario) {
     window.location.hash = '#/login';
     return;
   }
@@ -637,22 +620,15 @@ export function setupVerificacaoEvents() {
         const res2fa = await api.verify2FA(tokenTemporario, code);
         clearInterval(timerInterval);
 
-        const usuario = USUARIOS[email];
-
         if (contexto === 'login') {
-          // Contexto Login: abre a sessão e navega para o dashboard
           sessionStorage.removeItem('mfa_contexto');
           sessionStorage.removeItem('mfa_email');
           sessionStorage.removeItem('mfa_token_temporario');
           sessionStorage.removeItem('mfa_metodo');
 
-          const profileKey = usuario ? usuario.profile : 'gestor';
-          const accessToken = (res2fa && res2fa.access_token) || api.getToken() || ('demo_jwt_token_' + profileKey);
-          const refreshToken = (res2fa && res2fa.refresh_token) || ('demo_refresh_' + profileKey);
-          api.setTokens(accessToken, refreshToken);
-          await auth.startSession(email);
+          await auth.startSession(res2fa.usuario);
 
-          toast.success('Autenticação Concluída', `Seja bem-vindo(a), ${auth.getProfileData().nome || (usuario ? usuario.nome : 'Usuário')}!`);
+          toast.success('Autenticação Concluída', `Seja bem-vindo(a), ${auth.getProfileData().nome || 'Usuário'}!`);
           window.location.hash = '#/dashboard';
         } else {
           // Contexto Recuperação: grava mfa_verificado = true e vai para #/redefinir-senha
@@ -1053,7 +1029,7 @@ export function setupRedefinirSenhaEvents() {
 
   // Submissão do formulário
   if (form) {
-    form.addEventListener('submit', (e) => {
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const pwd = novaSenhaInput.value || '';
       const confirm = confirmaSenhaInput.value || '';
