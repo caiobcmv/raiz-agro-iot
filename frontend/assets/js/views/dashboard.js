@@ -73,12 +73,6 @@ function atualizarDashboardComSSE(data) {
   const umidStr = !isNaN(umidNum) ? `${Math.round(umidNum)}%` : '—';
 
   // 1. Atualizar Temperatura na tela
-  const elTempResumido = document.getElementById('sse-temp-resumido') || document.querySelector('[data-live="resumido-temp"]');
-  if (elTempResumido) {
-    elTempResumido.textContent = tempIntStr;
-    _pulseElement(elTempResumido);
-  }
-
   const elTempDetalhado = document.getElementById('sse-detalhado-temp') || document.querySelector('[data-live="temp-ar"]');
   if (elTempDetalhado) {
     elTempDetalhado.textContent = tempStr;
@@ -97,12 +91,6 @@ function atualizarDashboardComSSE(data) {
   }
 
   // 2. Atualizar Umidade na tela
-  const elUmidResumido = document.getElementById('sse-umid-resumido') || document.querySelector('[data-live="umid-ar"]');
-  if (elUmidResumido) {
-    elUmidResumido.textContent = umidStr;
-    _pulseElement(elUmidResumido);
-  }
-
   const elUmidDetalhado = document.getElementById('sse-detalhado-umid');
   if (elUmidDetalhado) {
     elUmidDetalhado.textContent = umidStr;
@@ -901,6 +889,35 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
   const tSoloLast = (dg.temp_solo_24h && dg.temp_solo_24h.length) ? dg.temp_solo_24h[dg.temp_solo_24h.length - 1] : 24.5;
   const tArLast = (dg.temp_ar_24h && dg.temp_ar_24h.length) ? dg.temp_ar_24h[dg.temp_ar_24h.length - 1] : 27.8;
 
+  // --- Clima Open-Meteo real para o Card 3 ---
+  const climaAtual = clima?.agora || clima?.atual || clima || {};
+  const tRaw = climaAtual.temperatura != null ? climaAtual.temperatura : (climaAtual.temperature_2m != null ? climaAtual.temperature_2m : null);
+  const climaTempResumido = tRaw != null ? `${Math.round(Number(tRaw))}°C` : '—';
+  const climaDescResumido = climaAtual.condicao || climaAtual.descricao || 'Predomínio de sol';
+  const vRaw = climaAtual.vento_kmh != null ? climaAtual.vento_kmh : climaAtual.wind_speed_10m;
+  const climaVentoResumido = vRaw != null ? `${Math.round(Number(vRaw))} km/h` : '—';
+  const uRaw = climaAtual.umidade != null ? climaAtual.umidade : climaAtual.relative_humidity_2m;
+  const climaUmidResumido = uRaw != null ? `${Math.round(Number(uRaw))}%` : '—';
+  const cRaw = climaAtual.chuva_mm != null ? climaAtual.chuva_mm : climaAtual.precipitation;
+  const climaChuvaResumido = cRaw != null ? `${cRaw} mm` : '0 mm';
+  const uvRaw = climaAtual.uv != null ? climaAtual.uv : climaAtual.uv_index;
+  const climaUvResumido = uvRaw != null ? `Índice ${Number(uvRaw).toFixed(1)}` : 'Mod. 5.0';
+
+  const pDia = clima?.periodos_dia || {};
+  const climaManha = pDia.manha != null ? `${Math.round(Number(pDia.manha))}°` : '—';
+  const climaTarde = pDia.tarde != null ? `${Math.round(Number(pDia.tarde))}°` : '—';
+  const climaNoite = pDia.noite != null ? `${Math.round(Number(pDia.noite))}°` : '—';
+
+  const proximosDias = Array.isArray(clima?.dias) ? clima.dias.slice(1, 4) : [];
+  const climaProximosDiasHtml = proximosDias.length > 0
+    ? proximosDias.map(d => {
+        const diaNome = d.dia_semana || (d.data ? d.data.slice(5) : '');
+        const maxVal = d.temp_max != null ? d.temp_max : d.temperature_2m_max;
+        const maxT = maxVal != null ? `${Math.round(Number(maxVal))}°` : '—';
+        return `<div><span style="color:#94A3B8; font-size:10px;">${diaNome}</span><div style="font-weight:700; color:#334155;">${maxT}</div></div>`;
+      }).join('')
+    : '<div><span style="color:#94A3B8; font-size:10px;">Amanhã</span><div style="font-weight:700; color:#334155;">—</div></div>';
+
   return `
     <!-- Top Row: 3 Cards (Condição Geral, Lotes em Operação, Previsão do Tempo) -->
     <div class="top-kpi-3col">
@@ -1051,27 +1068,25 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
               <i data-lucide="sun" style="width: 26px; height: 26px; color: #F59E0B;"></i>
             </div>
             <div>
-              <div style="font-size: 28px; font-weight: 800; color: #1E293B; line-height: 1;" id="sse-temp-resumido" data-live="resumido-temp">28°C</div>
-              <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Ensolarado • Vento 12 km/h</div>
+              <div style="font-size: 28px; font-weight: 800; color: #1E293B; line-height: 1;" id="clima-temp-resumido">${climaTempResumido}</div>
+              <div style="font-size: 11px; color: #64748B; margin-top: 2px;">${climaDescResumido} • Vento ${climaVentoResumido}</div>
             </div>
           </div>
 
           <div style="display: flex; gap: 8px; text-align: center; font-size: 10px;">
-            <div><span style="color:#94A3B8;">MANHÃ</span><div style="font-weight:700; color:#334155;">22°</div></div>
+            <div><span style="color:#94A3B8;">MANHÃ</span><div style="font-weight:700; color:#334155;">${climaManha}</div></div>
             <div style="border-right: 1px solid #E2E8F0;"></div>
-            <div><span style="color:#94A3B8;">TARDE</span><div style="font-weight:700; color:#D97706;">31°</div></div>
+            <div><span style="color:#94A3B8;">TARDE</span><div style="font-weight:700; color:#D97706;">${climaTarde}</div></div>
             <div style="border-right: 1px solid #E2E8F0;"></div>
-            <div><span style="color:#94A3B8;">NOITE</span><div style="font-weight:700; color:#334155;">24°</div></div>
+            <div><span style="color:#94A3B8;">NOITE</span><div style="font-weight:700; color:#334155;">${climaNoite}</div></div>
           </div>
         </div>
 
         <div style="border-top: 1px solid #F1F5F9; padding-top: 12px; display: flex; justify-content: space-between; font-size: 11px; margin-top: auto;">
-          <div><span style="color:#94A3B8; font-size:10px;">UMIDADE</span><div style="font-weight:700; color:#1E293B;" id="sse-umid-resumido" data-live="umid-ar">62%</div></div>
-          <div><span style="color:#94A3B8; font-size:10px;">CHUVA</span><div style="font-weight:700; color:#1E293B;">0 mm</div></div>
-          <div><span style="color:#94A3B8; font-size:10px;">UV</span><div style="font-weight:700; color:#047857;">Mod. 29°</div></div>
-          <div><span style="color:#94A3B8; font-size:10px;">Qua</span><div style="font-weight:700; color:#334155;">28°</div></div>
-          <div><span style="color:#94A3B8; font-size:10px;">Qui</span><div style="font-weight:700; color:#334155;">28°</div></div>
-          <div><span style="color:#94A3B8; font-size:10px;">Sex</span><div style="font-weight:700; color:#334155;">27°</div></div>
+          <div><span style="color:#94A3B8; font-size:10px;">UMIDADE</span><div style="font-weight:700; color:#1E293B;" id="clima-umid-resumido">${climaUmidResumido}</div></div>
+          <div><span style="color:#94A3B8; font-size:10px;">CHUVA</span><div style="font-weight:700; color:#1E293B;">${climaChuvaResumido}</div></div>
+          <div><span style="color:#94A3B8; font-size:10px;">UV</span><div style="font-weight:700; color:#047857;">${climaUvResumido}</div></div>
+          ${climaProximosDiasHtml}
         </div>
       </div>
 
@@ -1415,14 +1430,24 @@ function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS, extras 
     : '<div style="grid-column: 1 / -1; text-align: center; font-size: 12px; color: #64748B; padding: 18px;">Nenhum dado de mercado cadastrado</div>';
 
   // --- Clima real ---
-  const climaAtual = clima?.atual || clima || {};
-  const climaTemp = climaAtual.temperatura != null ? `${Math.round(Number(climaAtual.temperatura))}°C` : '—';
+  const climaAtual = clima?.atual || clima?.agora || clima || {};
+  const tVal = climaAtual.temperatura != null ? climaAtual.temperatura : (climaAtual.temperature_2m != null ? climaAtual.temperature_2m : null);
+  const climaTemp = tVal != null ? `${Math.round(Number(tVal))}°C` : '—';
   const climaDesc = climaAtual.condicao || climaAtual.descricao || 'Dados meteorológicos';
-  const climaUmid = climaAtual.umidade != null ? `${Math.round(Number(climaAtual.umidade))}% umidade` : '— umidade';
-  const climaVento = climaAtual.vento_kmh != null ? `Vento ${Math.round(Number(climaAtual.vento_kmh))} km/h` : 'Vento —';
+  const uVal = climaAtual.umidade != null ? climaAtual.umidade : (climaAtual.relative_humidity_2m != null ? climaAtual.relative_humidity_2m : null);
+  const climaUmid = uVal != null ? `${Math.round(Number(uVal))}% umidade` : '— umidade';
+  const vVal = climaAtual.vento_kmh != null ? climaAtual.vento_kmh : (climaAtual.wind_speed_10m != null ? climaAtual.wind_speed_10m : null);
+  const climaVento = vVal != null ? `Vento ${Math.round(Number(vVal))} km/h` : 'Vento —';
   const climaDias = Array.isArray(clima?.dias) ? clima.dias.slice(0, 6) : [];
   const climaDiasHtml = climaDias.length > 0
-    ? climaDias.map(d => `<div><span style="font-size: 10px; color: #94A3B8; display: block;">${d.data || ''}</span><strong style="font-size: 11px; color: #1E293B;">${d.temp_max ?? '—'}° / ${d.temp_min ?? '—'}°</strong></div>`).join('')
+    ? climaDias.map(d => {
+        const diaNome = d.dia_semana || (d.data ? d.data.slice(5) : '');
+        const maxVal = d.temp_max != null ? d.temp_max : d.temperature_2m_max;
+        const minVal = d.temp_min != null ? d.temp_min : d.temperature_2m_min;
+        const maxStr = maxVal != null ? `${Math.round(Number(maxVal))}°` : '—';
+        const minStr = minVal != null ? `${Math.round(Number(minVal))}°` : '—';
+        return `<div><span style="font-size: 10px; color: #94A3B8; display: block;">${diaNome}</span><strong style="font-size: 11px; color: #1E293B;">${maxStr} / ${minStr}</strong></div>`;
+      }).join('')
     : '<div style="grid-column: 1 / -1; text-align: center; font-size: 11px; color: #94A3B8; padding: 6px;">Previsão estendida indisponível</div>';
 
   // SVG Donut calculation: raio = 44, circunferência = 2 * PI * 44 = 276.46

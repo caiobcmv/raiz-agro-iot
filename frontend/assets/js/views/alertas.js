@@ -1654,10 +1654,10 @@ function renderGestoraAlertas(alertas = [], clima = {}) {
   const sensoresSet = new Set(alertas.map(a => a.id_sensor).filter(Boolean));
   const sensoresAtivosCount = sensoresSet.size;
 
-  const tempVal = clima?.temperatura ?? clima?.temperatura_atual;
-  const umidVal = clima?.umidade ?? clima?.umidade_atual;
-  const tempClima = tempVal != null ? `${tempVal > 0 ? '+' : ''}${Number(tempVal).toFixed(1)}°C` : '—';
-  const umidClima = umidVal != null ? `${umidVal}% UR` : '—';
+  const tempVal = clima?.temperatura ?? clima?.temperatura_atual ?? clima?.agora?.temperatura ?? clima?.agora?.temperature_2m;
+  const umidVal = clima?.umidade ?? clima?.umidade_atual ?? clima?.agora?.umidade ?? clima?.agora?.relative_humidity_2m;
+  const tempClima = tempVal != null ? `${Number(tempVal).toFixed(1)}°C` : '—';
+  const umidClima = umidVal != null ? `${Math.round(Number(umidVal))}% UR` : '—';
 
   return `
   <div class="dashboard-canvas apple-animate-in" style="padding: 24px 32px 48px; overflow-y: auto;">
