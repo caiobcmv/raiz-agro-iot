@@ -3,7 +3,7 @@
  * Inicialização robusta contra problemas de tempo de carregamento do DOM
  */
 
-import { Router } from './router.js?v=20261122-fix4';
+import { Router } from './router.js?v=20261122-fix5';
 
 let isAppStarted = false;
 

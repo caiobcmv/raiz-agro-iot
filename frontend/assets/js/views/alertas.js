@@ -13,6 +13,24 @@ import { downloadCSV, downloadPDF, openExportChoiceModal } from '../utils/export
 // Cache em memória dos detalhes já carregados
 const detalhesCache = new Map();
 
+function lerStatusMapLocal() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem('RAIZ_ALERTAS_STATUS_MAP') || '{}');
+    return (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) ? parsed : {};
+  } catch (e) {
+    return {};
+  }
+}
+
+function salvarStatusLocal(id, status) {
+  if (id == null) return;
+  try {
+    const map = lerStatusMapLocal();
+    map[String(id)] = status;
+    localStorage.setItem('RAIZ_ALERTAS_STATUS_MAP', JSON.stringify(map));
+  } catch (e) {}
+}
+
 
 export async function renderAlertas() {
   if (auth.getActiveProfile() === 'analista') {
@@ -74,7 +92,7 @@ export async function renderAlertas() {
     }
 
     // Aplica sempre os status persistidos localmente (inclusive para alertas de fallback)
-    const statusMap = typeof api.getAlertasStatusMap === 'function' ? api.getAlertasStatusMap() : {};
+    const statusMap = lerStatusMapLocal();
     listaAlertas = listaAlertas.map(a => {
       const idKey = String(a.id_alerta ?? a.id ?? '');
       if (idKey && statusMap[idKey]) {
@@ -1665,19 +1683,30 @@ export function renderAlertaError(idAlerta, erroMsg) {
 function renderGestoraAlertas(alertas = [], clima = {}) {
   // Cálculo estrito e real dos KPIs a partir dos dados recebidos
   const totalAlertas = alertas.length;
-  const alertasAtivos = alertas.filter(a => {
+  const isAtivo = (a) => {
     const s = String(a.status || '').toLowerCase();
     return s !== 'resolvido' && s !== 'reconhecido';
-  }).length;
+  };
+  const alertasAtivos = alertas.filter(isAtivo).length;
 
   const criticosP1 = alertas.filter(a => {
     const n = String(a.nivel || '').toUpperCase();
     return n === 'CRITICO' || n === 'ALTO' || n === 'P1';
   }).length;
 
+  const criticosAtivosP1 = alertas.filter(a => {
+    const n = String(a.nivel || '').toUpperCase();
+    return isAtivo(a) && (n === 'CRITICO' || n === 'ALTO' || n === 'P1');
+  }).length;
+
   const moderadosP2 = alertas.filter(a => {
     const n = String(a.nivel || '').toUpperCase();
     return n === 'MODERADO' || n === 'MEDIO' || n === 'P2';
+  }).length;
+
+  const moderadosAtivosP2 = alertas.filter(a => {
+    const n = String(a.nivel || '').toUpperCase();
+    return isAtivo(a) && (n === 'MODERADO' || n === 'MEDIO' || n === 'P2');
   }).length;
 
   const preditivosCount = alertas.filter(a => {
@@ -1739,10 +1768,10 @@ function renderGestoraAlertas(alertas = [], clima = {}) {
 
         <div style="display: flex; gap: 8px;">
           <div id="kpi-critico-pill" style="background: #FEE2E2; color: #DC2626; font-size: 10px; font-weight: 700; padding: 4px 8px; border-radius: 6px; line-height: 1.2;">
-            ${criticosP1} Crítico<br><span style="font-weight: 800;">P1</span>
+            ${criticosAtivosP1} Crítico<br><span style="font-weight: 800;">P1</span>
           </div>
           <div id="kpi-moderado-pill" style="background: #FEF3C7; color: #B45309; font-size: 10px; font-weight: 700; padding: 4px 8px; border-radius: 6px; line-height: 1.2;">
-            ${moderadosP2} Moderados<br><span style="font-weight: 800;">P2</span>
+            ${moderadosAtivosP2} Moderados<br><span style="font-weight: 800;">P2</span>
           </div>
         </div>
       </div>
@@ -1984,24 +2013,33 @@ function setupGestoraAlertasEvents() {
   function atualizarContadoresAlertas() {
     let ativos = 0;
     let reconhecidos = 0;
+    let criticosAtivos = 0;
+    let moderadosAtivos = 0;
     document.querySelectorAll('.alerta-card-wrapper').forEach(el => {
       const st = String(el.dataset.status || '').toLowerCase();
+      const niv = String(el.dataset.nivel || '').toUpperCase();
       const isRec = st === 'reconhecido' || st === 'resolvido' || el.querySelector('.incident-card')?.classList.contains('resolved');
       if (isRec) {
         reconhecidos += 1;
       } else {
         ativos += 1;
+        if (niv === 'CRITICO' || niv === 'ALTO' || niv === 'P1') criticosAtivos += 1;
+        else if (niv === 'MODERADO' || niv === 'MEDIO' || niv === 'P2') moderadosAtivos += 1;
       }
     });
     const kpiCountEl = document.getElementById('kpi-alertas-count');
     if (kpiCountEl) kpiCountEl.textContent = String(ativos);
+    const kpiCriticoEl = document.getElementById('kpi-critico-pill');
+    if (kpiCriticoEl) kpiCriticoEl.innerHTML = `${criticosAtivos} Crítico<br><span style="font-weight: 800;">P1</span>`;
+    const kpiModeradoEl = document.getElementById('kpi-moderado-pill');
+    if (kpiModeradoEl) kpiModeradoEl.innerHTML = `${moderadosAtivos} Moderados<br><span style="font-weight: 800;">P2</span>`;
     const tabRecEl = document.getElementById('tab-reconhecidos-count');
     if (tabRecEl) tabRecEl.textContent = String(reconhecidos);
   }
 
   async function carregarDetalhe(id, containerEl) {
     const cacheKey = String(id);
-    const statusMap = typeof api.getAlertasStatusMap === 'function' ? api.getAlertasStatusMap() : {};
+    const statusMap = lerStatusMapLocal();
     const statusSalvo = statusMap[cacheKey];
 
     if (detalhesCache.has(cacheKey)) {
@@ -2082,7 +2120,8 @@ function setupGestoraAlertasEvents() {
         btnReconhecer.innerHTML = '<span style="display:inline-block;animation:spin 1s infinite linear;">↻</span> Reconhecendo...';
 
         try {
-          // PATCH /alertas/{id}/status com {"status": "reconhecido"} + persistência local
+          // Salva imediatamente no localStorage + PATCH /alertas/{id}/status
+          salvarStatusLocal(idAlerta, 'reconhecido');
           await api.atualizarStatusAlertaById(idAlerta, 'reconhecido');
 
           toast.success('Alerta Reconhecido', `Alerta #${idAlerta} marcado como reconhecido.`);
@@ -2194,6 +2233,8 @@ function setupGestoraAlertasEvents() {
       const idsPendentes = wrappers
         .map(el => String(el.dataset.id || ''))
         .filter(Boolean);
+
+      idsPendentes.forEach(id => salvarStatusLocal(id, 'reconhecido'));
 
       if (typeof api.reconhecerTodosAlertas === 'function') {
         await api.reconhecerTodosAlertas(idsPendentes);
