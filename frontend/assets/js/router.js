@@ -20,9 +20,9 @@ import {
   renderSenhaAlterada, setupSenhaAlteradaEvents,
   renderContaBloqueada, setupContaBloqueadaEvents
 } from './views/auth-flow.js?v=20261120-live33';
-import { renderDashboard, setupDashboardEvents } from './views/dashboard.js?v=20261120-live41';
-import { renderSensores, setupSensoresEvents } from './views/sensores.js?v=20261120-live41';
-import { renderRedeEsp32, setupRedeEsp32Events } from './views/rede-esp32.js?v=20261120-live33';
+import { renderDashboard, setupDashboardEvents } from './views/dashboard.js?v=20261120-live42';
+import { renderSensores, setupSensoresEvents } from './views/sensores.js?v=20261120-live42';
+import { renderRedeEsp32, setupRedeEsp32Events } from './views/rede-esp32.js?v=20261120-live42';
 import { renderLeituras, setupLeiturasEvents } from './views/leituras.js?v=20261120-live33';
 import { renderLotes, setupLotesEvents } from './views/lotes.js?v=20261120-live33';
 import { renderViagens, setupViagensEvents } from './views/viagens.js?v=20261120-live33';

@@ -1295,6 +1295,34 @@ class ApiService {
       body: JSON.stringify({ limiar_min, limiar_max, acao_recomendada })
     });
   }
+
+  async sincronizarIngestao() {
+    return await this.request('/ingestao/sincronizar', {
+      method: 'POST'
+    });
+  }
+
+  async exportarLeiturasCsv({ id_sensor, inicio, fim } = {}) {
+    const params = new URLSearchParams();
+    if (id_sensor != null) params.append('id_sensor', id_sensor);
+    if (inicio) params.append('inicio', inicio);
+    if (fim) params.append('fim', fim);
+    const qs = params.toString();
+    const token = auth.getToken();
+    const res = await fetch(`${this.baseUrl}/leituras/exportar.csv${qs ? '?' + qs : ''}`, {
+      headers: {
+        'Authorization': token ? `Bearer ${token}` : ''
+      }
+    });
+    if (!res.ok) {
+      throw new Error(`Falha ao exportar CSV (${res.status})`);
+    }
+    return await res.blob();
+  }
+
+  async getRedeHistorico(periodo = '24h') {
+    return await this.request(`/rede/historico?periodo=${encodeURIComponent(periodo)}`);
+  }
 }
 
 export const api = new ApiService();
