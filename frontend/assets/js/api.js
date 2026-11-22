@@ -1491,16 +1491,25 @@ class ApiService {
   }
 
   async criarUsuario(dados) {
+    const payload = {
+      ...dados,
+      id_perfil: dados.id_perfil || dados.fk_perfil_id_perfil || 1,
+      senha: dados.senha || 'TempPassword@2026'
+    };
     return await this.request('/usuarios', {
       method: 'POST',
-      body: JSON.stringify(dados)
+      body: JSON.stringify(payload)
     });
   }
 
   async editarUsuario(idUsuario, dados) {
+    const payload = {
+      ...dados,
+      id_perfil: dados.id_perfil || dados.fk_perfil_id_perfil
+    };
     return await this.request(`/usuarios/${idUsuario}`, {
       method: 'PUT',
-      body: JSON.stringify(dados)
+      body: JSON.stringify(payload)
     });
   }
 

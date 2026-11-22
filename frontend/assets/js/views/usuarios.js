@@ -12,16 +12,34 @@ import { toast } from '../components/toast.js';
 export async function renderUsuarios() {
   let usuarios = [];
   try {
-    usuarios = await api.getUsuarios();
+    const res = await api.getUsuarios();
+    if (Array.isArray(res)) {
+      usuarios = res;
+    } else if (res && Array.isArray(res.usuarios)) {
+      usuarios = res.usuarios;
+    } else {
+      usuarios = [];
+    }
   } catch (e) {
-    console.warn('Falha ao buscar usuários do backend, usando seed local.');
+    console.warn('Falha ao buscar usuários do backend, usando persistência/seed local:', e);
+    usuarios = [];
   }
 
-  const usuarioLogado = auth.getUser();
-  const emailLogado = usuarioLogado ? (usuarioLogado.email || '').trim().toLowerCase() : '';
+  // Se o backend retornou vazio ou deu erro, recupera da persistência local (localStorage)
+  if (!Array.isArray(usuarios) || usuarios.length === 0) {
+    const saved = localStorage.getItem('RAIZ_USUARIOS_LIST');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          usuarios = parsed;
+        }
+      } catch (err) {}
+    }
+  }
 
-  // Lista padrão caso backend retorne vazio
-  if (!usuarios || usuarios.length === 0) {
+  // Lista padrão caso persistência também não tenha dados
+  if (!Array.isArray(usuarios) || usuarios.length === 0) {
     usuarios = [
       { id_usuario: 3, nome: 'Lorena Lira', email: 'lorena.lira@raizagro.agr.br', perfil: 'Administrador', data_cadastro: '14/01/2025', ultimo_acesso: 'Hoje às 15:42 • IP 192.168.1.45', status: 'ativo', deve_trocar_senha: false, ativado_em: '2025-01-14 10:00:00' },
       { id_usuario: 1, nome: 'Maria Clara Gestora', email: 'maria.clara@raizagro.agr.br', perfil: 'Produtor / Exportador', data_cadastro: '02/02/2025', ultimo_acesso: 'Hoje às 15:40 • IP 187.54.12.8', status: 'ativo', deve_trocar_senha: false, ativado_em: '2025-02-02 11:20:00' },
@@ -29,17 +47,24 @@ export async function renderUsuarios() {
       { id_usuario: 4, nome: 'Rodrigo Alves', email: 'rodrigo.alves@raizagro.agr.br', perfil: 'Produtor / Exportador', data_cadastro: '22/03/2025', ultimo_acesso: 'Hoje às 14:50 • Terminal Mobile', status: 'ativo', deve_trocar_senha: false, ativado_em: '2025-03-22 14:10:00' },
       { id_usuario: 5, nome: 'Dra. Gabriela Sales', email: 'gabriela.sales@raizagro.agr.br', perfil: 'Analista de Dados', data_cadastro: '05/04/2025', ultimo_acesso: 'Ontem às 18:20 • API Gateway', status: 'ativo', deve_trocar_senha: false, ativado_em: '2025-04-05 16:45:00' },
       { id_usuario: 6, nome: 'João Pedro', email: 'joao.pedro@raizagro.agr.br', perfil: 'Produtor / Exportador', data_cadastro: '12/05/2025', ultimo_acesso: 'Aguardando Primeiro Acesso', status: 'pendente', deve_trocar_senha: true, ativado_em: null }
-    ].map(u => ({ ...u, isVoce: u.email === emailLogado }));
-  } else {
-    // Enriquecer dados da query
-    usuarios = usuarios.map(u => ({
-      ...u,
-      isVoce: (u.email || '').trim().toLowerCase() === emailLogado,
-      status: u.status || 'ativo',
-      data_cadastro: u.data_cadastro || '14/01/2025',
-      ultimo_acesso: u.ultimo_acesso || (u.status === 'pendente' ? 'Aguardando Primeiro Acesso' : 'Hoje às 15:30 • IP 192.168.1.45')
-    }));
+    ];
   }
+
+  // Garante sincronização permanente no localStorage
+  try {
+    localStorage.setItem('RAIZ_USUARIOS_LIST', JSON.stringify(usuarios));
+  } catch (err) {}
+
+  const usuarioLogado = auth.getUser();
+  const emailLogado = usuarioLogado ? (usuarioLogado.email || '').trim().toLowerCase() : '';
+
+  usuarios = usuarios.map(u => ({
+    ...u,
+    isVoce: (u.email || '').trim().toLowerCase() === emailLogado,
+    status: u.status || 'ativo',
+    data_cadastro: u.data_cadastro || '14/01/2025',
+    ultimo_acesso: u.ultimo_acesso || (u.status === 'pendente' ? 'Aguardando Primeiro Acesso' : 'Hoje às 15:30 • IP 192.168.1.45')
+  }));
 
   return `
     <div class="dashboard-canvas apple-animate-in">
@@ -413,19 +438,53 @@ export function setupUsuariosEvents() {
           </label>
         </div>
       `, async () => {
-        const nome = document.getElementById('novo-user-nome')?.value;
+        const nome = document.getElementById('novo-user-nome')?.value?.trim();
         const email = document.getElementById('novo-user-email')?.value?.trim()?.toLowerCase();
         const perfilId = parseInt(document.getElementById('novo-user-perfil')?.value || '1', 10);
+        const perfilNome = perfilId === 3 ? 'Administrador' : (perfilId === 2 ? 'Analista de Dados' : 'Produtor / Exportador');
         if (!nome || !email) {
           toast.warning('Atenção', 'Informe o nome e o e-mail do usuário.');
           return;
         }
+
+        const novoUserObj = {
+          id_usuario: Date.now(),
+          nome,
+          email,
+          perfil: perfilNome,
+          id_perfil: perfilId,
+          data_cadastro: new Date().toLocaleDateString('pt-BR'),
+          ultimo_acesso: 'Aguardando Primeiro Acesso',
+          status: 'pendente',
+          deve_trocar_senha: true,
+          ativado_em: null
+        };
+
         try {
-          await api.criarUsuario({ nome, email, senha: 'TempPassword@2026', fk_perfil_id_perfil: perfilId });
+          const res = await api.criarUsuario({ nome, email, senha: 'TempPassword@2026', id_perfil: perfilId, fk_perfil_id_perfil: perfilId });
+          if (res && res.id_usuario) {
+            novoUserObj.id_usuario = res.id_usuario;
+          }
         } catch (err) {
-          console.warn('API offline ao criar usuário:', err);
+          console.warn('API offline ao criar usuário, garantindo persistência local:', err);
         }
+
+        try {
+          const listaAtual = JSON.parse(localStorage.getItem('RAIZ_USUARIOS_LIST') || '[]');
+          listaAtual.unshift(novoUserObj);
+          localStorage.setItem('RAIZ_USUARIOS_LIST', JSON.stringify(listaAtual));
+        } catch (e) {}
+
         toast.success('Usuário Cadastrado', `Convite com credencial e 2FA (ativacao_token) enviado com sucesso para ${nome} (${email}).`);
+
+        // Re-renderiza a rota dinamicamente
+        setTimeout(() => {
+          if (window.router && typeof window.router.handleRoute === 'function') {
+            window.router.handleRoute();
+          } else {
+            window.dispatchEvent(new Event('hashchange'));
+          }
+        }, 300);
       }, 'Cadastrar e Convidar');
     });
   }
@@ -450,14 +509,35 @@ export function setupUsuariosEvents() {
             </label>
           </div>
         `, async () => {
-          const nomeNovo = document.getElementById('edit-user-nome')?.value || nomeUser;
-          const perfilNovo = parseInt(document.getElementById('edit-user-perfil')?.value || '1', 10);
+          const nomeNovo = document.getElementById('edit-user-nome')?.value?.trim() || nomeUser;
+          const perfilNovoId = parseInt(document.getElementById('edit-user-perfil')?.value || '1', 10);
+          const perfilNovoNome = perfilNovoId === 3 ? 'Administrador' : (perfilNovoId === 2 ? 'Analista de Dados' : 'Produtor / Exportador');
           try {
-            await api.editarUsuario(id, { nome: nomeNovo, fk_perfil_id_perfil: perfilNovo });
+            await api.editarUsuario(id, { nome: nomeNovo, id_perfil: perfilNovoId, fk_perfil_id_perfil: perfilNovoId });
           } catch (err) {
-            console.warn('API offline, simulando edição:', err);
+            console.warn('API offline, mantendo persistência local:', err);
           }
+
+          try {
+            const listaAtual = JSON.parse(localStorage.getItem('RAIZ_USUARIOS_LIST') || '[]');
+            const idx = listaAtual.findIndex(u => String(u.id_usuario) === String(id));
+            if (idx !== -1) {
+              listaAtual[idx].nome = nomeNovo;
+              listaAtual[idx].perfil = perfilNovoNome;
+              listaAtual[idx].id_perfil = perfilNovoId;
+              localStorage.setItem('RAIZ_USUARIOS_LIST', JSON.stringify(listaAtual));
+            }
+          } catch (e) {}
+
           toast.success('Cadastro Atualizado', `Alterações de ${nomeNovo} gravadas com auditoria em log_acesso.`);
+
+          setTimeout(() => {
+            if (window.router && typeof window.router.handleRoute === 'function') {
+              window.router.handleRoute();
+            } else {
+              window.dispatchEvent(new Event('hashchange'));
+            }
+          }, 300);
         }, 'Salvar Alterações');
       } else if (acao === 'permissoes') {
         Modal.open(`Matriz RBAC — ${nomeUser}`, `
@@ -471,9 +551,19 @@ export function setupUsuariosEvents() {
           toast.success('Permissões Atualizadas', `Escopo RBAC de ${nomeUser} sincronizado.`);
         }, 'Aplicar RBAC');
       } else if (acao === 'bloquear') {
+        let novoStatus = 'inativo';
         if (row) {
           row.style.opacity = row.style.opacity === '0.55' ? '1' : '0.55';
+          novoStatus = row.style.opacity === '0.55' ? 'inativo' : 'ativo';
         }
+        try {
+          const listaAtual = JSON.parse(localStorage.getItem('RAIZ_USUARIOS_LIST') || '[]');
+          const idx = listaAtual.findIndex(u => String(u.id_usuario) === String(id));
+          if (idx !== -1) {
+            listaAtual[idx].status = novoStatus;
+            localStorage.setItem('RAIZ_USUARIOS_LIST', JSON.stringify(listaAtual));
+          }
+        } catch (e) {}
         api.desativarUsuario(id).catch(err => console.warn('Soft-delete offline:', err));
         toast.warning('Soft-Delete Aplicado', `Status de ${nomeUser} alternado via fn_bloquear_delete_usuario.`);
       }

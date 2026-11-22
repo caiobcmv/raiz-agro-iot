@@ -44,14 +44,16 @@ class UsuarioOut(BaseModel):
 class UsuarioCreate(BaseModel):
     nome: str = Field(min_length=1, max_length=150)
     email: EmailStr
-    senha: str = Field(min_length=8, max_length=72)
-    id_perfil: int
+    senha: Optional[str] = Field(default=None, min_length=8, max_length=72)
+    id_perfil: Optional[int] = None
+    fk_perfil_id_perfil: Optional[int] = None
 
 
 class UsuarioUpdate(BaseModel):
     nome: Optional[str] = Field(default=None, min_length=1, max_length=150)
     email: Optional[EmailStr] = None
     id_perfil: Optional[int] = None
+    fk_perfil_id_perfil: Optional[int] = None
     status: Optional[StatusUsuario] = None
 
 

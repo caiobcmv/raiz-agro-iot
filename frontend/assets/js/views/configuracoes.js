@@ -732,6 +732,20 @@ let VARIEDADES_LIST = [
 let ADMIN_CULTURAS_SAFRA = ['Uva de Mesa (Vitória / Crimson)', 'Manga Palmer', 'Melão Amarelo'];
 
 function renderAdminConfiguracoes() {
+  const savedCfg = localStorage.getItem('RAIZ_ADMIN_GLOBAL_CONFIG');
+  let farmNome = 'Fazenda RaizTech — Polo Sul (Petrolina/PE)';
+  let farmGps = '-9.389100, -40.502700';
+  let farmCadencia = '5';
+  if (savedCfg) {
+    try {
+      const parsed = JSON.parse(savedCfg);
+      if (parsed.nome) farmNome = parsed.nome;
+      if (parsed.gps) farmGps = parsed.gps;
+      if (parsed.cadencia) farmCadencia = parsed.cadencia;
+      if (parsed.culturas && Array.isArray(parsed.culturas)) ADMIN_CULTURAS_SAFRA = parsed.culturas;
+    } catch (e) {}
+  }
+
   return `
   <div class="dashboard-canvas apple-animate-in" style="padding: 20px 32px 48px; overflow-y: auto; background: #F8FAFC;">
 
@@ -792,7 +806,7 @@ function renderAdminConfiguracoes() {
 
           <div style="margin-bottom: 14px;">
             <label style="display: block; font-size: 10px; font-weight: 700; color: #64748B; letter-spacing: 0.4px; text-transform: uppercase; margin-bottom: 6px;">NOME DA PROPRIEDADE</label>
-            <input id="admin-farm-nome" value="Fazenda RaizTech — Polo Sul (Petrolina/PE)" style="width: 100%; padding: 10px 12px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 9px; font-size: 13px; font-weight: 600; color: #0F172A; outline: none; box-sizing: border-box;">
+            <input id="admin-farm-nome" value="${farmNome.replace(/"/g, '&quot;')}" style="width: 100%; padding: 10px 12px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 9px; font-size: 13px; font-weight: 600; color: #0F172A; outline: none; box-sizing: border-box;">
           </div>
 
           <div style="margin-bottom: 14px;">
@@ -803,7 +817,7 @@ function renderAdminConfiguracoes() {
             <div style="display: flex; gap: 8px;">
               <div style="flex: 1; display: flex; align-items: center; gap: 8px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 9px; padding: 0 12px;">
                 <i data-lucide="map-pin" style="width: 14px; height: 14px; color: #64748B;"></i>
-                <input id="admin-farm-gps" value="-9.389100, -40.502700" style="width: 100%; padding: 10px 0; background: transparent; border: none; font-size: 12px; font-family: monospace; color: #0F172A; outline: none;">
+                <input id="admin-farm-gps" value="${farmGps.replace(/"/g, '&quot;')}" style="width: 100%; padding: 10px 0; background: transparent; border: none; font-size: 12px; font-family: monospace; color: #0F172A; outline: none;">
               </div>
               <button id="btn-admin-recalibrar-gps" style="padding: 9px 14px; background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 9px; font-size: 11px; font-weight: 700; color: #1D4ED8; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;">
                 <i data-lucide="crosshair" style="width: 13px; height: 13px;"></i> Recalibrar GPS

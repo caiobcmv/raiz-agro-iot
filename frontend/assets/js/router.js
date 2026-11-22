@@ -393,14 +393,15 @@ export class Router {
   }
 
   async handleRoute() {
-    let hash = window.location.hash || '#/dashboard';
+    let rawHash = window.location.hash || '#/dashboard';
+    let routeKey = rawHash.split('?')[0];
 
-    if (!routes[hash]) {
-      hash = '#/dashboard';
-      window.location.hash = hash;
+    if (!routes[routeKey]) {
+      routeKey = '#/dashboard';
+      window.location.hash = routeKey;
     }
 
-    const route = routes[hash] || routes['#/dashboard'];
+    const route = routes[routeKey] || routes['#/dashboard'];
 
     // Guarda de rota: se exigir login e não estiver autenticado, renderiza login imediatamente
     if (route.authRequired && !auth.isAuthenticated()) {
@@ -417,13 +418,11 @@ export class Router {
     const ROTAS_ADMIN = ['#/usuarios', '#/auditoria', '#/lotes', '#/regras-agronomicas', '#/relatorios'];
     const ROTAS_ANALISTA = ['#/rede-esp32'];
     const activeProfile = auth.getActiveProfile();
-    if (ROTAS_ADMIN.includes(hash) && activeProfile !== 'admin') {
-      hash = '#/dashboard';
-      window.location.hash = hash;
+    if (ROTAS_ADMIN.includes(routeKey) && activeProfile !== 'admin') {
+      window.location.hash = '#/dashboard';
       toast.info('Acesso Restrito', 'Esta área é exclusiva da Administradora.');
-    } else if (ROTAS_ANALISTA.includes(hash) && activeProfile !== 'analista' && activeProfile !== 'admin') {
-      hash = '#/dashboard';
-      window.location.hash = hash;
+    } else if (ROTAS_ANALISTA.includes(routeKey) && activeProfile !== 'analista' && activeProfile !== 'admin') {
+      window.location.hash = '#/dashboard';
       toast.info('Acesso Restrito', 'Esta área é exclusiva do Analista.');
     }
 
