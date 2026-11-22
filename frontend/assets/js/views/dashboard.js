@@ -1800,6 +1800,9 @@ function criarMiniGraficoApple(canvasId, dataPoints, strokeColor) {
  * CONFIGURAÇÃO DOS EVENTOS INTERATIVOS DO DASHBOARD DO ANALISTA
  */
 function setupAnalistaDashboardEvents() {
+  const toggleBtn = document.getElementById('toggle-dashboard-mode');
+  if (toggleBtn) toggleBtn.remove();
+
   iniciarSSEDashboard();
   liveTelemetry.start();
 
@@ -2479,6 +2482,9 @@ function renderAdminDashboard() {
 }
 
 function setupAdminDashboardEvents() {
+  const toggleBtn = document.getElementById('toggle-dashboard-mode');
+  if (toggleBtn) toggleBtn.remove();
+
   iniciarSSEDashboard();
   // Destrói instâncias anteriores de gráficos
   chartInstances.forEach(c => c && c.destroy());

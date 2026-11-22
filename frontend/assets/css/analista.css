@@ -603,4 +603,10 @@
   background: #059669;
 }
 
+/* Ocultar seletor Resumido/Detalhado no perfil Analista */
+body[data-profile="analista"] #toggle-dashboard-mode,
+.analista-subbar ~ * #toggle-dashboard-mode {
+  display: none !important;
+}
+
 

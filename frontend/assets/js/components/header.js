@@ -46,8 +46,9 @@ export function renderHeader(title) {
   const meta = { ...(metaDict[hash] || { h2: title || 'Visão Geral do Sistema', sub: 'Gerencie preferências da fazenda, parâmetros de sensores, notificações e acessos.' }) };
 
   const isDashboard = hash === '#/dashboard';
+  const isGestoraDashboard = isDashboard && !isAdmin && !isAnalista;
   const isResumido = localStorage.getItem('DASHBOARD_MODE') !== 'detalhado';
-  if (isDashboard && !isAdmin && !isAnalista && !isResumido) {
+  if (isGestoraDashboard && !isResumido) {
     meta.sub = 'Acompanhe a safra, planeje a colheita e priorize as ações do dia.';
   }
   const dataFormatada = '22 de setembro de 2026';
@@ -61,7 +62,7 @@ export function renderHeader(title) {
         </button>
 
         <div class="header-title-wrap" style="min-width:0;">
-          ${isDashboard ? `
+          ${isGestoraDashboard ? `
           <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
             <h2 style="margin:0;">${meta.h2}</h2>
             <div class="view-mode-toggle ${!isResumido ? 'detalhado' : ''}" id="toggle-dashboard-mode" title="Alternar entre modo Resumido e Detalhado">
