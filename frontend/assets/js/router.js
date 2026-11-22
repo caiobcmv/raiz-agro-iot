@@ -20,7 +20,7 @@ import {
   renderSenhaAlterada, setupSenhaAlteradaEvents,
   renderContaBloqueada, setupContaBloqueadaEvents
 } from './views/auth-flow.js?v=20261120-live33';
-import { renderDashboard, setupDashboardEvents } from './views/dashboard.js?v=20261120-live35';
+import { renderDashboard, setupDashboardEvents } from './views/dashboard.js?v=20261120-live36';
 import { renderSensores, setupSensoresEvents } from './views/sensores.js?v=20261120-live33';
 import { renderRedeEsp32, setupRedeEsp32Events } from './views/rede-esp32.js?v=20261120-live33';
 import { renderLeituras, setupLeiturasEvents } from './views/leituras.js?v=20261120-live33';

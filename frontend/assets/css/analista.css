@@ -401,6 +401,11 @@
   border: 2px solid #FFFFFF;
 }
 
+.sensor-pin-marker.orange {
+  background: #F59E0B;
+  border: 2px solid #FFFFFF;
+}
+
 .sensor-pin-marker.red {
   background: #EF4444;
   border: 2px solid #FFFFFF;

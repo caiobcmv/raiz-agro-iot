@@ -85,7 +85,15 @@ class ApiService {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ detail: 'Erro no servidor' }));
-        throw new Error(errorData.detail || `Erro HTTP ${response.status}`);
+        const detailMsg = typeof errorData.detail === 'string'
+          ? errorData.detail
+          : (Array.isArray(errorData.detail)
+              ? errorData.detail.map(d => (d && d.msg) || JSON.stringify(d)).join('; ')
+              : (errorData.detail ? JSON.stringify(errorData.detail) : `Erro HTTP ${response.status}`));
+        const err = new Error(detailMsg || `Erro HTTP ${response.status}`);
+        err.status = response.status;
+        err.detail = errorData.detail;
+        throw err;
       }
 
       return await response.json();
@@ -1229,6 +1237,52 @@ class ApiService {
     return await this.request('/preferencias/graficos', {
       method: 'PUT',
       body: JSON.stringify(payload)
+    });
+  }
+
+  // ==========================================
+  // PERFIL ANALISTA - SENSORES, TOPOLOGIA E ALERTAS PREDITIVOS
+  // ==========================================
+  async getAnalistaSensoresResumo() {
+    return await this.request('/analista/sensores/resumo');
+  }
+
+  async getSensoresTopologia() {
+    return await this.request('/sensores/topologia');
+  }
+
+  async getLeiturasRejeitadas(params = {}) {
+    const searchParams = new URLSearchParams();
+    if (params.id_sensor != null) searchParams.append('id_sensor', params.id_sensor);
+    if (params.motivo) searchParams.append('motivo', params.motivo);
+    if (params.inicio) searchParams.append('inicio', params.inicio);
+    if (params.fim) searchParams.append('fim', params.fim);
+    if (params.limit != null) searchParams.append('limit', params.limit);
+    if (params.offset != null) searchParams.append('offset', params.offset);
+    const qs = searchParams.toString();
+    return await this.request(`/leituras-rejeitadas${qs ? '?' + qs : ''}`);
+  }
+
+  async getAlertasPreditivos(params = {}) {
+    const searchParams = new URLSearchParams();
+    if (params.status) searchParams.append('status', params.status);
+    if (params.nivel) searchParams.append('nivel', params.nivel);
+    if (params.id_lote != null) searchParams.append('id_lote', params.id_lote);
+    if (params.id_sensor != null) searchParams.append('id_sensor', params.id_sensor);
+    if (params.limit != null) searchParams.append('limit', params.limit);
+    if (params.skip != null) searchParams.append('skip', params.skip);
+    const qs = searchParams.toString();
+    return await this.request(`/alertas-preditivos${qs ? '?' + qs : ''}`);
+  }
+
+  async getCortesPreditivos() {
+    return await this.request('/alertas-preditivos/cortes');
+  }
+
+  async putCortePreditivo(nivel, { limiar_min, limiar_max, acao_recomendada }) {
+    return await this.request(`/alertas-preditivos/cortes/${encodeURIComponent(nivel)}`, {
+      method: 'PUT',
+      body: JSON.stringify({ limiar_min, limiar_max, acao_recomendada })
     });
   }
 }

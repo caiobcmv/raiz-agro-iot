@@ -244,7 +244,7 @@ export async function renderDashboard() {
     return renderAdminDashboard();
   }
   if (profileRole === 'analista') {
-    return renderAnalistaDashboard();
+    return await renderAnalistaDashboard();
   }
 
   const isResumido = localStorage.getItem('DASHBOARD_MODE') !== 'detalhado';
@@ -286,25 +286,380 @@ export async function renderDashboard() {
   `;
 }
 
+let analistaDashboardData = {
+  resumo: null,
+  topologia: null,
+  dashResumo: null,
+  rejeitadas: [],
+  preditivos: [],
+  cortes: []
+};
+
 /**
  * 0. DASHBOARD DO PERFIL ANALISTA (LUIZ FELIPE - VISÃO GERAL DO SISTEMA)
- * Fiel à Imagem 1 do Figma
+ * Integrado aos endpoints FastAPI:
+ * - GET /analista/sensores/resumo
+ * - GET /sensores/topologia
+ * - GET /dashboard/resumo
+ * - GET /leituras-rejeitadas?limit=5
+ * - GET /alertas-preditivos?status=EM ABERTO&limit=20
+ * - GET /alertas-preditivos/cortes
  */
-function renderAnalistaDashboard() {
+async function renderAnalistaDashboard() {
+  try {
+    const [resumoRes, topologiaRes, dashResumoRes, rejeitadasRes, preditivosRes, cortesRes] = await Promise.allSettled([
+      api.getAnalistaSensoresResumo(),
+      api.getSensoresTopologia(),
+      api.getDashboardResumo(),
+      api.getLeiturasRejeitadas({ limit: 5 }),
+      api.getAlertasPreditivos({ status: 'EM ABERTO', limit: 20 }),
+      api.getCortesPreditivos()
+    ]);
+
+    analistaDashboardData = {
+      resumo: resumoRes.status === 'fulfilled' ? resumoRes.value : null,
+      topologia: topologiaRes.status === 'fulfilled' ? topologiaRes.value : null,
+      dashResumo: dashResumoRes.status === 'fulfilled' ? dashResumoRes.value : null,
+      rejeitadas: rejeitadasRes.status === 'fulfilled' ? (rejeitadasRes.value || []) : [],
+      preditivos: preditivosRes.status === 'fulfilled' ? (preditivosRes.value || []) : [],
+      cortes: cortesRes.status === 'fulfilled' ? (cortesRes.value || []) : []
+    };
+  } catch (err) {
+    console.warn('Erro ao carregar dados do dashboard do analista:', err);
+  }
+
+  const { resumo, topologia, dashResumo, rejeitadas, preditivos, cortes } = analistaDashboardData;
+
+  // A) 4 CARDS NO TOPO
+  // 1. Saúde da Coleta
+  const ingestao_24h = resumo?.ingestao_24h || {};
+  const sensoresInfo = resumo?.sensores || {};
+  const alertasAbertos = resumo?.alertas_abertos || {};
+  const rejeitadasHoje = resumo?.rejeitadas_hoje ?? 0;
+
+  const taxaPct = ingestao_24h.taxa_sucesso_pct != null ? Number(ingestao_24h.taxa_sucesso_pct) : null;
+  const taxaStr = taxaPct != null ? `${taxaPct.toFixed(1)}%` : '—';
+  let taxaBadgeClass = 'yellow';
+  let taxaBadgeText = '—';
+  let taxaNumColor = '#64748B';
+
+  if (taxaPct != null) {
+    if (taxaPct >= 95) {
+      taxaBadgeClass = 'green';
+      taxaBadgeText = 'EXCELENTE';
+      taxaNumColor = '#059669';
+    } else if (taxaPct >= 80) {
+      taxaBadgeClass = 'yellow';
+      taxaBadgeText = 'ATENÇÃO';
+      taxaNumColor = '#D97706';
+    } else {
+      taxaBadgeClass = 'red';
+      taxaBadgeText = 'CRÍTICO';
+      taxaNumColor = '#DC2626';
+    }
+  }
+
+  const totalSensores = sensoresInfo.total != null ? sensoresInfo.total : (topologia?.sensores?.length ?? 0);
+  const ativosSensores = sensoresInfo.ativos != null ? sensoresInfo.ativos : (topologia?.sensores?.filter(s => s.estado_mapa === 'ativo').length ?? 0);
+
+  let tempoRelativoColeta = 'Última leitura: —';
+  if (ingestao_24h.ultima_leitura) {
+    const tMs = new Date(ingestao_24h.ultima_leitura).getTime();
+    if (!isNaN(tMs)) {
+      const diffMin = Math.max(0, Math.floor((Date.now() - tMs) / 60000));
+      tempoRelativoColeta = diffMin === 1 ? 'Última leitura há 1 min' : (diffMin < 60 ? `Última leitura há ${diffMin} min` : `Última leitura há ${Math.floor(diffMin / 60)}h ${diffMin % 60}min`);
+    }
+  }
+
+  // 2. Sensores e Sondas
+  const totalSolo = sensoresInfo.total_solo != null ? sensoresInfo.total_solo : (topologia?.sensores?.filter(s => s.ambiente === 'solo').length ?? 0);
+  const totalAr = sensoresInfo.total_ar != null ? sensoresInfo.total_ar : (topologia?.sensores?.filter(s => s.ambiente === 'ar').length ?? 0);
+
+  // 3. Média Climática
+  const condicoes = dashResumo?.resumo_condicoes || {};
+  const tempArMedia = condicoes.temperatura_ar_media != null ? Number(condicoes.temperatura_ar_media) : null;
+  const umidArMedia = condicoes.umidade_ar_media != null ? Number(condicoes.umidade_ar_media) : null;
+
+  const sensoresSolo = (topologia?.sensores || []).filter(s => s.ambiente === 'solo' && s.umidade != null && !isNaN(Number(s.umidade)));
+  let mediaSoloStr = '—';
+  if (sensoresSolo.length > 0) {
+    const sumUmidSolo = sensoresSolo.reduce((acc, s) => acc + Number(s.umidade), 0);
+    mediaSoloStr = `${(sumUmidSolo / sensoresSolo.length).toFixed(1)}%`;
+  }
+
+  // 4. Alertas do Sistema
+  const totalAlertas = alertasAbertos.total != null ? alertasAbertos.total : (preditivos.length);
+  const reativosQtd = alertasAbertos.reativos ?? 0;
+  const preditivosQtd = alertasAbertos.preditivos ?? preditivos.length;
+  const badgeAlertas = totalAlertas === 0 ? 'green' : (totalAlertas > 3 ? 'red' : 'yellow');
+  const badgeAlertasTexto = totalAlertas === 0 ? 'NORMAL' : 'ATENÇÃO';
+
+  // B) TOPOLOGIA DE SENSORES NO CAMPO
+  const propriedade = topologia?.propriedade || {
+    nome: 'Fazenda Raiz Agro',
+    local: 'Vale do São Francisco — PE',
+    area_ha: 45.0
+  };
+
+  const contadores = topologia?.contadores || {
+    todos: topologia?.sensores?.length ?? 0,
+    ativos: topologia?.sensores?.filter(s => s.estado_mapa === 'ativo').length ?? 0,
+    em_alerta: topologia?.sensores?.filter(s => s.estado_mapa !== 'ativo').length ?? 0
+  };
+
+  const sensoresList = topologia?.sensores || [];
+
+  const topologiaSensorsMap = {};
+  sensoresList.forEach(s => {
+    topologiaSensorsMap[s.id_sensor] = s;
+  });
+
+  const coords = [];
+  const gwLat = propriedade?.gateway_lat != null ? Number(propriedade.gateway_lat) : null;
+  const gwLng = propriedade?.gateway_lng != null ? Number(propriedade.gateway_lng) : null;
+  if (gwLat != null && gwLng != null && !isNaN(gwLat) && !isNaN(gwLng)) {
+    coords.push({ lat: gwLat, lng: gwLng });
+  }
+
+  sensoresList.forEach(s => {
+    const lat = s.lat != null ? Number(s.lat) : null;
+    const lng = s.lng != null ? Number(s.lng) : null;
+    if (lat != null && lng != null && !isNaN(lat) && !isNaN(lng)) {
+      coords.push({ lat, lng });
+    }
+  });
+
+  let minLat = -9.400, maxLat = -9.380, minLng = -40.510, maxLng = -40.490;
+  if (coords.length > 0) {
+    minLat = Math.min(...coords.map(c => c.lat));
+    maxLat = Math.max(...coords.map(c => c.lat));
+    minLng = Math.min(...coords.map(c => c.lng));
+    maxLng = Math.max(...coords.map(c => c.lng));
+  }
+
+  let latSpan = maxLat - minLat;
+  let lngSpan = maxLng - minLng;
+  if (latSpan <= 0.0001) latSpan = 0.005;
+  if (lngSpan <= 0.0001) lngSpan = 0.005;
+
+  const padLat = latSpan * 0.18;
+  const padLng = lngSpan * 0.18;
+  const normMinLat = minLat - padLat;
+  const normMaxLat = maxLat + padLat;
+  const normMinLng = minLng - padLng;
+  const normMaxLng = maxLng + padLng;
+
+  function calcTop(lat) {
+    if (lat == null || isNaN(lat)) return 50;
+    const pct = ((normMaxLat - lat) / (normMaxLat - normMinLat)) * 100;
+    return Math.max(8, Math.min(92, pct)).toFixed(2);
+  }
+
+  function calcLeft(lng) {
+    if (lng == null || isNaN(lng)) return 50;
+    const pct = ((lng - normMinLng) / (normMaxLng - normMinLng)) * 100;
+    return Math.max(8, Math.min(92, pct)).toFixed(2);
+  }
+
+  const gwTop = gwLat != null ? calcTop(gwLat) : 42;
+  const gwLeft = gwLng != null ? calcLeft(gwLng) : 58;
+
+  const pinsHtml = sensoresList.map(s => {
+    const topPct = s.lat != null ? calcTop(Number(s.lat)) : (30 + Math.random() * 40).toFixed(2);
+    const leftPct = s.lng != null ? calcLeft(Number(s.lng)) : (30 + Math.random() * 40).toFixed(2);
+
+    let colorClass = 'green';
+    let inlineBg = '';
+    if (s.estado_mapa === 'ativo') {
+      colorClass = s.ambiente === 'solo' ? 'green' : 'blue';
+    } else if (s.estado_mapa === 'atencao') {
+      colorClass = 'orange';
+      inlineBg = 'background: #F59E0B; color: #FFFFFF; border: 2px solid #FFFFFF;';
+    } else if (s.estado_mapa === 'rejeicao') {
+      colorClass = 'red';
+      inlineBg = 'background: #EF4444; color: #FFFFFF; border: 2px solid #FFFFFF;';
+    }
+
+    const label = s.codigo ? s.codigo.replace(/^[A-Za-z]+-?/, '') : String(s.id_sensor);
+
+    return `
+      <div class="sensor-pin-marker ${colorClass}" style="top: ${topPct}%; left: ${leftPct}%; ${inlineBg}"
+           data-sensor-id="${s.id_sensor}"
+           data-tipo="${s.ambiente || 'solo'}"
+           data-estado="${s.estado_mapa || 'ativo'}"
+           title="${s.codigo || s.nome}: ${s.ambiente === 'solo' ? 'Umidade do Solo' : 'Microclima'} (${s.estado_mapa})">
+        ${label}
+      </div>
+    `;
+  }).join('');
+
+  const temCoordenadaIlustrativa = sensoresList.some(s => s.coordenada_ilustrativa);
+  const notaTransparenciaHtml = temCoordenadaIlustrativa && topologia?.nota_transparencia ? `
+    <div style="font-size: 11px; color: #94A3B8; margin-top: 6px; font-style: italic; display:flex; align-items:center; gap:5px;">
+      <i data-lucide="info" style="width:13px;height:13px;color:#94A3B8;"></i>
+      <span>${topologia.nota_transparencia}</span>
+    </div>
+  ` : '';
+
+  // C) AUDITORIA DE INGESTÃO E LEITURAS REJEITADAS
+  const rejeitadasList = rejeitadas || [];
+  const rejeitadasHtml = rejeitadasList.length === 0 ? `
+    <div style="padding: 24px 0; text-align: center; color: #64748B; font-size: 12px;">
+      Nenhuma leitura rejeitada recente registrada no backend.
+    </div>
+  ` : rejeitadasList.slice(0, 5).map(r => {
+    const s = topologiaSensorsMap[r.id_sensor];
+    const nomeSensor = s ? s.nome : (r.id_sensor ? `Sensor #${r.id_sensor}` : 'Sensor Desconhecido');
+    const loteTexto = s && s.id_lote ? `Lote #${s.id_lote}` : '';
+    const motivo = r.motivo || 'Motivo não informado';
+    const valoresBrutos = [];
+    if (r.temperatura_bruta != null) valoresBrutos.push(`Temp: ${r.temperatura_bruta}°C`);
+    if (r.umidade_bruta != null) valoresBrutos.push(`Umid: ${r.umidade_bruta}%`);
+    const valBrutoStr = valoresBrutos.join(' • ');
+    const dataHoraStr = formatarDataRecife(r.data_rejeicao || r.data_hora_bruta);
+
+    return `
+      <div style="border-top: 1px solid #F1F5F9; padding: 12px 0;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; flex-wrap:wrap; gap:6px;">
+          <span style="font-size: 12px; font-weight: 700; color: #0F172A;">${nomeSensor}</span>
+          ${loteTexto ? `<span style="font-size: 10px; background: #ECFDF5; color: #065F46; padding: 2px 6px; border-radius: 4px; font-weight: 600;">${loteTexto}</span>` : ''}
+        </div>
+        <div style="font-size: 11px; color: #B91C1C; margin-bottom: 4px; font-weight: 600;">
+          Motivo: ${motivo}
+        </div>
+        <div style="font-size: 11px; color: #64748B; margin-bottom: 8px;">
+          ${valBrutoStr ? `<span>${valBrutoStr}</span> • ` : ''}<span>${dataHoraStr}</span>
+        </div>
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+          <button class="incident-btn-secondary btn-ver-rejeitadas-sensor" data-sensor-id="${r.id_sensor}" data-sensor-nome="${nomeSensor}" style="font-size: 11px; padding: 5px 10px; cursor:pointer;">
+            Ver leituras rejeitadas deste sensor
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  const horaRecifeSinc = formatarHoraSimplesRecife(ingestao_24h.ultima_leitura);
+
+  // D) MODELOS PREDITIVOS E LIMIARES DE ALERTA
+  const preditivosList = preditivos || [];
+  const alertaMaisRecente = preditivosList.length > 0
+    ? [...preditivosList].sort((a, b) => new Date(b.data_geracao || 0) - new Date(a.data_geracao || 0))[0]
+    : null;
+
+  let alertaRecenteHtml = `
+    <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px; margin: 10px 0; font-size: 12px; color: #64748B; text-align: center;">
+      Nenhum alerta preditivo em aberto
+    </div>
+  `;
+
+  if (alertaMaisRecente) {
+    const severidade = (alertaMaisRecente.nivel_severidade || '').toUpperCase();
+    const nivelLabel = severidade === 'CRITICO' ? 'Alto' : (severidade === 'MEDIO' ? 'Médio' : 'Baixo');
+    const badgeBg = severidade === 'CRITICO' ? '#FEE2E2' : (severidade === 'MEDIO' ? '#FEF3C7' : '#E0F2FE');
+    const badgeColor = severidade === 'CRITICO' ? '#991B1B' : (severidade === 'MEDIO' ? '#92400E' : '#0369A1');
+    const dotBg = severidade === 'CRITICO' ? '#EF4444' : (severidade === 'MEDIO' ? '#D97706' : '#0284C7');
+    const probPct = alertaMaisRecente.probabilidade_risco != null ? `${(Number(alertaMaisRecente.probabilidade_risco) * 100).toFixed(0)}%` : '—';
+    const s = alertaMaisRecente.id_sensor ? topologiaSensorsMap[alertaMaisRecente.id_sensor] : null;
+    const sensorNome = s ? s.nome : (alertaMaisRecente.id_sensor ? `Sensor #${alertaMaisRecente.id_sensor}` : 'Sensor');
+    const loteTexto = alertaMaisRecente.id_lote ? `Lote #${alertaMaisRecente.id_lote}` : '';
+
+    alertaRecenteHtml = `
+      <div style="background: ${badgeBg}; border: 1px solid rgba(0,0,0,0.06); border-radius: 10px; padding: 12px; margin: 10px 0;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; flex-wrap:wrap; gap:6px;">
+          <span style="font-size: 12px; font-weight: 700; color: ${badgeColor}; display: flex; align-items: center; gap: 6px;">
+            <span style="width: 7px; height: 7px; border-radius: 50%; background: ${dotBg};"></span>
+            Risco climático
+          </span>
+          <span style="font-size: 10px; font-weight: 700; background: rgba(255,255,255,0.7); color: ${badgeColor}; padding: 2px 6px; border-radius: 4px;">
+            NÍVEL: ${nivelLabel.toUpperCase()} (${probPct})
+          </span>
+        </div>
+        <p style="font-size: 11px; color: ${badgeColor}; line-height: 1.4; margin-bottom: 6px;">
+          ${alertaMaisRecente.mensagem || 'Condição de alerta preditivo detectada pelo modelo.'}
+        </p>
+        <div style="font-size: 10px; color: ${badgeColor}; opacity: 0.9; display: flex; justify-content: space-between; align-items: center; flex-wrap:wrap; gap:4px;">
+          <span>${[sensorNome, loteTexto].filter(Boolean).join(' • ')}</span>
+          <span>Previsão: ${formatarDataRecife(alertaMaisRecente.previsao_data_hora)}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  const cortesList = cortes || [];
+  const ordemNiveis = ['BAIXO', 'MEDIO', 'CRITICO'];
+  const cortesOrdenados = [...cortesList].sort((a, b) => {
+    return ordemNiveis.indexOf(a.nivel) - ordemNiveis.indexOf(b.nivel);
+  });
+
+  const cortesHtml = cortesOrdenados.length === 0 ? `
+    <div style="padding: 12px 0; color: #64748B; font-size: 11px; text-align: center;">Nenhum limiar de corte configurado no backend.</div>
+  ` : cortesOrdenados.map(c => {
+    const minPct = Math.round(Number(c.limiar_min ?? 0) * 100);
+    const maxPct = Math.round(Number(c.limiar_max ?? 0) * 100);
+    const nivelLabel = c.nivel === 'CRITICO' ? 'Alto' : (c.nivel === 'MEDIO' ? 'Médio' : 'Baixo');
+    const badgeBg = c.nivel === 'CRITICO' ? '#FEE2E2' : (c.nivel === 'MEDIO' ? '#FEF3C7' : '#E0F2FE');
+    const badgeColor = c.nivel === 'CRITICO' ? '#991B1B' : (c.nivel === 'MEDIO' ? '#92400E' : '#0369A1');
+
+    return `
+      <div class="corte-row" data-nivel="${c.nivel}" style="border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px 12px; background: #FFFFFF; margin-bottom: 8px;">
+        <div class="corte-view-mode" style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;">
+          <div style="flex: 1; min-width: 140px;">
+            <div style="font-size: 12px; font-weight: 700; color: #0F172A; display: flex; align-items: center; gap: 6px;">
+              <span style="background: ${badgeBg}; color: ${badgeColor}; padding: 2px 8px; border-radius: 6px; font-size: 10px; font-weight: 700;">
+                ${nivelLabel}
+              </span>
+              <span>${minPct}% a ${maxPct}%</span>
+            </div>
+            <div style="font-size: 11px; color: #64748B; margin-top: 2px;">
+              ${c.acao_recomendada || 'Nenhuma ação recomendada configurada.'}
+            </div>
+          </div>
+          <button class="incident-btn-secondary btn-editar-corte" data-nivel="${c.nivel}" style="font-size: 11px; padding: 4px 10px; cursor: pointer;">
+            Editar
+          </button>
+        </div>
+
+        <div class="corte-edit-mode" style="display: none; flex-direction: column; gap: 8px;">
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <span style="font-size: 11px; font-weight: 700; color: #0F172A;">Faixa ${nivelLabel}:</span>
+            <label style="font-size: 11px; color: #475569; display: flex; align-items: center; gap: 4px;">
+              Mín: <input type="number" min="0" max="100" class="input-corte-min" value="${minPct}" style="width: 52px; padding: 4px; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 11px;"> %
+            </label>
+            <label style="font-size: 11px; color: #475569; display: flex; align-items: center; gap: 4px;">
+              Máx: <input type="number" min="0" max="100" class="input-corte-max" value="${maxPct}" style="width: 52px; padding: 4px; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 11px;"> %
+            </label>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <label style="font-size: 11px; color: #475569;">Ação recomendada:</label>
+            <input type="text" class="input-corte-acao" value="${c.acao_recomendada || ''}" style="width: 100%; padding: 5px 8px; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 11px;">
+          </div>
+          <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 2px;">
+            <button class="btn-cancelar-corte" data-nivel="${c.nivel}" style="padding: 4px 10px; background: #F1F5F9; color: #475569; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer;">
+              Cancelar
+            </button>
+            <button class="btn-salvar-corte" data-nivel="${c.nivel}" style="padding: 4px 12px; background: #059669; color: #FFFFFF; border: none; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer;">
+              Salvar
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
   return `
     <div class="dashboard-canvas apple-animate-in">
       <!-- Sub-barra Técnica do Analista -->
       <div class="analista-subbar">
         <div class="analista-subbar-info">
           <span class="analista-dot-pulse"></span>
-          <span>GATEWAY PETROLINA-04 • CONCENTRADOR ESP32 ATIVO</span>
-          <span class="analista-badge-tech">ESP-MESH v4.2.1-prod</span>
+          <span>${propriedade.nome.toUpperCase()} • CONCENTRADOR ATIVO</span>
+          <span class="analista-badge-tech">TELEMETRIA IOT</span>
         </div>
         <div class="analista-subbar-actions">
-          
-          <button class="btn-analista-sync" id="btn-sync-thingspeak">
+          <button class="btn-analista-sync" id="btn-sync-telemetria">
             <i data-lucide="refresh-cw" style="width: 14px; height: 14px;"></i>
-            <span>Sincronizar Ingestão ThingSpeak</span>
+            <span>Atualizar Dados</span>
           </button>
           <button class="btn-analista-export" id="btn-export-telemetria">
             <i data-lucide="download" style="width: 14px; height: 14px;"></i>
@@ -313,81 +668,85 @@ function renderAnalistaDashboard() {
         </div>
       </div>
 
-      <!-- 4 KPIs do Analista -->
+      <!-- 4 Cards no Topo (Card A) -->
       <div class="kpi-grid-4col">
-        <!-- KPI 1: SAÚDE DA REDE MESH -->
+        <!-- 1. Saúde da Coleta -->
         <div class="kpi-analista-card">
           <div class="kpi-top-row">
-            <span class="kpi-label">SAÚDE DA REDE MESH</span>
-            <span class="kpi-badge green">EXCELENTE</span>
+            <span class="kpi-label">SAÚDE DA COLETA</span>
+            <span class="kpi-badge ${taxaBadgeClass}">${taxaBadgeText}</span>
           </div>
           <div class="kpi-value-row">
-            <span class="kpi-big-num" data-kpi="rede-saude">96%</span>
-            <span class="kpi-sub-num" data-kpi="rede-status">24 de 25 nós operacionais</span>
+            <span class="kpi-big-num" style="color: ${taxaNumColor};">${taxaStr}</span>
+            <span class="kpi-sub-num">${ativosSensores} de ${totalSensores} sensores ativos</span>
           </div>
           <div class="kpi-bottom-row">
-            <span>Latência média: <strong>124 ms</strong></span>
+            <span>${tempoRelativoColeta}</span>
             <span style="color: #059669; font-weight: 600; display: flex; align-items: center; gap: 4px;">
-              <i data-lucide="check-circle-2" style="width: 13px; height: 13px;"></i> Mesh OK
+              <i data-lucide="check-circle-2" style="width: 13px; height: 13px;"></i> Coleta ativa
             </span>
           </div>
         </div>
 
-        <!-- KPI 2: SENSORES E SONDAS -->
+        <!-- 2. Sensores e Sondas -->
         <div class="kpi-analista-card">
           <div class="kpi-top-row">
             <span class="kpi-label">SENSORES E SONDAS</span>
             <span style="color: #0284C7;"><i data-lucide="cpu" style="width: 16px; height: 16px;"></i></span>
           </div>
           <div class="kpi-value-row">
-            <span class="kpi-big-num" data-kpi="sensores-total">24</span>
-            <span class="kpi-sub-num">unidades ativas</span>
+            <span class="kpi-big-num">${totalSensores}</span>
+            <span class="kpi-sub-num">unidades cadastradas</span>
           </div>
           <div class="kpi-bottom-row" style="gap: 6px;">
-            <span style="background: #ECFDF5; color: #047857; padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 10px;">16 Umidade do Solo</span>
-            <span style="background: #EFF6FF; color: #1D4ED8; padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 10px;">8 Microclima (Ar)</span>
+            <span style="background: #ECFDF5; color: #047857; padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 10px;">${totalSolo} umidade do solo</span>
+            <span style="background: #EFF6FF; color: #1D4ED8; padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 10px;">${totalAr} microclima (ar)</span>
           </div>
         </div>
 
-        <!-- KPI 3: MÉDIA CLIMÁTICA E SOLO -->
+        <!-- 3. Média Climática -->
         <div class="kpi-analista-card">
           <div class="kpi-top-row">
-            <span class="kpi-label">MÉDIA CLIMÁTICA E SOLO</span>
-            <span class="kpi-badge green">FAIXA ADEQUADA</span>
+            <span class="kpi-label">MÉDIA CLIMÁTICA</span>
+            <span class="kpi-badge green">MONITORAMENTO</span>
           </div>
-          <div class="kpi-value-row" style="gap: 16px;">
+          <div class="kpi-value-row" style="gap: 16px; flex-wrap: wrap;">
             <div>
-              <span class="kpi-big-num" data-kpi="temp-ar">27.4°C</span>
-              <div style="font-size: 10px; color: #64748B;">Temp. Ar [Teto 32°C]</div>
+              <span class="kpi-big-num">${tempArMedia != null ? `${tempArMedia.toFixed(1)}°C` : '—'}</span>
+              <div style="font-size: 10px; color: #64748B;">Temp. Ar Média</div>
             </div>
             <div>
-              <span class="kpi-big-num" style="color: #0284C7;" data-kpi="umid-solo">46.2%</span>
-              <div style="font-size: 10px; color: #64748B;">Umidade Solo VWC</div>
+              <span class="kpi-big-num" style="color: #0284C7;">${umidArMedia != null ? `${Math.round(umidArMedia)}%` : '—'}</span>
+              <div style="font-size: 10px; color: #64748B;">Umid. Ar Média</div>
+            </div>
+            <div>
+              <span class="kpi-big-num" style="color: #059669;">${mediaSoloStr}</span>
+              <div style="font-size: 10px; color: #64748B;">Umid. Solo Média</div>
             </div>
           </div>
           <div class="kpi-bottom-row">
-            <span style="color: #059669; font-weight: 500;">Equilíbrio hídrico e térmico sustentado</span>
+            <span style="color: #64748B; font-size: 11px;">Média ponderada das últimas 24 horas</span>
           </div>
         </div>
 
-        <!-- KPI 4: ALERTAS DO SISTEMA -->
+        <!-- 4. Alertas do Sistema -->
         <div class="kpi-analista-card">
           <div class="kpi-top-row">
             <span class="kpi-label">ALERTAS DO SISTEMA</span>
-            <span class="kpi-badge yellow">ATENÇÃO LEVE</span>
+            <span class="kpi-badge ${badgeAlertas}">${badgeAlertasTexto}</span>
           </div>
           <div class="kpi-value-row">
-            <span class="kpi-big-num" style="color: #D97706;" data-kpi="alertas-count">2</span>
-            <span class="kpi-sub-num">Necessitam revisão em campo</span>
+            <span class="kpi-big-num" style="color: ${totalAlertas > 0 ? '#D97706' : '#059669'};">${totalAlertas}</span>
+            <span class="kpi-sub-num">${reativosQtd} reativos • ${preditivosQtd} preditivos</span>
           </div>
           <div class="kpi-bottom-row">
-            <span>1 Nível Alto • 1 Nível Médio</span>
-            <a href="#/alertas" style="color: #0284C7; font-weight: 600; text-decoration: none;">Ver central &rarr;</a>
+            <span>Necessitam acompanhamento</span>
+            <a href="#/alertas" style="color: #0284C7; font-weight: 600; text-decoration: none; display:flex; align-items:center; gap:4px;">Ver central &rarr;</a>
           </div>
         </div>
       </div>
 
-      <!-- Seção Principal: Topologia de Sensores no Campo -->
+      <!-- Seção Principal: Topologia de Sensores no Campo (Card B) -->
       <div class="analista-map-card">
         <div class="map-header-row">
           <div>
@@ -396,22 +755,22 @@ function renderAnalistaDashboard() {
               Topologia de Sensores no Campo
             </h3>
             <p style="font-size: 12px; color: #64748B; margin-top: 2px;">
-              Visualização da área de cobertura georreferenciada e dispersão dos nós
+              ${propriedade.nome} — ${propriedade.local} (${propriedade.area_ha} ha)
             </p>
           </div>
 
           <!-- Filtros de Topologia -->
           <div class="map-filter-tabs">
-            <button class="map-tab-btn active" data-filter="todos">Todos (24)</button>
-            <button class="map-tab-btn" data-filter="solo">Umidade do Solo (16)</button>
-            <button class="map-tab-btn" data-filter="ar">Microclima / Ar (8)</button>
-            <button class="map-tab-btn" data-filter="alerta">Em Alerta (2)</button>
+            <button class="map-tab-btn active" data-filter="todos">Todos (${contadores.todos ?? sensoresList.length})</button>
+            <button class="map-tab-btn" data-filter="solo">Umidade do Solo (${totalSolo})</button>
+            <button class="map-tab-btn" data-filter="ar">Microclima / Ar (${totalAr})</button>
+            <button class="map-tab-btn" data-filter="alerta">Em alerta (${contadores.em_alerta ?? 0})</button>
           </div>
         </div>
 
-        <!-- Viewport Aérea com Nós Posicionados conforme Figma -->
+        <!-- Viewport Aérea com Imagem de Satélite e Marcadores Normalizados -->
         <div class="map-view-viewport" id="analista-map-viewport">
-          <img src="assets/images/topologia-sensores-campo.jpg" alt="Topologia de Sensores no Campo - Vale do São Francisco" class="map-view-bg">
+          <img src="assets/images/topologia-sensores-campo.jpg" alt="Topologia de Sensores no Campo" class="map-view-bg">
 
           <!-- Rosa dos Ventos (Norte) -->
           <div style="position: absolute; top: 16px; right: 16px; width: 36px; height: 36px; background: rgba(255,255,255,0.92); border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.15); font-weight: 800; font-size: 10px; color: #0F172A; z-index: 20;">
@@ -425,36 +784,14 @@ function renderAnalistaDashboard() {
             <button style="border: none; background: transparent; padding: 6px 10px; cursor: pointer; font-size: 14px; font-weight: 700;" id="zoom-out-btn">&minus;</button>
           </div>
 
-          <!-- Gateway Central ESP32 com Pulso Radar -->
-          <div class="gateway-center-marker" style="top: 42%; left: 58%;" title="Gateway Central ESP32 - Concentrador Ativo" data-node="gateway">
+          <!-- Gateway Central Posicionado por gateway_lat/lng -->
+          <div class="gateway-center-marker" style="top: ${gwTop}%; left: ${gwLeft}%;" title="Gateway Central (${propriedade.nome})" data-node="gateway">
             <div class="gateway-pulse-ring"></div>
             <i data-lucide="radio" style="width: 22px; height: 22px;"></i>
           </div>
 
-          <!-- Pinos de Sensores Interativos -->
-          <div class="sensor-pin-marker green" style="top: 36%; left: 44%;" data-node="03" data-tipo="solo" title="Nó 03: Sensor de Umidade do Solo • 48% VWC">
-            03
-          </div>
-
-          <div class="sensor-pin-marker red" style="top: 46%; left: 43%;" data-node="19" data-tipo="alerta" title="Nó 19: Alerta Térmico • 62.4°C (Outlier)">
-            19
-          </div>
-
-          <div class="sensor-pin-marker green" style="top: 48%; left: 48%;" data-node="01" data-tipo="solo" title="Nó 01: Sensor de Umidade do Solo A1 • 46.2% VWC">
-            01
-          </div>
-
-          <div class="sensor-pin-marker blue" style="top: 38%; left: 72%;" data-node="04" data-tipo="ar" title="Nó 04: Sensor DHT11 Ar • 27.8°C / 61% UR">
-            04
-          </div>
-
-          <div class="sensor-pin-marker blue" style="top: 45%; left: 74%;" data-node="08" data-tipo="ar" title="Nó 08: Sensor DHT11 Dossel • 26.5°C">
-            08
-          </div>
-
-          <div class="sensor-pin-marker blue" style="top: 50%; left: 70%;" data-node="07" data-tipo="ar" title="Nó 07: Sensor DHT11 Perimetral • 27.1°C">
-            07
-          </div>
+          <!-- Pinos de Sensores Normalizados -->
+          ${pinsHtml}
 
           <!-- Pill de Área no Canto Inferior Esquerdo -->
           <div style="position: absolute; bottom: 16px; left: 16px; background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); padding: 8px 14px; border-radius: 10px; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 20;">
@@ -462,30 +799,28 @@ function renderAnalistaDashboard() {
               <i data-lucide="map-pin" style="width: 16px; height: 16px;"></i>
             </div>
             <div>
-              <div style="font-size: 11px; font-weight: 700; color: #0F172A;">Área de cultivo</div>
-              <div style="font-size: 10px; color: #64748B;">Vale do São Francisco — PE (45.0 ha)</div>
+              <div style="font-size: 11px; font-weight: 700; color: #0F172A;">${propriedade.nome}</div>
+              <div style="font-size: 10px; color: #64748B;">${propriedade.local} (${propriedade.area_ha} ha)</div>
             </div>
           </div>
         </div>
 
+        ${notaTransparenciaHtml}
+
         <!-- Legenda Inferior do Mapa -->
         <div class="map-legend-row">
-          <div style="display: flex; align-items: center; gap: 16px;">
-            <span style="display: flex; align-items: center; gap: 6px;">
-              <span style="width: 8px; height: 8px; border-radius: 50%; background: #10B981;"></span>
-              Sensores Ativos (22)
+          <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+            <span style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #334155;">
+              <span style="width: 9px; height: 9px; border-radius: 50%; background: #10B981;"></span>
+              Sensores ativos (${contadores.ativos ?? 0})
             </span>
-            <span style="display: flex; align-items: center; gap: 6px;">
-              <span style="width: 8px; height: 8px; border-radius: 50%; background: #EF4444;"></span>
-              Atenção / Limiar (2)
-            </span>
-            <span style="display: flex; align-items: center; gap: 6px; color: #94A3B8;">
-              <i data-lucide="radio" style="width: 12px; height: 12px;"></i>
-              ThingSpeak: 5 min (Wi-Fi ESP32)
+            <span style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #334155;">
+              <span style="width: 9px; height: 9px; border-radius: 50%; background: #F59E0B;"></span>
+              Atenção / limiar (${contadores.em_alerta ?? 0})
             </span>
           </div>
 
-          <a href="#/sensores" style="color: #0284C7; font-weight: 600; text-decoration: none; display: flex; align-items: center; gap: 4px;">
+          <a href="#/sensores" style="color: #0284C7; font-weight: 600; text-decoration: none; display: flex; align-items: center; gap: 4px; font-size: 12px;">
             Ver telemetria detalhada &rarr;
           </a>
         </div>
@@ -493,7 +828,7 @@ function renderAnalistaDashboard() {
 
       <!-- Grid Inferior (2 Cards): Auditoria de Ingestão e Modelos Preditivos -->
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-        <!-- Card Esquerda: Auditoria de Ingestão e Leituras Rejeitadas -->
+        <!-- Card Esquerda: Auditoria de Ingestão e Leituras Rejeitadas (Card C) -->
         <div class="kpi-analista-card" style="min-height: auto; padding: 20px;">
           <div class="kpi-top-row">
             <div>
@@ -502,57 +837,28 @@ function renderAnalistaDashboard() {
                 Auditoria de Ingestão e Leituras Rejeitadas
               </h4>
               <p style="font-size: 11px; color: #64748B; margin-top: 2px;">
-                Filtragem de ruídos físicos da tabela <code style="background: #F1F5F9; padding: 1px 4px; border-radius: 4px;">leitura_rejeitada</code>
+                Monitoramento de dados brutos e validação física de integridade
               </p>
             </div>
-            <span class="kpi-badge yellow">2 Descartadas Hoje</span>
+            <span class="kpi-badge yellow">${rejeitadasHoje} Descartadas Hoje</span>
           </div>
 
-          <!-- Item 1 Rejeitado -->
-          <div style="border-top: 1px solid #F1F5F9; padding: 12px 0; margin-top: 8px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-              <span style="font-size: 12px; font-weight: 700; color: #0F172A;">Sonda Solo #SNS-SL-04</span>
-              <span style="font-size: 10px; background: #ECFDF5; color: #065F46; padding: 2px 6px; border-radius: 4px; font-weight: 600;">LOTE A1 • Uva Vitória</span>
-            </div>
-            <div style="font-size: 11px; color: #B91C1C; margin-bottom: 8px;">
-              Motivo: Outlier térmico (temperatura_bruta = 62.4°C acima do limite físico)
-            </div>
-            <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
-              <button class="incident-btn-secondary btn-recalibrar" style="font-size: 11px; padding: 4px 10px;" data-sensor="SNS-SL-04">
-                Recalibrar Offset
-              </button>
-              <div style="flex: 1; text-align: right;">
-                <span style="font-size: 10px; color: #64748B;">Confiabilidade pós-descarte: <strong>98.4%</strong></span>
-              </div>
-            </div>
+          <!-- Lista das 5 Leituras Rejeitadas mais Recentes -->
+          <div style="margin-top: 10px;">
+            ${rejeitadasHtml}
           </div>
 
-          <!-- Item 2 Rejeitado -->
-          <div style="border-top: 1px solid #F1F5F9; padding: 12px 0;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-              <span style="font-size: 12px; font-weight: 700; color: #0F172A;">Sensor de Umidade do Solo #SNS-SL-07</span>
-              <span style="font-size: 10px; background: #EFF6FF; color: #1D4ED8; padding: 2px 6px; border-radius: 4px; font-weight: 600;">LOTE C2 • Manga Palmer</span>
-            </div>
-            <div style="font-size: 11px; color: #D97706; margin-bottom: 8px;">
-              Motivo: Leitura analógica corrompida (umidade_bruta &lt; 0% VWC)
-            </div>
-            <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
-              <button class="incident-btn-secondary btn-ver-log" style="font-size: 11px; padding: 4px 10px;" data-sensor="SNS-SL-07">
-                Ver Log ThingSpeak
-              </button>
-              <div style="flex: 1; text-align: right;">
-                <span style="font-size: 10px; color: #64748B;">Progresso reteste: <strong>65% (46h/72h)</strong></span>
-              </div>
-            </div>
+          <div style="margin-top: 10px; font-size: 11px; color: #64748B;">
+            Confiabilidade pós-descarte: <strong style="color: #059669;">${taxaStr}</strong>
           </div>
 
-          <div style="border-top: 1px solid #F1F5F9; padding-top: 10px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #64748B;">
-            <span>Última sincronização ThingSpeak às 15:42</span>
-            <a href="#/sensores" style="color: #0284C7; font-weight: 600; text-decoration: none;">Histórico completo &rarr;</a>
+          <div style="border-top: 1px solid #F1F5F9; padding-top: 10px; margin-top: 10px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #64748B;">
+            <span>Última sincronização às ${horaRecifeSinc || '—'}</span>
+            <a href="#/leituras" style="color: #0284C7; font-weight: 600; text-decoration: none;">Histórico completo &rarr;</a>
           </div>
         </div>
 
-        <!-- Card Direita: Modelos Preditivos e Limiares de Alerta -->
+        <!-- Card Direita: Modelos Preditivos e Limiares de Alerta (Card D) -->
         <div class="kpi-analista-card" style="min-height: auto; padding: 20px;">
           <div class="kpi-top-row">
             <div>
@@ -561,65 +867,21 @@ function renderAnalistaDashboard() {
                 Modelos Preditivos e Limiares de Alerta
               </h4>
               <p style="font-size: 11px; color: #64748B; margin-top: 2px;">
-                Regras automatizadas de estabilidade e provisão agronômica
+                Regras automatizadas de estabilidade e limiares de acionamento
               </p>
             </div>
           </div>
 
-          <!-- Risco de Déficit Hídrico -->
-          <div style="background: #FEF3C7; border: 1px solid #FDE68A; border-radius: 10px; padding: 12px; margin: 10px 0;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-              <span style="font-size: 12px; font-weight: 700; color: #92400E; display: flex; align-items: center; gap: 6px;">
-                <span style="width: 7px; height: 7px; border-radius: 50%; background: #D97706;"></span>
-                Risco de Déficit Hídrico Severo
-              </span>
-              <span style="font-size: 10px; font-weight: 700; background: #FDE68A; color: #92400E; padding: 2px 6px; border-radius: 4px;">CORTE PREDITIVO: ALTO</span>
-            </div>
-            <p style="font-size: 11px; color: #78350F; line-height: 1.4; margin-bottom: 6px;">
-              Probabilidade projetada em 84% para as próximas 12 horas no LOTE A1 com base na evapotranspiração Penman-Monteith.
-            </p>
-            <div style="font-size: 11px; font-weight: 600; color: #92400E; display: flex; align-items: center; gap: 4px;">
-              <i data-lucide="lightbulb" style="width: 13px; height: 13px;"></i>
-              Ação recomendada: Antecipar irrigação matinal em 40 min.
-            </div>
-          </div>
+          <!-- Bloco: Alerta Preditivo Mais Recente (Risco Climático) -->
+          ${alertaRecenteHtml}
 
-          <!-- Configurações de Transmissão -->
-          <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: #F8FAFC; border-radius: 8px; border: 1px solid #E2E8F0;">
-              <div>
-                <div style="font-size: 12px; font-weight: 600; color: #0F172A;">Frequência de Ingestão ThingSpeak</div>
-                <div style="font-size: 10px; color: #64748B;">Balanço de energia solar vs transmissão de pacotes</div>
-              </div>
-              <button class="incident-btn-secondary" id="btn-freq-ingestao" style="font-size: 11px; padding: 4px 8px;">
-                A cada 5 min (Wi-Fi)
-              </button>
+          <!-- Editor de Cortes Preditivos -->
+          <div style="margin-top: 14px;">
+            <div style="font-size: 12px; font-weight: 700; color: #0F172A; margin-bottom: 8px; display:flex; justify-content:space-between; align-items:center;">
+              <span>Faixas de Corte e Ações Recomendadas</span>
+              <span style="font-size: 10px; color: #94A3B8; font-weight: 500;">Limiares de 0% a 100%</span>
             </div>
-
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: #F8FAFC; border-radius: 8px; border: 1px solid #E2E8F0;">
-              <div>
-                <div style="font-size: 12px; font-weight: 600; color: #0F172A;">Filtro de Ruído e Auto-calibração do Solo</div>
-                <div style="font-size: 10px; color: #64748B;">Compensação de umidade e condutividade em ciclo de 7 dias</div>
-              </div>
-              <label style="position: relative; display: inline-block; width: 40px; height: 22px;">
-                <input type="checkbox" id="check-filtro-ruido" checked style="opacity: 0; width: 0; height: 0;">
-                <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #10B981; transition: .3s; border-radius: 34px;">
-                  <span style="position: absolute; content: ''; height: 16px; width: 16px; left: 20px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%;"></span>
-                </span>
-              </label>
-            </div>
-          </div>
-
-          <!-- Banner de Sucesso Inferior -->
-          <div style="background: #183D2E; color: #FFFFFF; border-radius: 8px; padding: 10px 14px; margin-top: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 11px;">
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <i data-lucide="check" style="width: 14px; height: 14px; color: #34D399;"></i>
-              <div>
-                <strong>Transição Concluída com Sucesso</strong>
-                <div style="font-size: 10px; color: #A7F3D0;">Integridade de dados 100% sincronizada com canais ThingSpeak.</div>
-              </div>
-            </div>
-            <button style="background: none; border: none; color: #A7F3D0; cursor: pointer; font-size: 14px;" onclick="this.parentElement.remove()">✕</button>
+            ${cortesHtml}
           </div>
         </div>
       </div>
@@ -1806,8 +2068,10 @@ function setupAnalistaDashboardEvents() {
   iniciarSSEDashboard();
   liveTelemetry.start();
 
-  // Sincronizar Ingestão ThingSpeak
-  const btnSync = document.getElementById('btn-sync-thingspeak');
+  if (window.lucide) window.lucide.createIcons();
+
+  // Botão Atualizar Telemetria
+  const btnSync = document.getElementById('btn-sync-telemetria');
   if (btnSync) {
     btnSync.addEventListener('click', () => {
       const icon = btnSync.querySelector('i');
@@ -1815,10 +2079,9 @@ function setupAnalistaDashboardEvents() {
       btnSync.style.opacity = '0.7';
 
       setTimeout(() => {
-        if (icon) icon.classList.remove('animate-spin');
-        btnSync.style.opacity = '1';
-        toast.success('ThingSpeak Sincronizado', '24 nós ESP32 atualizados em tempo real (Canal #248901).');
-      }, 900);
+        window.dispatchEvent(new HashChangeEvent('hashchange'));
+        toast.success('Telemetria Atualizada', 'Dados mais recentes sincronizados com o backend.');
+      }, 700);
     });
   }
 
@@ -1849,30 +2112,13 @@ function setupAnalistaDashboardEvents() {
         () => {
           downloadPDF(`telemetria_petrolina_us915_${dataTag}.pdf`, {
             title: 'Relatório de Telemetria IoT — Petrolina US915',
-            subtitle: 'Série 24h • DHT11 ESP32-C3 & Sonda Solo FDR',
+            subtitle: 'Série 24h • Sensores de Campo',
             headers,
             rows
           });
           toast.success('Download PDF Concluído', `telemetria_petrolina_us915_${dataTag}.pdf baixado com sucesso.`);
         }
       );
-
-    });
-  }
-
-  // Alternar entre Resumido e Detalhado na sub-barra do Analista
-  const btnRes = document.getElementById('btn-analista-resumido');
-  const btnDet = document.getElementById('btn-analista-detalhado');
-  if (btnRes && btnDet) {
-    btnRes.addEventListener('click', () => {
-      btnRes.classList.add('active');
-      btnDet.classList.remove('active');
-      toast.info('Modo Resumido Ativo', 'Exibindo indicadores consolidados da malha ESP-MESH.');
-    });
-    btnDet.addEventListener('click', () => {
-      btnDet.classList.add('active');
-      btnRes.classList.remove('active');
-      toast.info('Modo Detalhado Ativo', 'Camadas técnicas de RSSI e telemetria ativadas.');
     });
   }
 
@@ -1888,6 +2134,7 @@ function setupAnalistaDashboardEvents() {
       const markers = document.querySelectorAll('.sensor-pin-marker');
       markers.forEach(m => {
         const tipo = m.dataset.tipo;
+        const estado = m.dataset.estado;
         if (filter === 'todos') {
           m.style.display = 'flex';
         } else if (filter === 'solo') {
@@ -1895,60 +2142,59 @@ function setupAnalistaDashboardEvents() {
         } else if (filter === 'ar') {
           m.style.display = tipo === 'ar' ? 'flex' : 'none';
         } else if (filter === 'alerta') {
-          m.style.display = tipo === 'alerta' ? 'flex' : 'none';
+          m.style.display = (estado === 'atencao' || estado === 'rejeicao') ? 'flex' : 'none';
         }
       });
     });
   });
 
   // Interatividade nos Pinos do Mapa
-  document.querySelectorAll('.sensor-pin-marker').forEach(pin => {
+  document.querySelectorAll('.sensor-pin-marker[data-sensor-id]').forEach(pin => {
     pin.addEventListener('click', (e) => {
-      const nodeNum = e.currentTarget.dataset.node;
-      const tipo = e.currentTarget.dataset.tipo;
-      let modalTitle = `Nó de Campo #${nodeNum}`;
-      let modalBody = '';
+      const sensorId = e.currentTarget.dataset.sensorId;
+      const s = analistaDashboardData.topologia?.sensores?.find(item => String(item.id_sensor) === String(sensorId));
+      if (!s) return;
 
-      if (nodeNum === '19') {
-        modalTitle = `Alerta Crítico — Nó #${nodeNum} (Outlier Térmico)`;
-        modalBody = `
-          <div style="background:#FEE2E2; border:1px solid #FCA5A5; border-radius:10px; padding:12px; margin-bottom:12px;">
-            <div style="font-weight:700; color:#991B1B; font-size:13px;">Leitura Irregular Detectada</div>
-            <div style="font-size:12px; color:#7F1D1D; margin-top:4px;">
-              Temperatura bruta reportada: <strong>62.4°C</strong> (Limite de segurança biológica: 35.0°C).
-            </div>
-          </div>
-          <div style="font-size:12px; color:#475569; line-height:1.6;">
-            <strong>Hardware:</strong> Sensor de Umidade do Solo #SNS-SL-04<br>
-            <strong>Localização:</strong> LOTE A1 • Uva Vitória (Setor 4)<br>
-            <strong>Canal ThingSpeak:</strong> #248901 (Entry #14.892)<br>
-            <strong>Ação recomendada:</strong> Executar calibração de offset ou inspecionar cabeamento analógico.
-          </div>
-        `;
-      } else {
-        modalTitle = `Telemetria em Tempo Real — Nó #${nodeNum}`;
-        modalBody = `
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px;">
-            <div style="background:#F8FAFC; border:1px solid #E2E8F0; padding:10px; border-radius:8px;">
-              <div style="font-size:10px; color:#64748B;">Umidade Solo (VWC)</div>
-              <div style="font-size:18px; font-weight:700; color:#0F172A;">46.8%</div>
-            </div>
-            <div style="background:#F8FAFC; border:1px solid #E2E8F0; padding:10px; border-radius:8px;">
-              <div style="font-size:10px; color:#64748B;">Temperatura Solo</div>
-              <div style="font-size:18px; font-weight:700; color:#059669;">24.2°C</div>
-            </div>
-          </div>
-          <div style="font-size:12px; color:#475569; line-height:1.6;">
-            <strong>Status Wi-Fi ESP32:</strong> RSSI -68 dBm (Excelente)<br>
-            <strong>Bateria:</strong> 96% (Painel Solar 5W)<br>
-            <strong>Último Pacote ESP32:</strong> há 42 segundos via Wi-Fi
-          </div>
-        `;
-      }
+      const ambLabel = s.ambiente === 'solo' ? 'Umidade do Solo' : 'Microclima / Ar';
+      const estadoLabel = s.estado_mapa === 'ativo' ? 'Ativo' : (s.estado_mapa === 'atencao' ? 'Atenção' : 'Rejeição');
+      const tempVal = s.temperatura != null ? `${Number(s.temperatura).toFixed(1)}°C` : '—';
+      const umidVal = s.umidade != null ? `${Number(s.umidade).toFixed(1)}%` : '—';
+      const origemBadge = s.origem_telemetria === 'real'
+        ? '<span style="background:#ECFDF5; color:#065F46; padding:2px 8px; border-radius:6px; font-weight:700; font-size:10px;">Real</span>'
+        : '<span style="background:#F1F5F9; color:#475569; padding:2px 8px; border-radius:6px; font-weight:700; font-size:10px;">Simulado</span>';
 
-      Modal.open(modalTitle, modalBody, () => {
-        toast.success('Nó Verificado', `Sinal do Nó #${nodeNum} confirmado com concentrador.`);
-      }, 'Verificar Conexão');
+      const motivoHtml = s.motivo_rejeicao ? `
+        <div style="background:#FEE2E2; border:1px solid #FCA5A5; color:#991B1B; padding:10px 12px; border-radius:8px; margin-top:12px; font-size:12px;">
+          <strong>Motivo de Rejeição:</strong> ${s.motivo_rejeicao}
+        </div>
+      ` : '';
+
+      Modal.open(`Sensor ${s.codigo || s.nome}`, `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <div>
+            <div style="font-size:13px; font-weight:700; color:#0F172A;">${s.nome}</div>
+            <div style="font-size:11px; color:#64748B;">Código: <strong>${s.codigo || '—'}</strong> • Tipo: ${s.tipo_sensor || ambLabel}</div>
+          </div>
+          <div>${origemBadge}</div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
+          <div style="background:#F8FAFC; border:1px solid #E2E8F0; padding:10px; border-radius:8px;">
+            <div style="font-size:10px; color:#64748B;">Temperatura</div>
+            <div style="font-size:18px; font-weight:700; color:#059669;">${tempVal}</div>
+          </div>
+          <div style="background:#F8FAFC; border:1px solid #E2E8F0; padding:10px; border-radius:8px;">
+            <div style="font-size:10px; color:#64748B;">Umidade</div>
+            <div style="font-size:18px; font-weight:700; color:#0284C7;">${umidVal}</div>
+          </div>
+        </div>
+        <div style="font-size:11px; color:#475569; line-height:1.6;">
+          <strong>Ambiente:</strong> ${ambLabel}<br>
+          <strong>Estado no Mapa:</strong> ${estadoLabel}<br>
+          <strong>Lote:</strong> ${s.id_lote ? 'Lote #' + s.id_lote : '—'}<br>
+          <strong>Última Leitura:</strong> ${formatarDataRecife(s.ultima_leitura)}
+        </div>
+        ${motivoHtml}
+      `);
     });
   });
 
@@ -1956,23 +2202,21 @@ function setupAnalistaDashboardEvents() {
   const gatewayMarker = document.querySelector('[data-node="gateway"]');
   if (gatewayMarker) {
     gatewayMarker.addEventListener('click', () => {
-      Modal.open('Gateway Central ESP32 — Petrolina-04', `
+      const prop = analistaDashboardData.topologia?.propriedade || {};
+      Modal.open(`Gateway — ${prop.nome || 'Propriedade'}`, `
         <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
           <div style="width:44px; height:44px; border-radius:50%; background:#183D2E; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800;">GW</div>
           <div>
-            <div style="font-weight:700; font-size:14px; color:#0F172A;">Gateway Central ESP32 (Wi-Fi / ThingSpeak)</div>
-            <div style="font-size:11px; color:#059669; font-weight:600;">Status: 100% Operacional • Latência: 48ms</div>
+            <div style="font-weight:700; font-size:14px; color:#0F172A;">${prop.nome || 'Gateway Central'}</div>
+            <div style="font-size:11px; color:#059669; font-weight:600;">${prop.local || 'Localização central'}</div>
           </div>
         </div>
         <div style="font-size:12px; color:#475569; line-height:1.6;">
-          <strong>Topologia:</strong> Rede Wi-Fi ESP32 v4.2.1-prod<br>
-          <strong>Nós Conectados:</strong> 24 de 25 nós operacionais<br>
-          <strong>Canal ThingSpeak Primário:</strong> #248901 (Cadência 5 min)<br>
-          <strong>Coordenadas:</strong> 09°23'34" S, 40°30'28" W (45.0 ha)
+          <strong>Área de Cobertura:</strong> ${prop.area_ha || 0} ha<br>
+          <strong>Latitude:</strong> ${prop.gateway_lat ?? '—'}<br>
+          <strong>Longitude:</strong> ${prop.gateway_lng ?? '—'}
         </div>
-      `, () => {
-        toast.info('Ping Gateway', 'Resposta recebida em 48ms do concentrador Petrolina-04.');
-      }, 'Executar Ping');
+      `);
     });
   }
 
@@ -1996,78 +2240,166 @@ function setupAnalistaDashboardEvents() {
     });
   }
 
-  // Recalibrar Offset
-  document.querySelectorAll('.btn-recalibrar').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const sensor = e.currentTarget.dataset.sensor;
-      Modal.open(`Recalibrar Offset — ${sensor}`, `
-        <div style="font-size:12px; color:#475569; line-height:1.5; margin-bottom:12px;">
-          Esta rotina aplicará compensação matemática de <strong>-35.0°C</strong> na curva analógica de leitura para suprimir ruído de radiofrequência induzida.
-        </div>
-        <div style="background:#F8FAFC; border:1px solid #E2E8F0; padding:10px; border-radius:8px; font-family:monospace; font-size:11px; color:#0F172A;">
-          calibration_offset = reading_raw - 35.0<br>
-          filter_pipeline: 'noise_gate_v2' (habilitado)
-        </div>
-      `, () => {
-        toast.success('Offset Calibrado', `Compensação aplicada na Sonda ${sensor}. Leitura normalizada.`);
-      }, 'Aplicar Calibração');
+  // Ver Leituras Rejeitadas deste Sensor (Modal com Paginação via limit/offset)
+  document.querySelectorAll('.btn-ver-rejeitadas-sensor').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const sensorId = e.currentTarget.dataset.sensorId;
+      const sensorNome = e.currentTarget.dataset.sensorNome || `Sensor #${sensorId}`;
+      let currentOffset = 0;
+      const pageSize = 5;
+
+      async function carregarTabela(offset) {
+        try {
+          const lista = await api.getLeiturasRejeitadas({ id_sensor: sensorId, limit: pageSize, offset });
+          let linhas = '';
+          if (!lista || lista.length === 0) {
+            linhas = '<tr><td colspan="4" style="text-align:center; padding:14px; color:#64748B;">Nenhuma leitura rejeitada encontrada nesta página.</td></tr>';
+          } else {
+            linhas = lista.map(item => `
+              <tr style="border-bottom:1px solid #F1F5F9;">
+                <td style="padding:8px; font-size:11px; color:#0F172A;">${formatarDataRecife(item.data_rejeicao || item.data_hora_bruta)}</td>
+                <td style="padding:8px; font-size:11px; color:#B91C1C; font-weight:600;">${item.motivo || '—'}</td>
+                <td style="padding:8px; font-size:11px; color:#475569;">${[item.temperatura_bruta != null ? item.temperatura_bruta + '°C' : '', item.umidade_bruta != null ? item.umidade_bruta + '%' : ''].filter(Boolean).join(' • ') || '—'}</td>
+                <td style="padding:8px; font-size:11px; color:#64748B;">${item.origem || '—'}</td>
+              </tr>
+            `).join('');
+          }
+
+          const conteudoModal = `
+            <div style="font-size:12px; color:#64748B; margin-bottom:12px;">Histórico de rejeições filtradas para <strong>${sensorNome}</strong> (ID: ${sensorId}).</div>
+            <div style="overflow-x:auto; max-height:300px; border:1px solid #E2E8F0; border-radius:8px;">
+              <table style="width:100%; border-collapse:collapse; text-align:left;">
+                <thead>
+                  <tr style="background:#F8FAFC; border-bottom:1px solid #E2E8F0; font-size:11px; color:#475569;">
+                    <th style="padding:8px;">Data/Hora</th>
+                    <th style="padding:8px;">Motivo</th>
+                    <th style="padding:8px;">Bruto</th>
+                    <th style="padding:8px;">Origem</th>
+                  </tr>
+                </thead>
+                <tbody>${linhas}</tbody>
+              </table>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px;">
+              <button id="modal-pag-ant" style="padding:5px 12px; border:1px solid #CBD5E1; background:${offset > 0 ? '#fff' : '#F1F5F9'}; color:${offset > 0 ? '#0F172A' : '#94A3B8'}; border-radius:6px; font-size:11px; cursor:${offset > 0 ? 'pointer' : 'not-allowed'};" ${offset === 0 ? 'disabled' : ''}>&larr; Anterior</button>
+              <span style="font-size:11px; color:#64748B;">Página ${Math.floor(offset / pageSize) + 1}</span>
+              <button id="modal-pag-prox" style="padding:5px 12px; border:1px solid #CBD5E1; background:${lista && lista.length === pageSize ? '#fff' : '#F1F5F9'}; color:${lista && lista.length === pageSize ? '#0F172A' : '#94A3B8'}; border-radius:6px; font-size:11px; cursor:${lista && lista.length === pageSize ? 'pointer' : 'not-allowed'};" ${(!lista || lista.length < pageSize) ? 'disabled' : ''}>Próxima &rarr;</button>
+            </div>
+          `;
+
+          Modal.open(`Leituras Rejeitadas — ${sensorNome}`, conteudoModal);
+
+          const btnAnt = document.getElementById('modal-pag-ant');
+          const btnProx = document.getElementById('modal-pag-prox');
+          if (btnAnt && offset > 0) {
+            btnAnt.onclick = () => {
+              currentOffset = Math.max(0, currentOffset - pageSize);
+              carregarTabela(currentOffset);
+            };
+          }
+          if (btnProx && lista && lista.length === pageSize) {
+            btnProx.onclick = () => {
+              currentOffset += pageSize;
+              carregarTabela(currentOffset);
+            };
+          }
+        } catch (err) {
+          toast.error('Erro ao Carregar', err.message || 'Falha ao buscar leituras rejeitadas');
+        }
+      }
+
+      carregarTabela(0);
     });
   });
 
-  // Ver Log ThingSpeak
-  document.querySelectorAll('.btn-ver-log').forEach(btn => {
+  // Editor de Cortes Preditivos (PUT /alertas-preditivos/cortes/{nivel})
+  document.querySelectorAll('.btn-editar-corte').forEach(btn => {
     btn.addEventListener('click', (e) => {
-      const sensor = e.currentTarget.dataset.sensor;
-      Modal.open(`Log de Ingestão ThingSpeak — ${sensor}`, `
-        <div style="font-family:monospace; font-size:11px; background:#0F172A; color:#38BDF8; padding:12px; border-radius:8px; line-height:1.6; max-height:220px; overflow-y:auto;">
-          [2026-09-22 15:42:01] INGEST CH:248901 ENTRY:14892 STATUS:200 OK<br>
-          [2026-09-22 15:37:04] INGEST CH:248901 ENTRY:14891 STATUS:200 OK<br>
-          [2026-09-22 15:32:00] REJECT CH:248905 ENTRY:14890 VALUE:-4.2% MOTIVO:UNDERFLOW_ANALOG<br>
-          [2026-09-22 15:27:02] INGEST CH:248901 ENTRY:14889 STATUS:200 OK<br>
-          [2026-09-22 15:22:01] INGEST CH:248901 ENTRY:14888 STATUS:200 OK
-        </div>
-      `, () => {
-        toast.info('Log Exportado', 'Dump do canal ThingSpeak gerado para análise técnica.');
-      }, 'Exportar Log Técnico');
-    });
-  });
-
-  // Botão Frequência de Ingestão
-  const btnFreq = document.getElementById('btn-freq-ingestao');
-  if (btnFreq) {
-    btnFreq.addEventListener('click', () => {
-      Modal.open('Cadência de Ingestão ThingSpeak', `
-        <div style="font-size:12px; color:#475569; margin-bottom:12px;">
-          Selecione o intervalo de transmissão entre os nós ESP32 e a nuvem:
-        </div>
-        <div style="display:flex; flex-direction:column; gap:8px;">
-          <label style="display:flex; align-items:center; gap:8px; font-size:12px; cursor:pointer;">
-            <input type="radio" name="cadencia" value="1min"> A cada 1 minuto (Modo Calibração / Alto consumo de bateria)
-          </label>
-          <label style="display:flex; align-items:center; gap:8px; font-size:12px; cursor:pointer;">
-            <input type="radio" name="cadencia" value="5min" checked> A cada 5 minutos (Padrão Wi-Fi / Equilíbrio Solar)
-          </label>
-          <label style="display:flex; align-items:center; gap:8px; font-size:12px; cursor:pointer;">
-            <input type="radio" name="cadencia" value="15min"> A cada 15 minutos (Econômico / Safra Estabilizada)
-          </label>
-        </div>
-      `, () => {
-        toast.success('Cadência Atualizada', 'Novo ciclo de envio de 5 minutos configurado nos nós.');
-      }, 'Salvar Intervalo');
-    });
-  }
-
-  // Toggle Filtro de Ruído
-  const checkFiltro = document.getElementById('check-filtro-ruido');
-  if (checkFiltro) {
-    checkFiltro.addEventListener('change', (e) => {
-      if (e.target.checked) {
-        toast.success('Filtro Habilitado', 'Compensação ativada nos sensores de umidade do solo.');
-      } else {
-        toast.warning('Filtro Desativado', 'Sensores transmitindo valores analógicos brutos.');
+      const nivel = e.currentTarget.dataset.nivel;
+      const row = document.querySelector(`.corte-row[data-nivel="${nivel}"]`);
+      if (row) {
+        row.querySelector('.corte-view-mode').style.display = 'none';
+        row.querySelector('.corte-edit-mode').style.display = 'flex';
       }
     });
-  }
+  });
+
+  document.querySelectorAll('.btn-cancelar-corte').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const nivel = e.currentTarget.dataset.nivel;
+      const row = document.querySelector(`.corte-row[data-nivel="${nivel}"]`);
+      if (row) {
+        row.querySelector('.corte-edit-mode').style.display = 'none';
+        row.querySelector('.corte-view-mode').style.display = 'flex';
+      }
+    });
+  });
+
+  document.querySelectorAll('.btn-salvar-corte').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const nivel = e.currentTarget.dataset.nivel;
+      const row = document.querySelector(`.corte-row[data-nivel="${nivel}"]`);
+      if (!row) return;
+
+      const inputMin = row.querySelector('.input-corte-min');
+      const inputMax = row.querySelector('.input-corte-max');
+      const inputAcao = row.querySelector('.input-corte-acao');
+
+      const minVal = Number(inputMin.value);
+      const maxVal = Number(inputMax.value);
+      const acaoVal = (inputAcao.value || '').trim();
+
+      // Validação no cliente: 0 <= min < max <= 100
+      if (isNaN(minVal) || isNaN(maxVal) || minVal < 0 || maxVal > 100 || minVal >= maxVal) {
+        toast.error('Validação de Limiares', 'O limiar mínimo deve ser menor que o máximo e estar entre 0% e 100%.');
+        return;
+      }
+
+      const payload = {
+        limiar_min: Number((minVal / 100).toFixed(4)),
+        limiar_max: Number((maxVal / 100).toFixed(4)),
+        acao_recomendada: acaoVal
+      };
+
+      btn.disabled = true;
+      btn.textContent = 'Salvando...';
+
+      try {
+        await api.putCortePreditivo(nivel, payload);
+        toast.success('Corte Atualizado', `Limiares para nível ${nivel} atualizados com sucesso.`);
+
+        const idx = (analistaDashboardData.cortes || []).findIndex(c => c.nivel === nivel);
+        if (idx !== -1) {
+          analistaDashboardData.cortes[idx].limiar_min = payload.limiar_min;
+          analistaDashboardData.cortes[idx].limiar_max = payload.limiar_max;
+          analistaDashboardData.cortes[idx].acao_recomendada = payload.acao_recomendada;
+        }
+
+        const viewMode = row.querySelector('.corte-view-mode');
+        viewMode.querySelector('span:nth-child(2)').textContent = `${minVal}% a ${maxVal}%`;
+        viewMode.querySelector('div:nth-child(2)').textContent = acaoVal || 'Nenhuma ação recomendada configurada.';
+
+        row.querySelector('.corte-edit-mode').style.display = 'none';
+        viewMode.style.display = 'flex';
+      } catch (err) {
+        console.error('Erro ao atualizar corte:', err);
+        if (err.status === 409) {
+          toast.error('Conflito de Faixas', err.detail || 'A faixa informada sobrepõe outro corte existente.');
+        } else if (err.status === 403) {
+          toast.error('Acesso Negado', err.detail || 'Você não tem permissão para alterar limiares.');
+          row.querySelector('.corte-edit-mode').style.display = 'none';
+          row.querySelector('.corte-view-mode').style.display = 'flex';
+        } else if (err.status === 422) {
+          toast.error('Erro de Validação', err.detail || 'Parâmetros inválidos enviados ao backend.');
+        } else {
+          toast.error('Erro ao Salvar', err.detail || err.message || 'Falha na comunicação com o backend.');
+        }
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Salvar';
+      }
+    });
+  });
 }
 
 /**
