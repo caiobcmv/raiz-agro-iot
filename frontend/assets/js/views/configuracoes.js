@@ -735,6 +735,33 @@ export async function renderConfiguracoes() {
   if (isAnalista) {
     return renderAnalistaConfiguracoes();
   }
+
+  const [safrasRes, propRes, lotesRes, frutasRes, varRes] = await Promise.allSettled([
+    api.getCatalogoSafras(),
+    api.getCatalogoPropriedades(),
+    api.getLotes(),
+    api.request('/frutas'),
+    api.request('/variedades')
+  ]);
+  const safrasReais = safrasRes.status === 'fulfilled' && Array.isArray(safrasRes.value) ? safrasRes.value : [];
+  const propReal = (propRes.status === 'fulfilled' && Array.isArray(propRes.value) && propRes.value[0]) ? propRes.value[0] : {};
+  const lotesReais = lotesRes.status === 'fulfilled' && Array.isArray(lotesRes.value) ? lotesRes.value : [];
+  const frutasReais = frutasRes.status === 'fulfilled' && Array.isArray(frutasRes.value) ? frutasRes.value : [];
+  const varReais = varRes.status === 'fulfilled' && Array.isArray(varRes.value) ? varRes.value : [];
+
+  if (frutasReais.length > 0) {
+    CULTURAS_LIST = frutasReais.map(f => f.nome || f.fruta).filter(Boolean);
+  }
+  if (varReais.length > 0) {
+    const cores = ['#059669', '#DC2626', '#F59E0B', '#A78BFA', '#0284C7'];
+    VARIEDADES_LIST = varReais.map((v, idx) => ({
+      dot: cores[idx % cores.length],
+      name: `${v.fruta ? v.fruta + ' ' : ''}${v.nome || 'Variedade'}`,
+      market: v.classe ? `Classe: ${v.classe}` : 'Padrão Homologado',
+      brix: v.brix_min != null ? `≥${Number(v.brix_min).toFixed(1).replace('.', ',')}° Brix` : '— Brix',
+      calibre: v.calibre_min ? `Calibre: ${v.calibre_min}` : ''
+    }));
+  }
   const isAdmin = profileRole === 'admin';
   const profile = auth.getProfileData();
   const nomeExibicao = profile.nome;
@@ -944,42 +971,28 @@ export async function renderConfiguracoes() {
             </tr>
           </thead>
           <tbody>
-            <tr style="border-bottom: 1px solid #F1F5F9;">
-              <td style="padding: 14px; font-size: 13px; font-weight: 700; color: #0F172A;">Safra 2025/2026</td>
-              <td style="padding: 14px; font-size: 13px; color: #334155;">Uva Vitória e Manga Palmer</td>
-              <td style="padding: 14px; font-size: 13px; color: #475569;">42,5 ha</td>
-              <td style="padding: 14px; font-size: 13px; font-weight: 700; color: #059669;">30,2 ton/ha</td>
-              <td style="padding: 14px; font-size: 13px; color: #475569;">1.284,5 ton</td>
-              <td style="padding: 14px; font-size: 13px; color: #475569;">3.420 m³/ha</td>
-              <td style="padding: 14px; font-size: 13px; color: #475569;">19,4° Brix</td>
-              <td style="padding: 14px;">
-                <span style="background: #D1FAE5; color: #065F46; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 6px;">Em Andamento</span>
-              </td>
-            </tr>
-            <tr style="border-bottom: 1px solid #F1F5F9;">
-              <td style="padding: 14px; font-size: 13px; font-weight: 700; color: #0F172A;">Safra 2024/2025</td>
-              <td style="padding: 14px; font-size: 13px; color: #334155;">Uva Vitória (Seedless)</td>
-              <td style="padding: 14px; font-size: 13px; color: #475569;">40 ha</td>
-              <td style="padding: 14px; font-size: 13px; font-weight: 700; color: #059669;">26,5 ton/ha</td>
-              <td style="padding: 14px; font-size: 13px; color: #475569;">1.060 ton</td>
-              <td style="padding: 14px; font-size: 13px; color: #475569;">3.280 m³/ha</td>
-              <td style="padding: 14px; font-size: 13px; color: #475569;">18,8° Brix</td>
-              <td style="padding: 14px;">
-                <span style="background: #F1F5F9; color: #475569; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 6px;">Concluída</span>
-              </td>
-            </tr>
-            <tr>
-              <td style="padding: 14px; font-size: 13px; font-weight: 700; color: #0F172A;">Safra 2023/2024</td>
-              <td style="padding: 14px; font-size: 13px; color: #334155;">Manga Tommy e Uva Crimson</td>
-              <td style="padding: 14px; font-size: 13px; color: #475569;">38 ha</td>
-              <td style="padding: 14px; font-size: 13px; font-weight: 700; color: #059669;">24,8 ton/ha</td>
-              <td style="padding: 14px; font-size: 13px; color: #475569;">942,4 ton</td>
-              <td style="padding: 14px; font-size: 13px; color: #475569;">3.150 m³/ha</td>
-              <td style="padding: 14px; font-size: 13px; color: #475569;">18,2° Brix</td>
-              <td style="padding: 14px;">
-                <span style="background: #F1F5F9; color: #475569; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 6px;">Concluída</span>
-              </td>
-            </tr>
+            ${safrasReais.length === 0 ? `
+              <tr><td colspan="8" style="padding: 18px; text-align: center; font-size: 12px; color: #64748B;">Nenhuma safra cadastrada no banco de dados.</td></tr>
+            ` : safrasReais.map(s => {
+              const dtIni = s.data_inicio ? new Date(s.data_inicio).toLocaleDateString('pt-BR') : '—';
+              const dtFim = s.data_fim ? new Date(s.data_fim).toLocaleDateString('pt-BR') : 'Em andamento';
+              const areaVal = propReal.area_ha != null ? `${Number(propReal.area_ha).toLocaleString('pt-BR')} ha` : '—';
+              const metaVal = s.meta_ton_ha != null ? `${Number(s.meta_ton_ha).toLocaleString('pt-BR')} ton/ha (Meta)` : '—';
+              return `
+                <tr style="border-bottom: 1px solid #F1F5F9;">
+                  <td style="padding: 14px; font-size: 13px; font-weight: 700; color: #0F172A;">${s.nome || ('Safra #' + s.id_safra)}</td>
+                  <td style="padding: 14px; font-size: 13px; color: #334155;">${CULTURAS_LIST.join(', ') || '—'}</td>
+                  <td style="padding: 14px; font-size: 13px; color: #475569;">${areaVal}</td>
+                  <td style="padding: 14px; font-size: 13px; font-weight: 700; color: #059669;">${metaVal}</td>
+                  <td style="padding: 14px; font-size: 13px; color: #475569;">${dtIni} a ${dtFim}</td>
+                  <td style="padding: 14px; font-size: 13px; color: #475569;">—</td>
+                  <td style="padding: 14px; font-size: 13px; color: #475569;">—</td>
+                  <td style="padding: 14px;">
+                    <span style="background: ${s.ativa ? '#D1FAE5' : '#F1F5F9'}; color: ${s.ativa ? '#065F46' : '#475569'}; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 6px;">${s.ativa ? 'Em Andamento' : 'Concluída'}</span>
+                  </td>
+                </tr>
+              `;
+            }).join('')}
           </tbody>
         </table>
       </div>
@@ -1001,22 +1014,22 @@ export async function renderConfiguracoes() {
               <div style="font-size:11px; color:#94A3B8; margin-top:1px;">Dados cadastrais de infraestrutura física e territorial</div>
             </div>
           </div>
-          <div style="background:#F1F5F9; color:#64748B; font-size:10px; font-weight:700; padding:4px 10px; border-radius:6px; white-space:nowrap;">ID: POLO-SUL-04</div>
+          <div style="background:#F1F5F9; color:#64748B; font-size:10px; font-weight:700; padding:4px 10px; border-radius:6px; white-space:nowrap;">ID: ${propReal.codigo || propReal.id_propriedade || '—'}</div>
         </div>
 
         <!-- Nome da Fazenda -->
         <div style="margin-bottom:14px;">
           <label style="display:block; font-size:11px; font-weight:600; color:#475569; margin-bottom:5px;">Nome da Fazenda</label>
-          <input id="cfg-farm-name" value="Fazenda Vale das Uvas" ${readOnlyAttr} style="width:100%; padding:10px 12px; border:1px solid #E2E8F0; border-radius:9px; font-size:13px; color:#0F172A; outline:none; background:${inputBg}; box-sizing:border-box; cursor:${inputCursor};">
+          <input id="cfg-farm-name" value="${propReal.nome || 'Propriedade'}" ${readOnlyAttr} style="width:100%; padding:10px 12px; border:1px solid #E2E8F0; border-radius:9px; font-size:13px; color:#0F172A; outline:none; background:${inputBg}; box-sizing:border-box; cursor:${inputCursor};">
         </div>
 
         <!-- Localização -->
         <div style="margin-bottom:14px;">
           <label style="display:block; font-size:11px; font-weight:600; color:#475569; margin-bottom:5px;">Localização e Coordenadas Geográficas</label>
           <div style="display:flex; gap:10px; align-items:flex-start; flex-wrap:wrap;">
-            <input id="cfg-farm-coords" value="-21.177502, -47.616331" ${readOnlyAttr} style="flex:1; min-width:140px; padding:10px 12px; border:1px solid #E2E8F0; border-radius:9px; font-size:12px; color:#0F172A; outline:none; background:${inputBg}; box-sizing:border-box; cursor:${inputCursor};">
+            <input id="cfg-farm-coords" value="${propReal.latitude != null && propReal.longitude != null ? `${propReal.latitude}, ${propReal.longitude}` : '—'}" ${readOnlyAttr} style="flex:1; min-width:140px; padding:10px 12px; border:1px solid #E2E8F0; border-radius:9px; font-size:12px; color:#0F172A; outline:none; background:${inputBg}; box-sizing:border-box; cursor:${inputCursor};">
             <div style="background:#F0FDF4; border-radius:8px; padding:8px 12px; font-size:11px; font-weight:700; color:#065F46; min-width:160px;">
-              Petrolina – Setor 04 (Submédio São Francisco)
+              ${propReal.cidade || 'Petrolina'}${propReal.uf ? '/' + propReal.uf : ''} ${propReal.setor ? '• ' + propReal.setor : ''}
             </div>
           </div>
         </div>
@@ -1026,13 +1039,13 @@ export async function renderConfiguracoes() {
           <div>
             <label style="display:block; font-size:11px; font-weight:600; color:#475569; margin-bottom:5px;">Área Monitorada</label>
             <div style="display:flex; align-items:center; gap:6px;">
-              <input id="cfg-farm-area" value="1.250" ${readOnlyAttr} style="flex:1; padding:10px 12px; border:1px solid #E2E8F0; border-radius:9px; font-size:13px; color:#0F172A; outline:none; background:${inputBg}; box-sizing:border-box; cursor:${inputCursor};">
+              <input id="cfg-farm-area" value="${propReal.area_ha != null ? propReal.area_ha : '—'}" ${readOnlyAttr} style="flex:1; padding:10px 12px; border:1px solid #E2E8F0; border-radius:9px; font-size:13px; color:#0F172A; outline:none; background:${inputBg}; box-sizing:border-box; cursor:${inputCursor};">
               <span style="font-size:12px; color:#64748B; white-space:nowrap;">ha</span>
             </div>
           </div>
           <div>
             <label style="display:block; font-size:11px; font-weight:600; color:#475569; margin-bottom:5px;">LOTES Ativos</label>
-            <input value="8 LOTES ativos (Monitoramento total)" readonly style="width:100%; padding:10px 12px; border:1px solid #E2E8F0; border-radius:9px; font-size:12px; color:#475569; outline:none; background:#F8FAFC; box-sizing:border-box; cursor:default;">
+            <input value="${lotesReais.length} lote(s) cadastrado(s)" readonly style="width:100%; padding:10px 12px; border:1px solid #E2E8F0; border-radius:9px; font-size:12px; color:#475569; outline:none; background:#F8FAFC; box-sizing:border-box; cursor:default;">
           </div>
         </div>
 

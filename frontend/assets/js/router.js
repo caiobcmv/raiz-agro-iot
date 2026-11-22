@@ -20,15 +20,15 @@ import {
   renderSenhaAlterada, setupSenhaAlteradaEvents,
   renderContaBloqueada, setupContaBloqueadaEvents
 } from './views/auth-flow.js?v=20261122-real1';
-import { renderDashboard, setupDashboardEvents } from './views/dashboard.js?v=20261122-real1';
-import { renderSensores, setupSensoresEvents } from './views/sensores.js?v=20261122-real1';
-import { renderRedeEsp32, setupRedeEsp32Events } from './views/rede-esp32.js?v=20261122-real1';
-import { renderLeituras, setupLeiturasEvents } from './views/leituras.js?v=20261122-real1';
-import { renderLotes, setupLotesEvents } from './views/lotes.js?v=20261122-real1';
-import { renderAlertas, setupAlertasEvents } from './views/alertas.js?v=20261122-real1';
-import { renderPrevisoes } from './views/previsoes.js?v=20261122-real1';
-import { renderRelatorios, setupRelatoriosEvents } from './views/relatorios.js?v=20261120-live33';
-import { renderConfiguracoes, setupConfiguracoesEvents } from './views/configuracoes.js?v=20261120-live33';
+import { renderDashboard, setupDashboardEvents } from './views/dashboard.js?v=20261122-real2';
+import { renderSensores, setupSensoresEvents } from './views/sensores.js?v=20261122-real2';
+import { renderRedeEsp32, setupRedeEsp32Events } from './views/rede-esp32.js?v=20261122-real2';
+import { renderLeituras, setupLeiturasEvents } from './views/leituras.js?v=20261122-real2';
+import { renderLotes, setupLotesEvents } from './views/lotes.js?v=20261122-real2';
+import { renderAlertas, setupAlertasEvents } from './views/alertas.js?v=20261122-real2';
+import { renderPrevisoes } from './views/previsoes.js?v=20261122-real2';
+import { renderRelatorios, setupRelatoriosEvents } from './views/relatorios.js?v=20261122-real2';
+import { renderConfiguracoes, setupConfiguracoesEvents } from './views/configuracoes.js?v=20261122-real2';
 import { renderUsuarios, setupUsuariosEvents } from './views/usuarios.js?v=20261120-live33';
 import { renderRegrasAgronomicas, setupRegrasAgronomicasEvents } from './views/regras-agronomicas.js?v=20261120-live33';
 import { renderAuditoria, setupAuditoriaEvents } from './views/auditoria.js?v=20261120-live33';

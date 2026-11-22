@@ -20,8 +20,12 @@ export async function renderAlertas() {
   }
 
   try {
-    // 1. Busca alertas da API (GET /alertas)
-    const res = await api.getAlertas().catch(() => []);
+    // 1. Busca alertas, clima e sensores reais da API
+    const [res, clima, sensoresLista] = await Promise.all([
+      api.getAlertas().catch(() => []),
+      api.getClimaAtual().catch(() => ({})),
+      api.getSensores().catch(() => [])
+    ]);
     let listaAlertas = Array.isArray(res) ? res : (res && Array.isArray(res.alertas) ? res.alertas : []);
 
     listaAlertas = listaAlertas.map((a) => {
@@ -35,10 +39,11 @@ export async function renderAlertas() {
       };
     });
 
-    // 2. Busca clima atual para compor KPI ambiental real
-    const clima = await api.getClimaAtual().catch(() => ({}));
+    const sensoresAtivosReais = Array.isArray(sensoresLista)
+      ? sensoresLista.filter(s => String(s.status || '').toLowerCase() === 'ativo').length
+      : 0;
 
-    return renderGestoraAlertas(listaAlertas, clima);
+    return renderGestoraAlertas(listaAlertas, clima, sensoresAtivosReais);
   } catch (err) {
     console.error('Erro ao inicializar Central de Alertas:', err);
     return `
@@ -1867,29 +1872,21 @@ function renderGestoraAlertas(alertas = [], clima = {}) {
         </div>
 
         <div id="audit-log-list" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 14px;">
-          <div style="display: flex; gap: 10px; align-items: flex-start;">
-            <span style="width: 7px; height: 7px; border-radius: 50%; background: #EF4444; margin-top: 5px; flex-shrink: 0;"></span>
-            <div>
-              <div style="font-size: 11px; font-weight: 600; color: #0F172A;">Notificação de limiar crítico emitida</div>
-              <div style="font-size: 10px; color: #94A3B8;">Talhão A1 • 11:35 BRT por Sistema IoT</div>
-            </div>
-          </div>
-
-          <div style="display: flex; gap: 10px; align-items: flex-start;">
-            <span style="width: 7px; height: 7px; border-radius: 50%; background: #10B981; margin-top: 5px; flex-shrink: 0;"></span>
-            <div>
-              <div style="font-size: 11px; font-weight: 600; color: #0F172A;">Alerta reconhecido pela gestão técnica</div>
-              <div style="font-size: 10px; color: #94A3B8;">Pomar Uva • 11:15 BRT por Maria Clara</div>
-            </div>
-          </div>
-
-          <div style="display: flex; gap: 10px; align-items: flex-start;">
-            <span style="width: 7px; height: 7px; border-radius: 50%; background: #0284C7; margin-top: 5px; flex-shrink: 0;"></span>
-            <div>
-              <div style="font-size: 11px; font-weight: 600; color: #0F172A;">Limiar térmico ajustado para Uva Vitória</div>
-              <div style="font-size: 10px; color: #94A3B8;">Parâmetros • 09:15 BRT por Eng. Marília</div>
-            </div>
-          </div>
+          ${alertas.length === 0 ? `
+            <div style="font-size: 12px; color: #64748B; padding: 8px 0;">Nenhum evento recente registrado na fila de alertas.</div>
+          ` : alertas.slice(0, 4).map(a => {
+            const corDot = String(a.nivel || '').toUpperCase().includes('CRIT') ? '#EF4444' : (String(a.nivel || '').toUpperCase().includes('MOD') ? '#F59E0B' : '#10B981');
+            const dtStr = a.data_hora ? new Date(a.data_hora).toLocaleString('pt-BR', { timeZone: 'America/Recife' }) : 'Recente';
+            return `
+              <div style="display: flex; gap: 10px; align-items: flex-start;">
+                <span style="width: 7px; height: 7px; border-radius: 50%; background: ${corDot}; margin-top: 5px; flex-shrink: 0;"></span>
+                <div>
+                  <div style="font-size: 11px; font-weight: 600; color: #0F172A;">${a.tipo_alerta || 'Alerta'} (${a.status || 'aberto'})</div>
+                  <div style="font-size: 10px; color: #94A3B8;">Alerta #${a.id_alerta} • ${dtStr}</div>
+                </div>
+              </div>
+            `;
+          }).join('')}
         </div>
 
         <a id="btn-ver-auditoria-completa" href="javascript:void(0)" style="font-size: 11px; font-weight: 600; color: #059669; text-decoration: none; display: block; text-align: center; padding: 4px 0;">

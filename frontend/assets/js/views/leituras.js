@@ -960,7 +960,7 @@ export async function renderLeituras() {
 
     if (_estado.safraSelecionadaId) {
       try {
-        const classRes = await api.getClassificacaoResumo(_estado.safraSelecionadaId);
+        const classRes = await api.getClassificacaoResumo();
         _estado.classificacao = (classRes && Array.isArray(classRes.categorias)) ? classRes : null;
       } catch (errClass) {
         _estado.classificacao = null;
@@ -1079,7 +1079,7 @@ export function setupLeiturasEvents() {
       _estado.paginaLotes = 1;
 
       try {
-        const classRes = await api.getClassificacaoResumo(_estado.safraSelecionadaId);
+        const classRes = await api.getClassificacaoResumo();
         _estado.classificacao = (classRes && Array.isArray(classRes.categorias)) ? classRes : null;
       } catch (err) {
         _estado.classificacao = null;

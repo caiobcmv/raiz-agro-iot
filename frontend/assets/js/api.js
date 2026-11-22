@@ -339,8 +339,8 @@ class ApiService {
     return Array.isArray(res) ? res : (res?.propriedades || (res ? [res] : []));
   }
 
-  async getClassificacaoResumo(safraId = null) {
-    const qs = safraId ? `?safra_id=${encodeURIComponent(safraId)}` : '';
+  async getClassificacaoResumo(idLote = null) {
+    const qs = idLote != null ? `?id_lote=${encodeURIComponent(idLote)}` : '';
     return await this.request(`/classificacao/resumo${qs}`);
   }
 

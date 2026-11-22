@@ -218,7 +218,7 @@ export async function renderDashboard() {
     return await renderAnalistaDashboard();
   }
 
-  const isResumido = localStorage.getItem('DASHBOARD_MODE') !== 'detalhado';
+  const isResumido = localStorage.getItem('DASHBOARD_MODE') === 'resumido';
   
   // Busca dados reais do PostgreSQL em paralelo (sem usar cache desatualizado)
   let resumo = null, clima = null, graficos = null;
@@ -1645,7 +1645,7 @@ function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS, extras 
             <i data-lucide="calendar" style="width: 18px; height: 18px; color: #059669; flex-shrink: 0; margin-top: 2px;"></i>
             <div>
               <strong style="font-size: 13px; font-weight: 700; color: #1E293B; display: block; margin-bottom: 3px;">Preparar a colheita</strong>
-              <p style="font-size: 11px; color: #64748B; margin: 0; line-height: 1.4;">Organize as atividades para 28/09 a 04/10.</p>
+              <p style="font-size: 11px; color: #64748B; margin: 0; line-height: 1.4;">${primeiraJanela ? `Janela prevista: ${primeiraJanela.janela_inicio || ''} a ${primeiraJanela.janela_fim || ''}.` : 'Aguardando previsão de janela de colheita.'}</p>
             </div>
           </div>
 
