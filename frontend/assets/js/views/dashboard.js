@@ -286,6 +286,21 @@ export async function renderDashboard() {
   `;
 }
 
+function extrairArraySeguro(val) {
+  if (Array.isArray(val)) return val;
+  if (val && typeof val === 'object') {
+    if (Array.isArray(val.itens)) return val.itens;
+    if (Array.isArray(val.items)) return val.items;
+    if (Array.isArray(val.leituras)) return val.leituras;
+    if (Array.isArray(val.rejeitadas)) return val.rejeitadas;
+    if (Array.isArray(val.alertas)) return val.alertas;
+    if (Array.isArray(val.cortes)) return val.cortes;
+    if (Array.isArray(val.sensores)) return val.sensores;
+    if (Array.isArray(val.data)) return val.data;
+  }
+  return [];
+}
+
 let analistaDashboardData = {
   resumo: null,
   topologia: null,
@@ -317,12 +332,12 @@ async function renderAnalistaDashboard() {
     ]);
 
     analistaDashboardData = {
-      resumo: resumoRes.status === 'fulfilled' ? resumoRes.value : null,
-      topologia: topologiaRes.status === 'fulfilled' ? topologiaRes.value : null,
-      dashResumo: dashResumoRes.status === 'fulfilled' ? dashResumoRes.value : null,
-      rejeitadas: rejeitadasRes.status === 'fulfilled' ? (rejeitadasRes.value || []) : [],
-      preditivos: preditivosRes.status === 'fulfilled' ? (preditivosRes.value || []) : [],
-      cortes: cortesRes.status === 'fulfilled' ? (cortesRes.value || []) : []
+      resumo: (resumoRes.status === 'fulfilled' && resumoRes.value && typeof resumoRes.value === 'object') ? resumoRes.value : null,
+      topologia: (topologiaRes.status === 'fulfilled' && topologiaRes.value && typeof topologiaRes.value === 'object') ? topologiaRes.value : null,
+      dashResumo: (dashResumoRes.status === 'fulfilled' && dashResumoRes.value && typeof dashResumoRes.value === 'object') ? dashResumoRes.value : null,
+      rejeitadas: extrairArraySeguro(rejeitadasRes.status === 'fulfilled' ? rejeitadasRes.value : null),
+      preditivos: extrairArraySeguro(preditivosRes.status === 'fulfilled' ? preditivosRes.value : null),
+      cortes: extrairArraySeguro(cortesRes.status === 'fulfilled' ? cortesRes.value : null)
     };
   } catch (err) {
     console.warn('Erro ao carregar dados do dashboard do analista:', err);
@@ -401,17 +416,19 @@ async function renderAnalistaDashboard() {
     area_ha: 45.0
   };
 
-  const contadores = topologia?.contadores || {
-    todos: topologia?.sensores?.length ?? 0,
-    ativos: topologia?.sensores?.filter(s => s.estado_mapa === 'ativo').length ?? 0,
-    em_alerta: topologia?.sensores?.filter(s => s.estado_mapa !== 'ativo').length ?? 0
-  };
+  const sensoresList = extrairArraySeguro(topologia?.sensores);
 
-  const sensoresList = topologia?.sensores || [];
+  const contadores = topologia?.contadores || {
+    todos: sensoresList.length,
+    ativos: sensoresList.filter(s => s && s.estado_mapa === 'ativo').length,
+    em_alerta: sensoresList.filter(s => s && s.estado_mapa !== 'ativo').length
+  };
 
   const topologiaSensorsMap = {};
   sensoresList.forEach(s => {
-    topologiaSensorsMap[s.id_sensor] = s;
+    if (s && s.id_sensor != null) {
+      topologiaSensorsMap[s.id_sensor] = s;
+    }
   });
 
   const coords = [];
@@ -502,7 +519,7 @@ async function renderAnalistaDashboard() {
   ` : '';
 
   // C) AUDITORIA DE INGESTÃO E LEITURAS REJEITADAS
-  const rejeitadasList = rejeitadas || [];
+  const rejeitadasList = extrairArraySeguro(rejeitadas);
   const rejeitadasHtml = rejeitadasList.length === 0 ? `
     <div style="padding: 24px 0; text-align: center; color: #64748B; font-size: 12px;">
       Nenhuma leitura rejeitada recente registrada no backend.
@@ -542,7 +559,7 @@ async function renderAnalistaDashboard() {
   const horaRecifeSinc = formatarHoraSimplesRecife(ingestao_24h.ultima_leitura);
 
   // D) MODELOS PREDITIVOS E LIMIARES DE ALERTA
-  const preditivosList = preditivos || [];
+  const preditivosList = extrairArraySeguro(preditivos);
   const alertaMaisRecente = preditivosList.length > 0
     ? [...preditivosList].sort((a, b) => new Date(b.data_geracao || 0) - new Date(a.data_geracao || 0))[0]
     : null;
@@ -586,7 +603,7 @@ async function renderAnalistaDashboard() {
     `;
   }
 
-  const cortesList = cortes || [];
+  const cortesList = extrairArraySeguro(cortes);
   const ordemNiveis = ['BAIXO', 'MEDIO', 'CRITICO'];
   const cortesOrdenados = [...cortesList].sort((a, b) => {
     return ordemNiveis.indexOf(a.nivel) - ordemNiveis.indexOf(b.nivel);
@@ -2250,7 +2267,8 @@ function setupAnalistaDashboardEvents() {
 
       async function carregarTabela(offset) {
         try {
-          const lista = await api.getLeiturasRejeitadas({ id_sensor: sensorId, limit: pageSize, offset });
+          const listaRaw = await api.getLeiturasRejeitadas({ id_sensor: sensorId, limit: pageSize, offset });
+          const lista = extrairArraySeguro(listaRaw);
           let linhas = '';
           if (!lista || lista.length === 0) {
             linhas = '<tr><td colspan="4" style="text-align:center; padding:14px; color:#64748B;">Nenhuma leitura rejeitada encontrada nesta página.</td></tr>';
