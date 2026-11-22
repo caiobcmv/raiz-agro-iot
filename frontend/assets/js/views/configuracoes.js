@@ -760,7 +760,6 @@ export async function renderConfiguracoes() {
       calibre: v.calibre_min ? `Calibre: ${v.calibre_min}` : ''
     }));
   }
-  const isAdmin = profileRole === 'admin';
   const profile = auth.getProfileData();
   const nomeExibicao = profile.nome;
   const cargoExibicao = profile.cargo;
