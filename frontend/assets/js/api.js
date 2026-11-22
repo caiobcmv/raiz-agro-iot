@@ -1323,6 +1323,58 @@ class ApiService {
   async getRedeHistorico(periodo = '24h') {
     return await this.request(`/rede/historico?periodo=${encodeURIComponent(periodo)}`);
   }
+
+  // ==========================================
+  // CENTRAL DE ALERTAS E INCIDENTES
+  // ==========================================
+  async getCentralAlertas({ status = 'aberto' } = {}) {
+    return await this.request(`/central-alertas?status=${encodeURIComponent(status)}`);
+  }
+
+  async getCentralAlertasCurva({ id_lote, horas = 24 } = {}) {
+    const qs = new URLSearchParams();
+    if (id_lote != null) qs.append('id_lote', id_lote);
+    if (horas != null) qs.append('horas', horas);
+    return await this.request(`/central-alertas/curva?${qs.toString()}`);
+  }
+
+  async reconhecerTodosCentralAlertas() {
+    return await this.request('/central-alertas/reconhecer-todos', {
+      method: 'POST'
+    });
+  }
+
+  async reconhecerAlertaCentral(origem, id) {
+    return await this.request(`/central-alertas/${encodeURIComponent(origem)}/${encodeURIComponent(id)}/reconhecer`, {
+      method: 'PATCH'
+    });
+  }
+
+  async exportarCentralAlertasCsv({ status = 'todos' } = {}) {
+    const token = auth.getToken();
+    const res = await fetch(`${this.baseUrl}/central-alertas/exportar.csv?status=${encodeURIComponent(status)}`, {
+      headers: {
+        'Authorization': token ? `Bearer ${token}` : ''
+      }
+    });
+    if (!res.ok) {
+      throw new Error(`Falha ao exportar CSV (${res.status})`);
+    }
+    return await res.blob();
+  }
+
+  async getPortos() {
+    return await this.request('/portos');
+  }
+
+  async getRiscosPrejuizo(idLote = null) {
+    const qs = idLote != null ? `?id_lote=${encodeURIComponent(idLote)}` : '';
+    return await this.request(`/riscos/prejuizo${qs}`);
+  }
+
+  async getSensor(id) {
+    return await this.request(`/sensores/${encodeURIComponent(id)}`);
+  }
 }
 
 export const api = new ApiService();

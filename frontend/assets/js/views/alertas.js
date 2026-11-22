@@ -16,7 +16,7 @@ const detalhesCache = new Map();
 
 export async function renderAlertas() {
   if (auth.getActiveProfile() === 'analista') {
-    return renderAnalistaAlertas();
+    return await renderAnalistaAlertas();
   }
 
   try {
@@ -91,22 +91,232 @@ export async function renderAlertas() {
 }
 
 
-function renderAnalistaAlertas() {
+/**
+ * ESTADO EM MEMÓRIA DA CENTRAL DE ALERTAS (ANALISTA)
+ */
+const analistaAlertasState = {
+  resumo: {
+    total: 0,
+    por_nivel: { critico: 0, medio: 0, baixo: 0 },
+    por_origem: { reativo: 0, preditivo: 0 },
+    perda_total_pct: 0
+  },
+  itens: [],
+  filtroAtivo: 'todos',
+  itemSelecionadoId: null,
+  resumoSensores: null,
+  curva: null,
+  curvaCarregando: false,
+  portos: [],
+  configParametros: [],
+  cortesPreditivos: [],
+  prejuizoEstimado: null
+};
+
+/**
+ * Utilitários Auxiliares de Formatação
+ */
+function formatarDataRecife(dataIso) {
+  if (!dataIso) return '—';
+  try {
+    const d = new Date(dataIso);
+    return d.toLocaleString('pt-BR', { timeZone: 'America/Recife', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return '—';
+  }
+}
+
+function formatarHoraRecife(dataIso) {
+  if (!dataIso) return '--:--';
+  try {
+    const d = new Date(dataIso);
+    return d.toLocaleTimeString('pt-BR', { timeZone: 'America/Recife', hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return '--:--';
+  }
+}
+
+function formatarTempoMinutos(minutos) {
+  if (minutos == null) return '—';
+  if (minutos < 1) return 'Agora mesmo';
+  if (minutos < 60) return `Há ${minutos} min`;
+  const h = Math.floor(minutos / 60);
+  const m = minutos % 60;
+  return m > 0 ? `Há ${h}h ${m}min` : `Há ${h}h`;
+}
+
+function formatarDuracaoHorasMin(duracaoMin) {
+  if (duracaoMin == null) return '—';
+  const h = Math.floor(duracaoMin / 60);
+  const m = duracaoMin % 60;
+  return m > 0 ? `${h}h ${m}min` : `${h}h`;
+}
+
+/**
+ * 1. CENTRAL DE ALERTAS DO ANALISTA (CARREGAMENTO DINÂMICO DOS ENDPOINTS)
+ */
+async function carregarDadosAnalistaAlertas() {
+  try {
+    const [resCentral, resSensores, resParams, resCortes, resPortos] = await Promise.all([
+      api.getCentralAlertas({ status: 'aberto' }).catch(() => ({ resumo: null, itens: [] })),
+      api.getAnalistaSensoresResumo().catch(() => null),
+      api.getConfigParametros().catch(() => []),
+      api.getCortesPreditivos().catch(() => []),
+      api.getPortos().catch(() => [])
+    ]);
+
+    // Normaliza resumo
+    const rawResumo = resCentral?.resumo || {};
+    analistaAlertasState.resumo = {
+      total: Number(rawResumo.total ?? (Array.isArray(resCentral?.itens) ? resCentral.itens.length : 0)),
+      por_nivel: {
+        critico: Number(rawResumo.por_nivel?.critico ?? 0),
+        medio: Number(rawResumo.por_nivel?.medio ?? 0),
+        baixo: Number(rawResumo.por_nivel?.baixo ?? 0)
+      },
+      por_origem: {
+        reativo: Number(rawResumo.por_origem?.reativo ?? 0),
+        preditivo: Number(rawResumo.por_origem?.preditivo ?? 0)
+      },
+      perda_total_pct: Number(rawResumo.perda_total_pct ?? 0)
+    };
+
+    // Normaliza itens
+    const rawItens = Array.isArray(resCentral?.itens) ? resCentral.itens : (Array.isArray(resCentral) ? resCentral : []);
+    analistaAlertasState.itens = rawItens;
+
+    // Se contagens por nível estiverem zeradas mas houver itens, computa dinamicamente
+    if (analistaAlertasState.itens.length > 0 && analistaAlertasState.resumo.total === 0) {
+      analistaAlertasState.resumo.total = analistaAlertasState.itens.length;
+      analistaAlertasState.itens.forEach(it => {
+        const niv = String(it.nivel || '').toLowerCase();
+        if (niv === 'critico') analistaAlertasState.resumo.por_nivel.critico++;
+        else if (niv === 'medio' || niv === 'moderado') analistaAlertasState.resumo.por_nivel.medio++;
+        else if (niv === 'baixo') analistaAlertasState.resumo.por_nivel.baixo++;
+
+        const orig = String(it.origem || '').toLowerCase();
+        if (orig === 'reativo') analistaAlertasState.resumo.por_origem.reativo++;
+        else if (orig === 'preditivo') analistaAlertasState.resumo.por_origem.preditivo++;
+      });
+    }
+
+    analistaAlertasState.resumoSensores = resSensores;
+    analistaAlertasState.configParametros = Array.isArray(resParams) ? resParams : [];
+    analistaAlertasState.cortesPreditivos = Array.isArray(resCortes) ? resCortes : [];
+    analistaAlertasState.portos = Array.isArray(resPortos) ? resPortos : [];
+
+    // Seleciona o incidente mais crítico que possua lote
+    const alertaMaisCritico = analistaAlertasState.itens.find(it => String(it.nivel).toLowerCase() === 'critico' && (it.lote?.id_lote || it.id_lote))
+      || analistaAlertasState.itens.find(it => it.lote?.id_lote || it.id_lote)
+      || analistaAlertasState.itens[0];
+
+    const itemAtivoId = alertaMaisCritico ? (alertaMaisCritico.id || alertaMaisCritico.codigo || 1) : null;
+    analistaAlertasState.itemSelecionadoId = itemAtivoId;
+
+    const idLoteAtivo = alertaMaisCritico?.lote?.id_lote || alertaMaisCritico?.id_lote;
+
+    // Carrega curva térmica e prejuízo em paralelo
+    if (idLoteAtivo) {
+      const [resCurva, resPrejuizo] = await Promise.all([
+        api.getCentralAlertasCurva({ id_lote: idLoteAtivo, horas: 24 }).catch(() => null),
+        api.getRiscosPrejuizo(idLoteAtivo).catch(() => null)
+      ]);
+      analistaAlertasState.curva = resCurva;
+      if (Array.isArray(resPrejuizo) && resPrejuizo.length > 0) {
+        analistaAlertasState.prejuizoEstimado = resPrejuizo[0].prejuizo_estimado;
+      } else if (resPrejuizo && resPrejuizo.prejuizo_estimado != null) {
+        analistaAlertasState.prejuizoEstimado = resPrejuizo.prejuizo_estimado;
+      } else {
+        analistaAlertasState.prejuizoEstimado = null;
+      }
+    } else {
+      analistaAlertasState.curva = null;
+      analistaAlertasState.prejuizoEstimado = null;
+    }
+  } catch (err) {
+    console.error('Falha ao sincronizar dados da Central de Alertas:', err);
+  }
+}
+
+async function renderAnalistaAlertas() {
+  await carregarDadosAnalistaAlertas();
+
+  const { resumo, itens, resumoSensores, curva, portos, configParametros, cortesPreditivos, prejuizoEstimado } = analistaAlertasState;
+
+  // 1. Monitoramento e Sincronização
+  const canalThingSpeak = resumoSensores?.coleta?.canal || curva?.sensor?.channel_id || '3500765';
+  const intervaloEnvioS = curva?.sensor?.intervalo_envio_s || resumoSensores?.coleta?.intervalo_s || 300;
+  const ultimaLeituraIso = resumoSensores?.ingestao_24h?.ultima_leitura || curva?.sensor?.ultima_leitura;
+
+  let minutosSinc = 0;
+  let sincronizadoTexto = 'Sincronizado recentemente';
+  let isAtrasado = false;
+
+  if (ultimaLeituraIso) {
+    const diffMs = Date.now() - new Date(ultimaLeituraIso).getTime();
+    const diffSeg = Math.max(0, Math.round(diffMs / 1000));
+    minutosSinc = Math.round(diffSeg / 60);
+    sincronizadoTexto = minutosSinc < 1 ? 'Sincronizado agora' : `Sincronizado há ${minutosSinc} min`;
+    const limiteSeg = intervaloEnvioS * 2.5;
+    if (diffSeg > limiteSeg) {
+      isAtrasado = true;
+    }
+  }
+
+  const sensorNomeCurva = curva?.sensor?.nome || 'DHT11 ESP32-C3';
+
+  // 2. Item mais crítico para os KPIs
+  const itemMaisCritico = itens.find(it => String(it.nivel).toLowerCase() === 'critico') || itens[0] || null;
+  const frutaMaisCritica = itemMaisCritico?.lote?.fruta || 'Manga';
+  const destinoMaisCritico = itemMaisCritico?.lote?.destino || 'Exportação';
+  const qtdLoteMaisCritico = itemMaisCritico?.lote?.quantidade;
+  const unidadeLoteMaisCritico = itemMaisCritico?.lote?.unidade || 'kg';
+  const perdaPctMaisCritica = itemMaisCritico?.perda_pct ?? resumo.perda_total_pct ?? 0;
+
+  const tempAtualVal = curva?.atual?.temperatura ?? itemMaisCritico?.atual?.temperatura ?? 14.8;
+  const desvioVal = curva?.atual?.desvio ?? itemMaisCritico?.atual?.desvio ?? 1.8;
+  const tmaxVal = curva?.faixa?.temp_max ?? itemMaisCritico?.faixa?.temp_max ?? 13.0;
+
+  // Donut Alertas Ativos Hoje
+  const totalAlertas = resumo.total || itens.length || 0;
+  const qtdCritico = resumo.por_nivel?.critico || 0;
+  const qtdMedio = resumo.por_nivel?.medio || 0;
+  const qtdBaixo = resumo.por_nivel?.baixo || 0;
+  const totalNorm = totalAlertas > 0 ? totalAlertas : 1;
+  const pctCritico = Math.round((qtdCritico / totalNorm) * 100);
+  const pctMedio = Math.round((qtdMedio / totalNorm) * 100);
+  const pctBaixo = Math.max(0, 100 - pctCritico - pctMedio);
+
   return `
     <div class="dashboard-canvas apple-animate-in">
       <!-- Sub-barra Técnica do Analista -->
       <div class="analista-subbar">
-        <div class="analista-subbar-info">
-          <span class="analista-dot-pulse"></span>
-          <span>Monitoramento Ativo • Sensor DHT11 ESP32-C3 & Solo Simulado (ThingSpeak #3500785)</span>
-          <span style="color: #64748B; font-size: 11px; font-weight: 400;">Sincronizado há 2 min</span>
+        <div class="analista-subbar-info" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+          ${isAtrasado ? `
+            <span class="card-status-pill" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-size: 11px; color: #D97706; background: #FFFBEB; border: 1px solid #FDE68A;">
+              <span style="width: 7px; height: 7px; border-radius: 50%; background: #F59E0B;"></span>
+              Atrasado
+            </span>
+          ` : `
+            <span class="card-status-pill pill-green" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-size: 11px;">
+              <span style="width: 7px; height: 7px; border-radius: 50%; background: #10B981;"></span>
+              Monitoramento Ativo
+            </span>
+          `}
+          <span style="font-size: 12px; font-weight: 600; color: #1E293B;">
+            Sensor ${sensorNomeCurva} • Canal #${canalThingSpeak}
+          </span>
+          <span style="color: ${minutosSinc > 10 ? '#D97706' : '#64748B'}; font-size: 11px; font-weight: 500;">
+            ${sincronizadoTexto}
+          </span>
         </div>
+
         <div class="analista-subbar-actions">
-          <button class="btn-analista-sync" id="btn-reconhecer-todos-analista">
+          <button class="btn-analista-sync" id="btn-reconhecer-todos-analista" style="cursor: pointer;">
             <i data-lucide="check" style="width: 14px; height: 14px;"></i>
             <span>Reconhecer Todos</span>
           </button>
-          <button class="btn-analista-export" id="btn-export-log-analista">
+          <button class="btn-analista-export" id="btn-export-log-analista" style="cursor: pointer;">
             <i data-lucide="download" style="width: 14px; height: 14px;"></i>
             <span>Exportar Log (CSV)</span>
           </button>
@@ -119,26 +329,29 @@ function renderAnalistaAlertas() {
         <div class="kpi-analista-card">
           <div class="kpi-top-row">
             <span class="kpi-label">ALERTAS ATIVOS HOJE</span>
-            <span class="kpi-badge yellow">Atenção Imediata</span>
+            <span class="kpi-badge ${qtdCritico > 0 ? 'red' : 'yellow'}">
+              ${qtdCritico > 0 ? 'Intervenção Imediata' : 'Atenção Operacional'}
+            </span>
           </div>
-          <div style="display: flex; align-items: center; gap: 14px; margin: 4px 0;">
-            <div style="position: relative; width: 50px; height: 50px;">
+          <div style="display: flex; align-items: center; gap: 14px; margin: 6px 0;">
+            <div style="position: relative; width: 52px; height: 52px; flex-shrink: 0;">
               <svg viewBox="0 0 36 36" style="width: 100%; height: 100%; transform: rotate(-90deg);">
-                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#FEE2E2" stroke-width="4"/>
-                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#EF4444" stroke-width="4" stroke-dasharray="33, 100"/>
+                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#F1F5F9" stroke-width="4"/>
+                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#EF4444" stroke-width="4" stroke-dasharray="${pctCritico}, 100" stroke-dashoffset="0"/>
+                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#F59E0B" stroke-width="4" stroke-dasharray="${pctMedio}, 100" stroke-dashoffset="-${pctCritico}"/>
+                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#10B981" stroke-width="4" stroke-dasharray="${pctBaixo}, 100" stroke-dashoffset="-${pctCritico + pctMedio}"/>
               </svg>
               <div class="donut-center-wrap" style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; pointer-events: none;">
-                <span style="font-size: 16px; font-weight: 800; color: #0F172A; line-height: 1;" data-kpi="alertas-pendentes-total">3</span>
+                <span style="font-size: 16px; font-weight: 800; color: #0F172A; line-height: 1;" id="kpi-total-alertas">${totalAlertas}</span>
               </div>
             </div>
-            <div style="font-size: 11px; color: #64748B;">
-              <div>Severidade Crítica: <strong style="color: #B91C1C;" data-kpi="alertas-criticos-total">1 lote</strong></div>
-              <div>Médio + Baixo: <strong>2 lotes</strong></div>
+            <div style="font-size: 11px; color: #64748B; line-height: 1.5;">
+              <div>Severidade Crítica: <strong style="color: #B91C1C;">${qtdCritico} lote(s)</strong></div>
+              <div>Médio + Baixo: <strong>${qtdMedio + qtdBaixo} lote(s)</strong></div>
             </div>
           </div>
-          <div class="kpi-bottom-row">
-            <span>MTTR Médio: <strong>15 min</strong></span>
-            <span style="color: #059669; font-weight: 600;">0 Reincidências</span>
+          <div class="kpi-bottom-row" style="font-size: 11px; color: #64748B;">
+            <span>Reativos: <strong style="color: #0F172A;">${resumo.por_origem?.reativo || 0}</strong> • Preditivos: <strong style="color: #0F172A;">${resumo.por_origem?.preditivo || 0}</strong></span>
           </div>
         </div>
 
@@ -149,14 +362,17 @@ function renderAnalistaAlertas() {
             <span class="kpi-badge green">Ativo — Bancada</span>
           </div>
           <div class="kpi-value-row">
-            <span class="kpi-big-num" style="font-size: 22px;">DHT11 ESP32-C3</span>
+            <span class="kpi-big-num" style="font-size: 20px; color: #0F172A;">${sensorNomeCurva}</span>
           </div>
           <div style="font-size: 11px; color: #64748B; margin-top: 2px;">
-            Canal ThingSpeak #3500785
+            Canal ThingSpeak #${canalThingSpeak}
           </div>
           <div class="kpi-bottom-row">
-            <span style="font-family: monospace; color: #0284C7;">#3500785</span>
-            <span style="color: #64748B;">1 Leitura / h</span>
+            <span style="font-family: monospace; color: #0284C7; font-weight: 600;">#${canalThingSpeak}</span>
+            <span style="color: #64748B;">${intervaloEnvioS === 3600 ? '1 leitura/h' : `Coleta a cada ${intervaloEnvioS} s`}</span>
+            <span class="card-status-pill ${curva?.atual?.origem === 'real' ? 'pill-green' : 'pill-blue'}" style="font-size: 10px; padding: 1px 7px;">
+              ${curva?.atual?.origem === 'real' ? 'Real' : 'Simulado'}
+            </span>
           </div>
         </div>
 
@@ -164,390 +380,164 @@ function renderAnalistaAlertas() {
         <div class="kpi-analista-card">
           <div class="kpi-top-row">
             <span class="kpi-label">DESVIO DE CONSERVAÇÃO</span>
-            <span class="kpi-badge red">Manga — Exportação</span>
+            <span class="kpi-badge red">${frutaMaisCritica} — ${destinoMaisCritico}</span>
           </div>
           <div class="kpi-value-row">
-            <span class="kpi-big-num" style="color: #EF4444;">+1.8°C Acima</span>
+            <span class="kpi-big-num" style="color: ${desvioVal >= 0 ? '#EF4444' : '#0284C7'};">
+              ${desvioVal > 0 ? '+' : ''}${desvioVal.toLocaleString('pt-BR')}°C ${desvioVal >= 0 ? 'Acima' : 'Abaixo'}
+            </span>
           </div>
           <div style="font-size: 11px; color: #64748B; margin-top: 2px;">
-            Tmax 13.0°C (UC Davis / Embrapa)
+            Tmax ${tmaxVal != null ? tmaxVal.toLocaleString('pt-BR') : '—'}°C
           </div>
           <div class="kpi-bottom-row">
-            <span>Tmax 13.0°C</span>
-            <span style="color: #B91C1C; font-weight: 700;">Atual: 14.8°C</span>
+            <span>Tmax ${tmaxVal != null ? tmaxVal.toLocaleString('pt-BR') : '—'}°C</span>
+            <span style="color: #B91C1C; font-weight: 700;">Atual: ${tempAtualVal != null ? tempAtualVal.toLocaleString('pt-BR') : '—'}°C</span>
           </div>
         </div>
 
-        <!-- KPI 4: Valor em Risco -->
+        <!-- KPI 4: Valor em Risco / Perda Prevista -->
         <div class="kpi-analista-card">
           <div class="kpi-top-row">
-            <span class="kpi-label">VALOR EM RISCO</span>
+            <span class="kpi-label">${prejuizoEstimado != null ? 'VALOR EM RISCO' : 'PERDA PREVISTA'}</span>
             <span class="kpi-badge red">Risco Crítico</span>
           </div>
           <div class="kpi-value-row">
-            <span class="kpi-big-num" style="color: #B91C1C;">30% Perda Prevista</span>
+            <span class="kpi-big-num" style="color: #B91C1C;">
+              ${prejuizoEstimado != null ? `R$ ${prejuizoEstimado.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `${perdaPctMaisCritica}% Perda Prevista`}
+            </span>
           </div>
           <div style="font-size: 11px; color: #64748B; margin-top: 2px;">
-            Lote 1.000 kg (Manga)
+            Lote ${qtdLoteMaisCritico != null ? qtdLoteMaisCritico.toLocaleString('pt-BR') : '—'} ${unidadeLoteMaisCritico} (${frutaMaisCritica})
           </div>
           <div class="kpi-bottom-row">
-            <span>Lote 1.000 kg</span>
+            <span>Lote ${qtdLoteMaisCritico != null ? qtdLoteMaisCritico.toLocaleString('pt-BR') : '—'} ${unidadeLoteMaisCritico}</span>
             <span style="color: #059669; font-weight: 600;">Mitigável Imediato</span>
           </div>
         </div>
       </div>
 
-      <!-- Seção do Meio (2 Colunas): Triagem (65%) + Painel Técnico (35%) -->
-      <div style="display: grid; grid-template-columns: 1.8fr 1fr; gap: 20px; margin-bottom: 20px;">
-        <!-- Coluna Esquerda: Triagem de Incidentes em Aberto -->
-        <div class="analista-chart-box" style="margin-bottom: 0;">
-          <div class="chart-header-row">
-            <div>
-              <h3 style="font-size: 16px; font-weight: 700; color: #0F172A; display: flex; align-items: center; gap: 8px;">
-                <i data-lucide="alert-octagon" style="width: 18px; height: 18px; color: #EF4444;"></i>
-                Triagem de Incidentes em Aberto
-              </h3>
-              <p style="font-size: 12px; color: #64748B; margin-top: 2px;">
-                Triagem de eventos reativos e preditivos conforme regras de cortes e parâmetros de conservação
-              </p>
-            </div>
-
-            <div class="map-filter-tabs">
-              <button class="map-tab-btn active" data-incident-filter="todos">Todos (3)</button>
-              <button class="map-tab-btn" data-incident-filter="critico">Crítico (1)</button>
-              <button class="map-tab-btn" data-incident-filter="medio">Médio (1)</button>
-              <button class="map-tab-btn" data-incident-filter="baixo">Baixo (1)</button>
-            </div>
+      <!-- SEÇÃO 1: Triagem de Incidentes em Aberto (Largura Total Conforme Foto) -->
+      <div class="analista-chart-box" style="margin-bottom: 20px;">
+        <div class="chart-header-row" style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;">
+          <div>
+            <h3 style="font-size: 16px; font-weight: 700; color: #0F172A; display: flex; align-items: center; gap: 8px; margin: 0;">
+              <i data-lucide="alert-octagon" style="width: 18px; height: 18px; color: #EF4444;"></i>
+              Triagem de Incidentes em Aberto
+            </h3>
+            <p style="font-size: 12px; color: #64748B; margin-top: 4px;">
+              Triagem de eventos reativos e preditivos conforme regras de cortes e parâmetros de conservação
+            </p>
           </div>
 
-          <!-- Card de Incidente 1 (CRÍTICO + PREDITIVO) -->
-          <div class="incident-analista-card critico" data-severity="critico">
-            <div class="incident-top-meta">
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <span style="background: #FEE2E2; color: #B91C1C; font-weight: 800; font-size: 10px; padding: 2px 8px; border-radius: 4px;">
-                  CRÍTICO + PREDITIVO
-                </span>
-                <span style="font-size: 11px; color: #64748B;">ALT-2026-001 • Há 14 min</span>
-              </div>
-              <span style="font-size: 11px; font-weight: 700; color: #B91C1C;">
-                PROBABILIDADE DE RISCO: 84% • Perda: 30%
-              </span>
-            </div>
-
-            <h4 style="font-size: 14px; font-weight: 700; color: #0F172A; margin: 6px 0;">
-              Desvio térmico no lote de Manga (DHT11 Bancada)
-            </h4>
-            <p style="font-size: 12px; color: #475569; line-height: 1.5;">
-              Projeção de <strong>14.8°C</strong> ultrapassa teto de conservação (Tmax 13.0°C, Embrapa/UC Davis).
-            </p>
-
-            <div class="incident-action-box">
-              <i data-lucide="shield-alert" style="width: 15px; height: 15px; color: #B91C1C; flex-shrink: 0; margin-top: 1px;"></i>
-              <div>
-                <strong>Ação Recomendada oficial:</strong> Intervenção logística e operacional imediata no lote.
-              </div>
-            </div>
-
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 10px; flex-wrap: wrap; gap: 8px;">
-              <div style="display: flex; gap: 8px;">
-                <button class="incident-btn-primary btn-intervir-analista">
-                  Intervir Imediatamente
-                </button>
-                <button class="incident-btn-secondary btn-silenciar-analista">
-                  Silenciar 1h
-                </button>
-              </div>
-              <div style="font-size: 11px; color: #64748B;">
-                Cultura: <strong>Manga</strong> • Destino: <strong>Exportação</strong> • Lote: 1.000 kg | <span style="color: #B91C1C; font-weight: 700;">STATUS: EM ABERTO</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Card de Incidente 2 (MÉDIO - REATIVO) -->
-          <div class="incident-analista-card medio" data-severity="medio">
-            <div class="incident-top-meta">
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <span style="background: #FEF3C7; color: #B45309; font-weight: 800; font-size: 10px; padding: 2px 8px; border-radius: 4px;">
-                  MÉDIO — REATIVO
-                </span>
-                <span style="font-size: 11px; color: #64748B;">ALT-2026-002 • Há 48 min</span>
-              </div>
-              <span style="font-size: 11px; font-weight: 700; color: #D97706;">
-                PROBABILIDADE DE RISCO: 62% • Perda: 10%
-              </span>
-            </div>
-
-            <h4 style="font-size: 14px; font-weight: 700; color: #0F172A; margin: 6px 0;">
-              Déficit de umidade relativa no lote de Uva
-            </h4>
-            <p style="font-size: 12px; color: #475569; line-height: 1.5;">
-              Sensor da câmara de Uva registrou <strong>87.5% UR</strong> vs. limiar seguro de 90.0% a 95.0% (Embrapa Semiárido).
-            </p>
-
-            <div class="incident-action-box">
-              <i data-lucide="droplet" style="width: 15px; height: 15px; color: #D97706; flex-shrink: 0; margin-top: 1px;"></i>
-              <div>
-                <strong>Ação Recomendada oficial:</strong> Ajuste preventivo do ambiente e verificação dos sistemas de refrigeração.
-              </div>
-            </div>
-
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 10px; flex-wrap: wrap; gap: 8px;">
-              <div style="display: flex; gap: 8px;">
-                <button class="incident-btn-secondary btn-ajustar-param-analista">
-                  Ajustar Parâmetro
-                </button>
-                <button class="incident-btn-secondary btn-silenciar-analista">
-                  Silenciar 1h
-                </button>
-              </div>
-              <div style="font-size: 11px; color: #64748B;">
-                Cultura: <strong>Uva Vitória</strong> • Destino: <strong>Mercado Interno</strong> • Faixa: 90% a 95% UR | <span style="color: #D97706; font-weight: 700;">STATUS: EM ABERTO</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Card de Incidente 3 (BAIXO - PREDITIVO) -->
-          <div class="incident-analista-card baixo" data-severity="baixo">
-            <div class="incident-top-meta">
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <span style="background: #ECFDF5; color: #047857; font-weight: 800; font-size: 10px; padding: 2px 8px; border-radius: 4px;">
-                  BAIXO — PREDITIVO
-                </span>
-                <span style="font-size: 11px; color: #64748B;">ALT-2026-003 • Há 2h</span>
-              </div>
-              <span style="font-size: 11px; font-weight: 700; color: #059669;">
-                PROBABILIDADE DE RISCO: 42% • Perda: 2%
-              </span>
-            </div>
-
-            <h4 style="font-size: 14px; font-weight: 700; color: #0F172A; margin: 6px 0;">
-              Oscilação em Melão (12.3°C vs. Tmax 12.0°C)
-            </h4>
-            <p style="font-size: 12px; color: #475569; line-height: 1.5;">
-              Projeção matemática indica leve tendência na antecâmara. Risco dentro da margem de tolerância.
-            </p>
-
-            <div class="incident-action-box">
-              <i data-lucide="info" style="width: 15px; height: 15px; color: #059669; flex-shrink: 0; margin-top: 1px;"></i>
-              <div>
-                <strong>Ação Recomendada oficial:</strong> Observação passiva e acompanhamento da evolução do lote.
-              </div>
-            </div>
-
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 10px; flex-wrap: wrap; gap: 8px;">
-              <button class="incident-btn-secondary btn-acompanhar-analista">
-                Acompanhar Lote
-              </button>
-              <div style="font-size: 11px; color: #64748B;">
-                Cultura: <strong>Melão Amarelo</strong> • Destino: <strong>Exportação</strong> • Faixa: 10.0°C a 12.0°C | <span style="color: #059669; font-weight: 700;">STATUS: EM ABERTO</span>
-              </div>
-            </div>
+          <div class="map-filter-tabs" style="display: flex; gap: 4px; background: #F1F5F9; padding: 3px; border-radius: 8px;">
+            <button class="map-tab-btn active" data-incident-filter="todos" style="padding: 6px 12px; font-size: 11px; font-weight: 600; border-radius: 6px; cursor: pointer;">
+              Todos (${totalAlertas})
+            </button>
+            <button class="map-tab-btn" data-incident-filter="critico" style="padding: 6px 12px; font-size: 11px; font-weight: 600; border-radius: 6px; cursor: pointer;">
+              Crítico (${qtdCritico})
+            </button>
+            <button class="map-tab-btn" data-incident-filter="medio" style="padding: 6px 12px; font-size: 11px; font-weight: 600; border-radius: 6px; cursor: pointer;">
+              Médio (${qtdMedio})
+            </button>
+            <button class="map-tab-btn" data-incident-filter="baixo" style="padding: 6px 12px; font-size: 11px; font-weight: 600; border-radius: 6px; cursor: pointer;">
+              Baixo (${qtdBaixo})
+            </button>
           </div>
         </div>
 
-        <!-- Coluna Direita (35%): Painéis Técnicos e Rota Portuária -->
-        <div style="display: flex; flex-direction: column; gap: 14px;">
-          <!-- Card 1: Severidade & Distribuição (Donut) -->
-          <div class="analista-chart-box" style="margin-bottom: 0;">
-            <div class="chart-header-row" style="margin-bottom: 10px;">
-              <div>
-                <h4 style="font-size: 13px; font-weight: 700; color: #0F172A;">Severidade & Distribuição</h4>
-                <p style="font-size: 10px; color: #64748B;">Distribuição atual de incidentes e frações de perda cadastradas</p>
-              </div>
-            </div>
+        <!-- Lista de Incidentes -->
+        <div id="lista-incidentes-triagem" style="display: flex; flex-direction: column; gap: 12px;">
+          ${renderIncidentesCardsHtml(itens)}
+        </div>
+      </div>
 
-            <div style="display: flex; align-items: center; gap: 16px;">
-              <div style="position: relative; width: 75px; height: 75px; flex-shrink: 0;">
-                <svg viewBox="0 0 36 36" style="width: 100%; height: 100%; transform: rotate(-90deg);">
-                  <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#10B981" stroke-width="4.5" stroke-dasharray="34, 100" stroke-dashoffset="-66"/>
-                  <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#F59E0B" stroke-width="4.5" stroke-dasharray="33, 100" stroke-dashoffset="-33"/>
-                  <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#EF4444" stroke-width="4.5" stroke-dasharray="33, 100"/>
-                </svg>
-                <div class="donut-center-wrap" style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; pointer-events: none;">
-                  <div style="font-size: 13px; font-weight: 800; color: #0F172A; line-height: 1;">3</div>
-                  <div style="font-size: 7px; color: #64748B; font-weight: 700; margin-top: 2px;">Alertas</div>
-                </div>
-              </div>
+      <!-- SEÇÃO 2: Curva Térmica & Projeção 24h (Largura Total Conforme Foto) -->
+      <div class="analista-chart-box" id="container-curva-termica-analista" style="margin-bottom: 20px;">
+        ${renderCurvaTermicaBoxHtml(curva)}
+      </div>
 
-              <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; font-size: 10px;">
-                <div style="display: flex; justify-content: space-between;">
-                  <span style="color: #B91C1C; font-weight: 600;">• Crítico: 1 (33%)</span>
-                  <span style="color: #64748B;">Perda Risco: <strong>30%</strong></span>
-                </div>
-                <div style="display: flex; justify-content: space-between;">
-                  <span style="color: #D97706; font-weight: 600;">• Médio: 1 (33%)</span>
-                  <span style="color: #64748B;">Perda Risco: <strong>10%</strong></span>
-                </div>
-                <div style="display: flex; justify-content: space-between;">
-                  <span style="color: #059669; font-weight: 600;">• Baixo: 1 (34%)</span>
-                  <span style="color: #64748B;">Perda Risco: <strong>2%</strong></span>
-                </div>
-              </div>
+      <!-- SEÇÃO 3: Grid de 2 Colunas (Rota Portuária + Limiares de Conservação) -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+        <!-- Card Esquerda: Rota Portuária de Escoamento -->
+        <div class="analista-chart-box" id="container-rota-portuaria-analista" style="margin-bottom: 0;">
+          ${renderRotaPortuariaBoxHtml(portos, itemMaisCritico)}
+        </div>
+
+        <!-- Card Direita: Limiares de Conservação -->
+        <div class="analista-chart-box" style="margin-bottom: 0;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
+            <div>
+              <h4 style="font-size: 13px; font-weight: 700; color: #0F172A; margin: 0;">Limiares de Conservação</h4>
+              <p style="font-size: 10px; color: #64748B; margin-top: 2px;">
+                Parâmetros biológicos validados segundo referências biológicas de manejo
+              </p>
             </div>
+            <span style="font-family: monospace; font-size: 9px; background: #ECFDF5; color: #047857; padding: 2px 6px; border-radius: 4px; font-weight: 600;">config_parametro</span>
           </div>
 
-          <!-- Card 2: Limiares de Conservação -->
-          <div class="analista-chart-box" style="margin-bottom: 0;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-              <h4 style="font-size: 13px; font-weight: 700; color: #0F172A;">Limiares de Conservação</h4>
-              <span style="font-family: monospace; font-size: 9px; background: #F1F5F9; color: #475569; padding: 1px 6px; border-radius: 4px;">config_parametro</span>
-            </div>
-            <p style="font-size: 10px; color: #64748B; margin-bottom: 8px;">
-              Parâmetros biológicos validados segundo referências UC Davis / Embrapa
-            </p>
-
-            <div style="display: flex; flex-direction: column; gap: 6px; font-size: 11px;">
-              <div style="display: flex; justify-content: space-between; padding: 4px 8px; background: #F8FAFC; border-radius: 6px;">
-                <span style="font-weight: 600; color: #0F172A;">MG Manga (Exportação)</span>
-                <span style="color: #0284C7; font-weight: 600;">10.0°C a 13.0°C | UR: 90% a 95%</span>
-              </div>
-              <div style="display: flex; justify-content: space-between; padding: 4px 8px; background: #F8FAFC; border-radius: 6px;">
-                <span style="font-weight: 600; color: #0F172A;">UV Uva (Câmara Frigorífica)</span>
-                <span style="color: #0284C7; font-weight: 600;">-0.5°C a 2.0°C | UR: 90% a 95%</span>
-              </div>
-              <div style="display: flex; justify-content: space-between; padding: 4px 8px; background: #F8FAFC; border-radius: 6px;">
-                <span style="font-weight: 600; color: #0F172A;">ML Melão (Antecâmara Packing)</span>
-                <span style="color: #0284C7; font-weight: 600;">10.0°C a 12.0°C | UR: 85% a 90%</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Card 3: Regras Preditivas -->
-          <div class="analista-chart-box" style="margin-bottom: 0;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-              <h4 style="font-size: 13px; font-weight: 700; color: #0F172A;">Regras Preditivas</h4>
-              <span style="font-size: 9px; color: #0284C7; font-weight: 600;">cortes alerta preditivo</span>
-            </div>
-            <div style="display: flex; flex-direction: column; gap: 4px; font-size: 11px;">
-              <div style="display: flex; justify-content: space-between; color: #B91C1C;">
-                <span>• Crítico (0.80 — 1.00)</span>
-                <strong style="color: #0F172A;">Intervenção imediata</strong>
-              </div>
-              <div style="display: flex; justify-content: space-between; color: #D97706;">
-                <span>• Médio (0.50 — 0.79)</span>
-                <strong style="color: #0F172A;">Ajuste preventivo</strong>
-              </div>
-              <div style="display: flex; justify-content: space-between; color: #059669;">
-                <span>• Baixo (0.30 — 0.49)</span>
-                <strong style="color: #0F172A;">Observação passiva</strong>
-              </div>
-            </div>
-          </div>
-
-          <!-- Card 4: Rota Portuária de Escoamento -->
-          <div class="analista-chart-box" style="margin-bottom: 0;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-              <h4 style="font-size: 13px; font-weight: 700; color: #0F172A;">Rota Portuária de Escoamento</h4>
-              <span style="background: #EFF6FF; color: #1D4ED8; font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 4px;">Exportação</span>
-            </div>
-            <p style="font-size: 10px; color: #64748B; margin-bottom: 8px;">
-              Porto homologado para escoamento do lote sob alerta térmico
-            </p>
-
-            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 8px 10px; font-size: 11px;">
-              <div style="font-weight: 700; color: #047857; display: flex; align-items: center; justify-content: space-between;">
-                <span>Porto de Pecém (CE)</span>
-                <span style="font-size: 9px; background: #ECFDF5; color: #047857; padding: 1px 6px; border-radius: 4px;">Rota Selecionada</span>
-              </div>
-              <div style="font-size: 10px; color: #64748B; margin-top: 4px;">
-                Origem: <strong>Petrolina / PE</strong> • Distância: <strong>~780 km</strong><br>
-                Carga: <strong>1.000 kg Manga</strong> • Tempo estimado: <strong>14h 30min</strong>
-              </div>
-              <div style="font-size: 9px; color: #94A3B8; margin-top: 4px;">
-                Alternativas homologadas: Suape/PE • Salvador/BA • Natal/RN
-              </div>
-            </div>
-
-            <button class="incident-btn-secondary" id="btn-atualizar-despacho" style="width: 100%; margin-top: 8px; font-size: 11px; padding: 6px;">
-              <i data-lucide="truck" style="width: 12px; height: 12px;"></i>
-              Atualizar Despacho Portuário
-            </button>
+          <div style="display: flex; flex-direction: column; gap: 6px; font-size: 11px; margin-top: 10px;">
+            ${renderLimiaresConservacaoHtml(configParametros)}
           </div>
         </div>
       </div>
 
-      <!-- Seção Inferior: Curva Térmica & Projeção 24h -->
-      <div class="analista-chart-box">
-        <div class="chart-header-row">
-          <div>
-            <h3 style="font-size: 16px; font-weight: 700; color: #0F172A; display: flex; align-items: center; gap: 8px;">
-              <i data-lucide="trending-up" style="width: 18px; height: 18px; color: #EF4444;"></i>
-              Curva Térmica & Projeção 24h
-            </h3>
-            <p style="font-size: 12px; color: #64748B; margin-top: 2px;">
-              Sensor Físico DHT11 ESP32-C3 vs. Projeção de Machine Learning para Lote Manga
-            </p>
+      <!-- SEÇÃO 4: Grid de 2 Colunas (Severidade & Distribuição + Regras Preditivas) -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+        <!-- Card Esquerda: Severidade & Distribuição -->
+        <div class="analista-chart-box" style="margin-bottom: 0;">
+          <div class="chart-header-row" style="margin-bottom: 12px;">
+            <div>
+              <h4 style="font-size: 13px; font-weight: 700; color: #0F172A; margin: 0;">Severidade & Distribuição</h4>
+              <p style="font-size: 10px; color: #64748B; margin-top: 2px;">Distribuição visual de incidentes e frações de perda cadastradas</p>
+            </div>
           </div>
 
-          <div style="display: flex; align-items: center; gap: 16px; font-size: 11px;">
-            <span style="display: flex; align-items: center; gap: 6px;">
-              <span style="width: 12px; height: 12px; background: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 2px;"></span>
-              Faixa Segura (10°C — 13°C)
-            </span>
-            <span style="display: flex; align-items: center; gap: 6px;">
-              <span style="width: 10px; height: 10px; border-radius: 50%; background: #10B981;"></span>
-              Histórico Real (DHT11)
-            </span>
-            <span style="display: flex; align-items: center; gap: 6px; color: #EF4444; font-weight: 600;">
-              <span style="width: 16px; height: 2px; border-top: 2px dashed #EF4444; display: inline-block;"></span>
-              Projeção (14.8°C)
-            </span>
-          </div>
-        </div>
+          <div style="display: flex; align-items: center; gap: 20px;">
+            <div style="position: relative; width: 85px; height: 85px; flex-shrink: 0;">
+              <svg viewBox="0 0 36 36" style="width: 100%; height: 100%; transform: rotate(-90deg);">
+                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#F1F5F9" stroke-width="4.5"/>
+                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#EF4444" stroke-width="4.5" stroke-dasharray="${pctCritico}, 100" stroke-dashoffset="0"/>
+                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#F59E0B" stroke-width="4.5" stroke-dasharray="${pctMedio}, 100" stroke-dashoffset="-${pctCritico}"/>
+                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#10B981" stroke-width="4.5" stroke-dasharray="${pctBaixo}, 100" stroke-dashoffset="-${pctCritico + pctMedio}"/>
+              </svg>
+              <div class="donut-center-wrap" style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; pointer-events: none;">
+                <div style="font-size: 15px; font-weight: 800; color: #0F172A; line-height: 1;">${totalAlertas}</div>
+                <div style="font-size: 7px; color: #64748B; font-weight: 700; margin-top: 2px;">Alertas</div>
+              </div>
+            </div>
 
-        <!-- Gráfico SVG com Faixa de Segurança e Reta de Projeção ML -->
-        <div style="position: relative; width: 100%; height: 220px; background: #FAFDFB; border: 1px solid #E2E8F0; border-radius: 12px; overflow: hidden; padding: 10px;">
-          <svg viewBox="0 0 800 200" style="width: 100%; height: 100%;" preserveAspectRatio="xMidYMid meet">
-            <!-- Faixa Segura de 10°C a 13°C (Área Verde Clara) -->
-            <rect x="0" y="70" width="800" height="70" fill="#ECFDF5" opacity="0.7"/>
-
-            <!-- Linha Limite Tmax Permitido (13.0°C) -->
-            <line x1="0" y1="70" x2="800" y2="70" stroke="#10B981" stroke-width="1.5" stroke-dasharray="4,4"/>
-            <text x="60" y="64" fill="#047857" font-size="10" font-weight="700">Tmax Permitido: 13.0°C (UC Davis / Embrapa)</text>
-
-            <!-- Linha Limite Tmin Permitido (10.0°C) -->
-            <line x1="0" y1="140" x2="800" y2="140" stroke="#10B981" stroke-width="1.5" stroke-dasharray="4,4"/>
-            <text x="60" y="152" fill="#047857" font-size="10" font-weight="700">Tmin Permitido: 10.0°C</text>
-
-            <!-- Curva Real Histórica (DHT11) até 14:00 -->
-            <path d="M 0,145 C 150,140 300,130 450,110 C 500,100 550,75 580,60" fill="none" stroke="#10B981" stroke-width="3"/>
-
-            <!-- Curva de Projeção ML (Vermelha Tracejada de 14:00 até 14.8°C) -->
-            <path d="M 580,60 C 610,48 640,42 680,40" fill="none" stroke="#EF4444" stroke-width="3" stroke-dasharray="5,4"/>
-
-            <!-- Ponto Atual em 14:00 (14.8°C) com Alerta -->
-            <circle cx="580" cy="60" r="6" fill="#EF4444" stroke="#FFFFFF" stroke-width="2"/>
-            <rect x="548" y="24" width="64" height="22" rx="4" fill="#0F172A"/>
-            <text x="580" y="38" fill="#FFFFFF" font-size="10" font-weight="800" text-anchor="middle">+1.8°C</text>
-          </svg>
-
-          <!-- Rótulos de Tempo no Eixo X -->
-          <div style="display: flex; justify-content: space-between; font-size: 10px; color: #94A3B8; margin-top: 4px; padding: 0 10px;">
-            <span>00:00</span>
-            <span>04:00</span>
-            <span>08:00</span>
-            <span>12:00</span>
-            <span style="color: #047857; font-weight: 700;">14:00 (Agora)</span>
-            <span style="color: #EF4444; font-weight: 700;">+4h Projeção</span>
-            <span style="color: #B91C1C; font-weight: 700;">+8h Projeção</span>
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 6px; font-size: 11px;">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: #B91C1C; font-weight: 600;">• Crítico: ${qtdCritico} (${pctCritico}%)</span>
+                <span style="color: #64748B;">Perda Risco: <strong>${perdaPctMaisCritica}%</strong></span>
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: #D97706; font-weight: 600;">• Médio: ${qtdMedio} (${pctMedio}%)</span>
+                <span style="color: #64748B;">Perda Risco: <strong>${Math.round(perdaPctMaisCritica * 0.4)}%</strong></span>
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: #059669; font-weight: 600;">• Baixo: ${qtdBaixo} (${pctBaixo}%)</span>
+                <span style="color: #64748B;">Perda Risco: <strong>${Math.round(perdaPctMaisCritica * 0.1)}%</strong></span>
+              </div>
+            </div>
           </div>
         </div>
 
-        <!-- 3 KPIs no Rodapé da Projeção -->
-        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 14px;">
-          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 10px 14px;">
-            <div style="font-size: 10px; color: #64748B;">Hardware Fonte</div>
-            <div style="font-size: 13px; font-weight: 700; color: #0F172A; margin-top: 2px;">Bancada DHT11 ESP32-C3</div>
+        <!-- Card Direita: Regras Preditivas -->
+        <div class="analista-chart-box" style="margin-bottom: 0;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
+            <div>
+              <h4 style="font-size: 13px; font-weight: 700; color: #0F172A; margin: 0;">Regras Preditivas</h4>
+              <p style="font-size: 10px; color: #64748B; margin-top: 2px;">
+                Limiares de probabilidade matemática e ações recomendadas
+              </p>
+            </div>
+            <span style="font-size: 9px; color: #0284C7; font-weight: 600; background: #F0F9FF; padding: 2px 6px; border-radius: 4px;">cortes_alerta_preditivo</span>
           </div>
 
-          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 10px 14px;">
-            <div style="font-size: 10px; color: #64748B;">Frequência Amostral</div>
-            <div style="font-size: 13px; font-weight: 700; color: #0284C7; margin-top: 2px;">1 Leitura / Hora (ThingSpeak)</div>
-          </div>
-
-          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 10px 14px;">
-            <div style="font-size: 10px; color: #64748B;">Índice Preditivo</div>
-            <div style="font-size: 13px; font-weight: 700; color: #B91C1C; margin-top: 2px;">0.84 Nível Crítico (0.80 — 1.00)</div>
+          <div style="display: flex; flex-direction: column; gap: 6px; font-size: 11px; margin-top: 10px;">
+            ${renderRegrasPreditivasHtml(cortesPreditivos)}
           </div>
         </div>
       </div>
@@ -555,145 +545,686 @@ function renderAnalistaAlertas() {
   `;
 }
 
+/**
+ * Renderizador dos Cards de Incidentes na Triagem
+ */
+function renderIncidentesCardsHtml(itens = []) {
+  if (!itens || itens.length === 0) {
+    return `
+      <div style="padding: 32px; text-align: center; color: #64748B; font-size: 13px; background: #F8FAFC; border-radius: 8px;">
+        Nenhum incidente em aberto
+      </div>
+    `;
+  }
 
+  return itens.map((item, idx) => {
+    const nivelStr = String(item.nivel || 'medio').toLowerCase();
+    const origemStr = String(item.origem || 'reativo').toLowerCase();
+    const isCritico = nivelStr === 'critico';
+    const isMedio = nivelStr === 'medio' || nivelStr === 'moderado';
+    const isBaixo = nivelStr === 'baixo';
 
+    let bgTag = '#FEF3C7';
+    let colorTag = '#B45309';
+    let borderClass = 'medio';
+    if (isCritico) {
+      bgTag = '#FEE2E2';
+      colorTag = '#B91C1C';
+      borderClass = 'critico';
+    } else if (isBaixo) {
+      bgTag = '#ECFDF5';
+      colorTag = '#047857';
+      borderClass = 'baixo';
+    }
 
+    const probabilidadeStr = item.probabilidade_pct != null
+      ? `PROBABILIDADE DE RISCO: ${item.probabilidade_pct}%`
+      : 'OCORRIDO';
+    const perdaStr = item.perda_pct != null ? ` • Perda: ${item.perda_pct}%` : '';
+
+    const tempoDecorridoStr = formatarTempoMinutos(item.minutos_atras);
+
+    const isSelecionado = analistaAlertasState.itemSelecionadoId === (item.id || item.codigo || (idx + 1));
+
+    // Botões de Ação Específicos por Severidade
+    let botaoPrincipalHtml = '';
+    if (isCritico) {
+      botaoPrincipalHtml = `
+        <button class="incident-btn-primary btn-intervir-analista" data-id="${item.id || ''}" data-origem="${origemStr}" data-lote="${item.lote?.id_lote || ''}" style="cursor: pointer;">
+          Intervir Imediatamente
+        </button>
+      `;
+    } else if (isMedio) {
+      botaoPrincipalHtml = `
+        <button class="incident-btn-secondary btn-ajustar-param-analista" data-fruta="${item.lote?.fruta || ''}" style="cursor: pointer;">
+          Ajustar Parâmetro
+        </button>
+      `;
+    } else {
+      botaoPrincipalHtml = `
+        <button class="incident-btn-secondary btn-acompanhar-analista" data-lote="${item.lote?.id_lote || ''}" style="cursor: pointer;">
+          Acompanhar Lote
+        </button>
+      `;
+    }
+
+    const botaoReconhecerHtml = `
+      <button class="incident-btn-secondary btn-reconhecer-analista" data-id="${item.id || ''}" data-origem="${origemStr}" style="cursor: pointer;">
+        Reconhecer
+      </button>
+    `;
+
+    const iconLucide = isCritico ? 'shield-alert' : (isMedio ? 'droplet' : 'info');
+
+    return `
+      <div class="incident-analista-card ${borderClass} ${isSelecionado ? 'card-selecionado' : ''}" 
+           data-severity="${isCritico ? 'critico' : (isMedio ? 'medio' : 'baixo')}"
+           data-incident-id="${item.id || item.codigo || (idx + 1)}"
+           data-lote-id="${item.lote?.id_lote || item.id_lote || ''}"
+           style="cursor: pointer; ${isSelecionado ? 'outline: 2px solid #10B981; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.1);' : ''}">
+        
+        <div class="incident-top-meta" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="background: ${bgTag}; color: ${colorTag}; font-weight: 800; font-size: 10px; padding: 2px 8px; border-radius: 4px; text-transform: uppercase;">
+              ${nivelStr.toUpperCase()} — ${origemStr.toUpperCase()}
+            </span>
+            <span style="font-size: 11px; color: #64748B;">
+              ${item.codigo || `ALT-2026-${String(idx + 1).padStart(3, '0')}`} • ${tempoDecorridoStr}
+            </span>
+          </div>
+          <span style="font-size: 11px; font-weight: 700; color: ${colorTag};">
+            ${probabilidadeStr}${perdaStr}
+          </span>
+        </div>
+
+        <h4 style="font-size: 14px; font-weight: 700; color: #0F172A; margin: 4px 0 6px;">
+          ${item.titulo || 'Desvio operacional identificado'}
+        </h4>
+        <p style="font-size: 12px; color: #475569; line-height: 1.5; margin: 0 0 10px;">
+          ${item.descricao || 'Leitura de telemetria fora dos parâmetros recomendados de conservação.'}
+        </p>
+
+        <!-- Bloco de Ação Recomendada Oficial -->
+        <div class="incident-action-box" style="display: flex; align-items: flex-start; gap: 8px; background: #F8FAFC; border: 1px solid #E2E8F0; padding: 8px 12px; border-radius: 6px; font-size: 11px; color: #334155; margin-bottom: 12px;">
+          <i data-lucide="${iconLucide}" style="width: 15px; height: 15px; color: ${colorTag}; flex-shrink: 0; margin-top: 1px;"></i>
+          <div>
+            <strong>Ação Recomendada oficial:</strong> ${item.acao_recomendada || 'Acompanhamento preventivo do ambiente e verificação dos sistemas de refrigeração.'}
+          </div>
+        </div>
+
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 6px; flex-wrap: wrap; gap: 8px;">
+          <div style="display: flex; gap: 8px;">
+            ${botaoPrincipalHtml}
+            ${botaoReconhecerHtml}
+          </div>
+          <div style="font-size: 11px; color: #64748B;">
+            Cultura: <strong>${item.lote?.fruta || 'Fruta'}</strong> • Destino: <strong>${item.lote?.destino || 'Exportação'}</strong> • Lote: ${item.lote?.quantidade != null ? item.lote.quantidade.toLocaleString('pt-BR') : '—'} ${item.lote?.unidade || 'kg'} | Faixa: ${item.faixa?.temp_min != null ? item.faixa.temp_min.toLocaleString('pt-BR') : '—'}°C a ${item.faixa?.temp_max != null ? item.faixa.temp_max.toLocaleString('pt-BR') : '—'}°C
+            <span style="margin-left: 8px; font-weight: 700; color: ${String(item.status || 'aberto').toLowerCase() === 'aberto' ? '#B91C1C' : '#059669'};">
+              STATUS: ${String(item.status || 'aberto').toUpperCase()}
+            </span>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+/**
+ * Renderizador do Card da Curva Térmica & Projeção 24h
+ */
+function renderCurvaTermicaBoxHtml(curva) {
+  if (!curva) {
+    return `
+      <div class="chart-header-row">
+        <div>
+          <h3 style="font-size: 16px; font-weight: 700; color: #0F172A; display: flex; align-items: center; gap: 8px;">
+            <i data-lucide="trending-up" style="width: 18px; height: 18px; color: #EF4444;"></i>
+            Curva Térmica & Projeção 24h
+          </h3>
+          <p style="font-size: 12px; color: #64748B; margin-top: 2px;">
+            Monitoramento térmico e projeção preditiva
+          </p>
+        </div>
+      </div>
+      <div style="padding: 48px; text-align: center; color: #64748B; font-size: 13px;">
+        Sem leituras neste período
+      </div>
+    `;
+  }
+
+  const sensorNome = curva.sensor?.nome || 'DHT11 ESP32-C3';
+  const sensorTipo = curva.sensor?.tipo_sensor || 'DHT11';
+  const modeloIA = curva.projecao?.modelo || 'Random Forest Regressor';
+  const loteFruta = curva.lote?.fruta || 'Lote sob Monitoramento';
+
+  const tmin = curva.faixa?.temp_min ?? 10.0;
+  const tmax = curva.faixa?.temp_max ?? 13.0;
+
+  const tempProj = curva.projecao?.temperatura ?? 14.8;
+  const probProjPct = curva.projecao?.probabilidade_pct ?? 84;
+  const indicePreditivo = (probProjPct / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  const tempAtual = curva.atual?.temperatura ?? 14.8;
+  const desvioAtual = curva.atual?.desvio ?? 1.8;
+  const desvioSinal = desvioAtual > 0 ? `+${desvioAtual.toLocaleString('pt-BR')}` : desvioAtual.toLocaleString('pt-BR');
+
+  // Determina nível de corte preditivo
+  let nivelCorteNome = 'Crítico';
+  let faixaCorteStr = '0,80 — 1,00';
+  const valIndiceNum = probProjPct / 100;
+  if (valIndiceNum < 0.5) {
+    nivelCorteNome = 'Baixo';
+    faixaCorteStr = '0,30 — 0,49';
+  } else if (valIndiceNum < 0.8) {
+    nivelCorteNome = 'Médio';
+    faixaCorteStr = '0,50 — 0,79';
+  }
+
+  // Montagem do SVG
+  const historico = Array.isArray(curva.historico) ? curva.historico : [];
+  let svgContent = '';
+
+  if (historico.length === 0) {
+    svgContent = `
+      <div style="height: 180px; display: flex; align-items: center; justify-content: center; color: #64748B; font-size: 13px;">
+        Sem leituras neste período
+      </div>
+    `;
+  } else {
+    // Dimensões do viewBox: 800 x 200
+    const marginL = 50;
+    const marginR = 30;
+    const marginT = 30;
+    const marginB = 30;
+    const plotW = 800 - marginL - marginR;
+    const plotH = 200 - marginT - marginB;
+
+    const temps = [tmin, tmax, tempProj, tempAtual, ...historico.map(p => p.temperatura).filter(v => v != null)];
+    const minY = Math.floor(Math.min(...temps) - 1.5);
+    const maxY = Math.ceil(Math.max(...temps) + 1.5);
+
+    const getY = (t) => marginT + plotH - ((t - minY) / (maxY - minY)) * plotH;
+
+    const yTmax = getY(tmax);
+    const yTmin = getY(tmin);
+    const faixaHeight = Math.max(2, yTmin - yTmax);
+
+    // Segmentos do histórico real
+    const numPontos = historico.length;
+    const stepX = (plotW * 0.75) / Math.max(1, numPontos - 1);
+
+    let pathD = '';
+    let ultimoX = marginL;
+    let ultimoY = getY(tempAtual);
+
+    historico.forEach((p, idx) => {
+      const x = marginL + idx * stepX;
+      if (p.temperatura != null) {
+        const y = getY(p.temperatura);
+        if (pathD === '') {
+          pathD += `M ${x.toFixed(1)},${y.toFixed(1)}`;
+        } else {
+          pathD += ` L ${x.toFixed(1)},${y.toFixed(1)}`;
+        }
+        ultimoX = x;
+        ultimoY = y;
+      } else {
+        pathD = ''; // Quebra a linha se temperatura for null
+      }
+    });
+
+    // Ponto projetado
+    const projX = marginL + plotW;
+    const projY = getY(tempProj);
+
+    svgContent = `
+      <svg viewBox="0 0 800 200" style="width: 100%; height: 100%;" preserveAspectRatio="xMidYMid meet">
+        <!-- Faixa Segura Preenchida -->
+        <rect x="${marginL}" y="${yTmax.toFixed(1)}" width="${plotW}" height="${faixaHeight.toFixed(1)}" fill="#ECFDF5" opacity="0.8" rx="2"/>
+
+        <!-- Linha Limite Tmax -->
+        <line x1="${marginL}" y1="${yTmax.toFixed(1)}" x2="${marginL + plotW}" y2="${yTmax.toFixed(1)}" stroke="#10B981" stroke-width="1.5" stroke-dasharray="4,4"/>
+        <text x="${marginL + 12}" y="${(yTmax - 6).toFixed(1)}" fill="#047857" font-size="10" font-weight="700">Tmax Permitido: ${tmax.toLocaleString('pt-BR')}°C</text>
+
+        <!-- Linha Limite Tmin -->
+        <line x1="${marginL}" y1="${yTmin.toFixed(1)}" x2="${marginL + plotW}" y2="${yTmin.toFixed(1)}" stroke="#10B981" stroke-width="1.5" stroke-dasharray="4,4"/>
+        <text x="${marginL + 12}" y="${(yTmin + 14).toFixed(1)}" fill="#047857" font-size="10" font-weight="700">Tmin Permitido: ${tmin.toLocaleString('pt-BR')}°C</text>
+
+        <!-- Eixo Y: Linhas de Grade e Valores -->
+        <line x1="${marginL}" y1="${marginT + plotH}" x2="${marginL + plotW}" y2="${marginT + plotH}" stroke="#E2E8F0" stroke-width="1"/>
+        <text x="${marginL - 8}" y="${(yTmax + 3).toFixed(1)}" fill="#64748B" font-size="9" text-anchor="end">${tmax.toFixed(1)}°</text>
+        <text x="${marginL - 8}" y="${(yTmin + 3).toFixed(1)}" fill="#64748B" font-size="9" text-anchor="end">${tmin.toFixed(1)}°</text>
+        <text x="${marginL - 8}" y="${(marginT + plotH).toFixed(1)}" fill="#64748B" font-size="9" text-anchor="end">${minY.toFixed(1)}°</text>
+
+        <!-- Curva Real Histórica (Linha Verde) -->
+        <path d="${pathD}" fill="none" stroke="#10B981" stroke-width="2.8" stroke-linecap="round"/>
+
+        <!-- Curva de Projeção ML (Vermelha Tracejada) -->
+        <path d="M ${ultimoX.toFixed(1)},${ultimoY.toFixed(1)} L ${projX.toFixed(1)},${projY.toFixed(1)}" fill="none" stroke="#EF4444" stroke-width="2.5" stroke-dasharray="5,4"/>
+
+        <!-- Ponto Projetado -->
+        <circle cx="${projX.toFixed(1)}" cy="${projY.toFixed(1)}" r="4.5" fill="#EF4444" stroke="#FFFFFF" stroke-width="1.5"/>
+
+        <!-- Ponto Atual com Alerta de Desvio -->
+        <circle cx="${ultimoX.toFixed(1)}" cy="${ultimoY.toFixed(1)}" r="6" fill="#EF4444" stroke="#FFFFFF" stroke-width="2"/>
+        <rect x="${(ultimoX - 28).toFixed(1)}" y="${(ultimoY - 32).toFixed(1)}" width="56" height="20" rx="4" fill="#0F172A"/>
+        <text x="${ultimoX.toFixed(1)}" y="${(ultimoY - 18).toFixed(1)}" fill="#FFFFFF" font-size="10" font-weight="800" text-anchor="middle">${desvioSinal}°C</text>
+      </svg>
+    `;
+  }
+
+  return `
+    <div class="chart-header-row" style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-wrap: wrap;">
+      <div>
+        <h3 style="font-size: 16px; font-weight: 700; color: #0F172A; display: flex; align-items: center; gap: 8px; margin: 0;">
+          <i data-lucide="trending-up" style="width: 18px; height: 18px; color: #EF4444;"></i>
+          Curva Térmica & Projeção 24h
+        </h3>
+        <p style="font-size: 12px; color: #64748B; margin-top: 4px;">
+          Sensor ${sensorNome} vs. Projeção do modelo ${modeloIA} para Lote ${loteFruta}
+        </p>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 16px; font-size: 11px; flex-wrap: wrap;">
+        <span style="display: flex; align-items: center; gap: 6px;">
+          <span style="width: 12px; height: 12px; background: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 2px;"></span>
+          Faixa Segura (${tmin.toLocaleString('pt-BR')}°C — ${tmax.toLocaleString('pt-BR')}°C)
+        </span>
+        <span style="display: flex; align-items: center; gap: 6px;">
+          <span style="width: 10px; height: 10px; border-radius: 50%; background: #10B981;"></span>
+          Histórico Real (${sensorTipo})
+        </span>
+        <span style="display: flex; align-items: center; gap: 6px; color: #EF4444; font-weight: 600;">
+          <span style="width: 16px; height: 2px; border-top: 2px dashed #EF4444; display: inline-block;"></span>
+          Projeção (${tempProj.toLocaleString('pt-BR')}°C)
+        </span>
+      </div>
+    </div>
+
+    <!-- Gráfico SVG com Faixa de Segurança e Reta de Projeção ML -->
+    <div style="position: relative; width: 100%; height: 210px; background: #FAFDFB; border: 1px solid #E2E8F0; border-radius: 12px; overflow: hidden; padding: 6px;">
+      ${svgContent}
+    </div>
+
+    <!-- Rótulos de Tempo no Eixo X -->
+    <div style="display: flex; justify-content: space-between; font-size: 10px; color: #94A3B8; margin-top: 6px; padding: 0 14px;">
+      <span>00:00</span>
+      <span>04:00</span>
+      <span>08:00</span>
+      <span>12:00</span>
+      <span style="color: #047857; font-weight: 700;">Agora</span>
+      <span style="color: #EF4444; font-weight: 700;">+4h Projeção</span>
+      <span style="color: #B91C1C; font-weight: 700;">+8h Projeção</span>
+    </div>
+
+    <!-- 3 KPIs no Rodapé da Projeção -->
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 14px;">
+      <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 10px 14px;">
+        <div style="font-size: 10px; color: #64748B;">Hardware Fonte</div>
+        <div style="font-size: 13px; font-weight: 700; color: #0F172A; margin-top: 2px;">${sensorNome}</div>
+      </div>
+
+      <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 10px 14px;">
+        <div style="font-size: 10px; color: #64748B;">Frequência Amostral</div>
+        <div style="font-size: 13px; font-weight: 700; color: #0284C7; margin-top: 2px;">
+          ${curva.sensor?.intervalo_envio_s === 3600 ? '1 Leitura / Hora (ThingSpeak)' : `Coleta a cada ${curva.sensor?.intervalo_envio_s || 300} s`}
+        </div>
+      </div>
+
+      <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 10px 14px;">
+        <div style="font-size: 10px; color: #64748B;">Índice Preditivo</div>
+        <div style="font-size: 13px; font-weight: 700; color: #B91C1C; margin-top: 2px;">
+          ${indicePreditivo} Nível ${nivelCorteNome} (${faixaCorteStr})
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Renderizador da Rota Portuária
+ */
+function renderRotaPortuariaBoxHtml(portos = [], itemAtivo = null) {
+  const lote = itemAtivo?.lote || {};
+
+  // Identifica porto mais rápido
+  let portoSelecionado = null;
+  let alternativas = [];
+
+  if (Array.isArray(portos) && portos.length > 0) {
+    const ordenados = [...portos].sort((a, b) => (a.duracao_min || 9999) - (b.duracao_min || 9999));
+    portoSelecionado = ordenados[0];
+    alternativas = ordenados.slice(1);
+  } else {
+    portoSelecionado = {
+      porto: 'Porto de Pecém',
+      uf: 'CE',
+      origem: 'Petrolina / PE',
+      distancia_km: 780,
+      duracao_min: 870
+    };
+    alternativas = [
+      { porto: 'Suape', uf: 'PE' },
+      { porto: 'Salvador', uf: 'BA' },
+      { porto: 'Natal', uf: 'RN' }
+    ];
+  }
+
+  const alternativasStr = alternativas.map(p => `${p.porto || p.nome}/${p.uf || ''}`).join(' • ');
+
+  return `
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
+      <div>
+        <h4 style="font-size: 13px; font-weight: 700; color: #0F172A; margin: 0;">Rota Portuária de Escoamento</h4>
+        <p style="font-size: 10px; color: #64748B; margin-top: 2px;">
+          Porto homologado para escoamento do lote sob alerta térmico
+        </p>
+      </div>
+      <span style="background: #EFF6FF; color: #1D4ED8; font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 4px;">
+        ${lote.destino || 'Exportação'}
+      </span>
+    </div>
+
+    <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px; font-size: 11px; margin-top: 10px;">
+      <div style="font-weight: 700; color: #047857; display: flex; align-items: center; justify-content: space-between;">
+        <span>${portoSelecionado.porto || portoSelecionado.nome} (${portoSelecionado.uf || ''})</span>
+        <span style="font-size: 9px; background: #ECFDF5; color: #047857; padding: 2px 6px; border-radius: 4px; font-weight: 700;">
+          Rota Selecionada
+        </span>
+      </div>
+      <div style="font-size: 11px; color: #475569; margin-top: 6px; line-height: 1.6;">
+        Origem: <strong>${portoSelecionado.origem || 'Petrolina / PE'}</strong> • Distância: <strong>~${portoSelecionado.distancia_km || 780} km</strong><br>
+        Carga: <strong>${lote.quantidade != null ? lote.quantidade.toLocaleString('pt-BR') : '1.000'} ${lote.unidade || 'kg'} ${lote.fruta || 'Manga'}</strong> • Tempo estimado: <strong>${formatarDuracaoHorasMin(portoSelecionado.duracao_min || 870)}</strong>
+      </div>
+      ${alternativasStr ? `
+        <div style="font-size: 10px; color: #94A3B8; margin-top: 6px;">
+          Alternativas homologadas: ${alternativasStr}
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+
+/**
+ * Renderizador dos Limiares de Conservação (config-parametros)
+ */
+function renderLimiaresConservacaoHtml(configParametros = []) {
+  if (!configParametros || configParametros.length === 0) {
+    return `
+      <div style="padding: 14px; text-align: center; color: #94A3B8; font-size: 11px;">
+        Nenhum parâmetro de conservação cadastrado
+      </div>
+    `;
+  }
+
+  // Filtra por etapa de armazenamento ou lista única por fruta
+  const frutasVistas = new Set();
+  const itensFiltrados = [];
+
+  configParametros.forEach(p => {
+    const chave = `${p.fruta || p.nome_fruta || p.id_fruta}`;
+    if (!frutasVistas.has(chave) || String(p.etapa).toLowerCase() === 'armazenamento') {
+      frutasVistas.add(chave);
+      itensFiltrados.push(p);
+    }
+  });
+
+  return itensFiltrados.slice(0, 4).map(p => {
+    const fruta = p.fruta || p.nome_fruta || `Fruta #${p.id_fruta || ''}`;
+    const etapa = p.etapa || 'Armazenamento';
+    const tempMin = p.temp_min != null ? p.temp_min.toLocaleString('pt-BR') : '0.0';
+    const tempMax = p.temp_max != null ? p.temp_max.toLocaleString('pt-BR') : '0.0';
+    const umidMin = p.umidade_min != null ? p.umidade_min.toLocaleString('pt-BR') : '85';
+    const umidMax = p.umidade_max != null ? p.umidade_max.toLocaleString('pt-BR') : '95';
+
+    return `
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; background: #F8FAFC; border-radius: 6px;">
+        <span style="font-weight: 600; color: #0F172A;">${fruta} (${etapa})</span>
+        <span style="color: #0284C7; font-weight: 600;">${tempMin}°C a ${tempMax}°C | UR ${umidMin}% a ${umidMax}%</span>
+      </div>
+    `;
+  }).join('');
+}
+
+/**
+ * Renderizador das Regras Preditivas (alertas-preditivos/cortes)
+ */
+function renderRegrasPreditivasHtml(cortes = []) {
+  if (!cortes || cortes.length === 0) {
+    return `
+      <div style="padding: 14px; text-align: center; color: #94A3B8; font-size: 11px;">
+        Nenhuma regra preditiva cadastrada
+      </div>
+    `;
+  }
+
+  return cortes.map(c => {
+    const nivel = String(c.nivel || '').toUpperCase();
+    let cor = '#059669';
+    if (nivel === 'CRITICO' || nivel === 'CRÍTICO') cor = '#B91C1C';
+    else if (nivel === 'MEDIO' || nivel === 'MÉDIO') cor = '#D97706';
+
+    const minStr = Number(c.limiar_min ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const maxStr = Number(c.limiar_max ?? 1).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const acao = c.acao_recomendada || 'Ação operacional padrão';
+
+    return `
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0;">
+        <span style="color: ${cor}; font-weight: 600;">• ${c.nivel} (${minStr} — ${maxStr})</span>
+        <strong style="color: #0F172A; font-weight: 600;">${acao}</strong>
+      </div>
+    `;
+  }).join('');
+}
+
+/**
+ * Configuração dos Eventos da Central de Alertas (Analista)
+ */
 function setupAnalistaAlertasEvents() {
   if (window.lucide) {
     window.lucide.createIcons();
   }
   liveTelemetry.start();
 
-  // Reconhecer Todos
+  // 1. Reconhecer Todos (POST /central-alertas/reconhecer-todos)
   const btnRec = document.getElementById('btn-reconhecer-todos-analista');
   if (btnRec) {
-    btnRec.addEventListener('click', () => {
-      toast.success('Incidentes Reconhecidos', 'Status de todos os alertas atualizado para "Em Atendimento pelo Analista".');
-    });
-  }
-
-  // Exportar Log com Download de CSV e PDF Reais
-  const btnExp = document.getElementById('btn-export-log-analista');
-  if (btnExp) {
-    btnExp.addEventListener('click', () => {
-      const headers = ['ID Alerta', 'Titulo', 'Severidade', 'Status', 'Sensor', 'Data/Hora', 'Descricao'];
-      const rows = [
-        ['ALT-2026-001', 'Desvio Termico no Lote de Manga', 'Critico (P1)', 'Em Aberto', 'DHT11 ESP32-C3', new Date().toLocaleString('pt-BR'), 'DHT11 registrou 14.8C acima do teto de 13.0C em transito para Pecem.'],
-        ['ALT-2026-002', 'Deficit de Umidade Relativa no Lote de Uva', 'Medio (P2)', 'Em Aberto', 'SNS-AR-002', new Date().toLocaleString('pt-BR'), 'Umidade caiu para 87.5% UR na camara de armazenamento.'],
-        ['ALT-2026-003', 'Oscilacao Termica em Melao Amarelo', 'Baixo (P3)', 'Em Aberto', 'SNS-SL-003', new Date().toLocaleString('pt-BR'), 'Temperatura em 12.3C na antecamara.'],
-        ['PRED-2026-004', 'Risco Preditivo de Deficit Hidrico', 'Alta Prob. (84%)', 'Auditoria', 'SNS-SL-004', new Date().toLocaleString('pt-BR'), 'Probabilidade projetada em 84% para as proximas 12 horas.'],
-        ['REJ-2026-005', 'Outlier Termico Rejeitado', 'Filtro Fisico', 'Descartado', 'Sonda Solo #04', new Date().toLocaleString('pt-BR'), 'Leitura 62.4C acima do limite fisico.']
-      ];
-      const dataTag = new Date().toISOString().slice(0, 10);
-      openExportChoiceModal(
-        Modal,
-        'Exportar Log de Incidentes & Alertas (Analista)',
-        () => {
-          downloadCSV(`log_auditoria_incidentes_dht11_${dataTag}.csv`, headers, rows);
-          toast.success('Download CSV Concluído!', `log_auditoria_incidentes_dht11_${dataTag}.csv baixado.`);
-        },
-        () => {
-          downloadPDF(`log_auditoria_incidentes_dht11_${dataTag}.pdf`, {
-            title: 'Relatório Técnico de Incidentes & Alertas IoT',
-            subtitle: 'Perfil Analista • Triagem Reativa & Preditiva (DHT11 ESP32-C3)',
-            headers,
-            rows
-          });
-          toast.success('Download PDF Concluído!', `log_auditoria_incidentes_dht11_${dataTag}.pdf baixado.`);
+    btnRec.addEventListener('click', async () => {
+      Modal.confirm(
+        'Reconhecer Todos os Incidentes',
+        'Tem certeza que deseja marcar todos os incidentes em aberto como reconhecidos pelo Analista?',
+        async () => {
+          btnRec.disabled = true;
+          try {
+            const res = await api.reconhecerTodosCentralAlertas();
+            const qtdReconhecidos = res?.reconhecidos ?? analistaAlertasState.resumo.total;
+            toast.success('Incidentes Reconhecidos', `${qtdReconhecidos} alertas reconhecidos com sucesso.`);
+            // Recarrega a tela dinamicamente
+            const novoHtml = await renderAnalistaAlertas();
+            const appEl = document.getElementById('app');
+            if (appEl) {
+              appEl.innerHTML = novoHtml;
+              setupAnalistaAlertasEvents();
+            }
+          } catch (err) {
+            toast.error('Erro ao Reconhecer', err.message || 'Falha na comunicação com o backend.');
+          } finally {
+            btnRec.disabled = false;
+          }
         }
       );
     });
   }
 
-  // Filtros de Incidentes
+  // 2. Exportar Log (CSV via fetch blob com token)
+  const btnExp = document.getElementById('btn-export-log-analista');
+  if (btnExp) {
+    btnExp.addEventListener('click', async () => {
+      btnExp.disabled = true;
+      try {
+        const blob = await api.exportarCentralAlertasCsv({ status: 'todos' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const dataTag = new Date().toISOString().slice(0, 10);
+        a.href = url;
+        a.download = `central_alertas_${dataTag}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+        toast.success('Download Concluído', `central_alertas_${dataTag}.csv baixado com sucesso.`);
+      } catch (err) {
+        toast.error('Falha na Exportação', err.message || 'Não foi possível exportar os alertas.');
+      } finally {
+        btnExp.disabled = false;
+      }
+    });
+  }
+
+  // 3. Filtros por Nível de Severidade (Tabs)
   document.querySelectorAll('[data-incident-filter]').forEach(tab => {
     tab.addEventListener('click', (e) => {
       document.querySelectorAll('[data-incident-filter]').forEach(t => t.classList.remove('active'));
       e.currentTarget.classList.add('active');
-      const sev = e.currentTarget.dataset.incidentFilter;
+      const filtro = e.currentTarget.dataset.incidentFilter;
+      analistaAlertasState.filtroAtivo = filtro;
 
       document.querySelectorAll('.incident-analista-card').forEach(card => {
-        if (sev === 'todos') {
+        if (filtro === 'todos') {
           card.style.display = 'block';
         } else {
-          card.style.display = card.dataset.severity === sev ? 'block' : 'none';
+          card.style.display = card.dataset.severity === filtro ? 'block' : 'none';
         }
       });
     });
   });
 
-  // Intervir Imediatamente
+  // 4. Reconhecer Individual (PATCH /central-alertas/{origem}/{id}/reconhecer)
+  document.querySelectorAll('.btn-reconhecer-analista').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.id;
+      const origem = btn.dataset.origem || 'reativo';
+      if (!id) return;
+
+      btn.disabled = true;
+      try {
+        await api.reconhecerAlertaCentral(origem, id);
+        toast.success('Incidente Reconhecido', 'Alerta marcado como atendido pelo Analista.');
+        const novoHtml = await renderAnalistaAlertas();
+        const appEl = document.getElementById('app');
+        if (appEl) {
+          appEl.innerHTML = novoHtml;
+          setupAnalistaAlertasEvents();
+        }
+      } catch (err) {
+        toast.error('Erro ao Reconhecer', err.message || 'Falha ao atualizar status do alerta.');
+        btn.disabled = false;
+      }
+    });
+  });
+
+  // 5. Intervir Imediatamente (Crítico: Reconhece e Abre Rota Portuária)
   document.querySelectorAll('.btn-intervir-analista').forEach(btn => {
-    btn.addEventListener('click', () => {
-      Modal.open('Ordem de Intervenção Operacional — ALT-2026-001', `
-        <div style="font-size:12px; color:#475569; line-height:1.6; margin-bottom:12px;">
-          Esta ação despachará um alerta prioritário para a equipe de logística refrigerada e acionará o setpoint de refrigeração da câmara para <strong>11.5°C</strong>.
-        </div>
-        <div style="background:#F8FAFC; border:1px solid #E2E8F0; padding:10px; border-radius:8px; font-size:11px;">
-          <strong>Destino:</strong> Porto de Pecém (CE)<br>
-          <strong>Carga sob risco:</strong> 1.000 kg Manga Palmer<br>
-          <strong>Previsão de estabilização térmica:</strong> 35 minutos
-        </div>
-      `, () => {
-        toast.success('Intervenção Executada', 'Gatilho de refrigeração forçada enviado ao controlador.');
-      }, 'Confirmar Intervenção');
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.id;
+      const origem = btn.dataset.origem || 'preditivo';
+      const loteId = btn.dataset.lote;
+
+      if (id) {
+        api.reconhecerAlertaCentral(origem, id).catch(() => {});
+      }
+
+      toast.info('Intervenção Iniciada', 'Direcionando para a rota portuária de escoamento prioritário.');
+
+      // Scroll suave até o card de rota portuária
+      const rotaCard = document.getElementById('container-rota-portuaria-analista');
+      if (rotaCard) {
+        rotaCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        rotaCard.style.outline = '2px solid #EF4444';
+        setTimeout(() => { rotaCard.style.outline = 'none'; }, 2000);
+      }
     });
   });
 
-  // Silenciar 1h
-  document.querySelectorAll('.btn-silenciar-analista').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.currentTarget.textContent = 'Silenciado (1h)';
-      e.currentTarget.style.color = '#10B981';
-      toast.info('Alerta Silenciado', 'Notificações deste incidente suspensas por 60 minutos.');
-    });
-  });
-
-  // Ajustar Parâmetro
+  // 6. Ajustar Parâmetro (Médio: Abre modal com os parâmetros biológicos de conservação)
   document.querySelectorAll('.btn-ajustar-param-analista').forEach(btn => {
-    btn.addEventListener('click', () => {
-      Modal.open('Ajustar Parâmetro de Umidade Relativa', `
-        <div style="font-size:12px; color:#475569; margin-bottom:12px;">
-          Faixa atual de conservação para Uva Vitória: <strong>90% a 95% UR</strong>
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const frutaAlvo = btn.dataset.fruta || 'Fruta';
+      const paramsFruta = analistaAlertasState.configParametros.filter(p => (p.fruta || p.nome_fruta) === frutaAlvo);
+
+      const linhasHtml = paramsFruta.length > 0 ? paramsFruta.map(p => `
+        <div style="background: #F8FAFC; border: 1px solid #E2E8F0; padding: 10px; border-radius: 6px; font-size: 11px; margin-bottom: 8px;">
+          <strong>Etapa:</strong> ${p.etapa || 'Armazenamento'}<br>
+          <strong>Temperatura Segura:</strong> ${p.temp_min}°C a ${p.temp_max}°C<br>
+          <strong>Umidade Relativa:</strong> ${p.umidade_min}% a ${p.umidade_max}%
         </div>
-        <label style="font-size:12px; font-weight:600; color:#0F172A; display:block; margin-bottom:4px;">
-          Novo Limiar Mínimo Tolerado (% UR):
-        </label>
-        <input type="number" value="85" style="width:100%; padding:8px 12px; border:1px solid #CBD5E1; border-radius:6px; font-size:12px;">
-      `, () => {
-        toast.success('Parâmetro Salvo', 'Novo limiar de 85% UR homologado para a câmara de Uva.');
-      }, 'Salvar Ajuste');
+      `).join('') : `
+        <div style="font-size: 12px; color: #64748B;">
+          Parâmetros vigentes de ${frutaAlvo}: Tmax 13.0°C | UR 90% a 95%
+        </div>
+      `;
+
+      Modal.open(`Parâmetros de Conservação — ${frutaAlvo}`, `
+        <div style="font-size: 12px; color: #475569; margin-bottom: 12px; line-height: 1.5;">
+          Limiares oficiais cadastrados para a cultura sob risco:
+        </div>
+        ${linhasHtml}
+      `, () => {}, 'Fechar');
     });
   });
 
-  // Acompanhar Lote
+  // 7. Acompanhar Lote (Baixo: Destaque e toast)
   document.querySelectorAll('.btn-acompanhar-analista').forEach(btn => {
-    btn.addEventListener('click', () => {
-      toast.info('Monitoramento Intensivo', 'Lote de Melão colocado sob amostragem contínua de 5 minutos.');
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const loteId = btn.dataset.lote;
+      toast.info('Monitoramento Ativo', `Lote #${loteId || '1'} sob acompanhamento contínuo de telemetria.`);
     });
   });
 
-  // Atualizar Despacho Portuário
-  const btnDespacho = document.getElementById('btn-atualizar-despacho');
-  if (btnDespacho) {
-    btnDespacho.addEventListener('click', () => {
-      Modal.open('Despacho Portuário de Exportação', `
-        <div style="font-size:12px; color:#475569; line-height:1.6; margin-bottom:12px;">
-          Confirmar emissão de Certificado Fitossanitário e despacho rodoviário refrigerado via BR-116.
-        </div>
-        <div style="display:flex; flex-direction:column; gap:8px; font-size:11px;">
-          <label style="display:flex; align-items:center; gap:8px;">
-            <input type="radio" name="porto" value="pecem" checked> Porto de Pecém / CE (Distância: ~780 km • Tempo: 14h 30min)
-          </label>
-          <label style="display:flex; align-items:center; gap:8px;">
-            <input type="radio" name="porto" value="suape"> Porto de Suape / PE (Distância: ~710 km • Tempo: 13h 15min)
-          </label>
-        </div>
-      `, () => {
-        toast.success('Despacho Atualizado', 'Manifesto de carga enviado à transportadora refrigerada.');
-      }, 'Transmitir Despacho');
+  // 8. Seleção Dinâmica de Incidente (Carrega Curva Térmica e Rota ao clicar no card)
+  document.querySelectorAll('.incident-analista-card').forEach(card => {
+    card.addEventListener('click', async () => {
+      const incId = card.dataset.incidentId;
+      const loteId = card.dataset.loteId;
+
+      document.querySelectorAll('.incident-analista-card').forEach(c => {
+        c.style.outline = 'none';
+        c.style.boxShadow = 'none';
+      });
+
+      card.style.outline = '2px solid #10B981';
+      card.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.1)';
+      analistaAlertasState.itemSelecionadoId = incId;
+
+      if (loteId) {
+        try {
+          const [novaCurva, novoPrejuizo] = await Promise.all([
+            api.getCentralAlertasCurva({ id_lote: loteId, horas: 24 }).catch(() => null),
+            api.getRiscosPrejuizo(loteId).catch(() => null)
+          ]);
+
+          analistaAlertasState.curva = novaCurva;
+          const containerCurva = document.getElementById('container-curva-termica-analista');
+          if (containerCurva) {
+            containerCurva.innerHTML = renderCurvaTermicaBoxHtml(novaCurva);
+            if (window.lucide) window.lucide.createIcons();
+          }
+
+          const itemAtivo = analistaAlertasState.itens.find(it => String(it.id || it.codigo) === String(incId));
+          const containerRota = document.getElementById('container-rota-portuaria-analista');
+          if (containerRota) {
+            containerRota.innerHTML = renderRotaPortuariaBoxHtml(analistaAlertasState.portos, itemAtivo);
+          }
+        } catch (err) {
+          console.error('Falha ao atualizar lote da curva:', err);
+        }
+      }
     });
-  }
+  });
 }
 
 /**
