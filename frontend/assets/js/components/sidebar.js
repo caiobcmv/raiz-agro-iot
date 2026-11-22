@@ -52,6 +52,11 @@ export function renderSidebar(currentPath) {
           <span>Sensores</span>
         </a>
 
+        <a href="#/calibracao" class="sidebar-menu-item ${currentPath === '#/calibracao' ? 'active' : ''}">
+          <i data-lucide="sliders"></i>
+          <span>Calibração</span>
+        </a>
+
         <a href="#/relatorios" class="sidebar-menu-item ${currentPath === '#/relatorios' ? 'active' : ''}">
           <i data-lucide="bar-chart-3"></i>
           <span>Relatórios</span>
@@ -80,6 +85,11 @@ export function renderSidebar(currentPath) {
         <a href="#/rede-esp32" class="sidebar-menu-item ${currentPath === '#/rede-esp32' ? 'active' : ''}">
           <i data-lucide="share-2"></i>
           <span>Rede ESP32</span>
+        </a>
+
+        <a href="#/calibracao" class="sidebar-menu-item ${currentPath === '#/calibracao' ? 'active' : ''}">
+          <i data-lucide="sliders"></i>
+          <span>Calibração</span>
         </a>
 
         <a href="#/leituras" class="sidebar-menu-item ${currentPath === '#/leituras' ? 'active' : ''}">

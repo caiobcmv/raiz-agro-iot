@@ -585,6 +585,40 @@ class ApiService {
     const qs = idLote != null ? `?id_lote=${encodeURIComponent(idLote)}` : '';
     return await this.request(`/riscos/prejuizo${qs}`);
   }
+
+  // ==========================================
+  // CALIBRAÇÃO E PARÂMETROS IOT
+  // ==========================================
+  async getCalibracaoResumo() {
+    return await this.request('/calibracao/resumo');
+  }
+
+  async salvarLimiarCalibracao(idConfig, dados) {
+    return await this.request(`/calibracao/limiares/${encodeURIComponent(idConfig)}`, {
+      method: 'PUT',
+      body: JSON.stringify(dados)
+    });
+  }
+
+  async salvarCortesPreditivos(cortes) {
+    return await this.request('/calibracao/cortes', {
+      method: 'PUT',
+      body: JSON.stringify(cortes)
+    });
+  }
+
+  async recalcularCalibracao() {
+    return await this.request('/calibracao/recalcular', {
+      method: 'POST'
+    });
+  }
+
+  async atualizarSensorCalibracao(idSensor, dados) {
+    return await this.request(`/calibracao/sensores/${encodeURIComponent(idSensor)}`, {
+      method: 'PUT',
+      body: JSON.stringify(dados)
+    });
+  }
 }
 
 export const api = new ApiService();

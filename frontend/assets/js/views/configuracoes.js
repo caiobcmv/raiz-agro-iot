@@ -731,10 +731,8 @@ let VARIEDADES_LIST = [
 
 export async function renderConfiguracoes() {
   const profileRole = auth.getActiveProfile();
+  const isAdmin = profileRole === 'admin';
   const isAnalista = profileRole === 'analista';
-  if (isAnalista) {
-    return renderAnalistaConfiguracoes();
-  }
 
   const [safrasRes, propRes, lotesRes, frutasRes, varRes] = await Promise.allSettled([
     api.getCatalogoSafras(),
@@ -785,6 +783,24 @@ export async function renderConfiguracoes() {
 
   return `
   <div class="dashboard-canvas" style="padding: 28px 36px 48px; overflow-y: auto;">
+
+    ${(isAnalista || isAdmin) ? `
+      <!-- BANNER DE ACESSO RÁPIDO À TELA DE CALIBRAÇÃO -->
+      <div style="background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 12px; padding: 14px 20px; margin-bottom: 22px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div style="width: 36px; height: 36px; border-radius: 10px; background: #DBEAFE; display: flex; align-items: center; justify-content: center; color: #0284C7;">
+            <i data-lucide="sliders" style="width: 18px; height: 18px;"></i>
+          </div>
+          <div>
+            <strong style="font-size: 13.5px; color: #1E293B; display: block;">Calibração de Sensores &amp; Parâmetros IoT</strong>
+            <p style="margin: 2px 0 0; font-size: 11.5px; color: #64748B;">Ajuste de limiares agronômicos, sanitização de telemetria, cortes preditivos e calibração de nós ESP32.</p>
+          </div>
+        </div>
+        <a href="#/calibracao" style="background: #0284C7; color: #FFFFFF; font-size: 12px; font-weight: 700; padding: 8px 16px; border-radius: 8px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(2,132,199,0.25);">
+          <span>Abrir Tela de Calibração</span> &rarr;
+        </a>
+      </div>
+    ` : ''}
 
     <!-- CARD 1: MEU PERFIL E PREFERÊNCIAS PESSOAIS -->
     <div class="apple-card" style="padding: 26px 28px; margin-bottom: 24px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
@@ -1232,12 +1248,8 @@ export async function setupConfiguracoesEvents() {
 
   const profileRole = auth.getActiveProfile();
   const isAnalista = profileRole === 'analista';
-  if (isAnalista) {
-    setupAnalistaConfiguracoesEvents();
-    return;
-  }
   const isAdmin = profileRole === 'admin';
-  const perfilFormatado = isAdmin ? 'Administrador' : 'Produtor / Exportador';
+  const perfilFormatado = isAdmin ? 'Administrador' : (isAnalista ? 'Analista de Telemetria' : 'Produtor / Exportador');
 
   // =========================================================================
   // 1. PREFERÊNCIAS PESSOAIS E VISUAIS (LIVRES PARA USO)
