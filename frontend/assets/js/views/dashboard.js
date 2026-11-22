@@ -39,6 +39,8 @@ function formatarTimestampRecife(isoTimestamp) {
   }
 }
 
+function formatarDataRecife(iso) { return formatarTimestampRecife(iso); }
+
 function formatarHoraSimplesRecife(isoTimestamp) {
   if (!isoTimestamp) return '';
   try {
