@@ -25,7 +25,7 @@ export function renderSidebar(currentPath) {
       <!-- Logo RAIZ com imagem nítida sobre fundo escuro -->
       <div class="sidebar-brand-container">
         <a href="#/dashboard" style="display: block; text-decoration: none;">
-          <img src="assets/images/logo-raiz.png" width="105" height="105" alt="RAIZ" style="object-fit: contain; display: block; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.15));">
+          <img src="/assets/images/logo-raiz.png" width="105" height="105" alt="RAIZ" style="object-fit: contain; display: block; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.15));">
         </a>
       </div>
 

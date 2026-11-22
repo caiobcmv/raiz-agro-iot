@@ -86,6 +86,11 @@ const server = http.createServer((req, res) => {
     cleanPath = '/';
   }
 
+  // Trata requisições relativas de assets vindas de subpáginas (ex: /pages/assets/...)
+  if (cleanPath.includes('/assets/')) {
+    cleanPath = cleanPath.substring(cleanPath.indexOf('/assets/'));
+  }
+
   // Redireciona rotas SPA sem extensão (ex: /dashboard, /sensores) para a página HTML dedicada
   const ext = path.extname(cleanPath).toLowerCase();
   if (!ext && cleanPath !== '/' && cleanPath !== '') {
