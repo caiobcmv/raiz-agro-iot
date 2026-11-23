@@ -250,20 +250,19 @@ function renderTopCards(safraAtiva, metricas, safras) {
   const strExportacao = exportacaoPct !== null ? `${formatarNumeroPtBr(exportacaoPct, 1)}%` : '—';
 
   return `
-    <!-- CABEÇALHO COM SELETOR DE SAFRA -->
+    <!-- BARRA DE CONTROLES E SELETOR DE SAFRA -->
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
-      <div>
-        <h2 style="margin: 0; font-size: 20px; font-weight: 800; color: #0F172A; display: flex; align-items: center; gap: 8px;">
-          Histórico de Safra
-          ${safraAtiva?.ativa ? '<span style="background: #183D2E; color: #FFFFFF; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; letter-spacing: 0.5px;">SAFRA ATIVA</span>' : ''}
-        </h2>
-        <p style="margin: 4px 0 0; font-size: 12px; color: #64748B;">
-          Consolidação de lotes colhidos, rendimento agronômico e telemetria de campo
-        </p>
+      <div style="display: flex; align-items: center; gap: 10px;">
+        ${safraAtiva?.ativa ? `
+          <span style="background: #ECFDF5; border: 1px solid #A7F3D0; color: #065F46; font-size: 11px; font-weight: 700; padding: 5px 12px; border-radius: 9999px; display: inline-flex; align-items: center; gap: 6px;">
+            <span style="width: 7px; height: 7px; border-radius: 50%; background: #10B981;"></span>
+            Safra Ativa: ${safraAtiva.nome || safraAtiva.ciclo || 'Ciclo Vigente'}
+          </span>
+        ` : ''}
       </div>
 
       <!-- SELETOR DE SAFRA E BOTÃO TELEMETRIA -->
-      <div style="display: flex; align-items: center; gap: 10px;">
+      <div style="display: flex; align-items: center; gap: 10px; margin-left: auto;">
         <button id="btn-scroll-telemetria" style="display: inline-flex; align-items: center; gap: 6px; background: #FFFFFF; border: 1px solid #E2E8F0; color: #183D2E; font-size: 12px; font-weight: 600; padding: 8px 14px; border-radius: 8px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.borderColor='#183D2E'" onmouseout="this.style.borderColor='#E2E8F0'">
           <i data-lucide="activity" style="width: 14px; height: 14px;"></i>
           <span>Série histórica de telemetria</span>
