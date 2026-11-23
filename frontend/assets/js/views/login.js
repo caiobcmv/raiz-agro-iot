@@ -168,16 +168,20 @@ export function setupLoginEvents() {
       try {
         const response = await api.login(email, senha);
         if (response && response.access_token) {
+          auth.clearPending2FA();
           await auth.startSession(response.usuario);
           window.location.hash = '#/dashboard';
           return;
         }
 
         if (response && response.requer_2fa && response.token_temporario) {
-          sessionStorage.setItem('mfa_contexto', 'login');
-          sessionStorage.setItem('mfa_email', email);
-          sessionStorage.setItem('mfa_token_temporario', response.token_temporario);
-          sessionStorage.setItem('mfa_metodo', response.metodo || 'email');
+          auth.setPending2FA({
+            token_temporario: response.token_temporario,
+            metodo: response.metodo || 'email',
+            expira_em_min: response.expira_em_min,
+            email_mascarado: response.email_mascarado || '',
+            email
+          });
           window.location.hash = '#/verificacao';
           return;
         }

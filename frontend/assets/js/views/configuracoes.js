@@ -436,6 +436,40 @@ export async function renderConfiguracoes() {
 
     </div>
 
+    <!-- CARD 3: SEGURANÇA E AUTENTICAÇÃO EM DOIS FATORES (TOTP) -->
+    <div class="apple-card" id="card-totp-seguranca" style="padding: 24px 28px; margin-bottom: 24px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+
+      <!-- Topo com Título -->
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 18px; flex-wrap: wrap; gap: 14px;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div style="width: 40px; height: 40px; background: #EFF6FF; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #0284C7;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/>
+              <path d="m9 12 2 2 4-4"/>
+            </svg>
+          </div>
+          <div>
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+              <h3 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 16px; font-weight: 700; color: #0F172A;">Segurança e Autenticação em Dois Fatores</h3>
+              <span id="totp-status-badge" style="background: #F1F5F9; color: #64748B; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 6px;">Carregando...</span>
+            </div>
+            <p style="margin: 3px 0 0; font-size: 12px; color: #94A3B8;">Proteja sua conta com verificação de identidade por aplicativo autenticador (Google Authenticator, Authy, etc).</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Conteúdo dinâmico do TOTP -->
+      <div id="totp-content-area" style="min-height: 60px;">
+        <div style="text-align: center; padding: 20px; color: #94A3B8; font-size: 13px;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 1s linear infinite; vertical-align: middle; margin-right: 8px;">
+            <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+          </svg>
+          Verificando status do autenticador...
+        </div>
+      </div>
+
+    </div>
+
     <!-- SEÇÃO: REGRAS DE DISPARO E NOTIFICAÇÕES (FULL WIDTH, SEM CADEIA FRIA) -->
     <div class="apple-card" style="padding:24px 28px; margin-bottom:28px;">
       <div style="display:flex; align-items:center; gap:10px; margin-bottom:18px;">
@@ -905,7 +939,292 @@ export async function setupConfiguracoesEvents() {
   });
 
   // =========================================================================
-  // 2. BOTÃO EM VERMELHO: SOLICITAR MUDANÇA AO ADMINISTRADOR
+  // 2. SEGURANÇA E TOTP (Autenticação em Dois Fatores por App)
+  // =========================================================================
+  async function carregarStatusTotp() {
+    const contentArea = document.getElementById('totp-content-area');
+    const statusBadge = document.getElementById('totp-status-badge');
+    if (!contentArea) return;
+
+    try {
+      const status = await api.getTotpStatus();
+      const ativo = status?.ativo === true;
+      const codigosRestantes = status?.codigos_recuperacao_restantes ?? '—';
+
+      if (statusBadge) {
+        statusBadge.textContent = ativo ? '✓ Autenticador Ativo' : 'Desativado';
+        statusBadge.style.background = ativo ? '#D1FAE5' : '#FEF2F2';
+        statusBadge.style.color = ativo ? '#065F46' : '#991B1B';
+      }
+
+      if (ativo) {
+        contentArea.innerHTML = `
+          <div style="display: flex; flex-direction: column; gap: 14px;">
+            <div style="display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 10px;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="9 12 11 14 15 10"/>
+              </svg>
+              <div>
+                <div style="font-size: 13px; font-weight: 700; color: #065F46;">Autenticação por aplicativo está ativa</div>
+                <div style="font-size: 11px; color: #059669;">Códigos de recuperação restantes: <strong>${codigosRestantes}</strong></div>
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+              <button type="button" id="btn-regenerar-codigos" style="padding: 9px 16px; background: #FFFFFF; border: 1.5px solid #0284C7; color: #0284C7; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                Regenerar Códigos de Recuperação
+              </button>
+              <button type="button" id="btn-desativar-totp" style="padding: 9px 16px; background: #FFFFFF; border: 1.5px solid #DC2626; color: #DC2626; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                Desativar Autenticador
+              </button>
+            </div>
+          </div>
+        `;
+        setupTotpAtivoEvents();
+      } else {
+        contentArea.innerHTML = `
+          <div style="display: flex; flex-direction: column; gap: 14px;">
+            <div style="display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 10px;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2.5">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/>
+              </svg>
+              <div>
+                <div style="font-size: 13px; font-weight: 700; color: #92400E;">Autenticador não configurado</div>
+                <div style="font-size: 11px; color: #B45309;">Adicione uma camada extra de segurança à sua conta com um aplicativo autenticador.</div>
+              </div>
+            </div>
+            <button type="button" id="btn-ativar-totp" style="padding: 10px 20px; background: #0284C7; color: #FFFFFF; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; align-self: flex-start; box-shadow: 0 2px 6px rgba(2,132,199,0.25);">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg>
+              Ativar Aplicativo Autenticador
+            </button>
+          </div>
+        `;
+        setupTotpInativoEvents();
+      }
+    } catch (err) {
+      if (statusBadge) {
+        statusBadge.textContent = 'Indisponível';
+        statusBadge.style.background = '#F1F5F9';
+        statusBadge.style.color = '#64748B';
+      }
+      contentArea.innerHTML = `
+        <div style="padding: 14px 16px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; font-size: 12px; color: #64748B; text-align: center;">
+          Não foi possível verificar o status do autenticador. <a href="javascript:void(0)" id="btn-retry-totp" style="color: #0284C7; font-weight: 700;">Tentar novamente</a>
+        </div>
+      `;
+      document.getElementById('btn-retry-totp')?.addEventListener('click', carregarStatusTotp);
+    }
+  }
+
+  function mostrarCodigosRecuperacao(codigos, aviso) {
+    const codigosFormatados = codigos.join('\n');
+    Modal.open('Códigos de Recuperação', `
+      <div style="font-size: 13px; color: #334155; display: flex; flex-direction: column; gap: 14px;">
+        <div style="padding: 12px 14px; background: #FEF2F2; border: 1px solid #FEE2E2; border-radius: 8px;">
+          <div style="font-size: 12px; font-weight: 700; color: #991B1B; margin-bottom: 4px;">⚠️ ATENÇÃO — Guarde esses códigos com segurança!</div>
+          <div style="font-size: 11px; color: #B91C1C; line-height: 1.5;">${aviso || 'Estes códigos só serão exibidos UMA ÚNICA VEZ. Cada código só pode ser usado uma vez. Se perder o acesso ao autenticador, use um desses códigos para entrar.'}</div>
+        </div>
+        <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 16px; font-family: 'Courier New', monospace;">
+          <div id="recovery-codes-display" style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px 24px;">
+            ${codigos.map((c, i) => `<div style="font-size: 14px; font-weight: 700; color: #0F172A; padding: 4px 0;">${i + 1}. ${c}</div>`).join('')}
+          </div>
+        </div>
+        <div style="display: flex; gap: 10px; justify-content: center;">
+          <button type="button" id="btn-copy-codes" style="padding: 8px 16px; background: #059669; color: #fff; border: none; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+            📋 Copiar Todos
+          </button>
+          <button type="button" id="btn-download-codes" style="padding: 8px 16px; background: #0284C7; color: #fff; border: none; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+            💾 Baixar como TXT
+          </button>
+        </div>
+      </div>
+    `, () => true, 'Já salvei meus códigos');
+
+    setTimeout(() => {
+      document.getElementById('btn-copy-codes')?.addEventListener('click', () => {
+        navigator.clipboard.writeText(codigosFormatados).then(() => {
+          toast.success('Copiado!', 'Códigos de recuperação copiados para a área de transferência.');
+        }).catch(() => {
+          const textArea = document.createElement('textarea');
+          textArea.value = codigosFormatados;
+          document.body.appendChild(textArea);
+          textArea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textArea);
+          toast.success('Copiado!', 'Códigos copiados.');
+        });
+      });
+
+      document.getElementById('btn-download-codes')?.addEventListener('click', () => {
+        const conteudo = 'RAIZ AGRO IOT - Códigos de Recuperação 2FA\n' +
+          '============================================\n\n' +
+          'Gerados em: ' + new Date().toLocaleString('pt-BR') + '\n\n' +
+          codigos.map((c, i) => `${i + 1}. ${c}`).join('\n') + '\n\n' +
+          'IMPORTANTE: Cada código só pode ser usado uma vez.\n' +
+          'Guarde este arquivo em local seguro.';
+        const blob = new Blob([conteudo], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'raiz-agro-codigos-recuperacao-2fa.txt';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        toast.success('Download', 'Arquivo TXT baixado com sucesso.');
+      });
+    }, 100);
+  }
+
+  function setupTotpInativoEvents() {
+    document.getElementById('btn-ativar-totp')?.addEventListener('click', async () => {
+      const btn = document.getElementById('btn-ativar-totp');
+      const textoOriginal = btn?.innerHTML;
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 1s linear infinite;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Gerando QR Code...';
+      }
+
+      try {
+        const dados = await api.iniciarTotp();
+
+        Modal.open('Configurar Aplicativo Autenticador', `
+          <div style="font-size: 13px; color: #334155; display: flex; flex-direction: column; gap: 16px;">
+            <div style="text-align: center;">
+              <p style="margin: 0 0 12px; font-size: 12px; color: #64748B;">Escaneie o QR Code abaixo com seu aplicativo autenticador:</p>
+              <img src="data:image/png;base64,${dados.qr_code_png_base64}" alt="QR Code TOTP" style="width: 200px; height: 200px; border: 2px solid #E2E8F0; border-radius: 12px; padding: 8px; background: #FFFFFF;">
+            </div>
+            <div style="padding: 12px 14px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px;">
+              <div style="font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 4px;">Ou digite manualmente no app:</div>
+              <div style="font-family: 'Courier New', monospace; font-size: 15px; font-weight: 700; color: #0F172A; letter-spacing: 2px; word-break: break-all;">${dados.segredo_manual}</div>
+              <div style="font-size: 10px; color: #94A3B8; margin-top: 4px;">Tipo: TOTP • ${dados.digitos || 6} dígitos • Período: ${dados.periodo_s || 30}s</div>
+            </div>
+            <div>
+              <label style="display: block; font-size: 11px; font-weight: 700; color: #1E293B; margin-bottom: 6px;">DIGITE O CÓDIGO EXIBIDO NO APP PARA CONFIRMAR:</label>
+              <input type="text" id="modal-totp-confirm-code" placeholder="000000" maxlength="6" inputmode="numeric" style="width: 100%; padding: 12px 16px; border: 1.5px solid #0284C7; border-radius: 8px; font-size: 20px; font-weight: 700; text-align: center; letter-spacing: 8px; box-sizing: border-box; outline: none;">
+            </div>
+          </div>
+        `, async (modal) => {
+          const codigo = document.getElementById('modal-totp-confirm-code')?.value?.trim();
+          if (!codigo || codigo.length !== 6) {
+            toast.warning('Código Incompleto', 'Digite os 6 dígitos exibidos no aplicativo autenticador.');
+            return false;
+          }
+
+          try {
+            const res = await api.confirmarTotp(codigo);
+            toast.success('Autenticador Ativado!', 'A verificação em dois fatores por aplicativo foi ativada com sucesso.');
+
+            if (res.codigos_recuperacao && res.codigos_recuperacao.length > 0) {
+              setTimeout(() => mostrarCodigosRecuperacao(res.codigos_recuperacao, res.aviso), 400);
+            }
+
+            carregarStatusTotp();
+            return true;
+          } catch (err) {
+            toast.error('Código Inválido', err.message || 'O código digitado não corresponde. Tente novamente.');
+            return false;
+          }
+        }, 'Confirmar e Ativar');
+      } catch (err) {
+        if (err.message?.includes('409') || err.message?.includes('já está ativo') || err.message?.includes('ativo')) {
+          toast.info('Já Ativo', 'O autenticador já está ativo na sua conta.');
+          carregarStatusTotp();
+        } else {
+          toast.error('Erro', err.message || 'Não foi possível iniciar a configuração do autenticador.');
+        }
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = textoOriginal;
+        }
+      }
+    });
+  }
+
+  function setupTotpAtivoEvents() {
+    // Regenerar códigos de recuperação
+    document.getElementById('btn-regenerar-codigos')?.addEventListener('click', () => {
+      Modal.open('Regenerar Códigos de Recuperação', `
+        <div style="font-size: 13px; color: #334155; display: flex; flex-direction: column; gap: 12px;">
+          <p style="margin: 0; font-size: 12px; color: #64748B; line-height: 1.5;">
+            Para gerar novos códigos de recuperação, digite o código atual de 6 dígitos do seu aplicativo autenticador.
+            <strong>Os códigos anteriores serão invalidados.</strong>
+          </p>
+          <div>
+            <label style="display: block; font-size: 11px; font-weight: 700; color: #1E293B; margin-bottom: 6px;">CÓDIGO DO AUTENTICADOR</label>
+            <input type="text" id="modal-regen-code" placeholder="000000" maxlength="6" inputmode="numeric" style="width: 100%; padding: 12px 16px; border: 1.5px solid #0284C7; border-radius: 8px; font-size: 18px; font-weight: 700; text-align: center; letter-spacing: 6px; box-sizing: border-box; outline: none;">
+          </div>
+        </div>
+      `, async () => {
+        const codigo = document.getElementById('modal-regen-code')?.value?.trim();
+        if (!codigo || codigo.length !== 6) {
+          toast.warning('Código Incompleto', 'Digite os 6 dígitos do autenticador.');
+          return false;
+        }
+        try {
+          const res = await api.regenerarCodigosTotp(codigo);
+          if (res.codigos_recuperacao && res.codigos_recuperacao.length > 0) {
+            setTimeout(() => mostrarCodigosRecuperacao(res.codigos_recuperacao, 'Os códigos anteriores foram invalidados. Guarde estes novos códigos com segurança.'), 400);
+          }
+          carregarStatusTotp();
+          return true;
+        } catch (err) {
+          toast.error('Código Inválido', err.message || 'O código não corresponde.');
+          return false;
+        }
+      }, 'Regenerar Códigos');
+    });
+
+    // Desativar autenticador
+    document.getElementById('btn-desativar-totp')?.addEventListener('click', () => {
+      Modal.open('Desativar Autenticador', `
+        <div style="font-size: 13px; color: #334155; display: flex; flex-direction: column; gap: 12px;">
+          <div style="padding: 12px 14px; background: #FEF2F2; border: 1px solid #FEE2E2; border-radius: 8px;">
+            <div style="font-size: 12px; font-weight: 700; color: #991B1B;">⚠️ Atenção: isso reduzirá a segurança da sua conta.</div>
+            <div style="font-size: 11px; color: #B91C1C; margin-top: 4px;">Após desativar, o login usará apenas e-mail e senha (ou verificação por e-mail, se configurada).</div>
+          </div>
+          <div>
+            <label style="display: block; font-size: 11px; font-weight: 700; color: #1E293B; margin-bottom: 6px;">SUA SENHA ATUAL</label>
+            <input type="password" id="modal-deactivate-password" placeholder="••••••••••••" style="width: 100%; padding: 10px 12px; border: 1px solid #CBD5E1; border-radius: 8px; font-size: 13px; box-sizing: border-box; outline: none;">
+          </div>
+          <div>
+            <label style="display: block; font-size: 11px; font-weight: 700; color: #1E293B; margin-bottom: 6px;">CÓDIGO DO AUTENTICADOR</label>
+            <input type="text" id="modal-deactivate-code" placeholder="000000" maxlength="6" inputmode="numeric" style="width: 100%; padding: 12px 16px; border: 1.5px solid #DC2626; border-radius: 8px; font-size: 18px; font-weight: 700; text-align: center; letter-spacing: 6px; box-sizing: border-box; outline: none;">
+          </div>
+        </div>
+      `, async () => {
+        const senha = document.getElementById('modal-deactivate-password')?.value;
+        const codigo = document.getElementById('modal-deactivate-code')?.value?.trim();
+        if (!senha) {
+          toast.warning('Senha Necessária', 'Digite sua senha atual.');
+          return false;
+        }
+        if (!codigo || codigo.length !== 6) {
+          toast.warning('Código Incompleto', 'Digite os 6 dígitos do autenticador.');
+          return false;
+        }
+        try {
+          await api.desativarTotp(senha, codigo);
+          toast.success('Autenticador Desativado', 'A verificação por aplicativo foi removida da sua conta.');
+          carregarStatusTotp();
+          return true;
+        } catch (err) {
+          toast.error('Falha', err.message || 'Senha ou código inválidos.');
+          return false;
+        }
+      }, 'Desativar');
+    });
+  }
+
+  // Carrega status do TOTP ao entrar na página
+  carregarStatusTotp();
+
+  // =========================================================================
+  // 3. BOTÃO EM VERMELHO: SOLICITAR MUDANÇA AO ADMINISTRADOR
   // =========================================================================
   document.getElementById('btn-solicitar-mudanca')?.addEventListener('click', () => {
     Modal.open('Solicitar Mudança ao Administrador', `

@@ -40,7 +40,33 @@ class AuthState {
     this.user = this.loadUser();
     this.activeProfile = this.getActiveProfile();
     this.preferences = this.loadLocalPreferences();
+    this._pending2FA = null;
     this.applyVisualPreferences();
+  }
+
+  // ==========================================
+  // ESTADO TEMPORÁRIO DE 2FA (APENAS EM MEMÓRIA)
+  // ==========================================
+  setPending2FA(data) {
+    if (!data) {
+      this._pending2FA = null;
+      return;
+    }
+    this._pending2FA = {
+      token_temporario: data.token_temporario,
+      metodo: data.metodo || 'email',
+      expira_em_min: data.expira_em_min || 10,
+      email_mascarado: data.email_mascarado || '',
+      email: data.email || ''
+    };
+  }
+
+  getPending2FA() {
+    return this._pending2FA || null;
+  }
+
+  clearPending2FA() {
+    this._pending2FA = null;
   }
 
   saveAvatarTheme(colorKey) {

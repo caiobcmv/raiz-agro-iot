@@ -290,6 +290,43 @@ class ApiService {
   }
 
   // ==========================================
+  // AUTENTICAÇÃO EM DOIS FATORES - TOTP (APP AUTENTICADOR)
+  // ==========================================
+  async getTotpStatus() {
+    return await this.request('/auth/2fa/totp/status');
+  }
+
+  async iniciarTotp() {
+    return await this.request('/auth/2fa/totp/iniciar', {
+      method: 'POST'
+    });
+  }
+
+  async confirmarTotp(codigo) {
+    const cleanCodigo = String(codigo || '').trim();
+    return await this.request('/auth/2fa/totp/confirmar', {
+      method: 'POST',
+      body: JSON.stringify({ codigo: cleanCodigo })
+    });
+  }
+
+  async regenerarCodigosTotp(codigo) {
+    const cleanCodigo = String(codigo || '').trim();
+    return await this.request('/auth/2fa/totp/recuperacao/regenerar', {
+      method: 'POST',
+      body: JSON.stringify({ codigo: cleanCodigo })
+    });
+  }
+
+  async desativarTotp(senha, codigo) {
+    const cleanCodigo = String(codigo || '').trim();
+    return await this.request('/auth/2fa/totp/desativar', {
+      method: 'POST',
+      body: JSON.stringify({ senha, codigo: cleanCodigo })
+    });
+  }
+
+  // ==========================================
   // DASHBOARD RESUMO
   // ==========================================
   async getDashboardResumo() {

@@ -428,7 +428,11 @@ export function setupRecuperarSenhaEvents() {
    ===================================================================== */
 
 export function renderVerificacao() {
-  const emailArmazenado = sessionStorage.getItem('mfa_email') || 'seu.email@raizagro.agr.br';
+  // Determinar método 2FA: primeiro tenta estado em memória (login), depois sessionStorage (recuperação)
+  const pending = auth.getPending2FA();
+  const metodo = pending?.metodo || sessionStorage.getItem('mfa_metodo') || 'email';
+  const emailExibicao = pending?.email_mascarado || pending?.email || sessionStorage.getItem('mfa_email') || 'seu.email@raizagro.agr.br';
+  const isTotp = metodo === 'totp';
 
   return `
     <div class="login-viewport">
@@ -439,7 +443,7 @@ export function renderVerificacao() {
         </div>
       </div>
 
-      <!-- Painel Direito: Formulário de 6 Dígitos -->
+      <!-- Painel Direito: Formulário de Verificação -->
       <div class="login-form-section">
         <div class="login-form-container">
 
@@ -448,15 +452,78 @@ export function renderVerificacao() {
               <span class="auth-pill-dot"></span>
               SEGURANÇA E VALIDAÇÃO
             </div>
-            <h1 class="auth-title">Digite o código de 6 dígitos</h1>
+            <h1 class="auth-title">${isTotp ? 'Código do Aplicativo Autenticador' : 'Digite o código de 6 dígitos'}</h1>
             <p class="auth-subtitle">
-              Enviamos um código temporário de autenticação para o e-mail
-              <u id="verif-email-display">${emailArmazenado}</u> e via SMS para o número com final <strong>(••• 9842)</strong>.
+              ${isTotp
+                ? 'Abra seu aplicativo autenticador (Google Authenticator, Authy, Microsoft Authenticator...) e digite o código de 6 dígitos exibido.'
+                : `Enviamos um código temporário de autenticação para o e-mail <u id="verif-email-display">${emailExibicao}</u>.`
+              }
             </p>
           </div>
 
           <form id="verificacao-form" class="login-form">
-            <!-- 6 Caixas de Dígitos -->
+            ${isTotp ? `
+            <!-- TOTP: Campo único para código de 6 dígitos ou código de recuperação -->
+            <div id="totp-code-section">
+              <div class="login-input-group">
+                <label class="login-label" for="totp-code-input">CÓDIGO DO AUTENTICADOR</label>
+                <div class="login-input-wrapper">
+                  <span class="login-input-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                    </svg>
+                  </span>
+                  <input
+                    type="text"
+                    id="totp-code-input"
+                    class="login-input"
+                    placeholder="000000"
+                    maxlength="6"
+                    inputmode="numeric"
+                    autocomplete="one-time-code"
+                    autofocus
+                    required
+                    style="letter-spacing: 6px; font-size: 18px; font-weight: 700; text-align: center;"
+                  >
+                </div>
+              </div>
+              <div style="text-align: center; margin-top: 6px;">
+                <a href="javascript:void(0)" id="totp-toggle-recovery" style="font-size: 12px; color: #0284C7; text-decoration: none; font-weight: 600;">
+                  🔑 Usar código de recuperação
+                </a>
+              </div>
+            </div>
+
+            <div id="totp-recovery-section" style="display: none;">
+              <div class="login-input-group">
+                <label class="login-label" for="totp-recovery-input">CÓDIGO DE RECUPERAÇÃO</label>
+                <div class="login-input-wrapper">
+                  <span class="login-input-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="m21 2-2 2m-1.5 1.5L14 9l-1.5-1.5L11 9l-1.5-1.5L8 9l-4 4a5 5 0 1 0 7 7l4-4 1.5 1.5L18 16l1.5-1.5L18 13l1.5-1.5L21 10"/>
+                      <circle cx="7.5" cy="16.5" r="1.5"/>
+                    </svg>
+                  </span>
+                  <input
+                    type="text"
+                    id="totp-recovery-input"
+                    class="login-input"
+                    placeholder="XXXXX-XXXXX"
+                    maxlength="11"
+                    autocomplete="off"
+                    style="letter-spacing: 2px; font-size: 16px; font-weight: 700; text-align: center; text-transform: uppercase;"
+                  >
+                </div>
+              </div>
+              <div style="text-align: center; margin-top: 6px;">
+                <a href="javascript:void(0)" id="totp-toggle-code" style="font-size: 12px; color: #0284C7; text-decoration: none; font-weight: 600;">
+                  📱 Usar código do aplicativo
+                </a>
+              </div>
+            </div>
+            ` : `
+            <!-- EMAIL: 6 Caixas de Dígitos -->
             <div class="auth-code-inputs-group">
               <input type="text" class="auth-code-box" maxlength="1" pattern="[0-9]" inputmode="numeric" placeholder="–" data-idx="0" autofocus required>
               <input type="text" class="auth-code-box" maxlength="1" pattern="[0-9]" inputmode="numeric" placeholder="–" data-idx="1" required>
@@ -466,7 +533,7 @@ export function renderVerificacao() {
               <input type="text" class="auth-code-box" maxlength="1" pattern="[0-9]" inputmode="numeric" placeholder="–" data-idx="5" required>
             </div>
 
-            <!-- Linha com Contador Regressivo e Reenviar código -->
+            <!-- Linha com Contador Regressivo e Reenviar código (só para e-mail) -->
             <div class="auth-timer-resend-row">
               <div class="auth-timer-wrap">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -479,15 +546,16 @@ export function renderVerificacao() {
                 Reenviar código
               </button>
             </div>
+            `}
 
             <!-- Botão Validar Código -->
             <button type="submit" class="login-submit-btn" id="verif-submit-btn">
               VALIDAR CÓDIGO E CONTINUAR &rarr;
             </button>
 
-            <!-- Link Voltar ou alterar e-mail -->
+            <!-- Link Voltar -->
             <div class="auth-bottom-link">
-              <a href="javascript:void(0)" id="verif-back-link">&larr; Voltar ou alterar e-mail</a>
+              <a href="javascript:void(0)" id="verif-back-link">&larr; ${isTotp ? 'Voltar ao login' : 'Voltar ou alterar e-mail'}</a>
             </div>
           </form>
 
@@ -507,20 +575,21 @@ export function renderVerificacao() {
 }
 
 export function setupVerificacaoEvents() {
-  const contexto = sessionStorage.getItem('mfa_contexto');
-  const email = sessionStorage.getItem('mfa_email');
-  const tokenTemporario = sessionStorage.getItem('mfa_token_temporario');
+  // Determinar fonte do estado: memória (login 2FA) ou sessionStorage (recuperação de senha)
+  const pending = auth.getPending2FA();
+  const contexto = pending ? 'login' : sessionStorage.getItem('mfa_contexto');
+  const metodo = pending?.metodo || sessionStorage.getItem('mfa_metodo') || 'email';
+  const tokenTemporario = pending?.token_temporario || sessionStorage.getItem('mfa_token_temporario');
+  const email = pending?.email || sessionStorage.getItem('mfa_email');
+  const isTotp = metodo === 'totp';
 
   // Sem estado válido, redireciona para login
-  if (!contexto || !email || !tokenTemporario) {
+  if (!contexto || !tokenTemporario) {
     window.location.hash = '#/login';
     return;
   }
 
   const form = document.getElementById('verificacao-form');
-  const inputs = Array.from(document.querySelectorAll('.auth-code-box'));
-  const timerEl = document.getElementById('verif-timer');
-  const resendBtn = document.getElementById('verif-resend-btn');
   const submitBtn = document.getElementById('verif-submit-btn');
   const backLink = document.getElementById('verif-back-link');
 
@@ -530,10 +599,126 @@ export function setupVerificacaoEvents() {
       if (contexto === 'recuperacao') {
         window.location.hash = '#/recuperar-senha';
       } else {
+        auth.clearPending2FA();
         window.location.hash = '#/login';
       }
     });
   }
+
+  // ========== TOTP: lógica específica ==========
+  if (isTotp) {
+    const codeInput = document.getElementById('totp-code-input');
+    const recoveryInput = document.getElementById('totp-recovery-input');
+    const codeSection = document.getElementById('totp-code-section');
+    const recoverySection = document.getElementById('totp-recovery-section');
+    const toggleRecovery = document.getElementById('totp-toggle-recovery');
+    const toggleCode = document.getElementById('totp-toggle-code');
+
+    let usingRecovery = false;
+
+    if (toggleRecovery) {
+      toggleRecovery.addEventListener('click', () => {
+        usingRecovery = true;
+        codeSection.style.display = 'none';
+        recoverySection.style.display = 'block';
+        recoveryInput.focus();
+      });
+    }
+
+    if (toggleCode) {
+      toggleCode.addEventListener('click', () => {
+        usingRecovery = false;
+        recoverySection.style.display = 'none';
+        codeSection.style.display = 'block';
+        codeInput.focus();
+      });
+    }
+
+    // Auto-filter TOTP code input to digits only
+    if (codeInput) {
+      codeInput.addEventListener('input', () => {
+        codeInput.value = codeInput.value.replace(/\D/g, '');
+      });
+    }
+
+    // Auto-format recovery code as XXXXX-XXXXX
+    if (recoveryInput) {
+      recoveryInput.addEventListener('input', () => {
+        let raw = recoveryInput.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+        if (raw.length > 5) {
+          raw = raw.slice(0, 5) + '-' + raw.slice(5, 10);
+        }
+        recoveryInput.value = raw;
+      });
+    }
+
+    // Submissão TOTP
+    if (form) {
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        let code;
+        if (usingRecovery) {
+          code = (recoveryInput?.value || '').trim().toUpperCase();
+          if (!/^[A-Z0-9]{5}-[A-Z0-9]{5}$/.test(code)) {
+            toast.warning('Formato Inválido', 'O código de recuperação deve ter o formato XXXXX-XXXXX.');
+            return;
+          }
+        } else {
+          code = (codeInput?.value || '').trim();
+          if (code.length !== 6 || !/^\d{6}$/.test(code)) {
+            toast.warning('Código Incompleto', 'Digite os 6 dígitos do código do autenticador.');
+            return;
+          }
+        }
+
+        submitBtn.classList.add('loading');
+        submitBtn.textContent = 'VALIDANDO...';
+
+        try {
+          const res2fa = await api.verify2FA(tokenTemporario, code);
+          auth.clearPending2FA();
+
+          if (res2fa.access_token) {
+            api.setTokens(res2fa.access_token, res2fa.refresh_token);
+          }
+          await auth.startSession(res2fa.usuario);
+
+          toast.success('Autenticação Concluída', `Seja bem-vindo(a), ${auth.getProfileData().nome || 'Usuário'}!`);
+          window.location.hash = '#/dashboard';
+        } catch (err) {
+          const msg = err.message || 'Código incorreto ou expirado.';
+          if (msg.toLowerCase().includes('bloqueada') || msg.toLowerCase().includes('bloqueado')) {
+            toast.error('Conta Bloqueada', msg);
+            auth.clearPending2FA();
+            window.location.hash = '#/login';
+          } else if (msg.toLowerCase().includes('expirado') || msg.toLowerCase().includes('expired')) {
+            toast.error('Token Expirado', 'O tempo de verificação expirou. Faça login novamente.');
+            auth.clearPending2FA();
+            window.location.hash = '#/login';
+          } else {
+            toast.error('Código Inválido', msg);
+            if (usingRecovery) {
+              if (recoveryInput) recoveryInput.value = '';
+              recoveryInput?.focus();
+            } else {
+              if (codeInput) codeInput.value = '';
+              codeInput?.focus();
+            }
+          }
+        } finally {
+          submitBtn.classList.remove('loading');
+          submitBtn.textContent = 'VALIDAR CÓDIGO E CONTINUAR →';
+        }
+      });
+    }
+
+    return; // TOTP setup concluído, não executar lógica de e-mail abaixo
+  }
+
+  // ========== EMAIL: lógica original ==========
+  const inputs = Array.from(document.querySelectorAll('.auth-code-box'));
+  const timerEl = document.getElementById('verif-timer');
+  const resendBtn = document.getElementById('verif-resend-btn');
 
   // Interatividade das 6 caixas de código
   inputs.forEach((input, index) => {
@@ -569,26 +754,28 @@ export function setupVerificacaoEvents() {
   // Foco inicial
   if (inputs[0]) inputs[0].focus();
 
-  // Contador regressivo de 10:00 (600 segundos)
-  let timeLeft = 600;
+  // Contador regressivo (usa expira_em_min do pending ou 10 min padrão)
+  const expiraMin = pending?.expira_em_min || 10;
+  let timeLeft = expiraMin * 60;
   const timerInterval = setInterval(() => {
     timeLeft--;
     const mins = String(Math.floor(timeLeft / 60)).padStart(2, '0');
     const secs = String(timeLeft % 60).padStart(2, '0');
     if (timerEl) timerEl.textContent = `${mins}:${secs}`;
 
-    // Habilita reenviar após 60s (timeLeft <= 540)
-    if (timeLeft <= 540 && resendBtn && resendBtn.disabled) {
+    // Habilita reenviar após 60s
+    if (timeLeft <= (expiraMin * 60 - 60) && resendBtn && resendBtn.disabled) {
       resendBtn.disabled = false;
     }
 
     if (timeLeft <= 0) {
       clearInterval(timerInterval);
       toast.error('Código Expirado', 'O tempo limite expirou. Solicite um novo código de verificação.');
+      auth.clearPending2FA();
     }
   }, 1000);
 
-  // Reenviar código
+  // Reenviar código (somente e-mail — NUNCA chamar para TOTP)
   if (resendBtn) {
     resendBtn.addEventListener('click', async () => {
       try {
@@ -602,7 +789,7 @@ export function setupVerificacaoEvents() {
     });
   }
 
-  // Validação do formulário
+  // Validação do formulário para e-mail
   if (form) {
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -621,11 +808,15 @@ export function setupVerificacaoEvents() {
         clearInterval(timerInterval);
 
         if (contexto === 'login') {
+          auth.clearPending2FA();
           sessionStorage.removeItem('mfa_contexto');
           sessionStorage.removeItem('mfa_email');
           sessionStorage.removeItem('mfa_token_temporario');
           sessionStorage.removeItem('mfa_metodo');
 
+          if (res2fa.access_token) {
+            api.setTokens(res2fa.access_token, res2fa.refresh_token);
+          }
           await auth.startSession(res2fa.usuario);
 
           toast.success('Autenticação Concluída', `Seja bem-vindo(a), ${auth.getProfileData().nome || 'Usuário'}!`);
@@ -640,9 +831,16 @@ export function setupVerificacaoEvents() {
           window.location.hash = '#/redefinir-senha';
         }
       } catch (err) {
-        toast.error('Código Inválido', err.message || 'Código incorreto ou expirado.');
-        inputs.forEach(i => i.value = '');
-        if (inputs[0]) inputs[0].focus();
+        const msg = err.message || 'Código incorreto ou expirado.';
+        if (msg.toLowerCase().includes('bloqueada') || msg.toLowerCase().includes('bloqueado')) {
+          toast.error('Conta Bloqueada', msg);
+          auth.clearPending2FA();
+          window.location.hash = '#/login';
+        } else {
+          toast.error('Código Inválido', msg);
+          inputs.forEach(i => i.value = '');
+          if (inputs[0]) inputs[0].focus();
+        }
       } finally {
         submitBtn.classList.remove('loading');
         submitBtn.textContent = 'VALIDAR CÓDIGO E CONTINUAR →';
