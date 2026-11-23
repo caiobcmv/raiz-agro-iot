@@ -1,0 +1,26 @@
+# Ambiente virtual
+venv/
+.venv/
+
+# Variáveis de ambiente reais (segredo)
+.env
+
+# Python
+__pycache__/
+*.pyc
+
+# Editor
+.vscode/
+.idea/
+
+# Cache de testes e zips de entrega
+.pytest_cache/
+*.zip
+.env.*
+!.env.example
+
+*.patch
+qa-api/reports/
+
+# logs de segurança (evidência vai copiada para seguranca/evidencias/)
+*.log

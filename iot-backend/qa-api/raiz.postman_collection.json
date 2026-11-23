@@ -1,0 +1,483 @@
+﻿{
+  "info": {
+    "name": "Raiz API - Suite QA Completa (Atualizada)",
+    "description": "Cobertura completa da API Raiz: Saúde, Autenticação 3 perfis, RBAC/Escopo, Sensores/Topologia, Dashboard Stream, Central de Alertas, Previsões, IA e Auditoria.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Saúde e Segurança Básica (401)",
+      "item": [
+        {
+          "name": "GET / - Healthcheck da API",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('Retorna status ok e docs', () => {",
+            "    const j = pm.response.json();",
+            "    pm.expect(j.status).to.eql('ok');",
+            "    pm.expect(j.docs).to.eql('/docs');",
+            "});",
+            "pm.test('Latência < 1000ms', () => pm.expect(pm.response.responseTime).to.be.below(1000));"
+          ]}}],
+          "request": { "method": "GET", "url": "{{base_url}}/" }
+        },
+        {
+          "name": "GET /usuarios - Sem Token (401)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Bloqueia acesso anônimo (401)', () => pm.response.to.have.status(401));"
+          ]}}],
+          "request": { "method": "GET", "url": "{{base_url}}/usuarios" }
+        },
+        {
+          "name": "GET /central-alertas - Sem Token (401)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Central de alertas exige autenticação (401)', () => pm.response.to.have.status(401));"
+          ]}}],
+          "request": { "method": "GET", "url": "{{base_url}}/central-alertas" }
+        }
+      ]
+    },
+    {
+      "name": "2. Autenticação dos 3 Perfis",
+      "item": [
+        {
+          "name": "POST /auth/login - Payload Vazio (422)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Rejeita entrada inválida (422)', () => pm.response.to.have.status(422));"
+          ]}}],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{}" }, "url": "{{base_url}}/auth/login" }
+        },
+        {
+          "name": "POST /auth/login - Senha Errada (401)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Recusa credenciais inválidas (401)', () => pm.response.to.have.status(401));",
+            "pm.test('Resposta genérica anti-enumeração', () => pm.expect(pm.response.json().detail).to.eql('Credenciais inválidas'));"
+          ]}}],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"email\": \"naoexiste@raiz.com\", \"senha\": \"errada123\"}" }, "url": "{{base_url}}/auth/login" }
+        },
+        {
+          "name": "POST /auth/login - Administrador",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Login Admin 200 OK', () => pm.response.to.have.status(200));",
+            "const j = pm.response.json();",
+            "pm.test('Token JWT retornado', () => pm.expect(j.access_token).to.be.a('string'));",
+            "pm.environment.set('token_admin', j.access_token);"
+          ]}}],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"email\": \"{{admin_email}}\", \"senha\": \"{{admin_senha}}\"}" }, "url": "{{base_url}}/auth/login" }
+        },
+        {
+          "name": "POST /auth/login - Analista de Dados",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Login Analista 200 OK', () => pm.response.to.have.status(200));",
+            "const j = pm.response.json();",
+            "pm.test('Token JWT retornado', () => pm.expect(j.access_token).to.be.a('string'));",
+            "pm.environment.set('token_analista', j.access_token);"
+          ]}}],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"email\": \"{{analista_email}}\", \"senha\": \"{{analista_senha}}\"}" }, "url": "{{base_url}}/auth/login" }
+        },
+        {
+          "name": "POST /auth/login - Produtor/Exportador",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Login Produtor 200 OK', () => pm.response.to.have.status(200));",
+            "const j = pm.response.json();",
+            "pm.test('Token JWT retornado', () => pm.expect(j.access_token).to.be.a('string'));",
+            "pm.environment.set('token_produtor', j.access_token);"
+          ]}}],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"email\": \"{{prod_email}}\", \"senha\": \"{{prod_senha}}\"}" }, "url": "{{base_url}}/auth/login" }
+        },
+        {
+          "name": "GET /auth/me - Sessão Admin",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+            "const u = pm.response.json();",
+            "pm.test('Estrutura do usuário completa', () => pm.expect(u).to.include.keys('id_usuario', 'nome', 'email', 'perfil'));",
+            "pm.test('Perfil é Administrador', () => pm.expect(u.perfil).to.eql('Administrador'));"
+          ]}}],
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token_admin}}" }], "url": "{{base_url}}/auth/me" }
+        }
+      ]
+    },
+    {
+      "name": "3. Matriz de Autorização e Escopo (RBAC)",
+      "item": [
+        {
+          "name": "GET /usuarios - Analista Bloqueado (403)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Analista não gerencia usuários (403)', () => pm.response.to.have.status(403));"
+          ]}}],
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token_analista}}" }], "url": "{{base_url}}/usuarios" }
+        },
+        {
+          "name": "GET /auditoria - Analista Bloqueado (403)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Analista não lê auditoria (403)', () => pm.response.to.have.status(403));"
+          ]}}],
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token_analista}}" }], "url": "{{base_url}}/auditoria" }
+        },
+        {
+          "name": "GET /auditoria - Produtor Bloqueado (403)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Produtor não lê auditoria (403)', () => pm.response.to.have.status(403));"
+          ]}}],
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token_produtor}}" }], "url": "{{base_url}}/auditoria" }
+        },
+        {
+          "name": "GET /relatorios - Produtor Bloqueado (403)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Produtor não acessa relatórios internos (403)', () => pm.response.to.have.status(403));"
+          ]}}],
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token_produtor}}" }], "url": "{{base_url}}/relatorios" }
+        },
+        {
+          "name": "GET /analista/sensores/resumo - Produtor Bloqueado (403)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Produtor não acessa visão de analista (403)', () => pm.response.to.have.status(403));"
+          ]}}],
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token_produtor}}" }], "url": "{{base_url}}/analista/sensores/resumo" }
+        },
+        {
+          "name": "POST /sensores - Produtor Bloqueado (403)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Produtor é somente leitura (403)', () => pm.response.to.have.status(403));"
+          ]}}],
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{token_produtor}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{}" }, "url": "{{base_url}}/sensores" }
+        },
+        {
+          "name": "GET /sensores - Produtor Leitura Permitida (200)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Produtor lê seus sensores (200)', () => pm.response.to.have.status(200));",
+            "pm.test('Retorna lista', () => pm.expect(pm.response.json()).to.be.an('array'));"
+          ]}}],
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token_produtor}}" }], "url": "{{base_url}}/sensores" }
+        }
+      ]
+    },
+    {
+      "name": "4. Telemetria, Sensores e Mapas",
+      "item": [
+        {
+          "name": "GET /sensores - Listar (Admin)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('Retorna array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+          ]}}],
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token_admin}}" }], "url": "{{base_url}}/sensores" }
+        },
+        {
+          "name": "GET /sensores?status=ativo - Filtro",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+            "pm.response.json().forEach(s => pm.expect(s.status).to.eql('ativo'));"
+          ]}}],
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token_admin}}" }], "url": "{{base_url}}/sensores?status=ativo" }
+        },
+        {
+          "name": "GET /sensores/topologia - Mapas",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('Estrutura de topologia válida', () => {",
+            "    pm.expect(pm.response.json()).to.include.keys('propriedade', 'contadores', 'sensores', 'nota_transparencia');",
+            "});"
+          ]}}],
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token_admin}}" }], "url": "{{base_url}}/sensores/topologia" }
+        },
+        {
+          "name": "GET /sensores/999999 - Inexistente (404)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Retorna 404 Not Found', () => pm.response.to.have.status(404));"
+          ]}}],
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token_admin}}" }], "url": "{{base_url}}/sensores/999999" }
+        },
+        {
+          "name": "GET /leituras",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200 OK', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token_admin}}" }], "url": "{{base_url}}/leituras" }
+        },
+        {
+          "name": "GET /leituras/ultima",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200 ou 404', () => pm.expect([200, 404]).to.include(pm.response.code));"
+          ]}}],
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token_admin}}" }], "url": "{{base_url}}/leituras/ultima" }
+        },
+        {
+          "name": "GET /leituras/estatisticas",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200 OK', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token_admin}}" }], "url": "{{base_url}}/leituras/estatisticas" }
+        },
+        {
+          "name": "GET /leituras-rejeitadas",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200 OK', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token_admin}}" }], "url": "{{base_url}}/leituras-rejeitadas" }
+        }
+      ]
+    },
+    {
+      "name": "5. Dashboard, Stream, Clima e Catálogo",
+      "item": [
+        {
+          "name": "GET /dashboard/resumo",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200 OK', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token_admin}}" }], "url": "{{base_url}}/dashboard/resumo" }
+        },
+        {
+          "name": "POST /dashboard/stream/ticket - Gerar Ticket SSE",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Gera ticket de stream (200/201)', () => pm.expect([200, 201]).to.include(pm.response.code));",
+            "pm.test('Retorna ticket string', () => pm.expect(pm.response.json().ticket).to.be.a('string'));"
+          ]}}],
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{token_admin}}" }], "url": "{{base_url}}/dashboard/stream/ticket" }
+        },
+        {
+          "name": "GET /clima/previsao",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200 (ou 502/503 se offline)', () => pm.expect([200, 502, 503]).to.include(pm.response.code));"
+          ]}}],
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token_admin}}" }], "url": "{{base_url}}/clima/previsao" }
+        },
+        {
+          "name": "GET /lotes - Captura id_lote dinâmico",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+            "const lotes = pm.response.json();",
+            "pm.test('Retorna lista', () => pm.expect(lotes).to.be.an('array'));",
+            "if (lotes.length > 0 && lotes[0].id_lote) { pm.environment.set('id_lote', lotes[0].id_lote); }"
+          ]}}],
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token_admin}}" }], "url": "{{base_url}}/lotes" }
+        },
+        {
+          "name": "GET /frutas",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200 OK', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token_admin}}" }], "url": "{{base_url}}/frutas" }
+        },
+        {
+          "name": "GET /propriedades",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200 OK', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token_admin}}" }], "url": "{{base_url}}/propriedades" }
+        },
+        {
+          "name": "GET /safras",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200 OK', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token_admin}}" }], "url": "{{base_url}}/safras" }
+        },
+        {
+          "name": "GET /variedades",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200 OK', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token_admin}}" }], "url": "{{base_url}}/variedades" }
+        },
+        {
+          "name": "GET /portos",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200 OK', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token_admin}}" }], "url": "{{base_url}}/portos" }
+        },
+        {
+          "name": "GET /perdas-risco",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200 OK', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token_admin}}" }], "url": "{{base_url}}/perdas-risco" }
+        },
+        {
+          "name": "GET /classificacao/resumo",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200 OK', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token_admin}}" }], "url": "{{base_url}}/classificacao/resumo" }
+        }
+      ]
+    },
+    {
+      "name": "6. Central de Alertas, Riscos e Previsões",
+      "item": [
+        {
+          "name": "GET /central-alertas",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200 OK', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token_admin}}" }], "url": "{{base_url}}/central-alertas" }
+        },
+        {
+          "name": "GET /central-alertas/curva",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200 OK', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token_admin}}" }], "url": "{{base_url}}/central-alertas/curva?id_lote={{id_lote}}" }
+        },
+        {
+          "name": "GET /central-alertas/exportar.csv",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('Retorna arquivo CSV', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('text/csv'));"
+          ]}}],
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token_admin}}" }], "url": "{{base_url}}/central-alertas/exportar.csv" }
+        },
+        {
+          "name": "GET /alertas",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200 OK', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token_admin}}" }], "url": "{{base_url}}/alertas" }
+        },
+        {
+          "name": "GET /alertas/999999/detalhe - Inexistente (404)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Alerta inexistente retorna 404', () => pm.response.to.have.status(404));"
+          ]}}],
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token_admin}}" }], "url": "{{base_url}}/alertas/999999/detalhe" }
+        },
+        {
+          "name": "GET /alertas-preditivos",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200 OK', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token_admin}}" }], "url": "{{base_url}}/alertas-preditivos" }
+        },
+        {
+          "name": "GET /alertas-preditivos/cortes",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200 OK', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token_admin}}" }], "url": "{{base_url}}/alertas-preditivos/cortes" }
+        },
+        {
+          "name": "GET /riscos/prejuizo",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200 OK', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token_admin}}" }], "url": "{{base_url}}/riscos/prejuizo" }
+        },
+        {
+          "name": "GET /riscos/climatico",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200 OK', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token_admin}}" }], "url": "{{base_url}}/riscos/climatico" }
+        },
+        {
+          "name": "GET /previsoes/janela-colheita",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200 OK', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token_admin}}" }], "url": "{{base_url}}/previsoes/janela-colheita" }
+        },
+        {
+          "name": "GET /previsoes/irrigacao",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200 OK', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token_admin}}" }], "url": "{{base_url}}/previsoes/irrigacao" }
+        },
+        {
+          "name": "GET /config-parametros",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200 OK', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token_admin}}" }], "url": "{{base_url}}/config-parametros" }
+        }
+      ]
+    },
+    {
+      "name": "7. Analista, IA, Relatórios, Notificações e Auditoria",
+      "item": [
+        {
+          "name": "GET /analista/sensores/resumo",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200 OK', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token_analista}}" }], "url": "{{base_url}}/analista/sensores/resumo" }
+        },
+        {
+          "name": "GET /analista/alertas/resumo",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200 OK', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token_analista}}" }], "url": "{{base_url}}/analista/alertas/resumo" }
+        },
+        {
+          "name": "GET /ia/modelos",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200 OK', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token_admin}}" }], "url": "{{base_url}}/ia/modelos" }
+        },
+        {
+          "name": "GET /ia/parecer?id_lote={{id_lote}}",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Parecer IA responde 200 (ou 404/503 sem lote/chave)', () => pm.expect([200, 404, 503]).to.include(pm.response.code));"
+          ]}}],
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token_admin}}" }], "url": "{{base_url}}/ia/parecer?id_lote={{id_lote}}" }
+        },
+        {
+          "name": "GET /pareceres?id_lote={{id_lote}}",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200 OK', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token_analista}}" }], "url": "{{base_url}}/pareceres?id_lote={{id_lote}}" }
+        },
+        {
+          "name": "GET /relatorios",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200 OK', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token_analista}}" }], "url": "{{base_url}}/relatorios" }
+        },
+        {
+          "name": "GET /relatorios/saidas-faixa",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200 OK', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token_analista}}" }], "url": "{{base_url}}/relatorios/saidas-faixa" }
+        },
+        {
+          "name": "GET /recomendacoes?id_lote={{id_lote}}",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200 OK', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token_produtor}}" }], "url": "{{base_url}}/recomendacoes?id_lote={{id_lote}}" }
+        },
+        {
+          "name": "GET /notificacoes/preferencias",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200 OK', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token_admin}}" }], "url": "{{base_url}}/notificacoes/preferencias" }
+        },
+        {
+          "name": "GET /notificacoes/historico",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200 OK', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token_admin}}" }], "url": "{{base_url}}/notificacoes/historico" }
+        },
+        {
+          "name": "GET /auditoria",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Admin lê auditoria (200)', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token_admin}}" }], "url": "{{base_url}}/auditoria" }
+        }
+      ]
+    }
+  ]
+}
+
+
+

@@ -1,4 +1,0 @@
-[submodule "iot-backend"]
-	path = iot-backend
-	url = https://github.com/rafaellins7/iot-backend-.git
-	branch = 2faotp
