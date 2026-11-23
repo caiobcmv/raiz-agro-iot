@@ -5,7 +5,7 @@
 import { api } from './api.js';
 import { auth } from './auth.js';
 import { renderSidebar } from './components/sidebar.js?v=20261120-live45';
-import { renderHeader } from './components/header.js?v=20261120-live35';
+import { renderHeader } from './components/header.js?v=20261123-live36';
 import { Modal } from './components/modal.js?v=20261120-live33';
 import { toast } from './components/toast.js?v=20261120-live33';
 import { showAccessDeniedModal } from './components/access-denied-modal.js?v=20261120-live33';

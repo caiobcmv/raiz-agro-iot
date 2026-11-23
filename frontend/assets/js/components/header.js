@@ -6,14 +6,14 @@
 import { auth } from '../auth.js';
 
 const PAGE_META_ADMIN = {
-  '#/dashboard':           { h2: 'Visão Geral do Sistema',                     sub: 'Gerencie os usuários cadastrados, perfis de acesso e permissões na plataforma.' },
+  '#/dashboard':           { h2: 'Visão Geral do Sistema',                     sub: 'Painel executivo com métricas consolidadas, alertas operacionais e telemetria.' },
   '#/usuarios':            { h2: 'Gerenciamento de Usuários',                  sub: 'Gerencie os usuários cadastrados, perfis de acesso e permissões na plataforma.' },
-  '#/lotes':               { h2: 'Lotes e Safra',                              sub: 'Gerencie os usuários cadastrados, perfis de acesso e permissões na plataforma.' },
-  '#/sensores':            { h2: 'Sensores e Telemetria de Campo',             sub: 'Gerencie os usuários cadastrados, perfis de acesso e permissões na plataforma.' },
+  '#/lotes':               { h2: 'Lotes e Safra',                              sub: 'Controle de rastreabilidade de talhões, estimativa de colheita e padrões agronômicos.' },
+  '#/sensores':            { h2: 'Sensores e Telemetria de Campo',             sub: 'Monitoramento contínuo dos nós ESP32, dados climáticos e saúde dos sensores.' },
   '#/calibracao':          { h2: 'Calibração & Parâmetros IoT',                sub: 'Ajuste de limiares agronômicos, sanitização de leituras, cortes preditivos e calibração de nós ESP32.' },
-  '#/relatorios':          { h2: 'Relatórios e Documentos Oficiais',           sub: 'Gerencie os usuários cadastrados, perfis de acesso e permissões na plataforma.' },
-  '#/regras-agronomicas':  { h2: 'Regras Agronômicas e Limiares Fisiológicos', sub: 'Gerencie os usuários cadastrados, perfis de acesso e permissões na plataforma.' },
-  '#/auditoria':           { h2: 'Auditoria e Logs do Sistema v4.2',           sub: 'Gerencie os usuários cadastrados, perfis de acesso e permissões na plataforma.' },
+  '#/relatorios':          { h2: 'Relatórios e Documentos Oficiais',           sub: 'Emissão e exportação de laudos técnicos, conformidade e auditorias agronômicas.' },
+  '#/regras-agronomicas':  { h2: 'Regras Agronômicas e Limiares Fisiológicos', sub: 'Matriz de limites fisiológicos de colheita, conservação pós-colheita e frio.' },
+  '#/auditoria':           { h2: 'Auditoria e Logs do Sistema v4.2',           sub: 'Trilha de auditoria em conformidade com governança e rastreamento de operações.' },
   '#/configuracoes':       { h2: 'Configurações e Meu Perfil',                 sub: 'Gerencie preferências da fazenda, parâmetros de sensores, notificações e acessos.' }
 };
 
