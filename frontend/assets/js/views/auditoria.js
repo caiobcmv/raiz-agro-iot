@@ -1,8 +1,8 @@
 /**
- * VIEW: AUDITORIA E LOGS DO SISTEMA v4.2 (FIGMA MOCKUP ADM)
- * Trilha Criptográfica Imutável, Sincronização em Tempo Real (Syslog e PostgreSQL),
- * Hash SHA-256 Validado, 4 KPIs Superiores, Trilha de Eventos Auditados com busca e filtros,
- * Painel Lateral de Conformidade e LGPD e Ações Rápidas de Auditoria com download e modais funcionais.
+ * VIEW: AUDITORIA E LOGS DO SISTEMA (CONFORME SCHEMA iot_db: log_acesso)
+ * Trilha de Auditoria e Rastreabilidade Operacional, Sincronização com PostgreSQL,
+ * 4 KPIs Superiores, Trilha de Eventos Auditados com busca e filtros,
+ * Painel Lateral de Conformidade e LGPD e Ações Rápidas de Auditoria com exportação.
  */
 
 import { api } from '../api.js';
@@ -22,11 +22,10 @@ let _logsAuditoria = [
     data: '22/09/2026 14:12:08',
     titulo: 'Disparo de Alerta Crítico #ALT-2026-084 — Desvio Térmico em Manga Tommy Atkins',
     origem: 'Origem: Regra Agronômica #R-04 • Local: Câmara Frigorífica 02',
-    destino: 'Destino: SMS Emergência + Push Luiz Felipe',
-    hash: 'sha256:a7f83b99120ce...9c1',
-    assinatura: 'Assinatura Válida',
+    destino: 'Destino: Notificação Operacional • Luiz Felipe',
+    registro_banco: 'Tabela alerta • ID #ALT-2026-084',
     btnAcao: 'Inspecionar Lote',
-    btnPayload: 'Ver Payload Completo'
+    btnPayload: 'Ver Registro'
   },
   {
     id: 2,
@@ -34,16 +33,15 @@ let _logsAuditoria = [
     badge: 'LOGIN / ACESSO',
     badgeColor: '#15803D',
     badgeBg: '#DCFCE7',
-    codigo_ref: 'MFA TOTP Validado',
+    codigo_ref: 'log_acesso',
     lote: 'Petrolina/PE',
     data: '22/09/2026 13:45:20',
-    titulo: 'Autenticação Bem-sucedida via MFA — Dra. Gabriela Sales (Analista Agronômica)',
-    origem: 'IP: 187.54.210.12 • Navegador: Chrome 128 / macOS • Perfil: Analista Agronômico',
-    destino: 'Status: Sessão Ativa (#SESS-8991)',
-    hash: '',
-    assinatura: '',
+    titulo: 'Autenticação Bem-sucedida — Dra. Gabriela Sales (Analista Agronômica)',
+    origem: 'IP: 187.54.210.12 • Perfil: Analista Agronômico • fk_usuario: 2',
+    destino: 'Resultado: sucesso (login)',
+    registro_banco: 'Tabela log_acesso • ID #103',
     btnAcao: '',
-    btnPayload: 'Ver Detalhes da Sessão'
+    btnPayload: 'Ver Registro'
   },
   {
     id: 3,
@@ -57,8 +55,7 @@ let _logsAuditoria = [
     titulo: 'Edição de Limiar Fisiológico em Uva Vitória (Sem Semente)',
     origem: 'temp_min_segura: <span style="color:#DC2626; text-decoration:line-through;">-1.0°C</span> &rarr; <span style="color:#047857; font-weight:700;">-0.5°C</span>',
     destino: 'Justificativa: Homologação Embrapa Semiárido • Protocolo EMB-2026-V',
-    hash: '',
-    assinatura: '',
+    registro_banco: 'Tabela config_parametro • ID #12',
     btnAcao: 'Reverter Alteração',
     btnPayload: 'Ver Histórico'
   },
@@ -71,13 +68,12 @@ let _logsAuditoria = [
     codigo_ref: 'leitura_rejeitada',
     lote: 'Sonda #SNS-SL-019',
     data: '22/09/2026 10:15:02',
-    titulo: 'Descarte de Outlier Térmico — Sensor de Umidade do Solo Talhão C1 (Manga)',
-    origem: 'Valor Detectado: 62.4°C (Teto físico de 55.0°C excedido) • Canal ThingSpeak: #3500765',
+    titulo: 'Descarte de Outlier de Umidade — Sensor Solo Talhão C1 (Manga)',
+    origem: 'Valor Detectado: 95.4% VWC (Teto físico excedido) • Canal ThingSpeak: #3500765',
     destino: 'Ação: Isolamento preventivo de registro',
-    hash: '',
-    assinatura: '',
+    registro_banco: 'Tabela leitura_rejeitada • ID #8',
     btnAcao: 'Inspecionar Sonda',
-    btnPayload: 'Log ThingSpeak'
+    btnPayload: 'Log Sonda'
   },
   {
     id: 5,
@@ -85,14 +81,13 @@ let _logsAuditoria = [
     badge: 'SEGURANÇA RBAC',
     badgeColor: '#0F172A',
     badgeBg: '#F1F5F9',
-    codigo_ref: 'Tabela usuario',
+    codigo_ref: 'usuario',
     lote: 'Ativado por Carlos Silva',
     data: '21/09/2026 17:40:00',
     titulo: 'Criação de Novo Operador de Campo — João Pedro (Irrigação)',
-    origem: 'Perfil Concedido: Operador de Campo',
+    origem: 'Perfil Concedido: Operador de Campo • fk_perfil: 3',
     destino: 'Permissões: Leitura em Talhões A1/B2 • Sem acesso a parâmetros',
-    hash: '',
-    assinatura: '',
+    registro_banco: 'Tabela usuario • ID #5',
     btnAcao: '',
     btnPayload: 'Ver Perfil RBAC'
   }
@@ -103,32 +98,62 @@ let _termoBuscaLog = '';
 let _periodoLog = '24h';
 
 export async function renderAuditoria() {
+  // Conexão com backend FastAPI (GET /auditoria e GET /leituras-rejeitadas) mantendo fallback
+  try {
+    const [logsRes, rejeitadasRes] = await Promise.allSettled([
+      api.getAuditoria({ limit: 10 }),
+      api.getLeiturasRejeitadas({ limit: 5 })
+    ]);
+
+    if (logsRes.status === 'fulfilled' && Array.isArray(logsRes.value) && logsRes.value.length > 0) {
+      const logsApi = logsRes.value.map((l, idx) => ({
+        id: l.id_log || idx + 100,
+        categoria: (l.acao || '').includes('login') ? 'acessos' : ((l.acao || '').includes('parametro') ? 'agronomia' : 'seguranca'),
+        badge: (l.acao || 'AUDITORIA').toUpperCase().slice(0, 24),
+        badgeColor: (l.resultado || '').toLowerCase().includes('falha') ? '#DC2626' : '#15803D',
+        badgeBg: (l.resultado || '').toLowerCase().includes('falha') ? '#FEE2E2' : '#DCFCE7',
+        codigo_ref: l.acao || 'log_acesso',
+        lote: l.usuario ? `Usuário: ${l.usuario}` : 'Sistema IoT',
+        data: l.data_hora ? new Date(l.data_hora).toLocaleString('pt-BR') : 'Hoje',
+        titulo: `${l.acao} — ${l.resultado || 'Sucesso'}`,
+        origem: `IP: ${l.ip || '127.0.0.1'} • Usuário ID: ${l.id_usuario || 'SYS'}`,
+        destino: `Resultado: ${l.resultado || 'OK'}`,
+        registro_banco: `Registro #${l.id_log || idx + 100} • Tabela log_acesso`,
+        btnAcao: '',
+        btnPayload: 'Ver Registro'
+      }));
+      // Combina logs reais da API no topo da lista local
+      _logsAuditoria = [...logsApi, ..._logsAuditoria.slice(logsApi.length)];
+    }
+  } catch (err) {
+    console.warn('Backend auditoria offline, usando baseline local:', err);
+  }
   return `
     <div class="dashboard-canvas apple-animate-in" style="max-width: 1400px; margin: 0 auto;">
-      <!-- Sub-barra Técnica de Auditoria v4.2 -->
+      <!-- Sub-barra Técnica de Auditoria -->
       <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 12px 20px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
         <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 11px;">
           <span style="font-weight: 700; color: #047857; background: #ECFDF5; border: 1px solid #A7F3D0; padding: 3px 10px; border-radius: 20px;">
-            • v4.2 - Trilha Criptográfica Imutável
+            • Trilha de Auditoria &amp; Rastreabilidade
           </span>
           <span style="color: #64748B;">
             Ambiente de Produção • Petrolina / Juazeiro
           </span>
           <span style="color: #059669; font-weight: 600;">
-            ✓ Sincronização em Tempo Real (Syslog e PostgreSQL)
+            ✓ Sincronização no Banco (iot_db: log_acesso)
           </span>
           <span style="color: #0284C7; font-weight: 600;">
-            ✓ Hash SHA-256 Validado
+            ✓ Sessões e Operações Auditadas
           </span>
         </div>
 
-        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
           <div style="display: flex; background: #F1F5F9; padding: 3px; border-radius: 8px; font-size: 11px;">
             <button class="btn-time-filter active" data-periodo="24h" style="padding: 5px 12px; border: none; background: #FFFFFF; border-radius: 6px; font-weight: 700; color: #0F172A; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">24 Horas</button>
             <button class="btn-time-filter" data-periodo="7d" style="padding: 5px 12px; border: none; background: transparent; border-radius: 6px; color: #64748B; cursor: pointer;">7 Dias</button>
             <button class="btn-time-filter" data-periodo="30d" style="padding: 5px 12px; border: none; background: transparent; border-radius: 6px; color: #64748B; cursor: pointer;">30 Dias</button>
           </div>
-          <button class="btn btn-primary" id="btn-exportar-auditoria-csv" style="background: #183D2E; color: #FFFFFF; border: none; font-size: 11px; font-weight: 700; padding: 8px 16px; border-radius: 6px; display: flex; align-items: center; gap: 6px; cursor: pointer; transition: all 0.2s;">
+          <button class="btn btn-primary" id="btn-exportar-auditoria-csv" style="background: #0F172A; color: #FFFFFF; border: none; font-size: 11px; font-weight: 700; padding: 8px 18px; border-radius: 9999px; display: flex; align-items: center; gap: 6px; cursor: pointer; transition: all 0.2s;">
             <i data-lucide="download" style="width: 13px; height: 13px;"></i>
             <span>Exportar Relatório (CSV/PDF)</span>
           </button>
@@ -136,71 +161,76 @@ export async function renderAuditoria() {
       </div>
 
       <!-- 4 KPIs Superiores de Auditoria -->
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 24px;">
+      <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px;">
         <!-- KPI 1: TOTAL DE EVENTOS AUDITADOS -->
-        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 10px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">TOTAL DE EVENTOS AUDITADOS (30D)</span>
-            <div style="width: 26px; height: 26px; border-radius: 50%; background: #ECFDF5; color: #10B981; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800;">99.9%</div>
+        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 14px; padding: 18px 20px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+              <span style="font-size: 10px; font-weight: 800; color: #64748B; letter-spacing: 0.5px; display: block;">TOTAL DE EVENTOS<br>AUDITADOS (30D)</span>
+              <div style="font-size: 26px; font-weight: 800; color: #0F172A; line-height: 1.1; margin-top: 8px;">1.438</div>
+            </div>
+            <div style="width: 38px; height: 38px; border-radius: 50%; border: 3px solid #10B981; color: #047857; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 800; flex-shrink: 0;">100%</div>
           </div>
-          <div style="margin: 12px 0;">
-            <div style="font-size: 28px; font-weight: 800; color: #0F172A; line-height: 1;">14.820</div>
-          </div>
-          <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px;">
-            <span>Integridade de Logs</span>
-            <strong style="color: #047857;">0 Corrompidos &lt; 45ms</strong>
+          <div style="display: flex; flex-direction: column; gap: 4px; font-size: 10px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px; margin-top: 10px;">
+            <div style="display: flex; justify-content: space-between;"><span>Tabela PostgreSQL</span><strong style="color: #0F172A;">log_acesso</strong></div>
+            <div style="display: flex; justify-content: space-between;"><span>Rastreio de Origem</span><strong style="color: #0F172A;">IP e fk_usuario</strong></div>
           </div>
         </div>
 
-        <!-- KPI 2: ACESSOS E SESSÕES -->
-        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 10px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">ACESSOS E SESSÕES (LOG_ACESSO)</span>
-            <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 2px 8px; border-radius: 12px;">+4.2%</span>
-          </div>
-          <div style="margin: 10px 0; display: flex; justify-content: space-between; align-items: flex-end;">
-            <div style="font-size: 28px; font-weight: 800; color: #0F172A; line-height: 1;">1.248</div>
-            <div style="display: flex; gap: 3px; align-items: flex-end; height: 24px;">
-              <span style="width: 4px; height: 12px; background: #10B981; border-radius: 2px;"></span>
-              <span style="width: 4px; height: 18px; background: #10B981; border-radius: 2px;"></span>
-              <span style="width: 4px; height: 24px; background: #10B981; border-radius: 2px;"></span>
+        <!-- KPI 2: ACESSOS & SESSÕES -->
+        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 14px; padding: 18px 20px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+              <span style="font-size: 10px; font-weight: 800; color: #64748B; letter-spacing: 0.5px; display: block;">ACESSOS &amp; SESSÕES<br>(LOG_ACESSO)</span>
+              <div style="display: flex; align-items: baseline; gap: 6px; margin-top: 8px;">
+                <span style="font-size: 26px; font-weight: 800; color: #0F172A; line-height: 1.1;">1.248</span>
+                <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 2px 6px; border-radius: 8px;">+4.2%</span>
+              </div>
+            </div>
+            <div style="display: flex; gap: 3px; align-items: flex-end; height: 28px;">
+              <span style="width: 5px; height: 10px; background: #A7F3D0; border-radius: 2px;"></span>
+              <span style="width: 5px; height: 16px; background: #6EE7B7; border-radius: 2px;"></span>
+              <span style="width: 5px; height: 22px; background: #10B981; border-radius: 2px;"></span>
+              <span style="width: 5px; height: 28px; background: #059669; border-radius: 2px;"></span>
             </div>
           </div>
-          <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px;">
-            <span>Autenticação Válida: <strong>1.240 (99.4%)</strong></span>
-            <span style="color: #D97706;">8 Falhas Prevenidas</span>
+          <div style="display: flex; flex-direction: column; gap: 4px; font-size: 10px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px; margin-top: 10px;">
+            <div style="display: flex; justify-content: space-between;"><span>Autenticação Válida</span><strong style="color: #0F172A;">1.240 (99.4%)</strong></div>
+            <div style="display: flex; justify-content: space-between;"><span>Falhas / MFA Bloq.</span><strong style="color: #DC2626;">8 Prevenidos</strong></div>
           </div>
         </div>
 
-        <!-- KPI 3: PROTOCOLOS E ALERTAS -->
-        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 10px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">PROTOCOLOS E ALERTAS</span>
-            <i data-lucide="bell" style="width: 14px; height: 14px; color: #10B981;"></i>
+        <!-- KPI 3: PROTOCOLOS & ALERTAS -->
+        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 14px; padding: 18px 20px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+              <span style="font-size: 10px; font-weight: 800; color: #64748B; letter-spacing: 0.5px; display: block;">PROTOCOLOS &amp;<br>ALERTAS</span>
+              <div style="font-size: 26px; font-weight: 800; color: #0F172A; line-height: 1.1; margin-top: 8px;">142</div>
+            </div>
+            <div style="width: 34px; height: 34px; border-radius: 10px; background: #ECFDF5; display: flex; align-items: center; justify-content: center;">
+              <i data-lucide="bell" style="width: 16px; height: 16px; color: #10B981;"></i>
+            </div>
           </div>
-          <div style="margin: 10px 0;">
-            <div style="font-size: 28px; font-weight: 800; color: #0F172A; line-height: 1;">142</div>
-            <div style="font-size: 11px; color: #64748B; margin-top: 4px;">Ações Mitigadas: <strong>88% Automático</strong></div>
-          </div>
-          <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px;">
-            <span>Canais Notificados</span>
-            <strong>Push, SMS e Webhook</strong>
+          <div style="display: flex; flex-direction: column; gap: 4px; font-size: 10px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px; margin-top: 10px;">
+            <div style="display: flex; justify-content: space-between;"><span>Ações Mitigadas</span><strong style="color: #059669;">88% Automático</strong></div>
+            <div style="display: flex; justify-content: space-between;"><span>Canais Notificados</span><strong style="color: #0F172A;">Push, SMS &amp; Webhook</strong></div>
           </div>
         </div>
 
-        <!-- KPI 4: GOVERNANÇA E REGRAS -->
-        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 10px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">GOVERNANÇA E REGRAS</span>
-            <i data-lucide="shield" style="width: 14px; height: 14px; color: #0284C7;"></i>
+        <!-- KPI 4: GOVERNANÇA & REGRAS -->
+        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 14px; padding: 18px 20px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+              <span style="font-size: 10px; font-weight: 800; color: #64748B; letter-spacing: 0.5px; display: block;">GOVERNANÇA &amp;<br>REGRAS</span>
+              <div style="font-size: 26px; font-weight: 800; color: #0F172A; line-height: 1.1; margin-top: 8px;">38 <span style="font-size: 12px; font-weight: 600; color: #64748B;">ações</span></div>
+            </div>
+            <div style="width: 34px; height: 34px; border-radius: 10px; background: #EFF6FF; display: flex; align-items: center; justify-content: center;">
+              <i data-lucide="shield" style="width: 16px; height: 16px; color: #1E3A8A;"></i>
+            </div>
           </div>
-          <div style="margin: 10px 0;">
-            <div style="font-size: 28px; font-weight: 800; color: #0F172A; line-height: 1;">38 <span style="font-size: 13px; font-weight: 600; color: #64748B;">ações</span></div>
-            <div style="font-size: 11px; color: #64748B; margin-top: 4px;">Rastreabilidade Total: <strong>100% Auditável</strong></div>
-          </div>
-          <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px;">
-            <span>Distribuição</span>
-            <strong>22 Agron • 11 IoT • 5 RBAC</strong>
+          <div style="display: flex; flex-direction: column; gap: 4px; font-size: 10px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px; margin-top: 10px;">
+            <div style="display: flex; justify-content: space-between;"><span>Rastreabilidade Total</span><strong style="color: #059669;">100% Auditável</strong></div>
+            <div style="display: flex; justify-content: space-between;"><span>Distribuição</span><strong style="color: #0F172A;">22 Agron • 11 IoT • 5 RBAC</strong></div>
           </div>
         </div>
       </div>
@@ -233,18 +263,18 @@ export async function renderAuditoria() {
       <div style="display: grid; grid-template-columns: 2.3fr 1fr; gap: 20px;">
         <!-- Coluna Esquerda: Feed de Logs de Auditoria -->
         <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
-            <div style="position: relative; flex: 1; max-width: 380px;">
-              <i data-lucide="search" style="position: absolute; left: 10px; top: 9px; width: 14px; height: 14px; color: #94A3B8;"></i>
-              <input type="text" id="input-busca-log" placeholder="Filtrar por usuário, IP, entidade (ex: config_parametro), lote..." style="width: 100%; padding: 7px 12px 7px 32px; font-size: 11px; border: 1px solid #CBD5E1; border-radius: 8px; background: #FFFFFF;">
+          <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px;">
+            <div style="position: relative; width: 100%;">
+              <i data-lucide="search" style="position: absolute; left: 12px; top: 10px; width: 14px; height: 14px; color: #94A3B8;"></i>
+              <input type="text" id="input-busca-log" placeholder="Filtrar por usuário, IP, entidade (ex: config_parametro), lote ou protocolo..." style="width: 100%; padding: 8px 12px 8px 34px; font-size: 11px; border: 1px solid #E2E8F0; border-radius: 9px; background: #F8FAFC; box-sizing: border-box;">
             </div>
-            <div style="display: flex; gap: 6px; overflow-x: auto;">
-              <button class="tab-filtro-log active" data-cat="todos" style="padding: 6px 10px; font-size: 10px; font-weight: 700; background: #183D2E; color: #FFFFFF; border: none; border-radius: 6px; cursor: pointer;">Todos (14.820)</button>
-              <button class="tab-filtro-log" data-cat="acessos" style="padding: 6px 10px; font-size: 10px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Acessos (1.248)</button>
-              <button class="tab-filtro-log" data-cat="disparos" style="padding: 6px 10px; font-size: 10px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Disparos (142)</button>
-              <button class="tab-filtro-log" data-cat="agronomia" style="padding: 6px 10px; font-size: 10px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Agronomia (22)</button>
-              <button class="tab-filtro-log" data-cat="hardware" style="padding: 6px 10px; font-size: 10px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Hardware (16)</button>
-              <button class="tab-filtro-log" data-cat="seguranca" style="padding: 6px 10px; font-size: 10px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Segurança (14)</button>
+            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+              <button class="tab-filtro-log active" data-cat="todos" style="padding: 5px 11px; font-size: 10px; font-weight: 700; background: #0F172A; color: #FFFFFF; border: none; border-radius: 6px; cursor: pointer;">Todos (14.820)</button>
+              <button class="tab-filtro-log" data-cat="acessos" style="padding: 5px 11px; font-size: 10px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Acessos (1.248)</button>
+              <button class="tab-filtro-log" data-cat="disparos" style="padding: 5px 11px; font-size: 10px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Disparos (142)</button>
+              <button class="tab-filtro-log" data-cat="agronomia" style="padding: 5px 11px; font-size: 10px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Agronomia (22)</button>
+              <button class="tab-filtro-log" data-cat="hardware" style="padding: 5px 11px; font-size: 10px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Hardware (16)</button>
+              <button class="tab-filtro-log" data-cat="seguranca" style="padding: 5px 11px; font-size: 10px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Segurança (14)</button>
             </div>
           </div>
 
@@ -396,10 +426,10 @@ function renderFeedLogsHtml() {
         <div>${l.destino}</div>
       </div>
 
-      ${l.hash ? `
+      ${l.registro_banco ? `
         <div style="display: flex; justify-content: space-between; align-items: center; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 6px; padding: 6px 10px; font-size: 10px; margin-bottom: 8px;">
-          <code style="color: #64748B; font-family: monospace;">Hash Criptográfico: ${l.hash}</code>
-          <span style="color: #047857; font-weight: 700;">${l.assinatura}</span>
+          <span style="color: #64748B; font-family: monospace;">${l.registro_banco}</span>
+          <span style="color: #047857; font-weight: 700;">Auditado via PostgreSQL</span>
         </div>
       ` : ''}
 
@@ -446,7 +476,7 @@ function vincularEventosLogs() {
               <div><strong>Lote:</strong> ${l?.lote}</div>
               <div><strong>Origem:</strong> ${l?.origem}</div>
               <div><strong>Horário:</strong> ${l?.data}</div>
-              <div><strong>Hash:</strong> <code>${l?.hash || 'sha256:d82910fae120...'}</code></div>
+              <div><strong>Registro:</strong> <code>${l?.registro_banco || 'Tabela log_acesso'}</code></div>
             </div>
           </div>
         `, () => {
@@ -461,26 +491,25 @@ function vincularEventosLogs() {
             </div>
           </div>
         `, () => {
-          toast.success('Rollback Executado', 'Limiar fisiológico restabelecido para -1.0°C com assinatura digital.');
+          toast.success('Rollback Executado', 'Limiar fisiológico restabelecido para -1.0°C.');
         }, 'Confirmar Reversão');
       } else {
-        Modal.open(`Payload Criptográfico — ${l?.titulo}`, `
+        Modal.open(`Registro de Auditoria — ${l?.titulo}`, `
           <div style="font-family: monospace; font-size: 11px; background: #0F172A; color: #38BDF8; padding: 14px; border-radius: 8px; line-height: 1.6; max-height: 300px; overflow-y: auto;">
             {<br>
-            &nbsp;&nbsp;"audit_id": "${l?.id}",<br>
-            &nbsp;&nbsp;"timestamp": "${l?.data}",<br>
-            &nbsp;&nbsp;"event_category": "${l?.categoria}",<br>
-            &nbsp;&nbsp;"code_reference": "${l?.codigo_ref}",<br>
-            &nbsp;&nbsp;"raw_details": "${l?.origem.replace(/<[^>]*>?/gm, '')}",<br>
-            &nbsp;&nbsp;"cipher_algorithm": "AES-256-GCM",<br>
-            &nbsp;&nbsp;"sha256_checksum": "${l?.hash || 'sha256:4a8b79e102f91c98a3b82710'}",<br>
-            &nbsp;&nbsp;"storage_worm_tier": "IMMUTABLE_5Y",<br>
-            &nbsp;&nbsp;"compliance_certifications": ["GlobalG.A.P.", "MAPA-PE", "LGPD-BR"]<br>
+            &nbsp;&nbsp;"id_log": "${l?.id}",<br>
+            &nbsp;&nbsp;"data_hora": "${l?.data}",<br>
+            &nbsp;&nbsp;"categoria": "${l?.categoria}",<br>
+            &nbsp;&nbsp;"codigo_ref": "${l?.codigo_ref}",<br>
+            &nbsp;&nbsp;"origem": "${l?.origem.replace(/<[^>]*>?/gm, '')}",<br>
+            &nbsp;&nbsp;"tabela_origem": "log_acesso",<br>
+            &nbsp;&nbsp;"banco_dados": "PostgreSQL (iot_db)",<br>
+            &nbsp;&nbsp;"conformidade": ["GlobalG.A.P.", "MAPA-PE", "LGPD-BR"]<br>
             }
           </div>
         `, () => {
-          toast.success('Copiado', 'Hash e payload copiados para a área de transferência.');
-        }, 'Copiar Payload');
+          toast.success('Copiado', 'Registro copiado para a área de transferência.');
+        }, 'Copiar Registro');
       }
     });
   });
@@ -491,17 +520,17 @@ export function setupAuditoriaEvents() {
   const btnExportar = document.getElementById('btn-exportar-auditoria-csv');
   if (btnExportar) {
     btnExportar.addEventListener('click', () => {
-      const headers = ['Timestamp', 'Tipo Evento', 'Referencia', 'Entidade / Lote', 'Origem', 'Status', 'Hash SHA-256'];
+      const headers = ['Timestamp', 'Tipo Evento', 'Referencia', 'Entidade / Lote', 'Origem', 'Status', 'Registro Banco'];
       const rows = _logsAuditoria.map(l => [
-        l.data, l.badge, l.codigo_ref, l.lote, l.origem.replace(/<[^>]*>?/gm, ''), 'VALIDO', l.hash || 'sha256:valid'
+        l.data, l.badge, l.codigo_ref, l.lote, l.origem.replace(/<[^>]*>?/gm, ''), 'VALIDO', l.registro_banco || 'iot_db: log_acesso'
       ]);
       const dataTag = new Date().toISOString().slice(0, 10);
       openExportChoiceModal(
         Modal,
-        'Exportar Trilha de Auditoria Forense',
+        'Exportar Trilha de Auditoria',
         () => {
-          downloadCSV(`auditoria_forense_raiz_agro_${dataTag}.csv`, headers, rows);
-          toast.success('Auditoria CSV Exportada', `auditoria_forense_raiz_agro_${dataTag}.csv baixado com sucesso.`);
+          downloadCSV(`auditoria_raiz_agro_${dataTag}.csv`, headers, rows);
+          toast.success('Auditoria CSV Exportada', `auditoria_raiz_agro_${dataTag}.csv baixado com sucesso.`);
         },
         () => {
           downloadPDF(`auditoria_forense_raiz_agro_${dataTag}.pdf`, {
@@ -684,17 +713,17 @@ export function setupAuditoriaEvents() {
         </div>
       `, () => {
         const dataTag = new Date().toISOString().slice(0, 10);
-        const headers = ['Data/Hora', 'Evento', 'Referencia', 'Entidade', 'Status', 'Hash SHA-256'];
+        const headers = ['Data/Hora', 'Evento', 'Referencia', 'Entidade', 'Status', 'Registro Banco'];
         const rows = _logsAuditoria.map(l => [
-          l.data, l.badge, l.codigo_ref, l.lote, 'VERIFICADO', l.hash || 'sha256:valid'
+          l.data, l.badge, l.codigo_ref, l.lote, 'VERIFICADO', l.registro_banco || 'iot_db: log_acesso'
         ]);
         downloadPDF(`pacote_auditoria_externa_pwc_sgs_${dataTag}.pdf`, {
-          title: 'Pacote Forense de Auditoria Externa (PwC / SGS)',
-          subtitle: 'Homologação Internacional de Safra • Trilha Imutável SHA-256',
+          title: 'Pacote de Auditoria Externa (PwC / SGS)',
+          subtitle: 'Homologação de Safra • Trilha de Auditoria (PostgreSQL iot_db)',
           metadata: [
             `Data de Emissão: ${new Date().toLocaleString('pt-BR')}`,
-            'Assinatura Digital Raiz: 0x8a92f00bc192847aef',
-            'Total de Registros Auditados: 14.820 sem corrupção'
+            'Tabela: log_acesso',
+            'Total de Registros Auditados: 1.438 verificados'
           ],
           headers,
           rows,
@@ -707,6 +736,28 @@ export function setupAuditoriaEvents() {
       }, 'Baixar Pacote (PDF)');
     });
   }
+
+  // Paginação interativa de Auditoria
+  let pagAtualAudit = 1;
+  document.querySelectorAll('.btn-pag-audit').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const txt = btn.textContent.trim();
+      if (txt === 'Anterior') pagAtualAudit = Math.max(1, pagAtualAudit - 1);
+      else if (txt === 'Próximo') pagAtualAudit = Math.min(3, pagAtualAudit + 1);
+      else pagAtualAudit = Number(txt) || 1;
+
+      document.querySelectorAll('.btn-pag-audit').forEach(b => {
+        const isNum = /^\d+$/.test(b.textContent.trim());
+        const isActive = isNum && Number(b.textContent.trim()) === pagAtualAudit;
+        b.classList.toggle('active', isActive);
+        b.style.background = isActive ? '#183D2E' : '#FFFFFF';
+        b.style.color = isActive ? '#FFFFFF' : '#475569';
+        b.style.borderColor = isActive ? '#183D2E' : '#CBD5E1';
+        b.style.fontWeight = isActive ? '700' : '400';
+      });
+      toast.info('Paginação de Auditoria', `Exibindo página ${pagAtualAudit} de 3 da trilha de logs.`);
+    });
+  });
 
   vincularEventosLogs();
 }

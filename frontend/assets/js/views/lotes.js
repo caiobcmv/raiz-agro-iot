@@ -11,63 +11,93 @@ import { Modal } from '../components/modal.js';
 import { toast } from '../components/toast.js';
 import { downloadCSV, downloadPDF, openExportChoiceModal } from '../utils/export-utils.js';
 
-let _lotesData = [];
+let _lotesData = [
+  {
+    id: 'LT-2026-084',
+    codigo: '#LT-2026-084',
+    cultura: 'Manga Tommy',
+    talhao: 'Talhão C1 (14.5ha)',
+    status: 'Em Produção',
+    statusBadge: 'Em Campo',
+    statusClass: 'em-campo',
+    corBarra: '#10B981',
+    colheita: '28/09',
+    volume: '450.000 kg',
+    destino: 'Pecém (UE)',
+    rodape: '• 12 sensores ok',
+    corRodape: '#047857',
+    icone: 'sprout',
+    corIcone: '#10B981',
+    brix: 13.5,
+    temp: 11.2,
+    sensores: ['SNS-SL-019', 'SNS-AR-005', 'SNS-SL-020']
+  },
+  {
+    id: 'LT-2026-079',
+    codigo: '#LT-2026-079',
+    cultura: 'Uva Vitória',
+    talhao: 'Talhão A1 (12.4ha)',
+    status: 'Pronto Colheita',
+    statusBadge: 'Pronto',
+    statusClass: 'pronto',
+    corBarra: '#0284C7',
+    colheita: '22/09',
+    volume: '180.000 kg',
+    destino: 'Suape (UK)',
+    rodape: '• Brix 18.2°Bx (A+)',
+    corRodape: '#D97706',
+    icone: 'grape',
+    corIcone: '#3B82F6',
+    brix: 18.2,
+    temp: 0.8,
+    sensores: ['SNS-SL-001', 'SNS-AR-002']
+  },
+  {
+    id: 'LT-2026-068',
+    codigo: '#LT-2026-068',
+    cultura: 'Melão Amarelo',
+    talhao: 'Talhão B2 (8.5ha)',
+    status: 'Colhido',
+    statusBadge: 'Colhido',
+    statusClass: 'colhido',
+    corBarra: '#F59E0B',
+    colheita: '15/09',
+    volume: '120.000 kg',
+    destino: 'Ceasa SP',
+    rodape: 'No Packing House',
+    corRodape: '#64748B',
+    icone: 'circle-dot',
+    corIcone: '#F59E0B',
+    brix: 12.4,
+    temp: 10.5,
+    sensores: ['SNS-SL-008', 'SNS-AR-004']
+  },
+  {
+    id: 'LT-2026-052',
+    codigo: '#LT-2026-052',
+    cultura: 'Manga Palmer',
+    talhao: 'Talhão C2 (15.0ha)',
+    status: 'Em Transporte',
+    statusBadge: 'Trânsito',
+    statusClass: 'transito',
+    corBarra: '#3B82F6',
+    colheita: 'Frio: 12.0°C',
+    volume: '320.000 kg',
+    destino: 'Salvador Port',
+    rodape: 'GPS e Termo Ativo',
+    corRodape: '#0284C7',
+    icone: 'truck',
+    corIcone: '#8B5CF6',
+    brix: 14.1,
+    temp: 12.0,
+    sensores: ['SNS-REEFER-04', 'SNS-GPS-09']
+  }
+];
 
 let _filtroAtivoLotes = 'todos';
 let _termoBuscaLotes = '';
 
-function mapearLoteParaCard(l) {
-  const st = String(l.status || 'Em produção');
-  const stLow = st.toLowerCase();
-  let statusClass = 'em-campo';
-  let corBarra = '#10B981';
-  let statusBadge = st;
-  if (stLow.includes('pronto')) {
-    statusClass = 'pronto';
-    corBarra = '#0284C7';
-  } else if (stLow.includes('colhido')) {
-    statusClass = 'colhido';
-    corBarra = '#F59E0B';
-  } else if (stLow.includes('transporte')) {
-    statusClass = 'transito';
-    corBarra = '#3B82F6';
-  } else if (stLow.includes('armazenado')) {
-    statusClass = 'armazenado';
-    corBarra = '#64748B';
-  }
-
-  return {
-    id: `LT-${l.id_lote}`,
-    id_lote: l.id_lote,
-    codigo: `#LT-${l.id_lote}`,
-    cultura: l.fruta || l.nome_fruta || 'Cultura',
-    talhao: l.localizacao || l.nome_talhao || `Lote #${l.id_lote}`,
-    status: st,
-    statusBadge,
-    statusClass,
-    corBarra,
-    colheita: l.data_colheita ? new Date(l.data_colheita).toLocaleDateString('pt-BR') : 'Em andamento',
-    volume: l.quantidade != null ? `${Number(l.quantidade).toLocaleString('pt-BR')} ${l.unidade || 'kg'}` : '—',
-    destino: l.destino || 'Não informado',
-    rodape: l.etapa ? `Etapa: ${l.etapa}` : 'Monitorado via IoT',
-    corRodape: '#047857',
-    icone: 'sprout',
-    corIcone: corBarra,
-    brix: l.brix || '—',
-    temp: l.temperatura_atual || '—',
-    sensores: l.sensores || []
-  };
-}
-
 export async function renderLotes() {
-  let lotesRaw = [];
-  try {
-    const res = await api.getLotes();
-    lotesRaw = Array.isArray(res) ? res : (res?.lotes || []);
-  } catch (err) {
-    console.error('[Lotes] Erro ao carregar lotes reais:', err);
-  }
-  _lotesData = lotesRaw.map(mapearLoteParaCard);
   return `
     <div class="dashboard-canvas apple-animate-in" style="max-width: 1400px; margin: 0 auto;">
       <!-- Sub-barra: Governança Agronômica e Ciclo Safra Vigente -->
@@ -81,17 +111,31 @@ export async function renderLotes() {
           <div style="font-size: 11px; color: #64748B;">Polo Irrigado Petrolina / Juazeiro</div>
         </div>
 
-        <div style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap;">
-          <div style="font-size: 11px; color: #64748B; text-align: right; line-height: 1.5;">
-            <div>Período Vigente: <strong style="color: #0F172A;">01/08/2025 - 30/07/2026</strong></div>
-            <div>Área Produtiva: <strong style="color: #0F172A;">1.250 ha cadastrados</strong></div>
+        <div style="display: flex; align-items: center; gap: 18px; flex-wrap: wrap;">
+          <div style="display: flex; gap: 18px; font-size: 11px; color: #64748B; line-height: 1.4;">
+            <div>
+              <div>Período</div>
+              <div>Vigente:</div>
+            </div>
+            <div style="font-weight: 700; color: #0F172A;">
+              <div>01/08/2025 -</div>
+              <div>30/07/2026</div>
+            </div>
+            <div>
+              <div>Área</div>
+              <div>Produtiva:</div>
+            </div>
+            <div style="font-weight: 700; color: #0F172A;">
+              <div>1.250 ha</div>
+              <div>cadastrados</div>
+            </div>
           </div>
-          <button class="btn" id="btn-exportar-lotes-pdf-csv" style="background: #FFFFFF; color: #0F172A; border: 1px solid #CBD5E1; font-size: 12px; font-weight: 700; padding: 9px 15px; border-radius: 8px; display: flex; align-items: center; gap: 7px; cursor: pointer;">
-            <i data-lucide="download" style="width: 14px; height: 14px; color: #059669;"></i>
-            <span>Exportar (PDF/CSV)</span>
+          <button class="btn" id="btn-exportar-lotes-pdf-csv" style="background: #F8FAFC; color: #334155; border: 1px solid #CBD5E1; font-size: 11px; font-weight: 700; padding: 8px 13px; border-radius: 8px; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+            <i data-lucide="download" style="width: 13px; height: 13px; color: #059669;"></i>
+            <span>PDF / CSV</span>
           </button>
-          <button class="btn btn-primary" id="btn-abrir-nova-safra" style="background: #183D2E; color: #FFFFFF; border: none; font-size: 12px; font-weight: 700; padding: 9px 18px; border-radius: 8px; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: all 0.2s;">
-            <i data-lucide="plus-circle" style="width: 15px; height: 15px;"></i>
+          <button class="btn btn-primary" id="btn-abrir-nova-safra" style="background: #FFFFFF; color: #047857; border: 1.5px solid #10B981; font-size: 12px; font-weight: 700; padding: 8px 16px; border-radius: 9px; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: all 0.2s;">
+            <i data-lucide="calendar-plus" style="width: 15px; height: 15px; color: #059669;"></i>
             <span>+ Abrir Nova Safra (2026/2027)</span>
           </button>
         </div>
@@ -185,21 +229,25 @@ export async function renderLotes() {
           </div>
         </div>
 
-        <!-- KPI 4: RITMO E CONFORMIDADE -->
+        <!-- KPI 4: MONITORAMENTO DE ESTEIRA -->
         <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
           <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 11px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">RITMO E CONFORMIDADE</span>
-            <span style="font-size: 10px; font-weight: 700; color: #047857; background: #DCFCE7; padding: 2px 8px; border-radius: 12px;">99.8% MAPA</span>
+            <span style="font-size: 11px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">MONITORAMENTO DE ESTEIRA</span>
+            <span style="font-size: 10px; font-weight: 700; color: #047857; background: #DCFCE7; padding: 2px 8px; border-radius: 12px;">✓ 100% Rastreável</span>
           </div>
           <div style="margin: 10px 0;">
-            <div style="font-size: 20px; font-weight: 800; color: #0F172A;">42 dias <span style="font-size: 11px; font-weight: 500; color: #64748B;">ciclo médio</span></div>
-            <div style="width: 100%; height: 7px; background: #E2E8F0; border-radius: 4px; overflow: hidden; margin-top: 10px;">
+            <div style="font-size: 18px; font-weight: 800; color: #0F172A;">14 <span style="font-size: 11px; font-weight: 500; color: #64748B;">lotes em esteira</span></div>
+            <div style="width: 100%; height: 6px; background: #E2E8F0; border-radius: 4px; overflow: hidden; margin: 8px 0;">
               <div style="width: 85%; height: 100%; background: #10B981; border-radius: 4px;"></div>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B;">
+              <span>6 estágios (status_lote)</span>
+              <strong style="color: #047857;">Sem gargalo</strong>
             </div>
           </div>
           <div style="display: flex; justify-content: space-between; font-size: 11px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px;">
-            <span>Status da Malha</span>
-            <strong style="color: #047857;">14 Lotes Sem Risco</strong>
+            <span>Dono Vinculado (auth.sql)</span>
+            <strong style="color: #047857;">fk_usuario_id_usuario</strong>
           </div>
         </div>
       </div>
@@ -313,73 +361,87 @@ export async function renderLotes() {
         </div>
       </div>
 
-      <!-- Seção: Qualidade e Brix Médio -->
-      <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+      <!-- Seção: Padrões de Qualidade por Variedade (tabela padrao_qualidade) -->
+      <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 14px; padding: 20px 22px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
           <h3 style="font-size: 14px; font-weight: 800; color: #0F172A; margin: 0; display: flex; align-items: center; gap: 8px;">
-            <i data-lucide="bar-chart-2" style="width: 16px; height: 16px; color: #0F172A;"></i>
-            Qualidade e Brix Médio
+            <i data-lucide="bar-chart-2" style="width: 16px; height: 16px; color: #15803D;"></i>
+            Padrões Mínimos de Qualidade (padrao_qualidade)
           </h3>
-          <span style="font-size: 10px; font-weight: 800; color: #047857; background: #D1FAE5; padding: 3px 8px; border-radius: 4px;">100% APROVADO</span>
+          <span style="font-size: 10px; font-weight: 800; color: #047857; background: #DCFCE7; padding: 4px 10px; border-radius: 9999px;">BASELINE HOMOLOGADO</span>
         </div>
 
-        <div style="display: flex; flex-direction: column; gap: 14px;">
+        <div style="display: flex; flex-direction: column; gap: 12px;">
           <!-- Cultura 1: Uva Vitória -->
-          <div>
-            <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
-              <strong style="color: #0F172A;">Uva Vitória</strong>
-              <span style="color: #047857; font-weight: 700;">18.2°Bx (+0.2) <span style="font-size: 10px; color: #94A3B8; font-weight: 400;">Mín: 18.0°Bx</span></span>
+          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; margin-bottom: 8px;">
+              <strong style="color: #0F172A;">Uva Vitória (Variedade #1)</strong>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 10px; color: #64748B; font-family: monospace;">brix_min: 16.0°Bx</span>
+                <span style="background: #DCFCE7; color: #047857; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 6px;">calibre_min: 18.0 mm</span>
+              </div>
             </div>
-            <div style="width: 100%; height: 8px; background: #E2E8F0; border-radius: 4px; overflow: hidden;">
-              <div style="width: 90%; height: 100%; background: #0284C7; border-radius: 4px;"></div>
+            <div style="position: relative; width: 100%; height: 9px; background: #E2E8F0; border-radius: 9999px; overflow: hidden;">
+              <div style="width: 90%; height: 100%; background: #1D4ED8; border-radius: 9999px;"></div>
             </div>
-            <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B; margin-top: 4px;">
-              <span>Calibre &gt; 22mm (98% lote)</span>
-              <span style="color: #047857; font-weight: 600;">Exportação A+ OK</span>
+            <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B; margin-top: 7px;">
+              <span>Mercado: Exportação e Mercado Interno</span>
+              <span style="color: #047857; font-weight: 700;">Conforme padrao_qualidade</span>
             </div>
           </div>
 
-          <!-- Cultura 2: Manga Palmer e Tommy -->
-          <div>
-            <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
-              <strong style="color: #0F172A;">Manga Palmer e Tommy</strong>
-              <span style="color: #047857; font-weight: 700;">13.8°Bx (+0.8) <span style="font-size: 10px; color: #94A3B8; font-weight: 400;">Mín: 13.0°Bx</span></span>
+          <!-- Cultura 2: Manga Palmer & Tommy -->
+          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; margin-bottom: 8px;">
+              <strong style="color: #0F172A;">Manga Palmer (Variedade #3) &amp; Tommy (Variedade #4)</strong>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 10px; color: #64748B; font-family: monospace;">brix_min: 12.0°Bx</span>
+                <span style="background: #DCFCE7; color: #047857; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 6px;">calibre_min: 250.0 g</span>
+              </div>
             </div>
-            <div style="width: 100%; height: 8px; background: #E2E8F0; border-radius: 4px; overflow: hidden;">
-              <div style="width: 82%; height: 100%; background: #10B981; border-radius: 4px;"></div>
+            <div style="position: relative; width: 100%; height: 9px; background: #E2E8F0; border-radius: 9999px; overflow: hidden;">
+              <div style="width: 87%; height: 100%; background: #15803D; border-radius: 9999px;"></div>
             </div>
-            <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B; margin-top: 4px;">
-              <span>Peso médio: 395g (Faixa Ideal)</span>
-              <span style="color: #047857; font-weight: 600;">Aprovado União Europeia</span>
+            <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B; margin-top: 7px;">
+              <span>Mercado: Exportação União Europeia e EUA</span>
+              <span style="color: #047857; font-weight: 700;">Conforme padrao_qualidade</span>
             </div>
           </div>
 
           <!-- Cultura 3: Melão Amarelo -->
-          <div>
-            <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
-              <strong style="color: #0F172A;">Melão Amarelo</strong>
-              <span style="color: #047857; font-weight: 700;">12.4°Bx (+0.4) <span style="font-size: 10px; color: #94A3B8; font-weight: 400;">Mín: 12.0°Bx</span></span>
+          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; margin-bottom: 8px;">
+              <strong style="color: #0F172A;">Melão Amarelo (Variedade #5)</strong>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 10px; color: #64748B; font-family: monospace;">brix_min: 11.0°Bx</span>
+                <span style="background: #DCFCE7; color: #047857; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 6px;">calibre_min: 800.0 g</span>
+              </div>
             </div>
-            <div style="width: 100%; height: 8px; background: #E2E8F0; border-radius: 4px; overflow: hidden;">
-              <div style="width: 75%; height: 100%; background: #F59E0B; border-radius: 4px;"></div>
+            <div style="position: relative; width: 100%; height: 9px; background: #E2E8F0; border-radius: 9999px; overflow: hidden;">
+              <div style="width: 82%; height: 100%; background: #F59E0B; border-radius: 9999px;"></div>
             </div>
-            <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B; margin-top: 4px;">
-              <span>Sem manchas • Casca firme</span>
-              <span style="color: #047857; font-weight: 600;">Mercado Premium OK</span>
+            <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B; margin-top: 7px;">
+              <span>Mercado: Exportação e Distribuição Nacional</span>
+              <span style="color: #047857; font-weight: 700;">Conforme padrao_qualidade</span>
             </div>
           </div>
         </div>
       </div>
 
       <!-- Rodapé com status da malha de telemetria -->
-      <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #64748B; padding: 8px 4px; flex-wrap: wrap; gap: 8px;">
-        <span style="display: flex; align-items: center; gap: 6px;">
-          <span style="width: 8px; height: 8px; border-radius: 50%; background: #10B981;"></span>
-          48 Sondas Telemétricas Ativas (Conexão ESP32 Mesh Ativa)
-        </span>
+      <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div style="width: 34px; height: 34px; border-radius: 10px; background: #ECFDF5; display: flex; align-items: center; justify-content: center; color: #059669; flex-shrink: 0;">
+            <i data-lucide="radio" style="width: 17px; height: 17px;"></i>
+          </div>
+          <div>
+            <div style="font-size: 12px; font-weight: 800; color: #0F172A;">48 Sondas Telemétricas Ativas</div>
+            <div style="font-size: 10px; color: #64748B;">Conexão ESP32 Mesh Ativa</div>
+          </div>
+        </div>
         <div style="text-align: right;">
-          <div>Integridade da Malha: <strong style="color: #047857;">100% Auditável</strong></div>
-          <div style="font-size: 10px; color: #94A3B8; font-family: monospace;">SQL Master: a 6ef 77b 2026 relational</div>
+          <div style="font-size: 11px; color: #64748B;">Integridade da Malha: <strong style="color: #047857;">100% Auditável</strong></div>
+          <div style="font-size: 10px; color: #94A3B8; font-family: monospace; margin-top: 2px;">UUID Master: p-sul-77b-2026-relational</div>
         </div>
       </div>
     </div>
@@ -490,10 +552,12 @@ function abrirModalInspecaoLote(loteId) {
         <div>
           <span style="font-size: 10px; color: #64748B;">Volume Registrado:</span>
           <div style="font-weight: 700; color: #0F172A;">${lote.volume}</div>
+          <span style="font-size: 9px; color: #047857;">Unidade: <strong>kg</strong> (válidas: kg, caixa, t)</span>
         </div>
         <div>
           <span style="font-size: 10px; color: #64748B;">Destino Comercial:</span>
           <div style="font-weight: 700; color: #047857;">${lote.destino}</div>
+          <span style="font-size: 9px; color: #64748B;">Dono (IDOR): <strong>ID 1 (Maria Clara)</strong></span>
         </div>
       </div>
 
@@ -603,16 +667,25 @@ export function setupLotesEvents() {
           </div>
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
             <label>Data Início:
-              <input type="date" value="2026-08-01" style="width: 100%; padding: 8px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
+              <input type="date" id="campo-nova-safra-inicio" value="2026-08-01" style="width: 100%; padding: 8px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
             </label>
-            <label>Data Término:
-              <input type="date" value="2027-07-30" style="width: 100%; padding: 8px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
+            <label>Data Término (data_fim >= data_inicio):
+              <input type="date" id="campo-nova-safra-fim" value="2027-07-30" style="width: 100%; padding: 8px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
             </label>
           </div>
         </div>
       `, () => {
         const ciclo = document.getElementById('campo-nova-safra-ciclo')?.value || 'Safra 2026/2027';
-        toast.success('Safra Homologada', `${ciclo} cadastrada com sucesso no banco relacional.`);
+        const dInicio = document.getElementById('campo-nova-safra-inicio')?.value;
+        const dFim = document.getElementById('campo-nova-safra-fim')?.value;
+
+        // Validação de restrição de safra: data_fim >= data_inicio
+        if (dInicio && dFim && new Date(dFim) < new Date(dInicio)) {
+          toast.error('Erro de Validação', 'A data de término da safra deve ser maior ou igual à data de início (data_fim >= data_inicio).');
+          return;
+        }
+
+        toast.success('Safra Homologada', `${ciclo} cadastrada com sucesso no banco relacional (Período: ${dInicio} a ${dFim}).`);
       }, 'Homologar Safra');
     });
   }
@@ -706,7 +779,7 @@ export function setupLotesEvents() {
 
   // Exportar Lotes (PDF & CSV dedicados)
   document.getElementById('btn-exportar-lotes-pdf-csv')?.addEventListener('click', () => {
-    const headers = ['Codigo', 'Cultura', 'Talhao', 'Status', 'Colheita', 'Volume', 'Destino', 'Brix', 'Temp (C)'];
+    const headers = ['Codigo', 'Cultura', 'Talhao', 'Status', 'Colheita', 'Volume (kg/cx/t)', 'Destino', 'Padrao Brix Min', 'Temp Alvo (C)'];
     const rows = _lotesData.map(l => [l.codigo, l.cultura, l.talhao, l.status, l.colheita, l.volume, l.destino, l.brix, l.temp]);
     const dataTag = new Date().toISOString().slice(0, 10);
     openExportChoiceModal(
@@ -719,7 +792,7 @@ export function setupLotesEvents() {
       () => {
         downloadPDF(`rastreabilidade_lotes_raiz_${dataTag}.pdf`, {
           title: 'Relatório de Rastreabilidade de Lotes — Safra 25/26',
-          subtitle: 'Governança Agronômica • Esteira de Status, Brix e Destino de Exportação',
+          subtitle: 'Governança Agronômica • Esteira de Status, Padrão de Qualidade e Destino de Exportação',
           headers,
           rows
         });

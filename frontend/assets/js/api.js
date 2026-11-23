@@ -619,6 +619,108 @@ class ApiService {
       body: JSON.stringify(dados)
     });
   }
+
+  // ==========================================
+  // GESTÃO ADMINISTRATIVA E USUÁRIOS
+  // ==========================================
+  async criarUsuario(dados) {
+    return await this.request('/usuarios', {
+      method: 'POST',
+      body: JSON.stringify(dados)
+    });
+  }
+
+  async editarUsuario(idUsuario, dados) {
+    return await this.request(`/usuarios/${idUsuario}`, {
+      method: 'PUT',
+      body: JSON.stringify(dados)
+    });
+  }
+
+  async atualizarUsuario(idUsuario, dados) {
+    return await this.editarUsuario(idUsuario, dados);
+  }
+
+  async desativarUsuario(idUsuario) {
+    return await this.request(`/usuarios/${idUsuario}`, {
+      method: 'DELETE'
+    });
+  }
+
+  async reenviarAtivacao(idOrEmail, emailFallback = '') {
+    const isId = idOrEmail != null && !String(idOrEmail).includes('@') && /^\d+$/.test(String(idOrEmail));
+    if (isId) {
+      return await this.request(`/usuarios/${idOrEmail}/reenviar-ativacao`, {
+        method: 'POST'
+      });
+    }
+    const email = emailFallback || idOrEmail;
+    return await this.request('/auth/solicitar-ativacao', {
+      method: 'POST',
+      body: JSON.stringify({ email })
+    });
+  }
+
+  async getAuditoria(params = {}) {
+    const searchParams = new URLSearchParams();
+    if (params.id_usuario != null) searchParams.append('id_usuario', params.id_usuario);
+    if (params.acao) searchParams.append('acao', params.acao);
+    if (params.resultado) searchParams.append('resultado', params.resultado);
+    if (params.inicio) searchParams.append('inicio', params.inicio);
+    if (params.fim) searchParams.append('fim', params.fim);
+    if (params.limit != null) searchParams.append('limit', params.limit);
+    if (params.offset != null) searchParams.append('offset', params.offset);
+    const qs = searchParams.toString();
+    return await this.request(`/auditoria${qs ? '?' + qs : ''}`);
+  }
+
+  async postConfigParametro(dados) {
+    return await this.request('/config-parametros', {
+      method: 'POST',
+      body: JSON.stringify(dados)
+    });
+  }
+
+  async updateConfigParametro(idConfig, dados) {
+    return await this.request(`/config-parametros/${idConfig}`, {
+      method: 'PUT',
+      body: JSON.stringify(dados)
+    });
+  }
+
+  async updateCortePreditivo(nivel, dados) {
+    return await this.request(`/alertas-preditivos/cortes/${encodeURIComponent(nivel)}`, {
+      method: 'PUT',
+      body: JSON.stringify(dados)
+    });
+  }
+
+  async criarSensor(dados) {
+    return await this.request('/sensores', {
+      method: 'POST',
+      body: JSON.stringify(dados)
+    });
+  }
+
+  async updateSensor(idSensor, dados) {
+    return await this.request(`/sensores/${encodeURIComponent(idSensor)}`, {
+      method: 'PUT',
+      body: JSON.stringify(dados)
+    });
+  }
+
+  async desativarSensor(idSensor) {
+    return await this.request(`/sensores/${encodeURIComponent(idSensor)}`, {
+      method: 'DELETE'
+    });
+  }
+
+  async updateLote(idLote, dados) {
+    return await this.request(`/lotes/${encodeURIComponent(idLote)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(dados)
+    });
+  }
 }
 
 export const api = new ApiService();

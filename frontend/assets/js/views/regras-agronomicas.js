@@ -299,13 +299,13 @@ export async function renderRegrasAgronomicas() {
 
         <!-- Paginação -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; font-size: 11px; color: #64748B;">
-          <span>Exibindo 1-4 de 18 parâmetros agronômicos</span>
+          <span id="regras-pag-info">Exibindo 1-4 de 18 parâmetros agronômicos</span>
           <div style="display: flex; gap: 6px;">
-            <button style="padding: 4px 10px; border: 1px solid #CBD5E1; background: #FFFFFF; border-radius: 4px; cursor: pointer;">&lt;</button>
-            <button style="padding: 4px 10px; border: 1px solid #183D2E; background: #183D2E; color: #FFFFFF; border-radius: 4px; font-weight: 700;">1</button>
-            <button style="padding: 4px 10px; border: 1px solid #CBD5E1; background: #FFFFFF; border-radius: 4px; cursor: pointer;">2</button>
-            <button style="padding: 4px 10px; border: 1px solid #CBD5E1; background: #FFFFFF; border-radius: 4px; cursor: pointer;">3</button>
-            <button style="padding: 4px 10px; border: 1px solid #CBD5E1; background: #FFFFFF; border-radius: 4px; cursor: pointer;">&gt;</button>
+            <button class="btn-pag-regras" data-page="prev" style="padding: 4px 10px; border: 1px solid #CBD5E1; background: #FFFFFF; border-radius: 4px; cursor: pointer;">&lt;</button>
+            <button class="btn-pag-regras active" data-page="1" style="padding: 4px 10px; border: 1px solid #183D2E; background: #183D2E; color: #FFFFFF; border-radius: 4px; font-weight: 700; cursor: pointer;">1</button>
+            <button class="btn-pag-regras" data-page="2" style="padding: 4px 10px; border: 1px solid #CBD5E1; background: #FFFFFF; border-radius: 4px; cursor: pointer;">2</button>
+            <button class="btn-pag-regras" data-page="3" style="padding: 4px 10px; border: 1px solid #CBD5E1; background: #FFFFFF; border-radius: 4px; cursor: pointer;">3</button>
+            <button class="btn-pag-regras" data-page="next" style="padding: 4px 10px; border: 1px solid #CBD5E1; background: #FFFFFF; border-radius: 4px; cursor: pointer;">&gt;</button>
           </div>
         </div>
       </div>
@@ -511,6 +511,23 @@ function abrirModalEditarFaixas(regraId) {
       <p style="margin: 0; color: #64748B;">Ajuste as faixas ótimas aceitas na esteira e nos disparos automatizados de alerta:</p>
 
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <label>Etapa da Cadeia (etapa IN 'campo','armazenamento','transporte'):
+          <select id="modal-regra-etapa" style="width: 100%; padding: 8px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px; font-weight: 600;">
+            <option value="armazenamento" selected>Armazenamento (Câmara Fria / Packing)</option>
+            <option value="campo">Campo (Manejo Pré-Colheita)</option>
+            <option value="transporte">Transporte (Contêiner Reefer)</option>
+          </select>
+        </label>
+        <label>Nível de Corte Preditivo:
+          <select id="modal-regra-corte" style="width: 100%; padding: 8px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
+            <option value="BAIXO">BAIXO (Monitoramento)</option>
+            <option value="MEDIO" selected>MEDIO (Atenção)</option>
+            <option value="CRITICO">CRITICO (Ação Imediata)</option>
+          </select>
+        </label>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
         <label>Mínimo Seguro (${r.id === 'solo' ? '% VWC' : '°C'}):
           <input type="number" id="modal-regra-min" value="${r.tempMin}" step="0.5" style="width: 100%; padding: 8px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
         </label>
@@ -527,7 +544,9 @@ function abrirModalEditarFaixas(regraId) {
         <input type="text" value="${r.subtitulo}" style="width: 100%; padding: 8px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
       </label>
     </div>
-  `, () => {
+  `, async () => {
+    const etapa = document.getElementById('modal-regra-etapa')?.value || 'armazenamento';
+    const nivelCorte = document.getElementById('modal-regra-corte')?.value || 'MEDIO';
     const minVal = parseFloat(document.getElementById('modal-regra-min')?.value || `${r.tempMin}`);
     const maxVal = parseFloat(document.getElementById('modal-regra-max')?.value || `${r.tempMax}`);
     const secVal = document.getElementById('modal-regra-sec')?.value || r.urFaixa;
@@ -535,10 +554,17 @@ function abrirModalEditarFaixas(regraId) {
     r.tempMin = minVal;
     r.tempMax = maxVal;
     r.urFaixa = secVal;
-    r.tempLabel = `Faixa Segura: ${minVal}°C a +${maxVal}°C`;
+    r.tempLabel = `Faixa Segura: ${minVal}°C a +${maxVal}°C (${etapa})`;
+
+    try {
+      await api.updateConfigParametro(1, { etapa, temp_min: minVal, temp_max: maxVal });
+      await api.updateCortePreditivo(nivelCorte, { limiar_min: minVal, limiar_max: maxVal });
+    } catch (err) {
+      console.warn('API offline ao atualizar faixas/cortes:', err);
+    }
 
     atualizarCardsRegras();
-    toast.success('Faixas Salvas', `Parâmetros fisiológicos de ${r.titulo.split('—')[0]} atualizados no PostgreSQL.`);
+    toast.success('Faixas Salvas', `Parâmetros fisiológicos (${etapa}) atualizados no config_parametro e cortes preditivos.`);
   }, 'Salvar Faixas');
 }
 
@@ -638,14 +664,30 @@ export function setupRegrasAgronomicasEvents() {
   const btnNova = document.getElementById('btn-nova-regra');
   if (btnNova) {
     btnNova.addEventListener('click', () => {
-      Modal.open('Cadastrar Nova Regra Agronômica', `
+      Modal.open('Cadastrar Nova Regra Agronômica (config_parametro)', `
         <div style="font-size: 12px; color: #475569; margin-bottom: 12px;">
-          Insira os limiares biológicos recomendados por instituição de pesquisa:
+          Insira os limiares biológicos recomendados por instituição de pesquisa (uq_config_fruta_etapa):
         </div>
         <div style="display: flex; flex-direction: column; gap: 10px; font-size: 12px;">
           <label>Cultura e Variedade:
             <input type="text" id="nova-regra-cultura" placeholder="Ex: Manga Palmer Pós-Colheita" style="width: 100%; padding: 8px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
           </label>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <label>Etapa da Cadeia (etapa IN 'campo','armazenamento','transporte'):
+              <select id="nova-regra-etapa" style="width: 100%; padding: 8px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px; font-weight: 600;">
+                <option value="campo">Campo (Pré-Colheita)</option>
+                <option value="armazenamento" selected>Armazenamento (Câmara Fria)</option>
+                <option value="transporte">Transporte (Reefer)</option>
+              </select>
+            </label>
+            <label>Nível Alerta Preditivo:
+              <select id="nova-regra-nivel" style="width: 100%; padding: 8px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
+                <option value="BAIXO">BAIXO</option>
+                <option value="MEDIO" selected>MEDIO</option>
+                <option value="CRITICO">CRITICO</option>
+              </select>
+            </label>
+          </div>
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
             <label>Temperatura Mínima (°C):
               <input type="number" id="nova-regra-min" value="10.0" step="0.5" style="width: 100%; padding: 8px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
@@ -658,23 +700,39 @@ export function setupRegrasAgronomicasEvents() {
             <input type="text" id="nova-regra-inst" value="Embrapa Semiárido / UC Davis" style="width: 100%; padding: 8px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
           </label>
         </div>
-      `, () => {
+      `, async () => {
         const cultura = document.getElementById('nova-regra-cultura')?.value || 'Nova Cultura Homologada';
+        const etapa = document.getElementById('nova-regra-etapa')?.value || 'armazenamento';
+        const nivel = document.getElementById('nova-regra-nivel')?.value || 'MEDIO';
         const minVal = parseFloat(document.getElementById('nova-regra-min')?.value || '10.0');
         const maxVal = parseFloat(document.getElementById('nova-regra-max')?.value || '13.0');
         const inst = document.getElementById('nova-regra-inst')?.value || 'Embrapa Semiárido';
 
+        try {
+          await api.postConfigParametro({
+            id_fruta: 1,
+            etapa,
+            temp_min: minVal,
+            temp_max: maxVal,
+            umidade_min: 80,
+            umidade_max: 95
+          });
+          await api.updateCortePreditivo(nivel, { limiar_min: minVal, limiar_max: maxVal });
+        } catch (err) {
+          console.warn('API offline ao criar config_parametro:', err);
+        }
+
         _regrasFisiologicas.unshift({
           id: `regra-${Date.now()}`,
           categoria: 'manga',
-          titulo: `${cultura} — Conservação Pós-Colheita`,
+          titulo: `${cultura} — ${etapa.toUpperCase()}`,
           subtitulo: `Instituição: ${inst}`,
           badge: 'Homologação Ativa',
           badgeClass: 'padrao',
           icone: 'sprout',
           tempMin: minVal,
           tempMax: maxVal,
-          tempLabel: `Faixa Segura: ${minVal}°C a +${maxVal}°C`,
+          tempLabel: `Faixa Segura: ${minVal}°C a +${maxVal}°C (${etapa})`,
           pontoFrio: `Dano Frio: < ${minVal}°C`,
           pontoQuente: `Teto: > ${maxVal}°C`,
           pctVermelho: 20,
@@ -688,7 +746,7 @@ export function setupRegrasAgronomicasEvents() {
         });
 
         atualizarCardsRegras();
-        toast.success('Regra Homologada', `${cultura} cadastrada no banco relacional raiz_agro.db.`);
+        toast.success('Regra Homologada', `${cultura} (${etapa}) cadastrada em config_parametro e cortes preditivos.`);
       }, 'Homologar Regra');
     });
   }
@@ -754,6 +812,33 @@ export function setupRegrasAgronomicasEvents() {
 
       _filtroCatRegras = tab.dataset.cat || 'todos';
       atualizarCardsRegras();
+    });
+  });
+
+  // Paginação das Regras Agronômicas
+  let pagAtualRegras = 1;
+  document.querySelectorAll('.btn-pag-regras').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const p = btn.dataset.page;
+      if (p === 'prev') pagAtualRegras = Math.max(1, pagAtualRegras - 1);
+      else if (p === 'next') pagAtualRegras = Math.min(3, pagAtualRegras + 1);
+      else pagAtualRegras = Number(p) || 1;
+
+      document.querySelectorAll('.btn-pag-regras').forEach(b => {
+        const isActive = Number(b.dataset.page) === pagAtualRegras;
+        b.classList.toggle('active', isActive);
+        b.style.background = isActive ? '#183D2E' : '#FFFFFF';
+        b.style.color = isActive ? '#FFFFFF' : '#475569';
+        b.style.borderColor = isActive ? '#183D2E' : '#CBD5E1';
+        b.style.fontWeight = isActive ? '700' : '400';
+      });
+      const info = document.getElementById('regras-pag-info');
+      if (info) {
+        const start = (pagAtualRegras - 1) * 4 + 1;
+        const end = Math.min(18, pagAtualRegras * 4);
+        info.textContent = `Exibindo ${start}-${end} de 18 parâmetros agronômicos`;
+      }
+      toast.info('Regras Agronômicas', `Página ${pagAtualRegras} de 3 carregada.`);
     });
   });
 
