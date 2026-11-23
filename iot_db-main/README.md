@@ -35,6 +35,8 @@ Rode os arquivos abaixo **nesta ordem**, parando no primeiro erro:
 4. **`seed.sql`**: perfis, frutas, faixas ideais, lote e sensor reais (canal ThingSpeak `3500765`), portos, fração de perda por risco, sensor de solo simulado e 30 dias de leituras horárias simuladas.
 5. **`triggers.sql`**: função `fn_etapa_lote`, alerta automático por transição de faixa e bloqueio de `DELETE` em `usuario`.
 6. **`views.sql`**: views do dashboard (dependem de `fn_etapa_lote`, criada em `triggers.sql`).
+7. **`totp.sql`**: tabelas para autenticação em dois fatores (2FA TOTP: `totp_segredo` e `totp_recuperacao`). Idempotente.
+
 
 Datas são gravadas em **UTC**; o front converte para `America/Recife`.
 
