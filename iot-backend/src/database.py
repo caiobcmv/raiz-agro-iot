@@ -3,6 +3,8 @@ from src import config, validacao
 
 
 def conectar():
+    if config.DATABASE_URL:
+        return psycopg2.connect(config.DATABASE_URL)
     return psycopg2.connect(
         host=config.DB_HOST,
         port=config.DB_PORT,
