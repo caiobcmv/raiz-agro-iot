@@ -280,14 +280,16 @@ class AuthState {
     this.user = null;
     this.activeProfile = null;
     this.preferences = {};
-    localStorage.removeItem('user_data');
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('ACTIVE_PROFILE');
-    localStorage.removeItem('pending_login_email');
+    try {
+      localStorage.clear();
+      sessionStorage.clear();
+    } catch (_) {}
     document.documentElement.setAttribute('data-theme', 'claro');
     toast.info('Sessão encerrada', 'Você saiu com segurança do sistema.');
     window.location.hash = '#/login';
+    setTimeout(() => {
+      window.location.reload();
+    }, 150);
   }
 }
 

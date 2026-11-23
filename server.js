@@ -86,16 +86,18 @@ const server = http.createServer((req, res) => {
     cleanPath = cleanPath.substring(cleanPath.indexOf('/assets/'));
   }
 
-  // Redireciona rotas SPA sem extensão (ex: /dashboard, /sensores) para a página HTML dedicada
+  // Redireciona páginas HTML estáticas legadas de /pages/*.html para a SPA (#/rota)
+  if (cleanPath.startsWith('/pages/') && cleanPath.endsWith('.html')) {
+    const routeName = path.basename(cleanPath, '.html');
+    res.writeHead(302, { 'Location': `/#/${routeName}` });
+    res.end();
+    return;
+  }
+
+  // Redireciona rotas sem extensão (ex: /dashboard, /sensores) diretamente para a SPA
   const ext = path.extname(cleanPath).toLowerCase();
   if (!ext && cleanPath !== '/' && cleanPath !== '') {
     const routeName = cleanPath.replace(/^\/+/, '');
-    const pageFile = path.join(ROOTDIR, 'pages', `${routeName}.html`);
-    if (fs.existsSync(pageFile)) {
-      res.writeHead(302, { 'Location': `/pages/${routeName}.html` });
-      res.end();
-      return;
-    }
     res.writeHead(302, { 'Location': `/#/${routeName}` });
     res.end();
     return;

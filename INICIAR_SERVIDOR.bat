@@ -18,8 +18,8 @@ echo Iniciando Backend FastAPI na porta 8000 em segundo plano...
 start "RAIZ Agro - Backend FastAPI (Porta 8000)" cmd /c call "%~dp0INICIAR_BACKEND.bat"
 timeout /t 2 /nobreak >nul
 echo.
-echo Abrindo http://localhost:5173/#/dashboard no seu navegador...
-start http://localhost:5173/#/dashboard
+echo Abrindo http://localhost:5173/#/login no seu navegador...
+start http://localhost:5173/#/login
 echo.
 echo Pressione Ctrl+C para encerrar o servidor frontend.
 echo.

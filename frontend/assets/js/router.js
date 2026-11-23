@@ -212,7 +212,7 @@ export class Router {
     }
 
     if (!window.location.hash || window.location.hash === '#/' || window.location.hash === '') {
-      window.location.hash = '#/dashboard';
+      window.location.hash = auth.isAuthenticated() ? '#/dashboard' : '#/login';
     }
 
     this.startRealtimeEngine();
