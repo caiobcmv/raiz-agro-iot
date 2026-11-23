@@ -12,14 +12,14 @@ export function renderLogin() {
 
   return `
     <div class="login-viewport">
-      <!-- Painel Esquerdo: Imagem AgrÃ­cola com Curva OrgÃ¢nica em Alta ResoluÃ§Ã£o -->
+      <!-- Painel Esquerdo: Imagem Agrícola com Curva Orgânica em Alta Resolução -->
       <div class="login-hero-section">
         <div class="login-hero-img-wrap">
-          <img src="assets/images/login-hero-hq.jpg" alt="Monitoramento AgrÃ­cola Raiz" class="login-hero-img" onerror="this.src='assets/images/farm-hero.jpg'">
+          <img src="assets/images/login-hero-hq.jpg" alt="Monitoramento Agrícola Raiz" class="login-hero-img" onerror="this.src='assets/images/farm-hero.jpg'">
         </div>
       </div>
 
-      <!-- Painel Direito: FormulÃ¡rio de AutenticaÃ§Ã£o -->
+      <!-- Painel Direito: Formulário de Autenticação -->
       <div class="login-form-section">
         <div class="login-form-container">
           
@@ -29,7 +29,7 @@ export function renderLogin() {
           </div>
 
           <form id="login-form" class="login-form">
-            <!-- E-mail / MatrÃ­cula -->
+            <!-- E-mail / Matrícula -->
             <div class="login-input-group">
               <label class="login-label" for="login-email">E-MAIL</label>
               <div class="login-input-wrapper">
@@ -64,7 +64,7 @@ export function renderLogin() {
                   type="password" 
                   id="login-password" 
                   class="login-input" 
-                  placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" 
+                  placeholder="••••••••••••" 
                   required
                 >
                 <button type="button" class="login-toggle-password" id="toggle-password" title="Alternar visibilidade">
@@ -85,7 +85,7 @@ export function renderLogin() {
               <a href="#/recuperar-senha" id="forgot-password-link" class="login-forgot-link">Esqueceu?</a>
             </div>
 
-            <!-- BotÃ£o Entrar -->
+            <!-- Botão Entrar -->
             <button type="submit" class="login-submit-btn" id="login-submit-btn">
               ENTRAR
             </button>
@@ -148,7 +148,7 @@ export function setupLoginEvents() {
     });
   }
 
-  // SubmissÃ£o do formulÃ¡rio
+  // Submissão do formulário
   if (form) {
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -156,7 +156,7 @@ export function setupLoginEvents() {
       const senha = passwordInput ? passwordInput.value : '';
 
       if (!email || !senha) {
-        toast.warning('AtenÃ§Ã£o', 'Preencha o e-mail e a senha.');
+        toast.warning('Atenção', 'Preencha o e-mail e a senha.');
         return;
       }
 

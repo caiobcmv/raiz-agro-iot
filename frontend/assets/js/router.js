@@ -11,7 +11,7 @@ import { toast } from './components/toast.js?v=20261120-live33';
 import { showAccessDeniedModal } from './components/access-denied-modal.js?v=20261120-live33';
 
 // Importação das Views
-import { renderLogin, setupLoginEvents } from './views/login.js?v=20261122-real1';
+import { renderLogin, setupLoginEvents } from './views/login.js?v=20261122-real2';
 import {
   renderPrimeiroAcesso, setupPrimeiroAcessoEvents,
   renderRecuperarSenha, setupRecuperarSenhaEvents,
