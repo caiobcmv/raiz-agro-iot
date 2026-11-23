@@ -461,7 +461,14 @@ class ApiService {
   }
 
   async getDadosGraficos() {
-    return await this.request('/dashboard/resumo');
+    return await this.request('/preferencias/graficos');
+  }
+
+  async salvarDadosGraficos(payload) {
+    return await this.request('/preferencias/graficos', {
+      method: 'PUT',
+      body: JSON.stringify(payload)
+    });
   }
 
   // ==========================================
