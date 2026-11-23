@@ -1,0 +1,4 @@
+# Ignora o backend e o banco durante o deploy estático do front-end na Vercel
+iot-backend/
+iot_db-main/
+*.bat

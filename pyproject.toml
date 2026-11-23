@@ -1,2 +1,0 @@
-[tool.vercel]
-entrypoint = "iot-backend/src/api/app.py"
