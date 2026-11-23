@@ -14,10 +14,14 @@ for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":8000" ^| findstr "LISTENING
 )
 timeout /t 1 /nobreak >nul
 echo.
+echo Iniciando Backend FastAPI na porta 8000 em segundo plano...
+start "RAIZ Agro - Backend FastAPI (Porta 8000)" cmd /c call "%~dp0INICIAR_BACKEND.bat"
+timeout /t 2 /nobreak >nul
+echo.
 echo Abrindo http://localhost:5173/#/dashboard no seu navegador...
 start http://localhost:5173/#/dashboard
 echo.
-echo Pressione Ctrl+C para encerrar o servidor.
+echo Pressione Ctrl+C para encerrar o servidor frontend.
 echo.
 node server.js
 pause

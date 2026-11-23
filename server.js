@@ -10,12 +10,7 @@ const fs   = require('fs');
 const path = require('path');
 const url  = require('url');
 
-// Inicia também o Backend API na porta 8000
-try {
-  require('./backend-node/server-api.js');
-} catch (e) {
-  console.warn('Aviso ao iniciar backend 8000:', e.message);
-}
+// O Backend API (FastAPI) roda na porta 8000 via INICIAR_BACKEND.bat ou INICIAR_SERVIDOR.bat
 
 const PORT    = 5173;
 const ROOTDIR = path.resolve(__dirname, 'frontend');
