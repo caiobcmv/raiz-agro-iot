@@ -2416,6 +2416,8 @@ function setupAnalistaDashboardEvents() {
  * 3. DASHBOARD DO ADMINISTRADOR (FIGMA MOCKUP 1: LORENA LIRA)
  * Visão Geral do Sistema com Governança, Lotes, Sensores, Conformidade e Atividade 24h
  */
+let _adminDashState = { leiturasGrafico: null };
+
 async function renderAdminDashboard() {
   const [resResumo, resUsuarios, resLotes, resRegras, resLogs, resPortos, resLeituras] = await Promise.allSettled([
     api.getDashboardResumo(),
