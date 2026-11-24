@@ -492,3 +492,43 @@ html[data-visual-effects="off"] *::after {
     width: 100% !important;
   }
 }
+
+/* =====================================================================
+   GRADE DE CARDS SUPERIORES DO ADMIN (1 LINHA LADO A LADO NO DESKTOP)
+   Evita que os 4 cards fiquem empilhados (2 em cima e 2 embaixo)
+   ===================================================================== */
+.admin-kpi-grid-4 {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 16px !important;
+  margin-bottom: 20px !important;
+  width: 100% !important;
+}
+
+.admin-kpi-grid-3 {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 16px !important;
+  margin-bottom: 20px !important;
+  width: 100% !important;
+}
+
+.admin-kpi-grid-4 > div,
+.admin-kpi-grid-3 > div {
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
+@media (max-width: 992px) {
+  .admin-kpi-grid-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 580px) {
+  .admin-kpi-grid-4,
+  .admin-kpi-grid-3 {
+    grid-template-columns: 1fr !important;
+  }
+}
+

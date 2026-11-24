@@ -161,7 +161,7 @@ export async function renderAuditoria() {
       </div>
 
       <!-- 4 KPIs Superiores de Auditoria -->
-      <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px;">
+      <div class="admin-kpi-grid-4">
         <!-- KPI 1: TOTAL DE EVENTOS AUDITADOS -->
         <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 14px; padding: 18px 20px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
           <div style="display: flex; justify-content: space-between; align-items: flex-start;">

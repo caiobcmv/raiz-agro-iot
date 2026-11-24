@@ -142,7 +142,7 @@ export async function renderLotes() {
       </div>
 
       <!-- 4 KPIs do Ciclo de Safra -->
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 24px;">
+      <div class="admin-kpi-grid-4">
         <!-- KPI 1: META DE PRODUTIVIDADE -->
         <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
           <div style="display: flex; justify-content: space-between; align-items: center;">

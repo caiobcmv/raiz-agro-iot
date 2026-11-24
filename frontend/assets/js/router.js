@@ -167,7 +167,7 @@ const routes = {
 function renderRouteSkeleton() {
   return `
     <div class="route-skeleton-wrapper" style="padding: 28px 36px;">
-      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-bottom: 24px;">
+      <div class="admin-kpi-grid-4">
         <div class="skeleton-card" style="height: 136px; border-radius: 16px;"></div>
         <div class="skeleton-card" style="height: 136px; border-radius: 16px;"></div>
         <div class="skeleton-card" style="height: 136px; border-radius: 16px;"></div>

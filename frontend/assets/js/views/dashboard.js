@@ -2595,7 +2595,7 @@ async function renderAdminDashboard() {
       </div>
 
       <!-- 4 Cards Superiores de Governança (100% PostgreSQL / FastAPI) -->
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 20px;">
+      <div class="admin-kpi-grid-4">
         <!-- Card 1: Perfis de Usuários -->
         <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between;">
           <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -2710,7 +2710,7 @@ async function renderAdminDashboard() {
         </div>
 
         <!-- 3 Métricas Reais de /dashboard/resumo (sem KPI fantasma de ciclos de irrigação) -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 16px;">
+        <div class="admin-kpi-grid-3" style="margin-top: 16px; margin-bottom: 0 !important;">
           <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
             <div>
               <span style="font-size: 10px; font-weight: 700; color: #64748B;">TEMP. / UMID. AR MÉDIA (24H)</span>

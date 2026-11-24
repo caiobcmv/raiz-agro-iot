@@ -144,7 +144,7 @@ export async function renderRegrasAgronomicas() {
       </div>
 
       <!-- 4 Cards Superiores (KPIs do Figma) -->
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 24px;">
+      <div class="admin-kpi-grid-4">
         <!-- Card 1: REGRAS ATIVAS NO CLUSTER -->
         <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); display: flex; flex-direction: column; justify-content: space-between;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
