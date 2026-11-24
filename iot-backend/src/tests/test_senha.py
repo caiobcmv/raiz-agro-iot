@@ -25,5 +25,7 @@ def test_usuario_antigo_em_bcrypt_continua_entrando():
 
 
 def test_security_py_nao_usa_mais_bcrypt():
-    with open("src/api/security.py", encoding="utf-8") as f:
+    import os
+    caminho = "src/api/security.py" if os.path.exists("src/api/security.py") else "iot-backend/src/api/security.py"
+    with open(caminho, encoding="utf-8") as f:
         assert "import bcrypt" not in f.read()

@@ -1165,15 +1165,13 @@ async function recarregarLeiturasTelemetria() {
         _estado.sensorSelecionadoId,
         _estado.periodoTelemetria
       );
-      _estado.leiturasTelemetria = (Array.isArray(leiturasApi) && leiturasApi.length > 0)
-        ? leiturasApi
-        : gerarLeiturasTelemetriaMock(_estado.periodoTelemetria);
+      _estado.leiturasTelemetria = Array.isArray(leiturasApi) ? leiturasApi : [];
     } else {
-      _estado.leiturasTelemetria = gerarLeiturasTelemetriaMock(_estado.periodoTelemetria);
+      _estado.leiturasTelemetria = [];
     }
   } catch (err) {
-    console.warn('Erro ao atualizar leituras de telemetria, usando mock:', err);
-    _estado.leiturasTelemetria = gerarLeiturasTelemetriaMock(_estado.periodoTelemetria);
+    console.warn('Erro ao atualizar leituras de telemetria do banco:', err);
+    _estado.leiturasTelemetria = [];
   } finally {
     _estado.carregandoTelemetria = false;
     atualizarViewNoDom();

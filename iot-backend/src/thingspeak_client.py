@@ -47,9 +47,12 @@ def _campo(feed, numero):
 
 def _raw_para_pct(raw):
     """Converte a leitura bruta do ADC (0-4095) do sensor de solo em % de umidade.
-    Sensor capacitivo: quanto mais seco, maior o valor bruto."""
+    Sensor capacitivo: quanto mais seco, maior o valor bruto.
+    Se o valor já vier em escala percentual (<= 100), mantém direto."""
     if raw is None:
         return None
+    if raw <= 100.0:
+        return round(max(0.0, float(raw)), 1)
     seco, molhado = config.SOLO_RAW_SECO, config.SOLO_RAW_MOLHADO
     if seco == molhado:
         return None
