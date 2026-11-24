@@ -104,11 +104,7 @@ class ApiService {
             });
           }
         } catch (refreshErr) {
-          this.clearTokens();
-          if (window.location.hash !== '#/login') {
-            window.location.hash = '#/login';
-          }
-          const authErr = new Error('Sessão expirada. Faça login novamente.');
+          const authErr = new Error('Stream de telemetria indisponível no momento.');
           authErr.status = 401;
           throw authErr;
         }
@@ -187,11 +183,12 @@ class ApiService {
             await this.refreshToken();
             return await this.request(endpoint, options, true);
           } catch (_) {
-            // refresh falhou -> segue para limpeza controlada
+            // refresh falhou
           }
         }
 
-        if (!isPublicAuth) {
+        // Apenas desconecta e redireciona ao login se a rota principal de autenticação (/auth/me) falhar com 401
+        if (endpoint === '/auth/me') {
           this.clearTokens();
           window.dispatchEvent(new CustomEvent('auth-logout'));
           if (window.location.hash !== '#/login' && !window.location.hash.startsWith('#/primeiro-acesso')) {

@@ -200,7 +200,7 @@ const DEFAULT_DADOS_GRAFICOS = {
 export async function renderDashboard() {
   const profileRole = auth.getActiveProfile();
   if (profileRole === 'admin') {
-    return renderAdminDashboard();
+    return await renderAdminDashboard();
   }
   if (profileRole === 'analista') {
     return await renderAnalistaDashboard();
@@ -2416,72 +2416,213 @@ function setupAnalistaDashboardEvents() {
  * 3. DASHBOARD DO ADMINISTRADOR (FIGMA MOCKUP 1: LORENA LIRA)
  * Visão Geral do Sistema com Governança, Lotes, Sensores, Conformidade e Atividade 24h
  */
-function renderAdminDashboard() {
+async function renderAdminDashboard() {
+  const [resResumo, resUsuarios, resLotes, resRegras, resLogs, resPortos, resLeituras] = await Promise.allSettled([
+    api.getDashboardResumo(),
+    api.getUsuarios(),
+    api.getLotes(),
+    api.getConfigParametros(),
+    api.getAuditoria({ limit: 4 }),
+    api.getPortos(),
+    api.getLeituras(24)
+  ]);
+
+  const resumo = resResumo.status === 'fulfilled' && resResumo.value ? resResumo.value : {};
+  const usuarios = resUsuarios.status === 'fulfilled' && Array.isArray(resUsuarios.value) ? resUsuarios.value : [];
+  const lotes = resLotes.status === 'fulfilled' && Array.isArray(resLotes.value) ? resLotes.value : [];
+  const regras = resRegras.status === 'fulfilled' && Array.isArray(resRegras.value) ? resRegras.value : [];
+  const logs = resLogs.status === 'fulfilled' && Array.isArray(resLogs.value) ? resLogs.value : [];
+  const portos = resPortos.status === 'fulfilled' && Array.isArray(resPortos.value) ? resPortos.value : [];
+  const leituras = resLeituras.status === 'fulfilled' && Array.isArray(resLeituras.value) ? resLeituras.value : [];
+
+  _adminDashState.leiturasGrafico = leituras;
+
+  // 1. Usuários (tabela usuario + perfil)
+  const totalUsers = usuarios.length;
+  const usersAtivos = usuarios.filter(u => String(u.status || '').toLowerCase() === 'ativo').length;
+  const usersPendentes = usuarios.filter(u => String(u.status || '').toLowerCase() === 'pendente').length;
+  const qtdProd = usuarios.filter(u => String(u.perfil || '').toLowerCase().includes('produt')).length;
+  const qtdAnal = usuarios.filter(u => String(u.perfil || '').toLowerCase().includes('analist')).length;
+  const qtdAdm = usuarios.filter(u => String(u.perfil || '').toLowerCase().includes('admin')).length;
+  const baseUsers = totalUsers || 1;
+  const pctProd = Math.round((qtdProd / baseUsers) * 100);
+  const pctAnal = Math.round((qtdAnal / baseUsers) * 100);
+  const pctAdm = totalUsers ? Math.max(0, 100 - pctProd - pctAnal) : 0;
+
+  // 2. Lotes e Culturas (tabela lote + /dashboard/resumo)
+  const lotesNaoFinalizados = lotes.filter(l => String(l.status || '').toLowerCase() !== 'finalizado');
+  const lotesAtivosCount = resumo?.lotes_monitorados?.total ?? lotesNaoFinalizados.length;
+  const lotesComSensor = resumo?.lotes_monitorados?.com_sensor_ativo ?? 0;
+  const volumePorFruta = {};
+  let volumeTotalKg = 0;
+  lotes.forEach(l => {
+    const qtd = Number(l.quantidade) || 0;
+    const kg = String(l.unidade || 'kg').toLowerCase() === 't' ? qtd * 1000 : qtd;
+    const fruta = l.fruta || 'Outros';
+    volumePorFruta[fruta] = (volumePorFruta[fruta] || 0) + kg;
+    volumeTotalKg += kg;
+  });
+  const frutasOrdenadas = Object.entries(volumePorFruta).sort((a, b) => b[1] - a[1]).slice(0, 3);
+  const coresFrutas = ['#10B981', '#3B82F6', '#F59E0B'];
+
+  // 3. Sensores (tabela sensor + /dashboard/resumo)
+  const sensAtivos = resumo?.sensores?.ativos ?? 0;
+  const sensTotal = resumo?.sensores?.total ?? 0;
+  const sensReais = resumo?.sensores?.reais ?? 0;
+  const sensSimulados = resumo?.sensores?.simulados ?? Math.max(0, sensAtivos - sensReais);
+  const pctSensOnline = sensTotal > 0 ? Math.round((sensAtivos / sensTotal) * 100) : 0;
+
+  // 4. Alertas (/dashboard/resumo -> tabela alerta)
+  const alertAbertos = resumo?.alertas?.abertos ?? 0;
+  const alertReativos = resumo?.alertas?.reativos ?? 0;
+  const alertPreditivos = resumo?.alertas?.preditivos ?? 0;
+  const condRotulo = resumo?.condicao_geral?.rotulo || (alertAbertos === 0 ? 'Operação Estável' : 'Atenção');
+  const condCor = condRotulo === 'Crítica' ? '#DC2626' : (condRotulo === 'Atenção' ? '#D97706' : '#047857');
+  const condBg = condRotulo === 'Crítica' ? '#FEE2E2' : (condRotulo === 'Atenção' ? '#FEF3C7' : '#D1FAE5');
+
+  // 5. Condições das últimas 24h (/dashboard/resumo -> vw_lote_saude + leitura_climatica)
+  const rc = resumo?.resumo_condicoes || {};
+  const pctNaFaixa = rc.pct_na_faixa != null ? `${rc.pct_na_faixa}%` : '—';
+  const leiturasAvaliadas = rc.leituras_avaliadas ?? 0;
+  const tempArMedia = rc.temperatura_ar_media != null ? `${rc.temperatura_ar_media}°C` : '—';
+  const umidArMedia = rc.umidade_ar_media != null ? `${rc.umidade_ar_media}% UR` : '—';
+  const vpdMedio = rc.vpd_medio_kpa != null ? `${rc.vpd_medio_kpa} kPa` : '—';
+  const areaProp = resumo?.propriedade?.area_ha != null ? `${resumo.propriedade.area_ha.toLocaleString('pt-BR')} ha` : 'Polo Petrolina';
+
+  // Média real de umidade_solo das leituras recentes (sem temperatura_solo)
+  const leiturasSolo = leituras.map(l => Number(l.umidade_solo)).filter(v => !isNaN(v) && v > 0);
+  const umidSoloMedia = leiturasSolo.length > 0
+    ? `${(leiturasSolo.reduce((a, b) => a + b, 0) / leiturasSolo.length).toFixed(1)}% VWC`
+    : 'Sem leitura solo 24h';
+
+  // 6. Acessos recentes (tabela log_acesso)
+  const acessosHtml = logs.length > 0 ? logs.map(log => {
+    const nome = String(log.usuario || `Usuário #${log.id_usuario || 'Sistema'}`);
+    const iniciais = nome.split(/\s+/).filter(Boolean).map(p => p[0]).slice(0, 2).join('').toUpperCase() || 'SY';
+    const hora = log.data_hora ? new Date(log.data_hora).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '--:--';
+    const ok = !String(log.resultado || '').toLowerCase().includes('falha') && !String(log.resultado || '').toLowerCase().includes('negado');
+    return `
+      <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px; display: flex; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
+          <div style="width: 36px; height: 36px; border-radius: 50%; background: ${ok ? '#D1FAE5' : '#FEE2E2'}; border: 1.5px solid ${ok ? '#10B981' : '#EF4444'}; color: ${ok ? '#065F46' : '#991B1B'}; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 12px; flex-shrink: 0;">${iniciais}</div>
+          <div style="min-width: 0;">
+            <strong style="font-size: 13px; color: #0F172A; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${nome}</strong>
+            <div style="font-size: 11px; color: #64748B; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${log.acao || 'acesso'} • ${log.ip || 'IP N/D'}</div>
+          </div>
+        </div>
+        <div style="text-align: right; flex-shrink: 0; margin-left: 8px;">
+          <span style="font-size: 10px; color: #64748B;">${hora}</span>
+          <div style="font-size: 10px; font-weight: 700; color: ${ok ? '#047857' : '#DC2626'};">${log.resultado || 'sucesso'}</div>
+        </div>
+      </div>
+    `;
+  }).join('') : `
+    <div style="grid-column: 1 / -1; padding: 16px; text-align: center; color: #64748B; font-size: 12px; background: #F8FAFC; border-radius: 8px;">
+      Nenhum registro recente retornado por <code>GET /auditoria</code>.
+    </div>
+  `;
+
+  // 7. Regras agronômicas reais (tabela config_parametro)
+  const regrasHtml = regras.length > 0 ? regras.slice(0, 4).map((r, idx) => {
+    const cor = coresFrutas[idx % coresFrutas.length];
+    return `
+      <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span style="width: 8px; height: 8px; border-radius: 50%; background: ${cor};"></span>
+            <strong style="font-size: 13px; color: #0F172A;">${r.fruta || `Fruta #${r.id_fruta}`}</strong>
+            <span style="font-size: 10px; font-weight: 700; color: #475569; background: #E2E8F0; padding: 1px 6px; border-radius: 4px; text-transform: uppercase;">${r.etapa || 'armazenamento'}</span>
+          </div>
+          <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Umidade relativa ideal: ${r.umidade_min ?? '—'}% a ${r.umidade_max ?? '—'}%</div>
+        </div>
+        <div style="text-align: right;">
+          <span style="font-size: 12px; font-weight: 700; color: #047857; background: #ECFDF5; padding: 2px 8px; border-radius: 6px;">${r.temp_min ?? '—'}°C a ${r.temp_max ?? '—'}°C</span>
+        </div>
+      </div>
+    `;
+  }).join('') : `
+    <div style="padding: 16px; text-align: center; color: #64748B; font-size: 12px; background: #F8FAFC; border-radius: 8px;">
+      Nenhuma regra cadastrada em <code>config_parametro</code>.
+    </div>
+  `;
+
+  // 8. Portos e rotas reais (tabela porto + rota)
+  const portosHtml = portos.length > 0 ? portos.slice(0, 4).map(p => `
+    <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px; display: flex; justify-content: space-between; align-items: center;">
+      <div>
+        <strong style="font-size: 12px; color: #0F172A;">${p.nome} (${p.uf})</strong>
+        <div style="font-size: 10px; color: #64748B;">${p.distancia_km != null ? `${p.distancia_km} km` : `Lat ${p.latitude}, Lng ${p.longitude}`}${p.duracao_min != null ? ` • ~${Math.round(p.duracao_min / 60)}h de rota` : ''}</div>
+      </div>
+      <span style="font-size: 10px; font-weight: 700; color: #047857; background: #DCFCE7; padding: 2px 8px; border-radius: 4px;">Homologado</span>
+    </div>
+  `).join('') : `
+    <div style="padding: 16px; text-align: center; color: #64748B; font-size: 12px; background: #F8FAFC; border-radius: 8px;">
+      Nenhum porto retornado por <code>GET /portos</code>.
+    </div>
+  `;
+
   return `
     <div class="dashboard-canvas apple-animate-in">
       <!-- Sub-barra Técnica do Administrador -->
       <div class="analista-subbar" style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 12px 16px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
         <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
           <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: #047857; background: #ECFDF5; border: 1px solid #A7F3D0; padding: 4px 10px; border-radius: 20px;">
-            <i data-lucide="map-pin" style="width: 12px; height: 12px;"></i> Polo Sertão São Francisco
+            <i data-lucide="map-pin" style="width: 12px; height: 12px;"></i> ${areaProp}
           </span>
           <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: #0284C7; background: #F0F9FF; border: 1px solid #BAE6FD; padding: 4px 10px; border-radius: 20px;">
-            <i data-lucide="wifi" style="width: 12px; height: 12px;"></i> Rede ESP32 Wi-Fi + Gateway Online
+            <i data-lucide="cpu" style="width: 12px; height: 12px;"></i> ${sensAtivos}/${sensTotal} Sensores Ativos (${sensReais} ThingSpeak)
           </span>
           <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: #475569; background: #F8FAFC; border: 1px solid #E2E8F0; padding: 4px 10px; border-radius: 20px;">
-            <i data-lucide="file-check" style="width: 12px; height: 12px;"></i> 3 Regras Agronômicas Vigentes
-          </span>
-          <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: #15803D; background: #DCFCE7; border: 1px solid #86EFAC; padding: 4px 10px; border-radius: 20px;">
-            <i data-lucide="check-circle" style="width: 12px; height: 12px;"></i> Auditoria GlobalGAP em Dia
+            <i data-lucide="sliders" style="width: 12px; height: 12px;"></i> ${regras.length} Regras em config_parametro
           </span>
         </div>
         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
           <button class="btn-analista-sync" id="btn-admin-convidar-user" style="background: #F8FAFC; border: 1px solid #CBD5E1; color: #334155; font-size: 12px; font-weight: 600; padding: 6px 14px; border-radius: 8px; display: flex; align-items: center; gap: 6px; cursor: pointer;">
             <i data-lucide="user-plus" style="width: 14px; height: 14px;"></i>
-            <span>Convidar Usuário</span>
+            <span>Gerenciar Usuários</span>
           </button>
           <button class="btn-analista-sync" id="btn-admin-parametros-safra" style="background: #F8FAFC; border: 1px solid #CBD5E1; color: #334155; font-size: 12px; font-weight: 600; padding: 6px 14px; border-radius: 8px; display: flex; align-items: center; gap: 6px; cursor: pointer;">
             <i data-lucide="sliders" style="width: 14px; height: 14px;"></i>
-            <span>Parâmetros da Safra</span>
+            <span>Regras Agronômicas</span>
           </button>
           <button class="btn-analista-export" id="btn-admin-emitir-relatorio" style="background: #183D2E; border: none; color: #FFFFFF; font-size: 12px; font-weight: 600; padding: 6px 14px; border-radius: 8px; display: flex; align-items: center; gap: 6px; cursor: pointer;">
             <i data-lucide="file-text" style="width: 14px; height: 14px;"></i>
-            <span>Emitir Relatório Executivo</span>
+            <span>Emitir Relatório</span>
           </button>
         </div>
       </div>
 
-      <!-- 4 Cards Superiores de Governança -->
+      <!-- 4 Cards Superiores de Governança (100% PostgreSQL / FastAPI) -->
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 20px;">
         <!-- Card 1: Perfis de Usuários -->
         <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between;">
           <div style="display: flex; justify-content: space-between; align-items: center;">
             <span style="font-size: 11px; font-weight: 700; color: #64748B; letter-spacing: 0.5px;">PERFIS DE USUÁRIOS</span>
-            <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 2px 8px; border-radius: 12px;">12 ATIVOS</span>
+            <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 2px 8px; border-radius: 12px;">${usersAtivos} ATIVOS</span>
           </div>
           <div style="display: flex; align-items: center; gap: 14px; margin: 14px 0;">
-            <div style="width: 58px; height: 58px; border-radius: 50%; border: 5px solid #10B981; border-top-color: #0284C7; border-right-color: #0F172A; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-              <span style="font-size: 15px; font-weight: 800; color: #0F172A; line-height: 1;">12</span>
-              <span style="font-size: 8px; color: #64748B;">MEMBROS</span>
+            <div style="width: 58px; height: 58px; border-radius: 50%; border: 5px solid #10B981; border-top-color: #0284C7; border-right-color: #0F172A; display: flex; flex-direction: column; align-items: center; justify-content: center; flex-shrink: 0;">
+              <span style="font-size: 15px; font-weight: 800; color: #0F172A; line-height: 1;">${totalUsers}</span>
+              <span style="font-size: 8px; color: #64748B;">CONTAS</span>
             </div>
             <div style="display: flex; flex-direction: column; gap: 3px; font-size: 11px;">
               <div style="display: flex; align-items: center; gap: 6px;">
                 <span style="width: 6px; height: 6px; border-radius: 50%; background: #10B981;"></span>
-                <span style="color: #475569;">Produtores: <strong>5</strong> <span style="color: #94A3B8;">(42%)</span></span>
+                <span style="color: #475569;">Produtores: <strong>${qtdProd}</strong> <span style="color: #94A3B8;">(${pctProd}%)</span></span>
               </div>
               <div style="display: flex; align-items: center; gap: 6px;">
                 <span style="width: 6px; height: 6px; border-radius: 50%; background: #0284C7;"></span>
-                <span style="color: #475569;">Analistas: <strong>4</strong> <span style="color: #94A3B8;">(33%)</span></span>
+                <span style="color: #475569;">Analistas: <strong>${qtdAnal}</strong> <span style="color: #94A3B8;">(${pctAnal}%)</span></span>
               </div>
               <div style="display: flex; align-items: center; gap: 6px;">
                 <span style="width: 6px; height: 6px; border-radius: 50%; background: #0F172A;"></span>
-                <span style="color: #475569;">Admins: <strong>3</strong> <span style="color: #94A3B8;">(25%)</span></span>
+                <span style="color: #475569;">Admins: <strong>${qtdAdm}</strong> <span style="color: #94A3B8;">(${pctAdm}%)</span></span>
               </div>
             </div>
           </div>
           <div style="display: flex; justify-content: space-between; font-size: 11px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px;">
-            <span>Acesso à Plataforma</span>
-            <strong style="color: #047857;">100% Autenticados</strong>
+            <span>Tabela <code>usuario</code></span>
+            <strong style="color: ${usersPendentes > 0 ? '#D97706' : '#047857'};">${usersPendentes} pendente(s)</strong>
           </div>
         </div>
 
@@ -2489,30 +2630,26 @@ function renderAdminDashboard() {
         <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between;">
           <div style="display: flex; justify-content: space-between; align-items: center;">
             <span style="font-size: 11px; font-weight: 700; color: #64748B; letter-spacing: 0.5px;">LOTES E CULTURAS</span>
-            <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 2px 8px; border-radius: 12px;">3 LOTES ATIVOS</span>
+            <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 2px 8px; border-radius: 12px;">${lotesAtivosCount} EM ABERTO</span>
           </div>
           <div style="margin: 12px 0;">
             <div style="display: flex; justify-content: space-between; align-items: baseline;">
               <div>
-                <span style="font-size: 20px; font-weight: 800; color: #0F172A;">1.800</span>
+                <span style="font-size: 20px; font-weight: 800; color: #0F172A;">${volumeTotalKg.toLocaleString('pt-BR')}</span>
                 <span style="font-size: 12px; font-weight: 600; color: #64748B;">kg</span>
               </div>
-              <span style="font-size: 10px; font-weight: 600; color: #059669; background: #ECFDF5; padding: 2px 6px; border-radius: 6px;">Safra 2026</span>
+              <span style="font-size: 10px; font-weight: 600; color: #059669; background: #ECFDF5; padding: 2px 6px; border-radius: 6px;">${lotes.length} lotes</span>
             </div>
             <div style="width: 100%; height: 6px; background: #E2E8F0; border-radius: 3px; display: flex; overflow: hidden; margin-top: 8px;">
-              <div style="width: 55%; background: #10B981;" title="Manga: 1.000kg"></div>
-              <div style="width: 30%; background: #3B82F6;" title="Uva: 500kg"></div>
-              <div style="width: 15%; background: #F59E0B;" title="Melão: 300kg"></div>
+              ${frutasOrdenadas.map(([nome, kg], idx) => `<div style="width: ${volumeTotalKg > 0 ? Math.round((kg / volumeTotalKg) * 100) : 0}%; background: ${coresFrutas[idx]};" title="${nome}: ${kg.toLocaleString('pt-BR')} kg"></div>`).join('')}
             </div>
-            <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B; margin-top: 6px;">
-              <span>• Manga (1.000kg)</span>
-              <span>• Uva (500kg)</span>
-              <span>• Melão (300kg)</span>
+            <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B; margin-top: 6px; flex-wrap: wrap; gap: 4px;">
+              ${frutasOrdenadas.map(([nome, kg]) => `<span>• ${nome} (${Math.round(kg / 1000)}t)</span>`).join('') || '<span>Sem lotes cadastrados</span>'}
             </div>
           </div>
           <div style="display: flex; justify-content: space-between; font-size: 11px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px;">
-            <span>3 Setores</span>
-            <strong style="color: #0F172A;">Petrolina Setor 04 e Vale</strong>
+            <span>Com sensor ativo</span>
+            <strong style="color: #0F172A;">${lotesComSensor} de ${lotesAtivosCount}</strong>
           </div>
         </div>
 
@@ -2520,302 +2657,141 @@ function renderAdminDashboard() {
         <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between;">
           <div style="display: flex; justify-content: space-between; align-items: center;">
             <span style="font-size: 11px; font-weight: 700; color: #64748B; letter-spacing: 0.5px;">SENSORES DE CAMPO (IOT)</span>
-            <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 2px 8px; border-radius: 12px;">100% ONLINE</span>
+            <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 2px 8px; border-radius: 12px;">${pctSensOnline}% ATIVOS</span>
           </div>
           <div style="margin: 12px 0; display: flex; justify-content: space-between; align-items: center;">
             <div>
-              <span style="font-size: 20px; font-weight: 800; color: #0F172A;">99.8 %</span>
-              <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Transmissão em Tempo Real</div>
-              <div style="font-size: 10px; color: #94A3B8;">Nós DHT11 + Solo TDR</div>
-            </div>
-            <div style="display: flex; align-items: flex-end; gap: 3px; height: 36px;">
-              <span style="width: 5px; height: 18px; background: #10B981; border-radius: 2px;"></span>
-              <span style="width: 5px; height: 26px; background: #10B981; border-radius: 2px;"></span>
-              <span style="width: 5px; height: 32px; background: #10B981; border-radius: 2px;"></span>
-              <span style="width: 5px; height: 28px; background: #10B981; border-radius: 2px;"></span>
-              <span style="width: 5px; height: 36px; background: #10B981; border-radius: 2px;"></span>
+              <span style="font-size: 20px; font-weight: 800; color: #0F172A;">${sensAtivos} / ${sensTotal}</span>
+              <div style="font-size: 11px; color: #64748B; margin-top: 2px;">${sensReais} reais (ThingSpeak) • ${sensSimulados} simulados</div>
+              <div style="font-size: 10px; color: #94A3B8;">Tabela <code>sensor</code> (ar / solo)</div>
             </div>
           </div>
           <div style="display: flex; justify-content: space-between; font-size: 11px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px;">
-            <span>Cadência de Leitura</span>
-            <strong style="color: #0F172A;">A cada 300s (5 min)</strong>
+            <span>Leituras Ar (24h)</span>
+            <strong style="color: #0F172A;">${rc.n_leituras_ar ?? 0} amostras</strong>
           </div>
         </div>
 
-        <!-- Card 4: Alertas e Incidentes -->
+        <!-- Card 4: Alertas e Saúde dos Lotes -->
         <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between;">
           <div style="display: flex; justify-content: space-between; align-items: center;">
             <span style="font-size: 11px; font-weight: 700; color: #64748B; letter-spacing: 0.5px;">ALERTAS E INCIDENTES</span>
-            <span style="font-size: 10px; font-weight: 700; color: #0284C7; background: #F0F9FF; padding: 2px 8px; border-radius: 12px;">OPERAÇÃO ESTÁVEL</span>
+            <span style="font-size: 10px; font-weight: 700; color: ${condCor}; background: ${condBg}; padding: 2px 8px; border-radius: 12px;">${condRotulo.toUpperCase()}</span>
           </div>
           <div style="margin: 12px 0; display: flex; justify-content: space-between; align-items: center;">
             <div>
-              <span style="font-size: 20px; font-weight: 800; color: #0F172A;">2 ativos</span>
-              <div style="font-size: 11px; color: #64748B; margin-top: 2px;">0 Críticos • 1 Atenção • 1 Info</div>
-            </div>
-            <div style="display: flex; gap: 4px;">
-              <span style="width: 10px; height: 10px; border-radius: 50%; background: #94A3B8;"></span>
-              <span style="width: 10px; height: 10px; border-radius: 50%; background: #F59E0B;"></span>
-              <span style="width: 10px; height: 10px; border-radius: 50%; background: #3B82F6;"></span>
+              <span style="font-size: 20px; font-weight: 800; color: #0F172A;">${alertAbertos} aberto(s)</span>
+              <div style="font-size: 11px; color: #64748B; margin-top: 2px;">${alertReativos} reativo(s) • ${alertPreditivos} preditivo(s)</div>
             </div>
           </div>
           <div style="display: flex; justify-content: space-between; font-size: 11px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px;">
-            <span>Resolução Média</span>
-            <strong style="color: #0F172A;">14 minutos</strong>
+            <span>Lotes avaliados (<code>vw_lote_saude</code>)</span>
+            <strong style="color: #0F172A;">${resumo?.condicao_geral?.lotes_avaliados ?? 0}</strong>
           </div>
         </div>
       </div>
 
-      <!-- Gráfico Central: Atividade Operacional da Fazenda (Últimas 24h) -->
+      <!-- Gráfico Central: Telemetria Consolidada (Últimas Leituras Reais) -->
       <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
           <div>
             <div style="display: flex; align-items: center; gap: 8px;">
-              <h3 style="font-size: 15px; font-weight: 700; color: #0F172A; margin: 0;">Atividade Operacional da Fazenda (Últimas 24h)</h3>
-              <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 2px 8px; border-radius: 12px;">Tempo Real</span>
+              <h3 style="font-size: 15px; font-weight: 700; color: #0F172A; margin: 0;">Telemetria Consolidada (<code>leitura_climatica</code>)</h3>
+              <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 2px 8px; border-radius: 12px;">PostgreSQL Live</span>
             </div>
-            <p style="font-size: 12px; color: #64748B; margin: 4px 0 0 0;">Monitoramento consolidado dos lotes: umidade do solo (VWC) e temperatura média com faixa agronômica ideal</p>
-          </div>
-          <div style="display: flex; align-items: center; gap: 16px; font-size: 11px;">
-            <span style="display: flex; align-items: center; gap: 6px; color: #047857; font-weight: 600;">
-              <span style="width: 8px; height: 8px; border-radius: 50%; background: #10B981;"></span> Umidade do Solo (VWC)
-            </span>
-            <span style="display: flex; align-items: center; gap: 6px; color: #0284C7; font-weight: 600;">
-              <span style="width: 8px; height: 8px; border-radius: 50%; background: #0284C7;"></span> Temp. Média Lotes (°C)
-            </span>
-            <span style="display: flex; align-items: center; gap: 6px; color: #475569; font-weight: 600;">
-              <span style="width: 12px; height: 6px; background: #D1FAE5; border-radius: 2px;"></span> Faixa Agronômica Ideal (40-60%)
-            </span>
+            <p style="font-size: 12px; color: #64748B; margin: 4px 0 0 0;">Temperatura do ar, umidade relativa e umidade do solo (VWC) registradas pelos sensores</p>
           </div>
         </div>
 
-        <!-- Canvas do Gráfico -->
-        <div style="height: 240px; position: relative;">
+        <div style="height: 220px; position: relative;">
           <canvas id="chart-admin-atividade"></canvas>
         </div>
 
-        <!-- 3 Métricas Rápidas abaixo do Gráfico -->
+        <!-- 3 Métricas Reais de /dashboard/resumo (sem KPI fantasma de ciclos de irrigação) -->
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 16px;">
           <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
             <div>
-              <span style="font-size: 10px; font-weight: 700; color: #64748B;">UMIDADE MÉDIA DO SOLO</span>
-              <div style="font-size: 16px; font-weight: 800; color: #047857; margin-top: 2px;">46.8% VWC</div>
+              <span style="font-size: 10px; font-weight: 700; color: #64748B;">TEMP. / UMID. AR MÉDIA (24H)</span>
+              <div style="font-size: 16px; font-weight: 800; color: #0284C7; margin-top: 2px;">${tempArMedia} • ${umidArMedia}</div>
             </div>
-            <span style="font-size: 10px; font-weight: 600; color: #047857; background: #D1FAE5; padding: 3px 8px; border-radius: 6px;">Dentro da Faixa</span>
+            <span style="font-size: 10px; font-weight: 600; color: #0284C7; background: #E0F2FE; padding: 3px 8px; border-radius: 6px;">VPD ${vpdMedio}</span>
           </div>
 
           <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
             <div>
-              <span style="font-size: 10px; font-weight: 700; color: #64748B;">TEMPERATURA MÉDIA</span>
-              <div style="font-size: 16px; font-weight: 800; color: #0284C7; margin-top: 2px;">11.8°C</div>
+              <span style="font-size: 10px; font-weight: 700; color: #64748B;">UMIDADE MÉDIA DO SOLO (VWC)</span>
+              <div style="font-size: 16px; font-weight: 800; color: #047857; margin-top: 2px;">${umidSoloMedia}</div>
             </div>
-            <span style="font-size: 10px; font-weight: 600; color: #0284C7; background: #E0F2FE; padding: 3px 8px; border-radius: 6px;">Estável</span>
+            <span style="font-size: 10px; font-weight: 600; color: #047857; background: #D1FAE5; padding: 3px 8px; border-radius: 6px;">umidade_solo</span>
           </div>
 
           <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
             <div>
-              <span style="font-size: 10px; font-weight: 700; color: #64748B;">CICLOS DE IRRIGAÇÃO</span>
-              <div style="font-size: 16px; font-weight: 800; color: #0F172A; margin-top: 2px;">3 concluídos hoje</div>
+              <span style="font-size: 10px; font-weight: 700; color: #64748B;">CONFORMIDADE NA FAIXA (24H)</span>
+              <div style="font-size: 16px; font-weight: 800; color: #0F172A; margin-top: 2px;">${pctNaFaixa}</div>
             </div>
-            <span style="font-size: 10px; font-weight: 600; color: #047857; background: #D1FAE5; padding: 3px 8px; border-radius: 6px;">100% Eficiência</span>
+            <span style="font-size: 10px; font-weight: 600; color: #047857; background: #D1FAE5; padding: 3px 8px; border-radius: 6px;">${leiturasAvaliadas} leituras</span>
           </div>
         </div>
       </div>
 
-      <!-- Seção: Gestão de Perfis e Acessos Recentes -->
+      <!-- Seção: Gestão de Perfis e Acessos Recentes (log_acesso) -->
       <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
           <div>
             <div style="display: flex; align-items: center; gap: 8px;">
               <i data-lucide="users" style="width: 16px; height: 16px; color: #0F172A;"></i>
-              <h3 style="font-size: 14px; font-weight: 700; color: #0F172A; margin: 0;">Gestão de Perfis e Acessos Recentes</h3>
-              <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 2px 8px; border-radius: 12px;">4 MEMBROS ONLINE HOJE</span>
+              <h3 style="font-size: 14px; font-weight: 700; color: #0F172A; margin: 0;">Acessos e Eventos Recentes (<code>log_acesso</code>)</h3>
             </div>
-            <p style="font-size: 12px; color: #64748B; margin: 4px 0 0 0;">Atividades operacionais em tempo real e sessões ativas da equipe de campo e gestão</p>
+            <p style="font-size: 12px; color: #64748B; margin: 4px 0 0 0;">Últimos registros reais de autenticação e operações auditadas</p>
           </div>
-          <a href="#/usuarios" style="font-size: 12px; font-weight: 600; color: #0284C7; text-decoration: none; display: flex; align-items: center; gap: 4px;">
-            Gerenciar Todos os Usuários &rarr;
+          <a href="#/usuarios" style="font-size: 12px; font-weight: 600; color: #0284C7; text-decoration: none;">
+            Gerenciar Usuários &rarr;
           </a>
         </div>
 
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px;">
-          <!-- Usuário 1: Maria Clara -->
-          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px; display: flex; align-items: center; justify-content: space-between;">
-            <div style="display: flex; align-items: center; gap: 10px;">
-              <div style="width: 36px; height: 36px; border-radius: 50%; background: #D1FAE5; border: 1.5px solid #10B981; color: #065F46; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 12px;">MC</div>
-              <div>
-                <div style="display: flex; align-items: center; gap: 6px;">
-                  <strong style="font-size: 13px; color: #0F172A;">Maria Clara</strong>
-                  <span style="font-size: 9px; font-weight: 700; color: #047857; background: #DCFCE7; padding: 1px 6px; border-radius: 4px;">Produtor</span>
-                </div>
-                <div style="font-size: 11px; color: #64748B;">Colheita Lote #7 Manga</div>
-              </div>
-            </div>
-            <div style="text-align: right;">
-              <span style="font-size: 10px; color: #64748B;">15:47</span>
-              <div style="font-size: 10px; font-weight: 700; color: #047857;">Ativo</div>
-            </div>
-          </div>
-
-          <!-- Usuário 2: Luiz Felipe -->
-          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px; display: flex; align-items: center; justify-content: space-between;">
-            <div style="display: flex; align-items: center; gap: 10px;">
-              <div style="width: 36px; height: 36px; border-radius: 50%; background: #E0F2FE; border: 1.5px solid #0284C7; color: #0369A1; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 12px;">LF</div>
-              <div>
-                <div style="display: flex; align-items: center; gap: 6px;">
-                  <strong style="font-size: 13px; color: #0F172A;">Luiz Felipe</strong>
-                  <span style="font-size: 9px; font-weight: 700; color: #0284C7; background: #E0F2FE; padding: 1px 6px; border-radius: 4px;">Analista</span>
-                </div>
-                <div style="font-size: 11px; color: #64748B;">Laudo Uva Vitória</div>
-              </div>
-            </div>
-            <div style="text-align: right;">
-              <span style="font-size: 10px; color: #64748B;">15:15</span>
-              <div style="font-size: 10px; font-weight: 600; color: #64748B;">27m</div>
-            </div>
-          </div>
-
-          <!-- Usuário 3: Rodrigo Alves -->
-          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px; display: flex; align-items: center; justify-content: space-between;">
-            <div style="display: flex; align-items: center; gap: 10px;">
-              <div style="width: 36px; height: 36px; border-radius: 50%; background: #F1F5F9; border: 1.5px solid #94A3B8; color: #334155; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 12px;">RA</div>
-              <div>
-                <div style="display: flex; align-items: center; gap: 6px;">
-                  <strong style="font-size: 13px; color: #0F172A;">Rodrigo Alves</strong>
-                  <span style="font-size: 9px; font-weight: 700; color: #047857; background: #DCFCE7; padding: 1px 6px; border-radius: 4px;">Produtor</span>
-                </div>
-                <div style="font-size: 11px; color: #64748B;">Turno fertirrigação</div>
-              </div>
-            </div>
-            <div style="text-align: right;">
-              <span style="font-size: 10px; color: #64748B;">14:50</span>
-              <div style="font-size: 10px; font-weight: 600; color: #64748B;">52m</div>
-            </div>
-          </div>
-
-          <!-- Usuário 4: Lorena Lira -->
-          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px; display: flex; align-items: center; justify-content: space-between;">
-            <div style="display: flex; align-items: center; gap: 10px;">
-              <div style="width: 36px; height: 36px; border-radius: 50%; background: #DCFCE7; border: 1.5px solid #86EFAC; color: #166534; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 12px;">LL</div>
-              <div>
-                <div style="display: flex; align-items: center; gap: 6px;">
-                  <strong style="font-size: 13px; color: #0F172A;">Lorena Lira</strong>
-                  <span style="font-size: 9px; font-weight: 700; color: #0F172A; background: #E2E8F0; padding: 1px 6px; border-radius: 4px;">Admin</span>
-                </div>
-                <div style="font-size: 11px; color: #64748B;">Parâmetros de clima</div>
-              </div>
-            </div>
-            <div style="text-align: right;">
-              <span style="font-size: 10px; color: #64748B;">14:20</span>
-              <div style="font-size: 10px; font-weight: 700; color: #047857;">Ativo</div>
-            </div>
-          </div>
+          ${acessosHtml}
         </div>
       </div>
 
-      <!-- 2 Cards Inferiores: Parâmetros Agronômicos e Regras Ativas + Conformidade e Despachos -->
+      <!-- 2 Cards Inferiores: Regras Agronômicas (config_parametro) + Portos Homologados (porto / rota) -->
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 16px;">
-        <!-- Card 1: Parâmetros Agronômicos e Regras Ativas -->
         <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
             <div>
-              <h3 style="font-size: 14px; font-weight: 700; color: #0F172A; margin: 0;">Parâmetros Agronômicos e Regras Ativas</h3>
-              <p style="font-size: 11px; color: #64748B; margin: 2px 0 0 0;">Faixas climáticas ideais validadas para as culturas da safra</p>
+              <h3 style="font-size: 14px; font-weight: 700; color: #0F172A; margin: 0;">Parâmetros Agronômicos (<code>config_parametro</code>)</h3>
+              <p style="font-size: 11px; color: #64748B; margin: 2px 0 0 0;">Faixas climáticas oficiais por fruta e etapa</p>
             </div>
-            <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 3px 8px; border-radius: 6px;">3 REGRAS VIGENTES</span>
+            <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 3px 8px; border-radius: 6px;">${regras.length} REGRAS</span>
           </div>
 
           <div style="display: flex; flex-direction: column; gap: 10px;">
-            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
-              <div>
-                <div style="display: flex; align-items: center; gap: 6px;">
-                  <span style="width: 8px; height: 8px; border-radius: 50%; background: #10B981;"></span>
-                  <strong style="font-size: 13px; color: #0F172A;">Manga (Tommy Atkins / Kent)</strong>
-                </div>
-                <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Umidade ideal no solo: 55% a 65% VWC</div>
-              </div>
-              <div style="text-align: right;">
-                <span style="font-size: 12px; font-weight: 700; color: #047857; background: #ECFDF5; padding: 2px 8px; border-radius: 6px;">10.0°C a 13.0°C</span>
-                <div style="font-size: 10px; color: #047857; font-weight: 600; margin-top: 2px;">• Em Faixa Ótima</div>
-              </div>
-            </div>
-
-            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
-              <div>
-                <div style="display: flex; align-items: center; gap: 6px;">
-                  <span style="width: 8px; height: 8px; border-radius: 50%; background: #3B82F6;"></span>
-                  <strong style="font-size: 13px; color: #0F172A;">Uva de Mesa (Vitória Sem Semente)</strong>
-                </div>
-                <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Umidade ideal no solo: 40% a 50% VWC</div>
-              </div>
-              <div style="text-align: right;">
-                <span style="font-size: 12px; font-weight: 700; color: #0284C7; background: #F0F9FF; padding: 2px 8px; border-radius: 6px;">8.0°C a 11.5°C</span>
-                <div style="font-size: 10px; color: #047857; font-weight: 600; margin-top: 2px;">• Em Faixa Ótima</div>
-              </div>
-            </div>
-
-            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
-              <div>
-                <div style="display: flex; align-items: center; gap: 6px;">
-                  <span style="width: 8px; height: 8px; border-radius: 50%; background: #F59E0B;"></span>
-                  <strong style="font-size: 13px; color: #0F172A;">Melão Amarelo</strong>
-                </div>
-                <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Umidade ideal no solo: 45% a 55% VWC</div>
-              </div>
-              <div style="text-align: right;">
-                <span style="font-size: 12px; font-weight: 700; color: #D97706; background: #FFFBEB; padding: 2px 8px; border-radius: 6px;">12.0°C a 15.0°C</span>
-                <div style="font-size: 10px; color: #047857; font-weight: 600; margin-top: 2px;">• Em Faixa Ótima</div>
-              </div>
-            </div>
+            ${regrasHtml}
           </div>
 
           <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; padding-top: 10px; border-top: 1px solid #F1F5F9; font-size: 11px;">
-            <span style="color: #64748B;">Tolerâncias climáticas aplicadas aos atuadores</span>
-            <button id="btn-config-regras" style="background: none; border: none; color: #0284C7; font-weight: 600; cursor: pointer;">Configurar Parâmetros</button>
+            <span style="color: #64748B;">Chave única (fruta, etapa)</span>
+            <button id="btn-config-regras" style="background: none; border: none; color: #0284C7; font-weight: 600; cursor: pointer;">Gerenciar Regras &rarr;</button>
           </div>
         </div>
 
-        <!-- Card 2: Conformidade, Despachos e Auditoria -->
         <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
             <div>
-              <h3 style="font-size: 14px; font-weight: 700; color: #0F172A; margin: 0;">Conformidade, Despachos e Auditoria</h3>
-              <p style="font-size: 11px; color: #64748B; margin: 2px 0 0 0;">Rastreabilidade portuária e certificação GlobalG.A.P.</p>
+              <h3 style="font-size: 14px; font-weight: 700; color: #0F172A; margin: 0;">Portos e Rotas de Escoamento (<code>porto</code>)</h3>
+              <p style="font-size: 11px; color: #64748B; margin: 2px 0 0 0;">Destinos logísticos cadastrados no PostgreSQL</p>
             </div>
-            <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 3px 8px; border-radius: 6px;">GLOBALGAP 100%</span>
+            <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 3px 8px; border-radius: 6px;">${portos.length} PORTOS</span>
           </div>
 
           <div style="display: flex; flex-direction: column; gap: 8px;">
-            <div style="font-size: 11px; font-weight: 700; color: #64748B; margin-bottom: 2px;">STATUS DAS ROTAS DE DESPACHO</div>
-            
-            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px; display: flex; justify-content: space-between; align-items: center;">
-              <div>
-                <strong style="font-size: 12px; color: #0F172A;">Porto Pecém (CE)</strong>
-                <div style="font-size: 10px; color: #64748B;">Melão (300 kg) • 10°C Monitorado</div>
-              </div>
-              <span style="font-size: 10px; font-weight: 700; color: #047857; background: #DCFCE7; padding: 2px 8px; border-radius: 4px;">Trânsito OK</span>
-            </div>
-
-            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px; display: flex; justify-content: space-between; align-items: center;">
-              <div>
-                <strong style="font-size: 12px; color: #0F172A;">Porto Suape (PE)</strong>
-                <div style="font-size: 10px; color: #64748B;">Uva Vitória (500 kg) • Atracado</div>
-              </div>
-              <span style="font-size: 10px; font-weight: 700; color: #0284C7; background: #E0F2FE; padding: 2px 8px; border-radius: 4px;">Embarque</span>
-            </div>
-
-            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px; display: flex; justify-content: space-between; align-items: center;">
-              <div>
-                <strong style="font-size: 12px; color: #0F172A;">Porto Salvador (BA)</strong>
-                <div style="font-size: 10px; color: #64748B;">Manga Tommy (1.000 kg) • 24/09</div>
-              </div>
-              <span style="font-size: 10px; font-weight: 700; color: #059669; background: #D1FAE5; padding: 2px 8px; border-radius: 4px;">Packing House</span>
-            </div>
+            ${portosHtml}
           </div>
 
           <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; padding-top: 10px; border-top: 1px solid #F1F5F9; font-size: 11px;">
-            <span style="color: #64748B;">Cadeia de Frio e Transporte Refrigerado</span>
-            <strong style="color: #047857;">100% Conforme GlobalG.A.P.</strong>
+            <span style="color: #64748B;">Tabelas <code>porto</code> e <code>rota</code></span>
+            <a href="#/lotes" style="color: #0284C7; font-weight: 600; text-decoration: none;">Ver Lotes e Safra &rarr;</a>
           </div>
         </div>
       </div>
@@ -2828,72 +2804,57 @@ function setupAdminDashboardEvents() {
   if (toggleBtn) toggleBtn.remove();
 
   iniciarSSEDashboard();
-  // Destrói instâncias anteriores de gráficos
   chartInstances.forEach(c => c && c.destroy());
   chartInstances = [];
 
-  // Botões da sub-barra do Admin
-  const btnConvidar = document.getElementById('btn-admin-convidar-user');
-  if (btnConvidar) {
-    btnConvidar.addEventListener('click', () => {
-      window.location.hash = '#/usuarios';
-    });
-  }
+  document.getElementById('btn-admin-convidar-user')?.addEventListener('click', () => {
+    window.location.hash = '#/usuarios';
+  });
+  document.getElementById('btn-admin-parametros-safra')?.addEventListener('click', () => {
+    window.location.hash = '#/regras-agronomicas';
+  });
+  document.getElementById('btn-admin-emitir-relatorio')?.addEventListener('click', () => {
+    window.location.hash = '#/relatorios';
+  });
+  document.getElementById('btn-config-regras')?.addEventListener('click', () => {
+    window.location.hash = '#/regras-agronomicas';
+  });
 
-  const btnParametros = document.getElementById('btn-admin-parametros-safra');
-  if (btnParametros) {
-    btnParametros.addEventListener('click', () => {
-      window.location.hash = '#/configuracoes';
-    });
-  }
-
-  const btnRelatorio = document.getElementById('btn-admin-emitir-relatorio');
-  if (btnRelatorio) {
-    btnRelatorio.addEventListener('click', () => {
-      window.location.hash = '#/relatorios';
-    });
-  }
-
-  const btnConfigRegras = document.getElementById('btn-config-regras');
-  if (btnConfigRegras) {
-    btnConfigRegras.addEventListener('click', () => {
-      window.location.hash = '#/configuracoes';
-    });
-  }
-
-  // Gráfico: Atividade Operacional da Fazenda (Últimas 24h)
+  // Gráfico com leituras reais do PostgreSQL (leitura_climatica)
   const ctx = document.getElementById('chart-admin-atividade');
   if (ctx && window.Chart) {
-    const hours = ['00:00', '02:00', '04:00', '06:00', '08:00 (Início da Irrigação)', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', 'Agora (15:42)'];
-    const vwcData = [45.2, 45.0, 44.8, 45.5, 48.0, 49.5, 49.0, 48.2, 47.5, 47.0, 46.8, 46.8];
-    const tempData = [10.5, 10.2, 10.0, 10.4, 11.0, 11.5, 12.0, 12.8, 12.2, 11.8, 11.6, 11.8];
+    const raw = Array.isArray(_adminDashState.leiturasGrafico) ? [..._adminDashState.leiturasGrafico].reverse() : [];
+    const labels = raw.length > 0
+      ? raw.map(l => l.data_hora ? new Date(l.data_hora).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '--:--')
+      : ['Sem dados'];
+    const umidData = raw.length > 0 ? raw.map(l => l.umidade_solo != null ? Number(l.umidade_solo) : (l.umidade != null ? Number(l.umidade) : null)) : [null];
+    const tempData = raw.length > 0 ? raw.map(l => l.temperatura != null ? Number(l.temperatura) : null) : [null];
 
     const chart = new window.Chart(ctx, {
       type: 'line',
       data: {
-        labels: hours,
+        labels,
         datasets: [
           {
-            label: 'Umidade do Solo (VWC)',
-            data: vwcData,
+            label: 'Umidade (% / VWC)',
+            data: umidData,
             borderColor: '#10B981',
-            backgroundColor: 'rgba(16, 185, 129, 0.15)',
-            borderWidth: 2.5,
+            backgroundColor: 'rgba(16, 185, 129, 0.12)',
+            borderWidth: 2.2,
             fill: true,
-            tension: 0.35,
-            pointRadius: [0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 5],
-            pointBackgroundColor: '#10B981',
+            tension: 0.3,
+            spanGaps: true,
             yAxisID: 'y'
           },
           {
-            label: 'Temp. Média Lotes (°C)',
+            label: 'Temperatura Ar (°C)',
             data: tempData,
             borderColor: '#0284C7',
             backgroundColor: 'transparent',
             borderWidth: 2,
             borderDash: [4, 4],
-            tension: 0.35,
-            pointRadius: 0,
+            tension: 0.3,
+            spanGaps: true,
             yAxisID: 'y1'
           }
         ]
@@ -2901,43 +2862,11 @@ function setupAdminDashboardEvents() {
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            backgroundColor: '#0F172A',
-            padding: 10,
-            callbacks: {
-              label: (item) => item.datasetIndex === 0 ? `Umidade: ${item.raw}% VWC` : `Temperatura: ${item.raw}°C`
-            }
-          }
-        },
+        plugins: { legend: { display: true, position: 'top', labels: { boxWidth: 10, font: { size: 11 } } } },
         scales: {
-          x: {
-            grid: { display: false },
-            ticks: { font: { size: 10 }, color: '#94A3B8' }
-          },
-          y: {
-            position: 'left',
-            min: 30,
-            max: 70,
-            ticks: {
-              callback: (v) => v + '%',
-              font: { size: 10 },
-              color: '#10B981'
-            },
-            grid: { color: '#F1F5F9' }
-          },
-          y1: {
-            position: 'right',
-            min: 5,
-            max: 20,
-            ticks: {
-              callback: (v) => v + '°C',
-              font: { size: 10 },
-              color: '#0284C7'
-            },
-            grid: { display: false }
-          }
+          x: { grid: { display: false }, ticks: { font: { size: 10 }, color: '#94A3B8' } },
+          y: { position: 'left', min: 0, max: 100, ticks: { callback: v => v + '%', font: { size: 10 }, color: '#10B981' }, grid: { color: '#F1F5F9' } },
+          y1: { position: 'right', ticks: { callback: v => v + '°C', font: { size: 10 }, color: '#0284C7' }, grid: { display: false } }
         }
       }
     });

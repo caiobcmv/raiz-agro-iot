@@ -155,10 +155,10 @@ class DashboardStreamService {
 
       console.warn('[SSE] Falha na obtenção do ticket temporário:', err.message);
 
-      // 401/403: token inválido e refresh falhou -> logout
+      // 401/403: stream não autorizado ou indisponível - pausa o stream sem derrubar a sessão do usuário
       if (err.status === 401 || err.status === 403) {
-        console.error('[SSE] Sessão inválida ou não autorizada. Encerrando sessão do usuário.');
-        auth.logout();
+        console.warn('[SSE] Stream não autorizado ou indisponível para este perfil. Pausando telemetria em tempo real.');
+        this.stop();
         return;
       }
 

@@ -36,11 +36,11 @@ def obter_dados_calibracao(conn=Depends(get_conn)):
         modelos = cur.fetchall()
         
         # Busca limiares de culturas
-        cur.execute("SELECT id_config, id_fruta, etapa, temp_min, temp_max, umidade_min, umidade_max FROM config_parametro")
+        cur.execute("SELECT id_config, fk_fruta_id_fruta AS id_fruta, etapa, temp_min, temp_max, umidade_min, umidade_max FROM config_parametro")
         limiares = cur.fetchall()
         
         # Busca cortes preditivos
-        cur.execute("SELECT nivel, limiar_min, limiar_max, acao_recomendada FROM corte_alerta_preditivo")
+        cur.execute("SELECT nivel, limiar_min, limiar_max, acao_recomendada FROM cortes_alerta_preditivo")
         cortes = cur.fetchall()
         
     return {
@@ -56,7 +56,7 @@ def atualizar_cortes_preditivos(cortes: List[CorteRiscoUpdate], conn=Depends(get
     with conn.cursor() as cur:
         for c in cortes:
             cur.execute("""
-                UPDATE corte_alerta_preditivo 
+                UPDATE cortes_alerta_preditivo 
                    SET limiar_min = %s, limiar_max = %s, acao_recomendada = %s
                  WHERE nivel = %s
             """, (c.limiar_min, c.limiar_max, c.acao_recomendada, c.nivel))

@@ -87,9 +87,17 @@ class RedefinirSenhaIn(BaseModel):
     desconectar_outros: bool = True
 
 
+import ipaddress
+
 # ---------- helpers ----------
 def _ip(request: Request) -> str | None:
-    return request.client.host if request.client else None
+    if not request.client or not request.client.host:
+        return "127.0.0.1"
+    try:
+        ipaddress.ip_address(request.client.host)
+        return request.client.host
+    except ValueError:
+        return "127.0.0.1"
 
 
 _ACOES_FALHA = ("falha", "bloqueado", "negado", "limite", "reutilizado", "expirado")

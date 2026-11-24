@@ -129,9 +129,16 @@ class AuthState {
   }
 
   async startSession(userObj = null) {
-    let usuario = userObj && typeof userObj === 'object' ? userObj : this.loadUser();
+    let usuario = userObj && typeof userObj === 'object' && (userObj.id_usuario || userObj.perfil) ? userObj : null;
     if (!usuario && api.getToken()) {
-      usuario = await api.getMe();
+      try {
+        usuario = await api.getMe();
+      } catch (err) {
+        console.warn('Não foi possível obter dados frescos de /auth/me:', err);
+      }
+    }
+    if (!usuario) {
+      usuario = this.loadUser();
     }
     if (!usuario) {
       return false;
