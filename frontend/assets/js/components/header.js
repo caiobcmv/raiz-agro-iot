@@ -53,7 +53,8 @@ export function renderHeader(title) {
   if (isGestoraDashboard && !isResumido) {
     meta.sub = 'Acompanhe a safra, planeje a colheita e priorize as ações do dia.';
   }
-  const dataFormatada = '22 de setembro de 2026';
+  const hoje = new Date();
+  const dataFormatada = hoje.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
 
   return `
     <header class="topbar-header">
@@ -101,7 +102,7 @@ export function renderHeader(title) {
         <!-- Notificações com Badge Laranja (#F5A623) -->
         <a href="#/alertas" class="header-bell-btn" title="Ver Alertas Ativos" style="position: relative; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: #F8FAFC; border: 1px solid #E2E8F0; text-decoration: none; flex-shrink: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
           <i data-lucide="bell" style="width: 18px; height: 18px; color: #71807A;"></i>
-          <span class="header-bell-badge" id="header-bell-count" style="position: absolute; top: -2px; right: -2px; width: 17px; height: 17px; background: #F5A623; border: 2px solid #FFFFFF; border-radius: 50%; color: #FFFFFF; font-size: 10px; font-weight: 800; display: flex; align-items: center; justify-content: center; line-height: 1;">2</span>
+          <span class="header-bell-badge" id="header-bell-count" style="position: absolute; top: -2px; right: -2px; width: 17px; height: 17px; background: #F5A623; border: 2px solid #FFFFFF; border-radius: 50%; color: #FFFFFF; font-size: 10px; font-weight: 800; display: none; align-items: center; justify-content: center; line-height: 1;">0</span>
         </a>
 
         <!-- Perfil Header: exibe dados sincronizados do banco e leva ao perfil em Configurações -->
