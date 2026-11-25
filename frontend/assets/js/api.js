@@ -34,9 +34,6 @@ class ApiService {
 
   async refreshToken() {
     const refreshToken = localStorage.getItem('refresh_token');
-    if (!refreshToken) {
-      throw new Error('Nenhum refresh token disponível');
-    }
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
@@ -45,7 +42,8 @@ class ApiService {
       const res = await fetch(`${this.baseUrl}/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refresh_token: refreshToken }),
+        credentials: 'include',
+        body: JSON.stringify(refreshToken ? { refresh_token: refreshToken } : {}),
         signal: controller.signal
       });
       clearTimeout(timeoutId);
@@ -168,6 +166,7 @@ class ApiService {
     try {
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
         cache: 'no-store',
+        credentials: 'include',
         ...options,
         headers,
         signal: controller.signal
@@ -176,9 +175,9 @@ class ApiService {
       this.isBackendOnline = true;
 
       if (response.status === 401) {
-        // Se não é rota de login/2FA e ainda não tentou refresh, tenta renovar o token uma vez
+        // Se não é rota de login/2FA e ainda não tentou refresh, tenta renovar o token silenciosamente
         const isPublicAuth = endpoint.startsWith('/auth/login') || endpoint.startsWith('/auth/2fa') || endpoint.startsWith('/auth/refresh');
-        if (!isPublicAuth && !_retried && localStorage.getItem('refresh_token')) {
+        if (!isPublicAuth && !_retried) {
           try {
             await this.refreshToken();
             return await this.request(endpoint, options, true);
@@ -187,8 +186,8 @@ class ApiService {
           }
         }
 
-        // Apenas desconecta e redireciona ao login se a rota principal de autenticação (/auth/me) falhar com 401
-        if (endpoint === '/auth/me') {
+        // Apenas desconecta e redireciona ao login se a rota principal de autenticação (/auth/me) falhar com 401 e refresh já falhou
+        if (endpoint === '/auth/me' && _retried) {
           this.clearTokens();
           window.dispatchEvent(new CustomEvent('auth-logout'));
           if (window.location.hash !== '#/login' && !window.location.hash.startsWith('#/primeiro-acesso')) {
