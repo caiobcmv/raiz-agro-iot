@@ -104,7 +104,7 @@ function atualizarDashboardComSSE(data) {
 
   const elPillUmid = document.getElementById('miniChart1-pill');
   if (elPillUmid && !isNaN(umidNum)) {
-    elPillUmid.textContent = `${Math.round(umidNum)}% Ideal`;
+    elPillUmid.textContent = `${Math.round(umidNum)}%`;
     _pulseElement(elPillUmid);
   }
 
@@ -208,22 +208,25 @@ export async function renderDashboard() {
   const isResumido = localStorage.getItem('DASHBOARD_MODE') === 'resumido';
   
   // Busca dados reais do PostgreSQL em paralelo (sem usar cache desatualizado)
-  let resumo = null, clima = null, graficos = null;
+  let resumo = null, clima = null, graficos = null, series24h = null;
   try {
     const results = await Promise.allSettled([
       api.getDashboardResumo(),
       api.getClimaAtual(),
-      api.getDadosGraficos()
+      api.getDadosGraficos(),
+      api.getSeries24h()
     ]);
     resumo = results[0].status === 'fulfilled' ? results[0].value : null;
     clima = results[1].status === 'fulfilled' ? results[1].value : null;
     graficos = results[2].status === 'fulfilled' ? results[2].value : null;
+    series24h = results[3].status === 'fulfilled' ? results[3].value : null;
   } catch (e) {
     console.warn('Erro ao obter métricas online:', e);
   }
 
   dadosGraficosCache = {
     ...DEFAULT_DADOS_GRAFICOS,
+    ...(series24h || {}),
     ...(graficos || {})
   };
 
@@ -1159,45 +1162,34 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; border-top: 1px solid #F1F5F9; padding-top: 14px; margin-top: auto;">
           <div style="background: rgba(248, 250, 252, 0.8); border: 1px solid #F1F5F9; border-radius: 12px; padding: 10px 14px;">
             <div style="font-size: 10px; font-weight: 700; color: #94A3B8; text-transform: uppercase;">CULTURAS</div>
-            <div style="display: flex; justify-content: space-between; font-size: 12px; margin-top: 4px;">
-              <span style="color: #334155; font-weight: 600;">Vitória:</span>
-              <strong style="color: #047857;">55%</strong>
+            <div style="font-size: 12px; color: #334155; font-weight: 600; margin-top: 4px;">
+              Manga, Uva e Melão
             </div>
-            <div style="display: flex; justify-content: space-between; font-size: 12px;">
-              <span style="color: #334155; font-weight: 600;">Palmer:</span>
-              <strong style="color: #0369A1;">35%</strong>
-            </div>
-            <div style="display: flex; justify-content: space-between; font-size: 12px;">
-              <span style="color: #94A3B8;">Outras:</span>
-              <span style="color: #94A3B8;">10%</span>
-            </div>
+            <div style="font-size: 10px; color: #94A3B8; margin-top: 2px;">Culturas cadastradas</div>
           </div>
 
           <div style="background: rgba(248, 250, 252, 0.8); border: 1px solid #F1F5F9; border-radius: 12px; padding: 10px 14px; display: flex; flex-direction: column; justify-content: space-between;">
             <div style="font-size: 10px; font-weight: 700; color: #94A3B8; text-transform: uppercase;">STATUS ÁGUA</div>
-            <div style="display: flex; justify-content: space-between; align-items: baseline;">
-              <div>
-                <span style="font-size: 16px; font-weight: 700; color: #1E293B;">63%</span>
-                <div style="font-size: 10px; color: #94A3B8;">4.200 L/dia</div>
-              </div>
-              <span style="background: #D1FAE5; color: #065F46; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 9999px;">Auto</span>
+            <div style="font-size: 12px; color: #334155; font-weight: 600; margin-top: 4px;">
+              ${temValor(rc.pct_na_faixa) ? `${confPct}% na faixa` : 'Sem dados de irrigação'}
             </div>
+            <div style="font-size: 10px; color: #94A3B8; margin-top: 2px;">Parâmetro de campo</div>
           </div>
         </div>
       </div>
 
-      <!-- Card Direito: Monitoramento da Propriedade e Talhões (Foto de Satélite com Overlays Fiéis ao Figma) -->
+      <!-- Card Direito: Monitoramento da Propriedade e Sensores -->
       <div class="figma-card" style="padding: 24px; display: flex; flex-direction: column;">
         <div class="card-top-title-row" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
           <div style="min-width: 0;">
             <span style="font-size: 13px; font-weight: 700; color: #1E293B; letter-spacing: 0.5px; text-transform: uppercase; display: block; line-height: 1.3;">
-              MONITORAMENTO DA PROPRIEDADE E TALHÕES
+              MONITORAMENTO DA PROPRIEDADE E SENSORES
             </span>
-            <p style="font-size: 12px; color: #94A3B8; margin-top: 3px; margin-bottom: 0;">Fazenda Vale das Uvas • Setor 04 (48 ha)</p>
+            <p style="font-size: 12px; color: #94A3B8; margin-top: 3px; margin-bottom: 0;">Topologia e Área de Cobertura dos Sensores ESP32</p>
           </div>
 
           <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
-            <span class="card-status-pill pill-green" style="font-size: 10px; padding: 3px 8px; font-weight: 700;">sentinel-2</span>
+            <span class="card-status-pill pill-green" style="font-size: 10px; padding: 3px 8px; font-weight: 700;">ESP32 IoT</span>
             <div style="display: flex; gap: 4px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 2px;">
               <button type="button" id="btn-map-zoom-in" style="width: 26px; height: 26px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 6px; font-weight: 700; color: #334155; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; transition: all 0.2s;" title="Aproximar zoom">+</button>
               <button type="button" id="btn-map-zoom-out" style="width: 26px; height: 26px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 6px; font-weight: 700; color: #334155; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; transition: all 0.2s;" title="Afastar zoom">&minus;</button>
@@ -1208,51 +1200,23 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
           </div>
         </div>
 
-        <!-- Área Fotográfica em Alta Resolução com Overlays Exatos do Figma e Zoom Interativo -->
         <div id="satellite-map-viewport" class="satellite-map-container" style="position: relative; overflow: hidden; border-radius: 12px; min-height: 270px; flex: 1; background: #0F172A; cursor: grab; user-select: none;">
           <div id="satellite-map-stage" style="position: absolute; inset: 0; transform-origin: center center; transition: transform 0.2s ease-out;">
             <img src="assets/images/topologia-sensores-campo.jpg" alt="Visão Aérea dos Talhões" class="satellite-bg-img" style="width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; border-radius: 12px;">
 
-            <!-- Overlay 1: Talhão A • Vitória (Top Left) -->
-            <div style="position: absolute; top: 12%; left: 8%; width: 32%; height: 32%; border: 1.5px solid #10B981; background: rgba(16, 185, 129, 0.15); border-radius: 8px; backdrop-filter: blur(1px); display: flex; flex-direction: column; justify-content: space-between; padding: 6px 8px; box-shadow: 0 0 12px rgba(16, 185, 129, 0.3);">
-              <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span style="background: rgba(15, 23, 42, 0.75); color: #FFFFFF; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;">Talhão A • Vitória</span>
-                <span style="width: 8px; height: 8px; border-radius: 50%; background: #10B981; border: 1.5px solid #FFFFFF;"></span>
-              </div>
-              <div style="text-align: center;">
-                <span style="background: rgba(16, 185, 129, 0.85); color: #FFFFFF; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">NDVI 0.88</span>
-              </div>
-            </div>
-
-            <!-- Overlay 2: Talhão C • Palmer (Top Right) -->
-            <div style="position: absolute; top: 12%; right: 8%; width: 28%; height: 32%; border: 1.5px solid #F59E0B; background: rgba(245, 158, 11, 0.15); border-radius: 8px; backdrop-filter: blur(1px); display: flex; flex-direction: column; justify-content: space-between; padding: 6px 8px; box-shadow: 0 0 12px rgba(245, 158, 11, 0.3);">
-              <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span style="background: rgba(15, 23, 42, 0.75); color: #FFFFFF; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;">Talhão C • Palmer</span>
-              </div>
-              <div style="text-align: center;">
-                <span style="background: #F59E0B; color: #FFFFFF; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">Alerta Hídrico</span>
-              </div>
-            </div>
-
-            <!-- Gateway Central ESP32 (Centro) -->
-            <div style="position: absolute; top: 48%; left: 34%; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(4px); padding: 5px 12px; border-radius: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.25); font-size: 11px; font-weight: 700; color: #0F172A; display: flex; align-items: center; gap: 6px; z-index: 10; border: 1px solid rgba(255,255,255,0.8);">
+            <!-- Sensor 1: DHT11 ESP32-C3 -->
+            <div style="position: absolute; top: 22%; left: 24%; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(4px); padding: 5px 12px; border-radius: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.25); font-size: 11px; font-weight: 700; color: #FFFFFF; display: flex; align-items: center; gap: 6px; z-index: 10; border: 1px solid rgba(16, 185, 129, 0.6);">
               <span style="width: 8px; height: 8px; border-radius: 50%; background: #10B981;"></span>
-              <span>Gateway Central ESP32</span>
+              <span>DHT11 ESP32-C3 (Ar)</span>
             </div>
 
-            <!-- Overlay 3: Talhão B • Thompson (Bottom Left) -->
-            <div style="position: absolute; bottom: 12%; left: 14%; width: 30%; height: 32%; border: 1.5px solid #0284C7; background: rgba(2, 132, 199, 0.15); border-radius: 8px; backdrop-filter: blur(1px); display: flex; flex-direction: column; justify-content: space-between; padding: 6px 8px; box-shadow: 0 0 12px rgba(2, 132, 199, 0.3);">
-              <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span style="background: rgba(15, 23, 42, 0.75); color: #FFFFFF; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;">Talhão B • Thompson</span>
-                <span style="width: 8px; height: 8px; border-radius: 50%; background: #0284C7; border: 1.5px solid #FFFFFF;"></span>
-              </div>
-              <div style="text-align: center;">
-                <span style="background: #0284C7; color: #FFFFFF; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">VWC 48%</span>
-              </div>
+            <!-- Sensor 3: Solo ESP32 -->
+            <div style="position: absolute; bottom: 26%; right: 28%; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(4px); padding: 5px 12px; border-radius: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.25); font-size: 11px; font-weight: 700; color: #FFFFFF; display: flex; align-items: center; gap: 6px; z-index: 10; border: 1px solid rgba(14, 165, 233, 0.6);">
+              <span style="width: 8px; height: 8px; border-radius: 50%; background: #0EA5E9;"></span>
+              <span>Solo ESP32</span>
             </div>
           </div>
 
-          <!-- Indicador Flutuante de Zoom -->
           <div id="map-zoom-badge" style="position: absolute; bottom: 10px; right: 10px; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(4px); color: #FFFFFF; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 12px; pointer-events: none; opacity: 0; transition: opacity 0.3s; z-index: 20;">
             100%
           </div>
@@ -1260,11 +1224,10 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
 
         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; font-size: 11px; color: #94A3B8;">
           <div style="display: flex; gap: 16px;">
-            <span><strong style="color: #10B981;">●</strong> Ótimo</span>
-            <span><strong style="color: #0284C7;">●</strong> Atenção</span>
-            <span><strong style="color: #F59E0B;">●</strong> Crítico</span>
+            <span><strong style="color: #10B981;">●</strong> DHT11 (Ar)</span>
+            <span><strong style="color: #0EA5E9;">●</strong> Sensor Solo</span>
           </div>
-          <div>Passagem orbital há 42 min</div>
+          <div>Rede Local ESP32 • ThingSpeak</div>
         </div>
       </div>
 
@@ -1301,13 +1264,13 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
         <div class="mini-chart-card">
           <div class="mini-chart-header">
             <span class="mini-chart-title">Umidade do Ar</span>
-            <span class="mini-chart-pill pill-green" id="miniChart1-pill">62% Ideal</span>
+            <span class="mini-chart-pill pill-green" id="miniChart1-pill">${dg.umidade_ar_24h && dg.umidade_ar_24h.length ? `${Math.round(dg.umidade_ar_24h[dg.umidade_ar_24h.length - 1])}%` : 'Sem dados'}</span>
           </div>
           <div class="chart-canvas-wrap">
             <canvas id="miniChart1"></canvas>
           </div>
           <div class="chart-time-labels">
-            <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>Agora</span>
+            <span>-24h</span><span>-18h</span><span>-12h</span><span>-6h</span><span>Agora</span>
           </div>
         </div>
 
@@ -1315,13 +1278,13 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
         <div class="mini-chart-card">
           <div class="mini-chart-header">
             <span class="mini-chart-title">Umidade do Solo</span>
-            <span class="mini-chart-pill pill-green">58% Ideal</span>
+            <span class="mini-chart-pill pill-green" id="miniChart2-pill">${dg.umidade_solo_24h && dg.umidade_solo_24h.length ? `${Math.round(dg.umidade_solo_24h[dg.umidade_solo_24h.length - 1])}%` : 'Sem dados'}</span>
           </div>
           <div class="chart-canvas-wrap">
             <canvas id="miniChart2"></canvas>
           </div>
           <div class="chart-time-labels">
-            <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>Agora</span>
+            <span>-24h</span><span>-18h</span><span>-12h</span><span>-6h</span><span>Agora</span>
           </div>
         </div>
 
@@ -1329,13 +1292,13 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
         <div class="mini-chart-card">
           <div class="mini-chart-header">
             <span class="mini-chart-title">Temperatura do Solo</span>
-            <span class="mini-chart-pill pill-blue">24.5°C Segura</span>
+            <span class="mini-chart-pill pill-blue" id="miniChart3-pill">${dg.temp_solo_24h && dg.temp_solo_24h.length ? `${dg.temp_solo_24h[dg.temp_solo_24h.length - 1]}°C` : 'Sem dados'}</span>
           </div>
           <div class="chart-canvas-wrap">
             <canvas id="miniChart3"></canvas>
           </div>
           <div class="chart-time-labels">
-            <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>Agora</span>
+            <span>-24h</span><span>-18h</span><span>-12h</span><span>-6h</span><span>Agora</span>
           </div>
         </div>
 
@@ -1343,13 +1306,13 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
         <div class="mini-chart-card">
           <div class="mini-chart-header">
             <span class="mini-chart-title">Temperatura do Ar</span>
-            <span class="mini-chart-pill pill-green" id="miniChart4-pill">27.8°C Ideal</span>
+            <span class="mini-chart-pill pill-green" id="miniChart4-pill">${dg.temp_ar_24h && dg.temp_ar_24h.length ? `${dg.temp_ar_24h[dg.temp_ar_24h.length - 1]}°C` : 'Sem dados'}</span>
           </div>
           <div class="chart-canvas-wrap">
             <canvas id="miniChart4"></canvas>
           </div>
           <div class="chart-time-labels">
-            <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>Agora</span>
+            <span>-24h</span><span>-18h</span><span>-12h</span><span>-6h</span><span>Agora</span>
           </div>
         </div>
 
@@ -1880,27 +1843,27 @@ export async function setupDashboardEvents() {
           <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
             <div>
               <label style="display:block; font-weight:700; margin-bottom:4px;">Conformidade (%)</label>
-              <input id="inp-dg-conf" type="number" min="0" max="100" value="${cur.conformidade_geral_pct ?? 90}" style="width:100%; padding:7px 10px; border:1px solid #CBD5E1; border-radius:8px;">
+              <input id="inp-dg-conf" type="number" min="0" max="100" value="${cur.conformidade_geral_pct ?? ''}" placeholder="Sem dados" style="width:100%; padding:7px 10px; border:1px solid #CBD5E1; border-radius:8px;">
             </div>
             <div>
               <label style="display:block; font-weight:700; margin-bottom:4px;">Saúde NDVI (%)</label>
-              <input id="inp-dg-saude" type="number" min="0" max="100" value="${cur.saude_plantacao_pct ?? 85}" style="width:100%; padding:7px 10px; border:1px solid #CBD5E1; border-radius:8px;">
+              <input id="inp-dg-saude" type="number" min="0" max="100" value="${cur.saude_plantacao_pct ?? ''}" placeholder="Sem dados" style="width:100%; padding:7px 10px; border:1px solid #CBD5E1; border-radius:8px;">
             </div>
             <div>
               <label style="display:block; font-weight:700; margin-bottom:4px;">Umidade Dossel (%)</label>
-              <input id="inp-dg-dossel" type="number" min="0" max="100" value="${cur.umidade_dossel_pct ?? 67}" style="width:100%; padding:7px 10px; border:1px solid #CBD5E1; border-radius:8px;">
+              <input id="inp-dg-dossel" type="number" min="0" max="100" value="${cur.umidade_dossel_pct ?? ''}" placeholder="Sem dados" style="width:100%; padding:7px 10px; border:1px solid #CBD5E1; border-radius:8px;">
             </div>
             <div>
               <label style="display:block; font-weight:700; margin-bottom:4px;">Temp. Foliar (°C)</label>
-              <input id="inp-dg-tfoliar" type="number" step="0.1" value="${cur.temp_foliar_c ?? 27}" style="width:100%; padding:7px 10px; border:1px solid #CBD5E1; border-radius:8px;">
+              <input id="inp-dg-tfoliar" type="number" step="0.1" value="${cur.temp_foliar_c ?? ''}" placeholder="Sem dados" style="width:100%; padding:7px 10px; border:1px solid #CBD5E1; border-radius:8px;">
             </div>
             <div>
               <label style="display:block; font-weight:700; margin-bottom:4px;">Status Água (%)</label>
-              <input id="inp-dg-agua" type="number" min="0" max="100" value="${cur.agua_reservatorio_pct ?? 63}" style="width:100%; padding:7px 10px; border:1px solid #CBD5E1; border-radius:8px;">
+              <input id="inp-dg-agua" type="number" min="0" max="100" value="${cur.agua_reservatorio_pct ?? ''}" placeholder="Sem dados" style="width:100%; padding:7px 10px; border:1px solid #CBD5E1; border-radius:8px;">
             </div>
             <div>
               <label style="display:block; font-weight:700; margin-bottom:4px;">Vazão (L/dia)</label>
-              <input id="inp-dg-vazao" type="number" step="50" value="${cur.vazao_ldia ?? 4200}" style="width:100%; padding:7px 10px; border:1px solid #CBD5E1; border-radius:8px;">
+              <input id="inp-dg-vazao" type="number" step="50" value="${cur.vazao_ldia ?? ''}" placeholder="Sem dados" style="width:100%; padding:7px 10px; border:1px solid #CBD5E1; border-radius:8px;">
             </div>
           </div>
 

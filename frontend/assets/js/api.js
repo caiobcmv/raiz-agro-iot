@@ -500,6 +500,10 @@ class ApiService {
     return await this.request('/preferencias/graficos');
   }
 
+  async getSeries24h() {
+    return await this.request('/sensores/series-24h');
+  }
+
   async salvarDadosGraficos(payload) {
     return await this.request('/preferencias/graficos', {
       method: 'PUT',
