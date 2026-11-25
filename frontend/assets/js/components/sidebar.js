@@ -131,8 +131,8 @@ export function renderSidebar(currentPath) {
             ${profile.iniciais}
           </div>
           <div class="profile-info-text" style="min-width: 0; overflow: hidden;">
-            <div class="farm-name" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${profile.nome}">${profile.nome}</div>
-            <div class="farm-sub" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${profile.cargo}</div>
+            <div class="farm-name" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${profile.nome || ''}">${profile.nome || 'Usuário'}</div>
+            <div class="farm-sub" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${profile.cargo || ''}</div>
           </div>
           <button type="button" id="logout-btn" class="sidebar-logout-btn" style="margin-left: auto; color: #94A3B8; background: none; border: none; cursor: pointer; padding: 6px; border-radius: 8px;" title="Sair do Sistema">
             <i data-lucide="log-out" style="width: 18px; height: 18px;"></i>
