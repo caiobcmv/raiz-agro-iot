@@ -9,7 +9,7 @@ from src.api.routers import (alertas, alertas_preditivos, analista, central_aler
                              dashboard, frutas, ia, leituras, leituras_rejeitadas, lotes,
                              perfis, previsoes, previsoes_ia, recomendacoes, relatorios,
                              relatorios_gerados, risco, sensor_leituras, sensores,
-                             usuarios, pareceres, notificacoes, parecer_ia, dashboard_stream, calibracao, totp)
+                             usuarios, pareceres, notificacoes, parecer_ia, dashboard_stream, calibracao, totp, preferencias)
 
 # O Administrador passa em TODAS as regras (bypass em deps_auth), então não é listado aqui.
 # O Produtor/Exportador é somente leitura: nenhuma regra lhe dá POST/PUT/PATCH/DELETE.
@@ -58,6 +58,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(totp.router)   # cadastro/gestão do 2º fator TOTP (exige login)
 app.include_router(notificacoes.router)
+app.include_router(preferencias.router)
 app.include_router(dashboard_stream.router)  # SSE: o GET usa ticket de uso único (POST /dashboard/stream/ticket exige login)
 
 for r in (perfis, usuarios):
