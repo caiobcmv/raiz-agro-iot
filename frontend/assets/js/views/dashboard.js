@@ -1,4 +1,3 @@
-const temValor = (v) => v !== null && v !== undefined && !Number.isNaN(Number(v));
 import { liveTelemetry } from '../live-telemetry.js';
 import { dashboardStream } from '../dashboard-stream.js';
 /**
@@ -11,6 +10,10 @@ import { auth } from '../auth.js';
 import { toast } from '../components/toast.js';
 import { Modal } from '../components/modal.js';
 import { downloadCSV, downloadPDF, openExportChoiceModal } from '../utils/export-utils.js';
+
+function temValor(v) {
+  return v !== null && v !== undefined && !Number.isNaN(Number(v));
+}
 
 let chartInstances = [];
 let dadosGraficosCache = null;
