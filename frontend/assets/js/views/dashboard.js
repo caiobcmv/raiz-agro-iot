@@ -1213,7 +1213,7 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
           </div>
 
           <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
-            ${(sensores?.reais > 0 || lotesComSensor > 0)
+            ${(resumo?.sensores?.reais > 0 || lotesComSensor > 0)
               ? '<span class="card-status-pill pill-green" style="font-size: 10px; padding: 3px 8px; font-weight: 700;">ESP32 Conectado</span>'
               : '<span class="card-status-pill pill-blue" style="font-size: 10px; padding: 3px 8px; font-weight: 700;">Sem sensor</span>'}
             <div style="display: flex; gap: 4px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 2px;">
