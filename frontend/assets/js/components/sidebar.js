@@ -124,25 +124,27 @@ export function renderSidebar(currentPath) {
         `)}
       </nav>
 
-      <!-- Bottom Profile e Connectivity (Figma: Vale das Uvas / Petrolina - Setor 04) -->
+      <!-- Bottom Profile e Connectivity (Usuário Real e Telemetria ThingSpeak/ESP32) -->
       <div class="sidebar-bottom-profile">
         <div class="bottom-profile-card">
-          <div class="profile-avatar-vu">VU</div>
-          <div class="profile-info-text">
-            <div class="farm-name">${profile.farm}</div>
-            <div class="farm-sub">${profile.farmSub}</div>
+          <div class="profile-avatar-vu" style="background:${profile.avatarBg}; border:1.5px solid ${profile.avatarBorder}; color:${profile.avatarColor};">
+            ${profile.iniciais}
+          </div>
+          <div class="profile-info-text" style="min-width: 0; overflow: hidden;">
+            <div class="farm-name" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${profile.nome}">${profile.nome}</div>
+            <div class="farm-sub" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${profile.cargo}</div>
           </div>
           <button type="button" id="logout-btn" class="sidebar-logout-btn" style="margin-left: auto; color: #94A3B8; background: none; border: none; cursor: pointer; padding: 6px; border-radius: 8px;" title="Sair do Sistema">
             <i data-lucide="log-out" style="width: 18px; height: 18px;"></i>
           </button>
         </div>
 
-        <div class="gateway-status-pill" id="sidebar-gateway-pill" style="cursor:pointer;" title="Clique para verificar conectividade do Gateway">
+        <div class="gateway-status-pill" id="sidebar-gateway-pill" style="cursor:pointer;" title="Clique para detalhes da telemetria ESP32 / ThingSpeak">
           <span style="display: flex; align-items: center; gap: 6px; color: #1E293B; font-weight: 600; font-size: 11px;">
             <span class="gateway-live-dot" style="width: 7px; height: 7px; border-radius: 50%; background: #10B981; box-shadow: 0 0 6px rgba(16,185,129,0.7);"></span>
-            ${profile.gatewayPill}
+            ${profile.gatewayPill || 'ThingSpeak'}
           </span>
-          <span style="color: #64748B; font-size: 11px; font-weight: 500;">${profile.gatewayStatus}</span>
+          <span style="color: #64748B; font-size: 11px; font-weight: 500;">${profile.gatewayStatus || 'Canal 3500765'}</span>
         </div>
       </div>
     </aside>
