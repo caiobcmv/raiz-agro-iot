@@ -1,3 +1,4 @@
+const temValor = (v) => v !== null && v !== undefined && !Number.isNaN(Number(v));
 import { liveTelemetry } from '../live-telemetry.js';
 import { dashboardStream } from '../dashboard-stream.js';
 /**
@@ -882,6 +883,7 @@ async function renderAnalistaDashboard() {
  * 1. MODO RESUMIDO (Primeira Imagem do Figma)
  */
 function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
+  const rc = resumo?.resumo_condicoes || {};
   const confPct = dg.conformidade_geral_pct;
   const saudePct = dg.saude_plantacao_pct;
   const umidDosselPct = dg.umidade_dossel_pct;
@@ -1327,7 +1329,7 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
 function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS, extras = {}) {
   const r = resumo || {};
   const fmtNum = (n, casas = 1) => Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: casas });
-  const temValor = (v) => v !== null && v !== undefined && !Number.isNaN(Number(v));
+  
 
   // --- Condição geral: rótulo calculado pelo backend (vw_lote_saude) ---
   const cond = r.condicao_geral || {};

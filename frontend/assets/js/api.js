@@ -408,6 +408,31 @@ class ApiService {
   }
 
   // ==========================================
+  // PARECERES AGRONÔMICOS (IA)
+  // ==========================================
+  async getPareceres(idLote) {
+    return await this.request(`/pareceres?id_lote=${encodeURIComponent(idLote)}`);
+  }
+
+  async getUltimoParecerLote(idLote) {
+    return await this.request(`/pareceres/lote/${encodeURIComponent(idLote)}/ultimo`);
+  }
+
+  async gerarParecer({ id_lote, tipo = 'agronomico', dias = 30, forcar = false }) {
+    return await this.request('/pareceres/gerar', {
+      method: 'POST',
+      body: JSON.stringify({ id_lote, tipo, dias, forcar })
+    });
+  }
+
+  async assinarParecer(idParecer, dadosAssinatura) {
+    return await this.request(`/pareceres/${encodeURIComponent(idParecer)}/assinar`, {
+      method: 'POST',
+      body: JSON.stringify(dadosAssinatura)
+    });
+  }
+
+  // ==========================================
   // LOGÍSTICA E VIAGENS REFRIGERADAS
   // ==========================================
   async getViagens() {
