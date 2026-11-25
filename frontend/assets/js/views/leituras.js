@@ -1192,7 +1192,7 @@ async function recarregarLeiturasTelemetria() {
         _estado.sensorSelecionadoId,
         _estado.periodoTelemetria
       );
-      _estado.leiturasTelemetria = Array.isArray(leiturasApi) ? leiturasApi : [];
+      _estado.leiturasTelemetria = Array.isArray(leiturasApi) ? leiturasApi : (leiturasApi?.pontos || []);
     } else {
       _estado.leiturasTelemetria = [];
     }
