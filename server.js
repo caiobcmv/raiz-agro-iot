@@ -1,6 +1,6 @@
 /**
  * RAIZ Agro IoT - Servidor Unificado (Frontend SPA + Backend API Integrado)
- * Usa apenas Node.js nativo (sem dependências externas).
+ * Implementado exclusivamente com recursos nativos do Node.js, sem dependências externas.
  * - Serve os arquivos estáticos e as páginas HTML em: http://localhost:5173
  * - Fornece API REST FastAPI-compatível na porta 8000 e via /api/* na porta 5173
  */
