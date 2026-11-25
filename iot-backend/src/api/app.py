@@ -9,7 +9,7 @@ from src.api.routers import (alertas, alertas_preditivos, analista, central_aler
                              dashboard, frutas, ia, leituras, leituras_rejeitadas, lotes,
                              perfis, previsoes, previsoes_ia, recomendacoes, relatorios,
                              relatorios_gerados, risco, sensor_leituras, sensores,
-                             usuarios, pareceres, notificacoes, parecer_ia, dashboard_stream, calibracao, totp)
+                             usuarios, pareceres, notificacoes, parecer_ia, dashboard_stream, calibracao, totp, preferencias)
 
 # O Administrador passa em TODAS as regras (bypass em deps_auth), então não é listado aqui.
 # O Produtor/Exportador é somente leitura: nenhuma regra lhe dá POST/PUT/PATCH/DELETE.
@@ -25,6 +25,10 @@ consulta = [Depends(require_role_por_metodo(
 # Analista consulta e edita (sem excluir); Produtor só consulta; Admin faz tudo
 analista_edita = [Depends(require_role_por_metodo(
     leitura=(ANALISTA, PRODUTOR_EXPORTADOR), escrita=(ANALISTA,), exclusao=()))]
+
+# Analista e Produtor consultam e geram pareceres; Admin faz tudo
+parecer_acesso = [Depends(require_role_por_metodo(
+    leitura=(ANALISTA, PRODUTOR_EXPORTADOR), escrita=(ANALISTA, PRODUTOR_EXPORTADOR), exclusao=()))]
 
 # Analista consulta e gera (sem excluir); Produtor fora; Admin faz tudo
 analista_so_ae = [Depends(require_role_por_metodo(
@@ -58,6 +62,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(totp.router)   # cadastro/gestão do 2º fator TOTP (exige login)
 app.include_router(notificacoes.router)
+app.include_router(preferencias.router)
 app.include_router(dashboard_stream.router)  # SSE: o GET usa ticket de uso único (POST /dashboard/stream/ticket exige login)
 
 for r in (perfis, usuarios):
@@ -72,8 +77,10 @@ app.include_router(analista.router, dependencies=so_analista)
 app.include_router(calibracao.router, dependencies=analista_edita)
 
 for r in (sensores, config_parametros, alertas, alertas_preditivos, catalogo,
-          relatorios, pareceres, central_alertas):
+          relatorios, central_alertas):
     app.include_router(r.router, dependencies=analista_edita)
+
+app.include_router(pareceres.router, dependencies=parecer_acesso)
 
 # relatórios gerados/exportados cobrem todos os donos: Analista consulta e gera; Produtor fora
 app.include_router(relatorios_gerados.router, dependencies=analista_so_ae)

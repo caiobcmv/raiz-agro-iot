@@ -77,7 +77,14 @@ def processar_leitura(leitura: dict, sensor_id: int = None) -> str:
     if motivos:
         registrar_leitura_rejeitada(leitura, "; ".join(motivos), sensor_id)
         return "rejeitada"
-    return "gravada" if inserir_leitura(leitura, sensor_id) else "duplicada"
+    if inserir_leitura(leitura, sensor_id):
+        try:
+            from src.api.services import parecer_auto
+            parecer_auto.agendar_por_sensor(sensor_id or config.SENSOR_ID)
+        except Exception:
+            pass
+        return "gravada"
+    return "duplicada"
 
 import inspect
 

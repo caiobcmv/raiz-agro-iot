@@ -305,7 +305,7 @@ export class Router {
     const gatewayPill = document.getElementById('sidebar-gateway-pill');
     gatewayPill?.addEventListener('click', () => {
       const profile = auth.getProfileData();
-      toast.success(`${profile.gatewayPill} Ativo`, `Enlace de telemetria operacional (Latência: 42ms • Pacotes íntegros).`);
+      toast.info('Telemetria IoT', `Coleta ativa via nós ESP32 e canal ${profile.gatewayPill} (${profile.gatewayStatus}).`);
     });
 
     // 5. Seletor de Data do Header com Modal Interativo

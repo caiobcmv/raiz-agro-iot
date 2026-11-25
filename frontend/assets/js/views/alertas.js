@@ -38,60 +38,16 @@ export async function renderAlertas() {
   }
 
   try {
-    // 1. Busca alertas da API (GET /alertas)
-    const res = await api.getAlertas().catch(() => []);
-    let listaAlertas = Array.isArray(res) ? res : (res && Array.isArray(res.alertas) ? res.alertas : []);
+    // 1. Busca alertas da API (GET /alertas), clima e sensores reais
+    const [resAlertas, resClima, resSensores] = await Promise.all([
+      api.getAlertas().catch(() => []),
+      api.getClimaAtual().catch(() => null),
+      api.getSensores().catch(() => [])
+    ]);
 
-    if (!listaAlertas || listaAlertas.length === 0) {
-      listaAlertas = [
-        {
-          id_alerta: 41,
-          tipo_alerta: 'Temperatura Crítica no Pomar',
-          descricao: 'Temperatura de 34.1°C ultrapassou o teto fisiológico de 32.0°C para uva em fase de maturação.',
-          nivel: 'CRITICO',
-          status: 'aberto',
-          data_hora: new Date(Date.now() - 25 * 60000).toISOString(),
-          id_sensor: 1,
-          id_lote: 12
-        },
-        {
-          id_alerta: 42,
-          tipo_alerta: 'Déficit de Umidade Relativa',
-          descricao: 'Queda acentuada da umidade do ar registrada no setor com vento moderado, elevando o risco de estresse evaporativo.',
-          nivel: 'MODERADO',
-          status: 'aberto',
-          data_hora: new Date(Date.now() - 40 * 60000).toISOString(),
-          id_sensor: 2,
-          id_lote: 15
-        },
-        {
-          id_alerta: 43,
-          tipo_alerta: 'Oscilação Térmica Noturna',
-          descricao: 'Leitura dentro da faixa normalizada após aeração matinal do setor, operando em parâmetros de conforto fisiológico.',
-          nivel: 'BAIXO',
-          status: 'reconhecido',
-          data_hora: new Date(Date.now() - 180 * 60000).toISOString(),
-          id_sensor: 3,
-          id_lote: 18
-        }
-      ];
-    } else {
-      // Normaliza garantindo que cada alerta tenha nível e tipo distintos
-      listaAlertas = listaAlertas.map((a, idx) => {
-        let nivelNorm = String(a.nivel || '').toUpperCase();
-        if (nivelNorm === 'MEDIO') nivelNorm = 'MODERADO';
-        if (!nivelNorm) nivelNorm = idx === 0 ? 'CRITICO' : (idx === 1 ? 'MODERADO' : 'BAIXO');
-        return {
-          ...a,
-          id_alerta: a.id_alerta != null ? a.id_alerta : (idx === 0 ? 41 : (idx === 1 ? 42 : 43)),
-          tipo_alerta: a.tipo_alerta || a.titulo || (nivelNorm === 'CRITICO' ? 'Temperatura Crítica no Pomar' : (nivelNorm === 'MODERADO' ? 'Déficit de Umidade Relativa' : 'Oscilação Térmica Noturna')),
-          nivel: nivelNorm,
-          status: a.status || (nivelNorm === 'BAIXO' ? 'reconhecido' : 'aberto')
-        };
-      });
-    }
+    let listaAlertas = Array.isArray(resAlertas) ? resAlertas : (resAlertas && Array.isArray(resAlertas.alertas) ? resAlertas.alertas : []);
 
-    // Aplica sempre os status persistidos localmente (inclusive para alertas de fallback)
+    // Aplica sempre os status persistidos localmente
     const statusMap = lerStatusMapLocal();
     listaAlertas = listaAlertas.map(a => {
       const idKey = String(a.id_alerta ?? a.id ?? '');
@@ -101,10 +57,9 @@ export async function renderAlertas() {
       return a;
     });
 
-    // 2. Busca clima atual para compor KPI ambiental real
-    const clima = await api.getClimaAtual().catch(() => ({ temperatura: 28.5, umidade: 60 }));
+    const listaSensores = Array.isArray(resSensores) ? resSensores : (resSensores && Array.isArray(resSensores.sensores) ? resSensores.sensores : []);
 
-    return renderGestoraAlertas(listaAlertas, clima);
+    return renderGestoraAlertas(listaAlertas, resClima, listaSensores);
   } catch (err) {
     console.error('Erro ao inicializar Central de Alertas:', err);
     return `
@@ -1680,7 +1635,7 @@ export function renderAlertaError(idAlerta, erroMsg) {
 /**
  * Tela Principal da Central de Alertas
  */
-function renderGestoraAlertas(alertas = [], clima = {}) {
+function renderGestoraAlertas(alertas = [], clima = {}, sensores = []) {
   // Cálculo estrito e real dos KPIs a partir dos dados recebidos
   const totalAlertas = alertas.length;
   const isAtivo = (a) => {
@@ -1719,12 +1674,13 @@ function renderGestoraAlertas(alertas = [], clima = {}) {
     return s === 'resolvido' || s === 'reconhecido';
   }).length;
 
-  // Contagem de sensores únicos identificados nos alertas
-  const sensoresSet = new Set(alertas.map(a => a.id_sensor).filter(Boolean));
-  const sensoresAtivosCount = sensoresSet.size || 24;
+  // Contagem de sensores reais ou associados aos alertas
+  const sensoresAtivosCount = Array.isArray(sensores) && sensores.length > 0
+    ? sensores.length
+    : new Set(alertas.map(a => a.id_sensor).filter(Boolean)).size;
 
-  const tempClima = clima.temperatura != null ? `${clima.temperatura > 0 ? '+' : ''}${clima.temperatura.toFixed(1)}°C` : '+29,5°C';
-  const umidClima = clima.umidade != null ? `${clima.umidade}% UR` : '52% UR';
+  const tempClima = clima && clima.temperatura != null ? `${clima.temperatura > 0 ? '+' : ''}${clima.temperatura.toFixed(1)}°C` : 'Sem dados';
+  const umidClima = clima && clima.umidade != null ? `${clima.umidade}% UR` : 'Sem dados';
 
   return `
   <div class="dashboard-canvas apple-animate-in" style="padding: 24px 32px 48px; overflow-y: auto;">
@@ -1733,7 +1689,7 @@ function renderGestoraAlertas(alertas = [], clima = {}) {
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
       <div style="background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 9999px; padding: 7px 16px; display: inline-flex; align-items: center; gap: 8px;">
         <span style="width: 8px; height: 8px; border-radius: 50%; background: #10B981; display: inline-block; box-shadow: 0 0 0 2px rgba(16,185,129,0.2);"></span>
-        <span style="font-size: 12px; font-weight: 600; color: #15803D;">${sensoresAtivosCount} Sensores Ativos em Monitoramento Contínuo</span>
+        <span style="font-size: 12px; font-weight: 600; color: #15803D;">${sensoresAtivosCount > 0 ? `${sensoresAtivosCount} Sensores em Monitoramento` : 'Sem sensores em monitoramento'}</span>
       </div>
 
       <div style="display: flex; gap: 8px; flex-wrap: wrap;">
@@ -1786,7 +1742,7 @@ function renderGestoraAlertas(alertas = [], clima = {}) {
 
           <div style="display: flex; align-items: baseline; gap: 6px; margin-bottom: 10px;">
             <span style="font-size: 34px; font-weight: 800; color: #0F172A; line-height: 1;">${sensoresAtivosCount}</span>
-            <span style="font-size: 12px; color: #059669; font-weight: 600;">online</span>
+            <span style="font-size: 12px; color: ${sensoresAtivosCount > 0 ? '#059669' : '#64748B'}; font-weight: 600;">${sensoresAtivosCount > 0 ? 'online' : 'sem dados'}</span>
           </div>
         </div>
 
@@ -2272,11 +2228,14 @@ function setupGestoraAlertasEvents() {
     btnExportGestora.addEventListener('click', () => {
       const headers = ['ID', 'Prioridade', 'Categoria', 'Incidente', 'Lote / Cultura', 'Valor em Risco', 'Status', 'Data'];
       const nowStr = new Date().toLocaleString('pt-BR');
-      const rows = [
-        ['EXP-2026-08', 'P1 - Critico', 'Cadeia Fria', 'Desvio Termico Reefer 40ft (3.4C)', 'Lote Uva Vitoria #EXP-2026-08', 'R$ 42.000', 'Ativo', nowStr],
-        ['VU-02', 'P2 - Atencao', 'Irrigacao', 'Estresse Hidrico Critico (38.2% VWC)', 'Talhao A1 - Uva Vitoria', 'R$ 15.000', 'Ativo', nowStr],
-        ['MET-04', 'Preditivo IA', 'Microclima', 'Rajadas de Vento > 42 km/h', 'Setor 04 - Petrolina', 'R$ 0', 'Monitorando', nowStr]
-      ];
+      const rows = [];
+      document.querySelectorAll('.alerta-card-wrapper').forEach(el => {
+        const id = el.dataset.id;
+        const niv = el.dataset.nivel || 'MODERADO';
+        const st = el.dataset.status || 'aberto';
+        const tit = el.querySelector('h4')?.textContent?.trim() || `Incidente #${id}`;
+        rows.push([`ALT-${id}`, niv, 'Campo', tit, 'Lote Operacional', 'R$ —', st, nowStr]);
+      });
       const dataTag = new Date().toISOString().slice(0, 10);
       openExportChoiceModal(
         Modal,

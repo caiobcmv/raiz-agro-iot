@@ -1,3 +1,4 @@
+const temValor = (v) => v !== null && v !== undefined && !Number.isNaN(Number(v));
 import { liveTelemetry } from '../live-telemetry.js';
 import { dashboardStream } from '../dashboard-stream.js';
 /**
@@ -104,16 +105,15 @@ function atualizarDashboardComSSE(data) {
 
   const elPillUmid = document.getElementById('miniChart1-pill');
   if (elPillUmid && !isNaN(umidNum)) {
-    elPillUmid.textContent = `${Math.round(umidNum)}% Ideal`;
+    elPillUmid.textContent = `${Math.round(umidNum)}%`;
     _pulseElement(elPillUmid);
   }
 
-  // 3. Selo "Real" ou "Simulado" conforme campo "origem"
-  const origemValor = String(data.origem || '').toLowerCase();
-  const isReal = origemValor === 'real';
-  const seloTexto = isReal ? 'Real' : 'Simulado';
-  const seloClasseRemover = isReal ? 'pill-blue' : 'pill-green';
-  const seloClasseAdicionar = isReal ? 'pill-green' : 'pill-blue';
+  // 3. Selo de origem real do sensor
+  const isSemDados = data.status === 'sem_dados';
+  const seloTexto = isSemDados ? 'Sem dados' : 'Sensor Real';
+  const seloClasseRemover = isSemDados ? 'pill-green' : 'pill-blue';
+  const seloClasseAdicionar = isSemDados ? 'pill-blue' : 'pill-green';
 
   document.querySelectorAll('#sse-origem-badge, #sse-origem-badge-detalhado, .sse-origem-badge').forEach(badge => {
     badge.textContent = seloTexto;
@@ -124,7 +124,7 @@ function atualizarDashboardComSSE(data) {
   // 4. Horário da última leitura em pt-BR (America/Recife)
   const horaFormatadaRecife = formatarTimestampRecife(data.timestamp);
   document.querySelectorAll('#sse-horario-leitura, #sse-horario-leitura-detalhado, .sse-horario-leitura').forEach(el => {
-    el.textContent = horaFormatadaRecife ? `Última leitura: ${horaFormatadaRecife}` : '';
+    el.textContent = horaFormatadaRecife ? `Última leitura: ${horaFormatadaRecife}` : (isSemDados ? 'Aguardando telemetria' : '');
   });
 
   // 5. Adicionar nova leitura ao gráfico mantendo as últimas 30 leituras
@@ -185,16 +185,16 @@ function iniciarSSEDashboard() {
 }
 
 const DEFAULT_DADOS_GRAFICOS = {
-  umidade_ar_24h: [61, 60, 59, 58, 60, 61, 63, 62],
-  umidade_solo_24h: [54, 53, 55, 57, 59, 58, 57, 58],
-  temp_solo_24h: [24.1, 23.9, 24.3, 24.6, 24.8, 24.5, 24.4, 24.5],
-  temp_ar_24h: [26.2, 25.8, 26.8, 28.2, 29.0, 28.1, 27.5, 27.8],
-  conformidade_geral_pct: 90,
-  saude_plantacao_pct: 85,
-  umidade_dossel_pct: 67,
-  temp_foliar_c: 27,
-  agua_reservatorio_pct: 63,
-  vazao_ldia: 4200
+  umidade_ar_24h: [],
+  umidade_solo_24h: [],
+  temp_solo_24h: [],
+  temp_ar_24h: [],
+  conformidade_geral_pct: null,
+  saude_plantacao_pct: null,
+  umidade_dossel_pct: null,
+  temp_foliar_c: null,
+  agua_reservatorio_pct: null,
+  vazao_ldia: null
 };
 
 export async function renderDashboard() {
@@ -209,22 +209,25 @@ export async function renderDashboard() {
   const isResumido = localStorage.getItem('DASHBOARD_MODE') === 'resumido';
   
   // Busca dados reais do PostgreSQL em paralelo (sem usar cache desatualizado)
-  let resumo = null, clima = null, graficos = null;
+  let resumo = null, clima = null, graficos = null, series24h = null;
   try {
     const results = await Promise.allSettled([
       api.getDashboardResumo(),
       api.getClimaAtual(),
-      api.getDadosGraficos()
+      api.getDadosGraficos(),
+      api.getSeries24h()
     ]);
     resumo = results[0].status === 'fulfilled' ? results[0].value : null;
     clima = results[1].status === 'fulfilled' ? results[1].value : null;
     graficos = results[2].status === 'fulfilled' ? results[2].value : null;
+    series24h = results[3].status === 'fulfilled' ? results[3].value : null;
   } catch (e) {
     console.warn('Erro ao obter métricas online:', e);
   }
 
   dadosGraficosCache = {
     ...DEFAULT_DADOS_GRAFICOS,
+    ...(series24h || {}),
     ...(graficos || {})
   };
 
@@ -449,9 +452,11 @@ async function renderAnalistaDashboard() {
   const gwTop = gwLat != null ? calcTop(gwLat) : 42;
   const gwLeft = gwLng != null ? calcLeft(gwLng) : 58;
 
-  const pinsHtml = sensoresList.map(s => {
-    const topPct = s.lat != null ? calcTop(Number(s.lat)) : (30 + Math.random() * 40).toFixed(2);
-    const leftPct = s.lng != null ? calcLeft(Number(s.lng)) : (30 + Math.random() * 40).toFixed(2);
+  const pinsHtml = sensoresList.map((s, idx) => {
+    const defaultTop = 30 + ((idx * 23) % 40);
+    const defaultLeft = 30 + ((idx * 31) % 40);
+    const topPct = s.lat != null && !isNaN(s.lat) ? calcTop(Number(s.lat)) : defaultTop.toFixed(2);
+    const leftPct = s.lng != null && !isNaN(s.lng) ? calcLeft(Number(s.lng)) : defaultLeft.toFixed(2);
 
     let colorClass = 'green';
     let inlineBg = '';
@@ -878,16 +883,17 @@ async function renderAnalistaDashboard() {
  * 1. MODO RESUMIDO (Primeira Imagem do Figma)
  */
 function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
-  const confPct = Number(dg.conformidade_geral_pct ?? 90);
-  const saudePct = Number(dg.saude_plantacao_pct ?? 85);
-  const umidDosselPct = Number(dg.umidade_dossel_pct ?? 67);
-  const tempFoliar = Number(dg.temp_foliar_c ?? 27);
-  const aguaPct = Number(dg.agua_reservatorio_pct ?? 63);
-  const vazaoLdia = Number(dg.vazao_ldia ?? 4200);
-  const uArLast = (dg.umidade_ar_24h && dg.umidade_ar_24h.length) ? dg.umidade_ar_24h[dg.umidade_ar_24h.length - 1] : 62;
-  const uSoloLast = (dg.umidade_solo_24h && dg.umidade_solo_24h.length) ? dg.umidade_solo_24h[dg.umidade_solo_24h.length - 1] : 58;
-  const tSoloLast = (dg.temp_solo_24h && dg.temp_solo_24h.length) ? dg.temp_solo_24h[dg.temp_solo_24h.length - 1] : 24.5;
-  const tArLast = (dg.temp_ar_24h && dg.temp_ar_24h.length) ? dg.temp_ar_24h[dg.temp_ar_24h.length - 1] : 27.8;
+  const rc = resumo?.resumo_condicoes || {};
+  const confPct = dg.conformidade_geral_pct;
+  const saudePct = dg.saude_plantacao_pct;
+  const umidDosselPct = dg.umidade_dossel_pct;
+  const tempFoliar = dg.temp_foliar_c;
+  const aguaPct = dg.agua_reservatorio_pct;
+  const vazaoLdia = dg.vazao_ldia;
+  const uArLast = (dg.umidade_ar_24h && dg.umidade_ar_24h.length) ? dg.umidade_ar_24h[dg.umidade_ar_24h.length - 1] : null;
+  const uSoloLast = (dg.umidade_solo_24h && dg.umidade_solo_24h.length) ? dg.umidade_solo_24h[dg.umidade_solo_24h.length - 1] : null;
+  const tSoloLast = (dg.temp_solo_24h && dg.temp_solo_24h.length) ? dg.temp_solo_24h[dg.temp_solo_24h.length - 1] : null;
+  const tArLast = (dg.temp_ar_24h && dg.temp_ar_24h.length) ? dg.temp_ar_24h[dg.temp_ar_24h.length - 1] : null;
 
   // --- Clima Open-Meteo real para o Card 3 ---
   const climaAtual = clima?.agora || clima?.atual || clima || {};
@@ -918,6 +924,22 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
       }).join('')
     : '<div><span style="color:#94A3B8; font-size:10px;">Amanhã</span><div style="font-weight:700; color:#334155;">—</div></div>';
 
+  // --- Indicadores Reais de Lotes e Condição Geral ---
+  const condRotulo = resumo?.condicao_geral?.rotulo || (resumo?.resumo_condicoes?.pct_na_faixa != null ? (resumo.resumo_condicoes.pct_na_faixa >= 80 ? 'Boa' : 'Atenção') : 'Sem dados');
+  const condPillClass = condRotulo === 'Boa' || condRotulo === 'Excelente' ? 'pill-green' : (condRotulo === 'Sem dados' ? 'pill-blue' : 'pill-amber');
+  const pctNaFaixa = resumo?.resumo_condicoes?.pct_na_faixa != null ? `${resumo.resumo_condicoes.pct_na_faixa}%` : (confPct != null ? `${confPct}%` : 'Sem dados');
+
+  const etapasLotes = resumo?.fluxo_lotes?.etapas || [];
+  const totalLotesCadastrados = resumo?.fluxo_lotes?.total_cadastrados ?? resumo?.lotes_monitorados?.total ?? 0;
+  const lotesComSensor = resumo?.lotes_monitorados?.com_sensor_ativo ?? 0;
+  const getQtdEtapa = (nome) => {
+    const item = etapasLotes.find(e => String(e.status).toLowerCase() === nome.toLowerCase());
+    return item ? item.qtd : 0;
+  };
+  const qtdEmProducao = getQtdEtapa('Em produção');
+  const qtdArmazenado = getQtdEtapa('Armazenado');
+  const qtdTransporte = getQtdEtapa('Em transporte');
+
   return `
     <!-- Top Row: 3 Cards (Condição Geral, Lotes em Operação, Previsão do Tempo) -->
     <div class="top-kpi-3col">
@@ -926,7 +948,7 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
       <div class="figma-card">
         <div class="card-top-title-row">
           <span class="card-header-label">CONDIÇÃO GERAL</span>
-          <span class="card-status-pill pill-green">Excelente</span>
+          <span class="card-status-pill ${condPillClass}">${condRotulo}</span>
         </div>
 
         <div style="display: flex; align-items: center; gap: 20px; margin: 12px 0;">
@@ -940,20 +962,16 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
                   <stop offset="100%" stop-color="#059669" />
                 </linearGradient>
               </defs>
-              <!-- Arco Base Cinza de 180 graus (R=50, centro em 65, 60) -->
               <path d="M 15,60 A 50,50 0 0,1 115,60" fill="none" stroke="#F1F5F9" stroke-width="11" stroke-linecap="round"/>
-              <!-- Arco Preenchido com Gradiente Suave -->
               <path d="M 15,60 A 50,50 0 0,1 115,60" fill="none" stroke="url(#gauge-grad-card1)" stroke-width="11" stroke-linecap="round" stroke-dasharray="148 157.1" stroke-dashoffset="0"/>
-              
-              <!-- Ponteiro indicador Apple perfeitamente alinhado na direção do valor (34 graus) -->
               <line x1="65" y1="60" x2="101" y2="36" stroke="#183D2E" stroke-width="3" stroke-linecap="round"/>
               <circle cx="65" cy="60" r="5" fill="#183D2E"/>
               <circle cx="65" cy="60" r="2" fill="#FFFFFF"/>
             </svg>
-            <div style="font-size: 18px; font-weight: 800; color: #1E293B; margin-top: 4px; display: flex; align-items: center; gap: 6px;">
-              96% <span style="font-size: 9px; font-weight: 700; color: #047857; background: #ECFDF5; border: 1px solid #A7F3D0; padding: 1px 6px; border-radius: 4px;">Ótimo</span>
+            <div style="font-size: 16px; font-weight: 800; color: #1E293B; margin-top: 4px; display: flex; align-items: center; gap: 6px;">
+              ${pctNaFaixa}
             </div>
-            <span style="font-size: 9px; font-weight: 700; color: #64748B; letter-spacing: 0.6px; text-transform: uppercase; margin-top: 2px;">ÍNDICE GERAL</span>
+            <span style="font-size: 9px; font-weight: 700; color: #64748B; letter-spacing: 0.6px; text-transform: uppercase; margin-top: 2px;">ÍNDICE NA FAIXA</span>
           </div>
 
           <!-- Barras de Sub-métricas -->
@@ -961,38 +979,38 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
             <div class="metric-progress-item">
               <div class="metric-labels-row">
                 <span style="color: #64748B;">Água e Solo</span>
-                <strong style="color: #1E293B;">98%</strong>
+                <strong style="color: #1E293B;">${aguaPct != null ? `${aguaPct}%` : 'Sem dados'}</strong>
               </div>
               <div class="progress-track-bg">
-                <div class="progress-fill-bar" style="width: 98%; background: #10B981;"></div>
+                <div class="progress-fill-bar" style="width: ${aguaPct != null ? aguaPct : 0}%; background: #10B981;"></div>
               </div>
             </div>
 
             <div class="metric-progress-item">
               <div class="metric-labels-row">
                 <span style="color: #64748B;">Saúde Foliar</span>
-                <strong style="color: #1E293B;">96%</strong>
+                <strong style="color: #1E293B;">${saudePct != null ? `${saudePct}%` : 'Sem dados'}</strong>
               </div>
               <div class="progress-track-bg">
-                <div class="progress-fill-bar" style="width: 96%; background: #059669;"></div>
+                <div class="progress-fill-bar" style="width: ${saudePct != null ? saudePct : 0}%; background: #059669;"></div>
               </div>
             </div>
 
             <div class="metric-progress-item">
               <div class="metric-labels-row">
                 <span style="color: #64748B;">Microclima</span>
-                <strong style="color: #1E293B;">94%</strong>
+                <strong style="color: #1E293B;">${pctNaFaixa}</strong>
               </div>
               <div class="progress-track-bg">
-                <div class="progress-fill-bar" style="width: 94%; background: #0EA5E9;"></div>
+                <div class="progress-fill-bar" style="width: ${resumo?.resumo_condicoes?.pct_na_faixa != null ? resumo.resumo_condicoes.pct_na_faixa : 0}%; background: #0EA5E9;"></div>
               </div>
             </div>
           </div>
         </div>
 
         <div style="border-top: 1px solid #F1F5F9; padding-top: 12px; display: flex; justify-content: space-between; font-size: 11px; color: #64748B; margin-top: auto;">
-          <span>Parâmetros 100% Ideais</span>
-          <span style="color: #047857; font-weight: 600;">● 24h Conforme</span>
+          <span>${resumo?.resumo_condicoes?.leituras_avaliadas ? `${resumo.resumo_condicoes.leituras_avaliadas} Leituras Avaliadas` : 'Sem leituras recentes'}</span>
+          <span style="color: #047857; font-weight: 600;">${resumo?.resumo_condicoes?.pct_na_faixa != null ? '● Conforme' : '● Aguardando dados'}</span>
         </div>
       </div>
 
@@ -1000,7 +1018,7 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
       <div class="figma-card">
         <div class="card-top-title-row">
           <span class="card-header-label">LOTES EM OPERAÇÃO</span>
-          <span class="card-status-pill pill-blue">6 Ativos</span>
+          <span class="card-status-pill pill-blue">${totalLotesCadastrados} Lotes</span>
         </div>
 
         <div style="display: flex; align-items: center; gap: 20px; margin: 12px 0;">
@@ -1009,12 +1027,10 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
             <svg width="90" height="90" viewBox="0 0 36 36" style="transform: rotate(-90deg);">
               <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#F1F5F9" stroke-width="4.5"/>
               <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" stroke-dasharray="50, 100" fill="none" stroke="#059669" stroke-width="4.5"/>
-              <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" stroke-dasharray="33, 100" stroke-dashoffset="-50" fill="none" stroke="#0284C7" stroke-width="4.5"/>
-              <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" stroke-dasharray="17, 100" stroke-dashoffset="-83" fill="none" stroke="#F59E0B" stroke-width="4.5"/>
             </svg>
             <div style="position: absolute; text-align: center;">
-              <span style="font-size: 18px; font-weight: 800; color: #1E293B;">6<small style="font-size: 11px; color: #94A3B8;">/10</small></span>
-              <div style="font-size: 8px; font-weight: 700; color: #94A3B8; text-transform: uppercase;">Capacidade</div>
+              <span style="font-size: 18px; font-weight: 800; color: #1E293B;">${lotesComSensor}<small style="font-size: 11px; color: #94A3B8;">/${totalLotesCadastrados}</small></span>
+              <div style="font-size: 8px; font-weight: 700; color: #94A3B8; text-transform: uppercase;">Monitorados</div>
             </div>
           </div>
 
@@ -1022,34 +1038,34 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
           <div style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
             <div class="metric-progress-item">
               <div class="metric-labels-row">
-                <span style="display: flex; align-items: center; gap: 6px; color: #475569;"><span style="width:7px; height:7px; border-radius:50%; background:#059669;"></span>Colheita</span>
-                <strong style="color: #334155;">3 lotes</strong>
+                <span style="display: flex; align-items: center; gap: 6px; color: #475569;"><span style="width:7px; height:7px; border-radius:50%; background:#059669;"></span>Em Produção</span>
+                <strong style="color: #334155;">${qtdEmProducao} ${qtdEmProducao === 1 ? 'lote' : 'lotes'}</strong>
               </div>
-              <div class="progress-track-bg"><div class="progress-fill-bar" style="width: 50%; background: #059669;"></div></div>
+              <div class="progress-track-bg"><div class="progress-fill-bar" style="width: ${totalLotesCadastrados > 0 ? (qtdEmProducao / totalLotesCadastrados * 100) : 0}%; background: #059669;"></div></div>
             </div>
 
             <div class="metric-progress-item">
               <div class="metric-labels-row">
-                <span style="display: flex; align-items: center; gap: 6px; color: #475569;"><span style="width:7px; height:7px; border-radius:50%; background:#0284C7;"></span>Maturação</span>
-                <strong style="color: #334155;">2 lotes</strong>
+                <span style="display: flex; align-items: center; gap: 6px; color: #475569;"><span style="width:7px; height:7px; border-radius:50%; background:#0284C7;"></span>Armazenado</span>
+                <strong style="color: #334155;">${qtdArmazenado} ${qtdArmazenado === 1 ? 'lote' : 'lotes'}</strong>
               </div>
-              <div class="progress-track-bg"><div class="progress-fill-bar" style="width: 33%; background: #0284C7;"></div></div>
+              <div class="progress-track-bg"><div class="progress-fill-bar" style="width: ${totalLotesCadastrados > 0 ? (qtdArmazenado / totalLotesCadastrados * 100) : 0}%; background: #0284C7;"></div></div>
             </div>
 
             <div class="metric-progress-item">
               <div class="metric-labels-row">
-                <span style="display: flex; align-items: center; gap: 6px; color: #475569;"><span style="width:7px; height:7px; border-radius:50%; background:#F59E0B;"></span>Em Produção</span>
-                <strong style="color: #334155;">1 lote</strong>
+                <span style="display: flex; align-items: center; gap: 6px; color: #475569;"><span style="width:7px; height:7px; border-radius:50%; background:#F59E0B;"></span>Em Transporte</span>
+                <strong style="color: #334155;">${qtdTransporte} ${qtdTransporte === 1 ? 'lote' : 'lotes'}</strong>
               </div>
-              <div class="progress-track-bg"><div class="progress-fill-bar" style="width: 17%; background: #F59E0B;"></div></div>
+              <div class="progress-track-bg"><div class="progress-fill-bar" style="width: ${totalLotesCadastrados > 0 ? (qtdTransporte / totalLotesCadastrados * 100) : 0}%; background: #F59E0B;"></div></div>
             </div>
           </div>
         </div>
 
         <div style="border-top: 1px solid #F1F5F9; padding-top: 12px; display: flex; justify-content: space-between; font-size: 11px; color: #475569; margin-top: auto;">
-          <span>● 3 Colheita</span>
-          <span>● 2 Maturação</span>
-          <span>● 1 Em Produção</span>
+          <span>● ${qtdEmProducao} Em Produção</span>
+          <span>● ${qtdArmazenado} Armazenado</span>
+          <span>● ${qtdTransporte} Transporte</span>
         </div>
       </div>
 
@@ -1110,9 +1126,9 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
               <!-- Arco Base Cinza de 180° perfeito -->
               <path id="gauge-track" d="M 45,120 A 85,85 0 0,1 215,120" fill="none" stroke="#F1F5F9" stroke-width="20" stroke-linecap="round"/>
               <!-- Segmento Verde Contínuo -->
-              <path d="M 45,120 A 85,85 0 0,1 215,120" fill="none" stroke="#059669" stroke-width="20" stroke-linecap="round" stroke-dasharray="241 268" stroke-dashoffset="0"/>
+              <path d="M 45,120 A 85,85 0 0,1 215,120" fill="none" stroke="#059669" stroke-width="20" stroke-linecap="round" stroke-dasharray="${resumo?.resumo_condicoes?.pct_na_faixa != null ? (resumo.resumo_condicoes.pct_na_faixa * 2.68).toFixed(0) : '0'} 268" stroke-dashoffset="0"/>
             </svg>
-            <div class="gauge-pct-number">90%</div>
+            <div class="gauge-pct-number" style="font-size: ${pctNaFaixa === 'Sem dados' ? '18px' : '28px'};">${pctNaFaixa}</div>
           </div>
           <div class="gauge-caption">LEITURAS CONFORMES</div>
         </div>
@@ -1122,25 +1138,25 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
           <div class="metric-progress-item">
             <div class="metric-labels-row">
               <span style="color:#475569; font-weight: 500;">● Saúde da Plantação (NDVI)</span>
-              <strong style="color: #1E293B;">85%</strong>
+              <strong style="color: #1E293B;">${saudePct != null ? `${saudePct}%` : 'Sem dados'}</strong>
             </div>
-            <div class="progress-track-bg"><div class="progress-fill-bar" style="width: 85%; background: #059669;"></div></div>
+            <div class="progress-track-bg"><div class="progress-fill-bar" style="width: ${saudePct != null ? saudePct : 0}%; background: #059669;"></div></div>
           </div>
 
           <div class="metric-progress-item">
             <div class="metric-labels-row">
               <span style="color:#475569; font-weight: 500;">● Umidade Média do Dossel</span>
-              <strong style="color: #1E293B;">67%</strong>
+              <strong style="color: #1E293B;">${umidDosselPct != null ? `${umidDosselPct}%` : 'Sem dados'}</strong>
             </div>
-            <div class="progress-track-bg"><div class="progress-fill-bar" style="width: 67%; background: #0284C7;"></div></div>
+            <div class="progress-track-bg"><div class="progress-fill-bar" style="width: ${umidDosselPct != null ? umidDosselPct : 0}%; background: #0284C7;"></div></div>
           </div>
 
           <div class="metric-progress-item">
             <div class="metric-labels-row">
               <span style="color:#475569; font-weight: 500;">● Temperatura Foliar</span>
-              <strong style="color: #1E293B;">27°C</strong>
+              <strong style="color: #1E293B;">${tempFoliar != null ? `${tempFoliar}°C` : 'Sem dados'}</strong>
             </div>
-            <div class="progress-track-bg"><div class="progress-fill-bar" style="width: 60%; background: #F59E0B;"></div></div>
+            <div class="progress-track-bg"><div class="progress-fill-bar" style="width: ${tempFoliar != null ? Math.min(100, tempFoliar * 2.5) : 0}%; background: #F59E0B;"></div></div>
           </div>
         </div>
 
@@ -1148,45 +1164,34 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; border-top: 1px solid #F1F5F9; padding-top: 14px; margin-top: auto;">
           <div style="background: rgba(248, 250, 252, 0.8); border: 1px solid #F1F5F9; border-radius: 12px; padding: 10px 14px;">
             <div style="font-size: 10px; font-weight: 700; color: #94A3B8; text-transform: uppercase;">CULTURAS</div>
-            <div style="display: flex; justify-content: space-between; font-size: 12px; margin-top: 4px;">
-              <span style="color: #334155; font-weight: 600;">Vitória:</span>
-              <strong style="color: #047857;">55%</strong>
+            <div style="font-size: 12px; color: #334155; font-weight: 600; margin-top: 4px;">
+              Manga, Uva e Melão
             </div>
-            <div style="display: flex; justify-content: space-between; font-size: 12px;">
-              <span style="color: #334155; font-weight: 600;">Palmer:</span>
-              <strong style="color: #0369A1;">35%</strong>
-            </div>
-            <div style="display: flex; justify-content: space-between; font-size: 12px;">
-              <span style="color: #94A3B8;">Outras:</span>
-              <span style="color: #94A3B8;">10%</span>
-            </div>
+            <div style="font-size: 10px; color: #94A3B8; margin-top: 2px;">Culturas cadastradas</div>
           </div>
 
           <div style="background: rgba(248, 250, 252, 0.8); border: 1px solid #F1F5F9; border-radius: 12px; padding: 10px 14px; display: flex; flex-direction: column; justify-content: space-between;">
             <div style="font-size: 10px; font-weight: 700; color: #94A3B8; text-transform: uppercase;">STATUS ÁGUA</div>
-            <div style="display: flex; justify-content: space-between; align-items: baseline;">
-              <div>
-                <span style="font-size: 16px; font-weight: 700; color: #1E293B;">63%</span>
-                <div style="font-size: 10px; color: #94A3B8;">4.200 L/dia</div>
-              </div>
-              <span style="background: #D1FAE5; color: #065F46; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 9999px;">Auto</span>
+            <div style="font-size: 12px; color: #334155; font-weight: 600; margin-top: 4px;">
+              ${temValor(rc.pct_na_faixa) ? `${confPct}% na faixa` : 'Sem dados de irrigação'}
             </div>
+            <div style="font-size: 10px; color: #94A3B8; margin-top: 2px;">Parâmetro de campo</div>
           </div>
         </div>
       </div>
 
-      <!-- Card Direito: Monitoramento da Propriedade e Talhões (Foto de Satélite com Overlays Fiéis ao Figma) -->
+      <!-- Card Direito: Monitoramento da Propriedade e Sensores -->
       <div class="figma-card" style="padding: 24px; display: flex; flex-direction: column;">
         <div class="card-top-title-row" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
           <div style="min-width: 0;">
             <span style="font-size: 13px; font-weight: 700; color: #1E293B; letter-spacing: 0.5px; text-transform: uppercase; display: block; line-height: 1.3;">
-              MONITORAMENTO DA PROPRIEDADE E TALHÕES
+              MONITORAMENTO DA PROPRIEDADE E SENSORES
             </span>
-            <p style="font-size: 12px; color: #94A3B8; margin-top: 3px; margin-bottom: 0;">Fazenda Vale das Uvas • Setor 04 (48 ha)</p>
+            <p style="font-size: 12px; color: #94A3B8; margin-top: 3px; margin-bottom: 0;">Topologia e Área de Cobertura dos Sensores ESP32</p>
           </div>
 
           <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
-            <span class="card-status-pill pill-green" style="font-size: 10px; padding: 3px 8px; font-weight: 700;">sentinel-2</span>
+            <span class="card-status-pill pill-green" style="font-size: 10px; padding: 3px 8px; font-weight: 700;">ESP32 IoT</span>
             <div style="display: flex; gap: 4px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 2px;">
               <button type="button" id="btn-map-zoom-in" style="width: 26px; height: 26px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 6px; font-weight: 700; color: #334155; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; transition: all 0.2s;" title="Aproximar zoom">+</button>
               <button type="button" id="btn-map-zoom-out" style="width: 26px; height: 26px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 6px; font-weight: 700; color: #334155; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; transition: all 0.2s;" title="Afastar zoom">&minus;</button>
@@ -1197,51 +1202,23 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
           </div>
         </div>
 
-        <!-- Área Fotográfica em Alta Resolução com Overlays Exatos do Figma e Zoom Interativo -->
         <div id="satellite-map-viewport" class="satellite-map-container" style="position: relative; overflow: hidden; border-radius: 12px; min-height: 270px; flex: 1; background: #0F172A; cursor: grab; user-select: none;">
           <div id="satellite-map-stage" style="position: absolute; inset: 0; transform-origin: center center; transition: transform 0.2s ease-out;">
             <img src="assets/images/topologia-sensores-campo.jpg" alt="Visão Aérea dos Talhões" class="satellite-bg-img" style="width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; border-radius: 12px;">
 
-            <!-- Overlay 1: Talhão A • Vitória (Top Left) -->
-            <div style="position: absolute; top: 12%; left: 8%; width: 32%; height: 32%; border: 1.5px solid #10B981; background: rgba(16, 185, 129, 0.15); border-radius: 8px; backdrop-filter: blur(1px); display: flex; flex-direction: column; justify-content: space-between; padding: 6px 8px; box-shadow: 0 0 12px rgba(16, 185, 129, 0.3);">
-              <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span style="background: rgba(15, 23, 42, 0.75); color: #FFFFFF; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;">Talhão A • Vitória</span>
-                <span style="width: 8px; height: 8px; border-radius: 50%; background: #10B981; border: 1.5px solid #FFFFFF;"></span>
-              </div>
-              <div style="text-align: center;">
-                <span style="background: rgba(16, 185, 129, 0.85); color: #FFFFFF; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">NDVI 0.88</span>
-              </div>
-            </div>
-
-            <!-- Overlay 2: Talhão C • Palmer (Top Right) -->
-            <div style="position: absolute; top: 12%; right: 8%; width: 28%; height: 32%; border: 1.5px solid #F59E0B; background: rgba(245, 158, 11, 0.15); border-radius: 8px; backdrop-filter: blur(1px); display: flex; flex-direction: column; justify-content: space-between; padding: 6px 8px; box-shadow: 0 0 12px rgba(245, 158, 11, 0.3);">
-              <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span style="background: rgba(15, 23, 42, 0.75); color: #FFFFFF; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;">Talhão C • Palmer</span>
-              </div>
-              <div style="text-align: center;">
-                <span style="background: #F59E0B; color: #FFFFFF; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">Alerta Hídrico</span>
-              </div>
-            </div>
-
-            <!-- Gateway Central ESP32 (Centro) -->
-            <div style="position: absolute; top: 48%; left: 34%; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(4px); padding: 5px 12px; border-radius: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.25); font-size: 11px; font-weight: 700; color: #0F172A; display: flex; align-items: center; gap: 6px; z-index: 10; border: 1px solid rgba(255,255,255,0.8);">
+            <!-- Sensor 1: DHT11 ESP32-C3 -->
+            <div style="position: absolute; top: 22%; left: 24%; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(4px); padding: 5px 12px; border-radius: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.25); font-size: 11px; font-weight: 700; color: #FFFFFF; display: flex; align-items: center; gap: 6px; z-index: 10; border: 1px solid rgba(16, 185, 129, 0.6);">
               <span style="width: 8px; height: 8px; border-radius: 50%; background: #10B981;"></span>
-              <span>Gateway Central ESP32</span>
+              <span>DHT11 ESP32-C3 (Ar)</span>
             </div>
 
-            <!-- Overlay 3: Talhão B • Thompson (Bottom Left) -->
-            <div style="position: absolute; bottom: 12%; left: 14%; width: 30%; height: 32%; border: 1.5px solid #0284C7; background: rgba(2, 132, 199, 0.15); border-radius: 8px; backdrop-filter: blur(1px); display: flex; flex-direction: column; justify-content: space-between; padding: 6px 8px; box-shadow: 0 0 12px rgba(2, 132, 199, 0.3);">
-              <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span style="background: rgba(15, 23, 42, 0.75); color: #FFFFFF; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;">Talhão B • Thompson</span>
-                <span style="width: 8px; height: 8px; border-radius: 50%; background: #0284C7; border: 1.5px solid #FFFFFF;"></span>
-              </div>
-              <div style="text-align: center;">
-                <span style="background: #0284C7; color: #FFFFFF; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">VWC 48%</span>
-              </div>
+            <!-- Sensor 3: Solo ESP32 -->
+            <div style="position: absolute; bottom: 26%; right: 28%; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(4px); padding: 5px 12px; border-radius: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.25); font-size: 11px; font-weight: 700; color: #FFFFFF; display: flex; align-items: center; gap: 6px; z-index: 10; border: 1px solid rgba(14, 165, 233, 0.6);">
+              <span style="width: 8px; height: 8px; border-radius: 50%; background: #0EA5E9;"></span>
+              <span>Solo ESP32</span>
             </div>
           </div>
 
-          <!-- Indicador Flutuante de Zoom -->
           <div id="map-zoom-badge" style="position: absolute; bottom: 10px; right: 10px; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(4px); color: #FFFFFF; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 12px; pointer-events: none; opacity: 0; transition: opacity 0.3s; z-index: 20;">
             100%
           </div>
@@ -1249,11 +1226,10 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
 
         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; font-size: 11px; color: #94A3B8;">
           <div style="display: flex; gap: 16px;">
-            <span><strong style="color: #10B981;">●</strong> Ótimo</span>
-            <span><strong style="color: #0284C7;">●</strong> Atenção</span>
-            <span><strong style="color: #F59E0B;">●</strong> Crítico</span>
+            <span><strong style="color: #10B981;">●</strong> DHT11 (Ar)</span>
+            <span><strong style="color: #0EA5E9;">●</strong> Sensor Solo</span>
           </div>
-          <div>Passagem orbital há 42 min</div>
+          <div>Rede Local ESP32 • ThingSpeak</div>
         </div>
       </div>
 
@@ -1268,7 +1244,7 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
           </span>
           <p style="font-size: 12px; color: #94A3B8; margin-top: 2px;">
             Leituras em tempo real via ESP32 (DHT11 e Sensor de Umidade do Solo)
-            <span id="sse-origem-badge" class="card-status-pill pill-blue sse-origem-badge" style="font-size: 10px; padding: 2px 8px; margin-left: 8px;">Simulado</span>
+            <span id="sse-origem-badge" class="card-status-pill pill-green sse-origem-badge" style="font-size: 10px; padding: 2px 8px; margin-left: 8px;">Sensor Real</span>
             <span id="sse-aviso-reconectando" class="sse-aviso-reconectando" style="display: none; margin-left: 8px; font-size: 11px; font-weight: 600; color: #D97706; background: #FFFBEB; border: 1px solid #FDE68A; padding: 2px 8px; border-radius: 6px;">Reconectando...</span>
             <span id="sse-horario-leitura" class="sse-horario-leitura" style="margin-left: 8px; font-size: 11px; color: #64748B;"></span>
           </p>
@@ -1290,13 +1266,13 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
         <div class="mini-chart-card">
           <div class="mini-chart-header">
             <span class="mini-chart-title">Umidade do Ar</span>
-            <span class="mini-chart-pill pill-green" id="miniChart1-pill">62% Ideal</span>
+            <span class="mini-chart-pill pill-green" id="miniChart1-pill">${dg.umidade_ar_24h && dg.umidade_ar_24h.length ? `${Math.round(dg.umidade_ar_24h[dg.umidade_ar_24h.length - 1])}%` : 'Sem dados'}</span>
           </div>
           <div class="chart-canvas-wrap">
             <canvas id="miniChart1"></canvas>
           </div>
           <div class="chart-time-labels">
-            <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>Agora</span>
+            <span>-24h</span><span>-18h</span><span>-12h</span><span>-6h</span><span>Agora</span>
           </div>
         </div>
 
@@ -1304,13 +1280,13 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
         <div class="mini-chart-card">
           <div class="mini-chart-header">
             <span class="mini-chart-title">Umidade do Solo</span>
-            <span class="mini-chart-pill pill-green">58% Ideal</span>
+            <span class="mini-chart-pill pill-green" id="miniChart2-pill">${dg.umidade_solo_24h && dg.umidade_solo_24h.length ? `${Math.round(dg.umidade_solo_24h[dg.umidade_solo_24h.length - 1])}%` : 'Sem dados'}</span>
           </div>
           <div class="chart-canvas-wrap">
             <canvas id="miniChart2"></canvas>
           </div>
           <div class="chart-time-labels">
-            <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>Agora</span>
+            <span>-24h</span><span>-18h</span><span>-12h</span><span>-6h</span><span>Agora</span>
           </div>
         </div>
 
@@ -1318,13 +1294,13 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
         <div class="mini-chart-card">
           <div class="mini-chart-header">
             <span class="mini-chart-title">Temperatura do Solo</span>
-            <span class="mini-chart-pill pill-blue">24.5°C Segura</span>
+            <span class="mini-chart-pill pill-blue" id="miniChart3-pill">${dg.temp_solo_24h && dg.temp_solo_24h.length ? `${dg.temp_solo_24h[dg.temp_solo_24h.length - 1]}°C` : 'Sem dados'}</span>
           </div>
           <div class="chart-canvas-wrap">
             <canvas id="miniChart3"></canvas>
           </div>
           <div class="chart-time-labels">
-            <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>Agora</span>
+            <span>-24h</span><span>-18h</span><span>-12h</span><span>-6h</span><span>Agora</span>
           </div>
         </div>
 
@@ -1332,13 +1308,13 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
         <div class="mini-chart-card">
           <div class="mini-chart-header">
             <span class="mini-chart-title">Temperatura do Ar</span>
-            <span class="mini-chart-pill pill-green" id="miniChart4-pill">27.8°C Ideal</span>
+            <span class="mini-chart-pill pill-green" id="miniChart4-pill">${dg.temp_ar_24h && dg.temp_ar_24h.length ? `${dg.temp_ar_24h[dg.temp_ar_24h.length - 1]}°C` : 'Sem dados'}</span>
           </div>
           <div class="chart-canvas-wrap">
             <canvas id="miniChart4"></canvas>
           </div>
           <div class="chart-time-labels">
-            <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>Agora</span>
+            <span>-24h</span><span>-18h</span><span>-12h</span><span>-6h</span><span>Agora</span>
           </div>
         </div>
 
@@ -1353,12 +1329,12 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
 function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS, extras = {}) {
   const r = resumo || {};
   const fmtNum = (n, casas = 1) => Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: casas });
-  const temValor = (v) => v !== null && v !== undefined && !Number.isNaN(Number(v));
+  
 
   // --- Condição geral: rótulo calculado pelo backend (vw_lote_saude) ---
   const cond = r.condicao_geral || {};
-  const condRotulo = cond.rotulo || 'Excelente';
-  const condDotCor = cond.nivel === 'critica' ? '#EF4444' : cond.nivel === 'atencao' ? '#F59E0B' : '#059669';
+  const condRotulo = cond.rotulo || 'Sem dados';
+  const condDotCor = cond.nivel === 'critica' ? '#EF4444' : cond.nivel === 'atencao' ? '#F59E0B' : (cond.rotulo ? '#059669' : '#94A3B8');
 
   // --- Lotes em operação ---
   const lotesTotal = r.lotes_monitorados?.total ?? 0;
@@ -1553,7 +1529,7 @@ function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS, extras 
               <div style="font-size: 11px; color: #94A3B8; margin-top: 2px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                 <span>Últimas 24 horas</span>
                 <span>•</span>
-                <span id="sse-origem-badge-detalhado" class="card-status-pill pill-blue sse-origem-badge" style="font-size: 10px; padding: 1px 7px;">Simulado</span>
+                <span id="sse-origem-badge-detalhado" class="card-status-pill pill-green sse-origem-badge" style="font-size: 10px; padding: 1px 7px;">Sensor Real</span>
                 <span id="sse-aviso-reconectando-detalhado" class="sse-aviso-reconectando" style="display: none; font-size: 10px; font-weight: 600; color: #D97706; background: #FFFBEB; border: 1px solid #FDE68A; padding: 1px 6px; border-radius: 4px;">Reconectando...</span>
                 <span id="sse-horario-leitura-detalhado" class="sse-horario-leitura" style="font-size: 10px; color: #64748B;"></span>
               </div>
@@ -1569,7 +1545,7 @@ function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS, extras 
                   <circle cx="55" cy="55" r="44" fill="none" stroke="#059669" stroke-width="11" stroke-dasharray="${circ}" stroke-dashoffset="${strokeDashoffset}" stroke-linecap="round" />
                 </svg>
                 <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">
-                  <span style="font-size: 26px; font-weight: 800; color: #1E293B; line-height: 1;">${confPct}%</span>
+                  <span style="font-size: 26px; font-weight: 800; color: #1E293B; line-height: 1;">${temValor(rc.pct_na_faixa) ? `${confPct}%` : '—'}</span>
                   <span style="font-size: 10px; color: #64748B; margin-top: 2px;">na faixa</span>
                 </div>
               </div>
@@ -1869,27 +1845,27 @@ export async function setupDashboardEvents() {
           <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
             <div>
               <label style="display:block; font-weight:700; margin-bottom:4px;">Conformidade (%)</label>
-              <input id="inp-dg-conf" type="number" min="0" max="100" value="${cur.conformidade_geral_pct ?? 90}" style="width:100%; padding:7px 10px; border:1px solid #CBD5E1; border-radius:8px;">
+              <input id="inp-dg-conf" type="number" min="0" max="100" value="${cur.conformidade_geral_pct ?? ''}" placeholder="Sem dados" style="width:100%; padding:7px 10px; border:1px solid #CBD5E1; border-radius:8px;">
             </div>
             <div>
               <label style="display:block; font-weight:700; margin-bottom:4px;">Saúde NDVI (%)</label>
-              <input id="inp-dg-saude" type="number" min="0" max="100" value="${cur.saude_plantacao_pct ?? 85}" style="width:100%; padding:7px 10px; border:1px solid #CBD5E1; border-radius:8px;">
+              <input id="inp-dg-saude" type="number" min="0" max="100" value="${cur.saude_plantacao_pct ?? ''}" placeholder="Sem dados" style="width:100%; padding:7px 10px; border:1px solid #CBD5E1; border-radius:8px;">
             </div>
             <div>
               <label style="display:block; font-weight:700; margin-bottom:4px;">Umidade Dossel (%)</label>
-              <input id="inp-dg-dossel" type="number" min="0" max="100" value="${cur.umidade_dossel_pct ?? 67}" style="width:100%; padding:7px 10px; border:1px solid #CBD5E1; border-radius:8px;">
+              <input id="inp-dg-dossel" type="number" min="0" max="100" value="${cur.umidade_dossel_pct ?? ''}" placeholder="Sem dados" style="width:100%; padding:7px 10px; border:1px solid #CBD5E1; border-radius:8px;">
             </div>
             <div>
               <label style="display:block; font-weight:700; margin-bottom:4px;">Temp. Foliar (°C)</label>
-              <input id="inp-dg-tfoliar" type="number" step="0.1" value="${cur.temp_foliar_c ?? 27}" style="width:100%; padding:7px 10px; border:1px solid #CBD5E1; border-radius:8px;">
+              <input id="inp-dg-tfoliar" type="number" step="0.1" value="${cur.temp_foliar_c ?? ''}" placeholder="Sem dados" style="width:100%; padding:7px 10px; border:1px solid #CBD5E1; border-radius:8px;">
             </div>
             <div>
               <label style="display:block; font-weight:700; margin-bottom:4px;">Status Água (%)</label>
-              <input id="inp-dg-agua" type="number" min="0" max="100" value="${cur.agua_reservatorio_pct ?? 63}" style="width:100%; padding:7px 10px; border:1px solid #CBD5E1; border-radius:8px;">
+              <input id="inp-dg-agua" type="number" min="0" max="100" value="${cur.agua_reservatorio_pct ?? ''}" placeholder="Sem dados" style="width:100%; padding:7px 10px; border:1px solid #CBD5E1; border-radius:8px;">
             </div>
             <div>
               <label style="display:block; font-weight:700; margin-bottom:4px;">Vazão (L/dia)</label>
-              <input id="inp-dg-vazao" type="number" step="50" value="${cur.vazao_ldia ?? 4200}" style="width:100%; padding:7px 10px; border:1px solid #CBD5E1; border-radius:8px;">
+              <input id="inp-dg-vazao" type="number" step="50" value="${cur.vazao_ldia ?? ''}" placeholder="Sem dados" style="width:100%; padding:7px 10px; border:1px solid #CBD5E1; border-radius:8px;">
             </div>
           </div>
 
@@ -1971,16 +1947,12 @@ export async function setupDashboardEvents() {
         criarMiniGraficoApple('miniChart2', cur.umidade_solo_24h || DEFAULT_DADOS_GRAFICOS.umidade_solo_24h, '#0D9488');
         criarMiniGraficoApple('miniChart3', cur.temp_solo_24h || DEFAULT_DADOS_GRAFICOS.temp_solo_24h, '#0284C7');
         criarMiniGraficoApple('miniChart4', cur.temp_ar_24h || DEFAULT_DADOS_GRAFICOS.temp_ar_24h, '#16A34A');
-      } else if (tf === '7d') {
-        criarMiniGraficoApple('miniChart1', [58, 62, 65, 60, 59, 63, 62], '#10B981');
-        criarMiniGraficoApple('miniChart2', [52, 54, 58, 61, 57, 56, 58], '#0D9488');
-        criarMiniGraficoApple('miniChart3', [23.8, 24.2, 24.9, 25.1, 24.4, 24.2, 24.5], '#0284C7');
-        criarMiniGraficoApple('miniChart4', [25.5, 27.0, 28.5, 29.2, 28.0, 27.2, 27.8], '#16A34A');
       } else {
-        criarMiniGraficoApple('miniChart1', [55, 58, 62, 64, 60, 59, 61, 63, 65, 62, 60, 62], '#10B981');
-        criarMiniGraficoApple('miniChart2', [50, 52, 55, 58, 60, 57, 56, 58, 59, 57, 58, 58], '#0D9488');
-        criarMiniGraficoApple('miniChart3', [23.5, 23.9, 24.5, 25.2, 25.0, 24.6, 24.3, 24.5, 24.8, 24.4, 24.5, 24.5], '#0284C7');
-        criarMiniGraficoApple('miniChart4', [25.0, 26.5, 28.0, 29.5, 28.8, 27.8, 27.2, 27.9, 28.4, 27.5, 27.8, 27.8], '#16A34A');
+        // Sem agregação histórica de 7d/30d registrada, passa vazio para exibir "Sem dados"
+        criarMiniGraficoApple('miniChart1', [], '#10B981');
+        criarMiniGraficoApple('miniChart2', [], '#0D9488');
+        criarMiniGraficoApple('miniChart3', [], '#0284C7');
+        criarMiniGraficoApple('miniChart4', [], '#16A34A');
       }
     });
   });
@@ -1991,7 +1963,27 @@ export async function setupDashboardEvents() {
  */
 function criarMiniGraficoApple(canvasId, dataPoints, strokeColor) {
   const canvas = document.getElementById(canvasId);
-  if (!canvas || typeof Chart === 'undefined') return;
+  if (!canvas) return;
+
+  const parent = canvas.parentElement;
+  if (!Array.isArray(dataPoints) || dataPoints.length === 0) {
+    canvas.style.display = 'none';
+    if (parent && !parent.querySelector('.grafico-sem-dados')) {
+      const noDataEl = document.createElement('div');
+      noDataEl.className = 'grafico-sem-dados';
+      noDataEl.style.cssText = 'height: 100%; min-height: 48px; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #94A3B8; font-style: italic;';
+      noDataEl.textContent = 'Sem dados';
+      parent.appendChild(noDataEl);
+    }
+    return;
+  }
+
+  if (parent) {
+    const existing = parent.querySelector('.grafico-sem-dados');
+    if (existing) existing.remove();
+    canvas.style.display = 'block';
+  }
+  if (typeof Chart === 'undefined') return;
 
   const ctx = canvas.getContext('2d');
   const isDetalhado = localStorage.getItem('DASHBOARD_MODE') === 'detalhado';
@@ -2169,7 +2161,7 @@ function setupAnalistaDashboardEvents() {
       const umidVal = s.umidade != null ? `${Number(s.umidade).toFixed(1)}%` : '—';
       const origemBadge = s.origem_telemetria === 'real'
         ? '<span style="background:#ECFDF5; color:#065F46; padding:2px 8px; border-radius:6px; font-weight:700; font-size:10px;">Real</span>'
-        : '<span style="background:#F1F5F9; color:#475569; padding:2px 8px; border-radius:6px; font-weight:700; font-size:10px;">Simulado</span>';
+        : '<span style="background:#F1F5F9; color:#475569; padding:2px 8px; border-radius:6px; font-weight:700; font-size:10px;">Sem dados</span>';
 
       const motivoHtml = s.motivo_rejeicao ? `
         <div style="background:#FEE2E2; border:1px solid #FCA5A5; color:#991B1B; padding:10px 12px; border-radius:8px; margin-top:12px; font-size:12px;">

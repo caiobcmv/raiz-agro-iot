@@ -227,8 +227,8 @@ class AuthState {
 
     const sidebarFarmName = document.querySelector('.sidebar .farm-name');
     const sidebarFarmSub = document.querySelector('.sidebar .farm-sub');
-    if (sidebarFarmName && profile.farm) sidebarFarmName.textContent = profile.farm;
-    if (sidebarFarmSub && profile.farmSub) sidebarFarmSub.textContent = profile.farmSub;
+    if (sidebarFarmName) sidebarFarmName.textContent = profile.nome || 'Usuário';
+    if (sidebarFarmSub) sidebarFarmSub.textContent = profile.cargo || '';
   }
 
   getPreferences() {
@@ -251,8 +251,9 @@ class AuthState {
       : (prefs.avatar_cor && AVATAR_PALETTES[prefs.avatar_cor] ? prefs.avatar_cor : defaultPaletteKey);
     const palette = AVATAR_PALETTES[chosenPaletteKey] || AVATAR_PALETTES.emerald;
 
-    const nome = prefs.nome || user.nome || 'Usuário';
-    const cargo = prefs.cargo || user.perfil || (current === 'admin' ? 'Administrador' : current === 'analista' ? 'Analista de Dados' : 'Produtor/Exportador');
+    const _safePref = (v) => (v && v !== 'undefined' && v !== 'null') ? v : null;
+    const nome = _safePref(prefs.nome) || _safePref(user.nome) || 'Usuário';
+    const cargo = _safePref(prefs.cargo) || _safePref(user.perfil) || (current === 'admin' ? 'Administrador' : current === 'analista' ? 'Analista de Dados' : 'Produtor/Exportador');
 
     return {
       id: current,
@@ -269,8 +270,8 @@ class AuthState {
       avatarBg: palette.bg,
       avatarBorder: palette.border,
       avatarColor: palette.color,
-      farm: propJson.farmName || '',
-      farmSub: propJson.farmSub || '',
+      gatewayPill: 'ThingSpeak',
+      gatewayStatus: 'Canal 3500765',
       tema: prefs.tema || 'claro',
       efeitos_visuais: prefs.efeitos_visuais !== false,
       atualizacao_tempo_real: prefs.atualizacao_tempo_real !== false,

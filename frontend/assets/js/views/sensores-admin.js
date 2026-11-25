@@ -375,15 +375,15 @@ export async function renderSensoresAdmin() {
 
           <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 14px;">
             <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px;">
-              <span style="font-size: 10px; color: #64748B;">Umidade Solo (VWC): <strong style="color: #0F172A;">46.8%</strong></span>
-              <div style="font-size: 11px; color: #047857; font-weight: 600; margin-top: 2px;">• Faixa VWC ótima para raiz</div>
+              <span style="font-size: 10px; color: #64748B;">Umidade Solo (VWC): <strong style="color: #0F172A;">Sem dados</strong></span>
+              <div style="font-size: 11px; color: #64748B; font-weight: 600; margin-top: 2px;">• Telemetria via ThingSpeak</div>
               <div style="font-size: 10px; color: #64748B; margin-top: 4px;">Sensor de solo registra apenas umidade (schema.sql)</div>
             </div>
 
             <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px;">
-              <span style="font-size: 10px; color: #64748B;">Temp. Ar: <strong style="color: #0F172A;">27.4°C</strong></span>
+              <span style="font-size: 10px; color: #64748B;">Temp. Ar: <strong style="color: #0F172A;">Sem dados</strong></span>
               <div style="font-size: 11px; color: #0284C7; font-weight: 600; margin-top: 2px;">• Ventilação 3.2 m/s</div>
-              <div style="font-size: 10px; color: #64748B; margin-top: 4px;">Umidade Ar (UR): <strong>61.2%</strong> (Déficit de Pressão OK)</div>
+              <div style="font-size: 10px; color: #64748B; margin-top: 4px;">Umidade Ar (UR): <strong>Sem dados</strong></div>
             </div>
           </div>
 

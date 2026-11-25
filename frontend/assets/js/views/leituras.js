@@ -9,6 +9,7 @@ import { api } from '../api.js';
 import { toast } from '../components/toast.js';
 import { Modal } from '../components/modal.js';
 import { downloadCSV, downloadPDF, openExportChoiceModal } from '../utils/export-utils.js';
+import { carregarErenderizarParecerCard } from '../components/parecer-card.js';
 
 // ==========================================
 let _estado = {
@@ -799,6 +800,33 @@ function renderTelemetria(sensores, sensorSelecionadoId, periodo, leituras, carr
 }
 
 /**
+ * Gera um caminho SVG com curvas de Bézier cúbicas suaves através dos pontos
+ */
+function gerarCaminhoBezierSuave(pontos) {
+  if (!pontos || pontos.length === 0) return '';
+  if (pontos.length === 1) return `M ${pontos[0].x.toFixed(1)},${pontos[0].y.toFixed(1)}`;
+  if (pontos.length === 2) {
+    return `M ${pontos[0].x.toFixed(1)},${pontos[0].y.toFixed(1)} L ${pontos[1].x.toFixed(1)},${pontos[1].y.toFixed(1)}`;
+  }
+
+  let d = `M ${pontos[0].x.toFixed(1)},${pontos[0].y.toFixed(1)}`;
+  for (let i = 0; i < pontos.length - 1; i++) {
+    const p0 = pontos[i === 0 ? 0 : i - 1];
+    const p1 = pontos[i];
+    const p2 = pontos[i + 1];
+    const p3 = pontos[i + 2 < pontos.length ? i + 2 : i + 1];
+
+    const cp1x = p1.x + (p2.x - p0.x) / 6;
+    const cp1y = p1.y + (p2.y - p0.y) / 6;
+    const cp2x = p2.x - (p3.x - p1.x) / 6;
+    const cp2y = p2.y - (p3.y - p1.y) / 6;
+
+    d += ` C ${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${cp2x.toFixed(1)},${cp2y.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`;
+  }
+  return d;
+}
+
+/**
  * Gráfico SVG profissional com curvas suaves Bézier (sem dentes de serra) e eixos perfeitamente formatados
  */
 function renderGraficoTelemetriaSvg(leituras, periodo) {
@@ -1165,7 +1193,7 @@ async function recarregarLeiturasTelemetria() {
         _estado.sensorSelecionadoId,
         _estado.periodoTelemetria
       );
-      _estado.leiturasTelemetria = Array.isArray(leiturasApi) ? leiturasApi : [];
+      _estado.leiturasTelemetria = Array.isArray(leiturasApi) ? leiturasApi : (leiturasApi?.pontos || []);
     } else {
       _estado.leiturasTelemetria = [];
     }
