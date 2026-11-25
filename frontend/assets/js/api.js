@@ -5,7 +5,7 @@
  */
 
 const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-const API_BASE_URL = localStorage.getItem('API_URL') || (isLocal ? 'http://localhost:8000' : 'https://raiz-agro-iot.onrender.com');
+const API_BASE_URL = localStorage.getItem('API_URL') || (isLocal ? 'http://localhost:8000' : 'https://iot-backend-3h7l.onrender.com');
 
 
 class ApiService {
