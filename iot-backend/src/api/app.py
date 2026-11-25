@@ -1,3 +1,8 @@
+import os
+import threading
+import time
+from contextlib import asynccontextmanager
+
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -43,7 +48,38 @@ so_analista = [Depends(require_role_por_metodo(
 so_produtor = [Depends(require_role_por_metodo(
     leitura=(PRODUTOR_EXPORTADOR,), escrita=()))]
 
-app = FastAPI(title="API - Dashboard Climático e Logístico")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    coleta_ativa = (
+        os.getenv("COLETA_AUTOMATICA", "true").lower() == "true"
+        and "PYTEST_CURRENT_TEST" not in os.environ
+    )
+    if coleta_ativa:
+        try:
+            from src import agendador, database, thingspeak_client
+            agendador.iniciar_em_segundo_plano()
+
+            def _loop_coleta():
+                ultimo_entry_id = None
+                while True:
+                    try:
+                        leitura = thingspeak_client.buscar_ultima_leitura()
+                        if leitura and leitura.get("entry_id") != ultimo_entry_id:
+                            database.processar_leitura(leitura)
+                            ultimo_entry_id = leitura["entry_id"]
+                    except Exception:
+                        pass
+                    time.sleep(config.POLL_INTERVAL_SECONDS)
+
+            t = threading.Thread(target=_loop_coleta, daemon=True, name="ColetaThingSpeak")
+            t.start()
+        except Exception:
+            pass
+    yield
+
+
+app = FastAPI(title="API - Dashboard Climático e Logístico", lifespan=lifespan)
 
 @app.get("/", include_in_schema=False)
 def raiz():

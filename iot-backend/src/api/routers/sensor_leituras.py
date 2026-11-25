@@ -54,7 +54,7 @@ def series_24h(conn=Depends(get_conn), user=Depends(get_current_user)):
 
         # Sensor de solo (ex: Solo ESP32 id_sensor=3 ou ambiente='solo')
         cur.execute("""
-            SELECT l.umidade_solo, l.temperatura_solo, l.data_hora
+            SELECT l.umidade_solo, l.data_hora
             FROM leitura_climatica l
             JOIN sensor s ON s.id_sensor = l.fk_sensor_id_sensor
             WHERE s.ambiente = 'solo'
@@ -70,7 +70,6 @@ def series_24h(conn=Depends(get_conn), user=Depends(get_current_user)):
         "umidade_ar_24h": [float(r["umidade"]) for r in ar_rows if r["umidade"] is not None],
         "temp_ar_24h": [float(r["temperatura"]) for r in ar_rows if r["temperatura"] is not None],
         "umidade_solo_24h": [float(r["umidade_solo"]) for r in solo_rows if r["umidade_solo"] is not None],
-        "temp_solo_24h": [float(r["temperatura_solo"]) for r in solo_rows if r["temperatura_solo"] is not None],
     }
 
 
@@ -89,7 +88,9 @@ def leituras_agregadas(id_sensor: int, periodo: Periodo = Periodo.h24, conn=Depe
             raise HTTPException(status_code=404, detail="Sensor não encontrado")
 
         if agregacao == "hora":
-            instante_sql, params_inst = "date_trunc('hour', l.data_hora)", []
+            instante_sql = ("date_trunc('hour', (l.data_hora AT TIME ZONE 'UTC') AT TIME ZONE %s)"
+                            " AT TIME ZONE %s")
+            params_inst = [config.CLIMA_TIMEZONE, config.CLIMA_TIMEZONE]
         else:
             # dia civil no fuso do projeto (America/Recife); devolve a meia-noite local
             instante_sql = ("date_trunc('day', (l.data_hora AT TIME ZONE 'UTC') AT TIME ZONE %s)"
@@ -102,7 +103,6 @@ def leituras_agregadas(id_sensor: int, periodo: Periodo = Periodo.h24, conn=Depe
                    ROUND(AVG(l.temperatura)::numeric, 2) AS temperatura,
                    ROUND(AVG(l.umidade)::numeric, 2)     AS umidade,
                    ROUND(AVG(l.umidade_solo)::numeric, 2)      AS umidade_solo,
-                   ROUND(AVG(l.temperatura_solo)::numeric, 2)  AS temperatura_solo,
                    COUNT(*)::int                         AS n_leituras,
                    bool_and(lower(COALESCE(l.origem, '')) = 'thingspeak') AS todas_reais
             FROM leitura_climatica l
@@ -129,7 +129,6 @@ def leituras_agregadas(id_sensor: int, periodo: Periodo = Periodo.h24, conn=Depe
                            ROUND(AVG(l.temperatura)::numeric, 2) AS temperatura,
                            ROUND(AVG(l.umidade)::numeric, 2)     AS umidade,
                            ROUND(AVG(l.umidade_solo)::numeric, 2)      AS umidade_solo,
-                           ROUND(AVG(l.temperatura_solo)::numeric, 2)  AS temperatura_solo,
                            COUNT(*)::int                         AS n_leituras,
                            bool_and(lower(COALESCE(l.origem, '')) = 'thingspeak') AS todas_reais
                     FROM leitura_climatica l
@@ -152,7 +151,6 @@ def leituras_agregadas(id_sensor: int, periodo: Periodo = Periodo.h24, conn=Depe
                 "temperatura": float(r["temperatura"]) if r["temperatura"] is not None else None,
                 "umidade": float(r["umidade"]) if r["umidade"] is not None else None,
                 "umidade_solo": float(r["umidade_solo"]) if r["umidade_solo"] is not None else None,
-                "temperatura_solo": float(r["temperatura_solo"]) if r["temperatura_solo"] is not None else None,
                 "n_leituras": r["n_leituras"],
                 "origem": "real" if r["todas_reais"] else "simulado",
             }

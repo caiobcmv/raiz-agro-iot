@@ -144,11 +144,18 @@ function calcularMetricasSafra(safra, todosLotes, propriedade, classificacao) {
   const lotesSafra = (todosLotes || []).filter(lote => lotePertenceASafra(lote, safra));
 
   // 2. Produção colhida: kg ÷ 1000; t mantém; caixa NÃO entra na soma
+  // Apenas lotes colhidos ou em pós-colheita entram na soma (exclui 'Em produção' e 'Pronto para colheita')
+  const statusColhidos = ['colhido', 'armazenado', 'em transporte', 'finalizado'];
   let somaTon = 0;
   let temLotesEmCaixa = false;
   let temAoMenosUmLoteValido = false;
 
   lotesSafra.forEach(lote => {
+    const statusLote = String(lote.status || '').trim().toLowerCase();
+    if (!statusColhidos.includes(statusLote)) {
+      return;
+    }
+
     const unid = String(lote.unidade || '').trim().toLowerCase();
     const qtd = Number(lote.quantidade);
 
