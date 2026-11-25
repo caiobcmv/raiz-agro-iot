@@ -104,6 +104,27 @@ class AuthState {
     } catch (e) {
       console.warn('Erro ao carregar usuário da sessão:', e);
     }
+
+    // Fallback de resiliência: se houver token válido, restaura a sessão pelo payload do JWT
+    try {
+      const token = api.getToken() || localStorage.getItem('access_token');
+      if (token && token.includes('.')) {
+        const payloadBase64 = token.split('.')[1];
+        const payloadJson = atob(payloadBase64.replace(/-/g, '+').replace(/_/g, '/'));
+        const payload = JSON.parse(payloadJson);
+        if (payload && (payload.sub || payload.id_usuario)) {
+          const fallbackUser = {
+            id_usuario: Number(payload.sub || payload.id_usuario),
+            perfil: payload.perfil || 'Produtor/Exportador',
+            nome: payload.nome || 'Usuário',
+            email: payload.email || ''
+          };
+          localStorage.setItem('user_data', JSON.stringify(fallbackUser));
+          return fallbackUser;
+        }
+      }
+    } catch (_) {}
+
     return null;
   }
 
