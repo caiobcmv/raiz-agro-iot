@@ -238,16 +238,8 @@ export class Router {
       syncText.textContent = 'Sincronizando...';
     }
 
-    // Atualiza sutilmente leituras vivas visíveis na tela sem recarregar a página
+    // Leituras em tempo real chegam via SSE / websocket; não simula variações artificiais
     await new Promise(r => setTimeout(r, manual ? 450 : 250));
-
-    document.querySelectorAll('[data-live-metric="temp"], .live-temp-val').forEach(el => {
-      const current = parseFloat(String(el.textContent).replace(',', '.'));
-      if (!isNaN(current)) {
-        const delta = (Math.random() - 0.48) * 0.2;
-        el.textContent = `${(current + delta).toFixed(1).replace('.', ',')}°C`;
-      }
-    });
 
     const nowStr = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     if (syncPill) {

@@ -387,7 +387,7 @@ async function renderAnalistaDashboard() {
   const propriedade = topologia?.propriedade || {
     nome: 'Fazenda Raiz Agro',
     local: 'Vale do São Francisco — PE',
-    area_ha: 45.0
+    area_ha: null
   };
 
   const sensoresList = extrairArraySeguro(topologia?.sensores);
@@ -895,7 +895,6 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
   const vazaoLdia = dg.vazao_ldia;
   const uArLast = (dg.umidade_ar_24h && dg.umidade_ar_24h.length) ? dg.umidade_ar_24h[dg.umidade_ar_24h.length - 1] : null;
   const uSoloLast = (dg.umidade_solo_24h && dg.umidade_solo_24h.length) ? dg.umidade_solo_24h[dg.umidade_solo_24h.length - 1] : null;
-  const tSoloLast = (dg.temp_solo_24h && dg.temp_solo_24h.length) ? dg.temp_solo_24h[dg.temp_solo_24h.length - 1] : null;
   const tArLast = (dg.temp_ar_24h && dg.temp_ar_24h.length) ? dg.temp_ar_24h[dg.temp_ar_24h.length - 1] : null;
 
   // --- Clima Open-Meteo real para o Card 3 ---
@@ -933,13 +932,15 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
   const pctNaFaixa = resumo?.resumo_condicoes?.pct_na_faixa != null ? `${resumo.resumo_condicoes.pct_na_faixa}%` : (confPct != null ? `${confPct}%` : 'Sem dados');
 
   const etapasLotes = resumo?.fluxo_lotes?.etapas || [];
-  const totalLotesCadastrados = resumo?.fluxo_lotes?.total_cadastrados ?? resumo?.lotes_monitorados?.total ?? 0;
+  const totalLotesCadastrados = resumo?.lotes_monitorados?.total ?? 13;
   const lotesComSensor = resumo?.lotes_monitorados?.com_sensor_ativo ?? 0;
   const getQtdEtapa = (nome) => {
     const item = etapasLotes.find(e => String(e.status).toLowerCase() === nome.toLowerCase());
     return item ? item.qtd : 0;
   };
   const qtdEmProducao = getQtdEtapa('Em produção');
+  const qtdPronto = getQtdEtapa('Pronto para colheita');
+  const qtdColhido = getQtdEtapa('Colhido');
   const qtdArmazenado = getQtdEtapa('Armazenado');
   const qtdTransporte = getQtdEtapa('Em transporte');
 
@@ -1038,13 +1039,29 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
           </div>
 
           <!-- Lista de Categorias -->
-          <div style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
+          <div style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
             <div class="metric-progress-item">
               <div class="metric-labels-row">
                 <span style="display: flex; align-items: center; gap: 6px; color: #475569;"><span style="width:7px; height:7px; border-radius:50%; background:#059669;"></span>Em Produção</span>
                 <strong style="color: #334155;">${qtdEmProducao} ${qtdEmProducao === 1 ? 'lote' : 'lotes'}</strong>
               </div>
               <div class="progress-track-bg"><div class="progress-fill-bar" style="width: ${totalLotesCadastrados > 0 ? (qtdEmProducao / totalLotesCadastrados * 100) : 0}%; background: #059669;"></div></div>
+            </div>
+
+            <div class="metric-progress-item">
+              <div class="metric-labels-row">
+                <span style="display: flex; align-items: center; gap: 6px; color: #475569;"><span style="width:7px; height:7px; border-radius:50%; background:#10B981;"></span>Pronto p/ Colheita</span>
+                <strong style="color: #334155;">${qtdPronto} ${qtdPronto === 1 ? 'lote' : 'lotes'}</strong>
+              </div>
+              <div class="progress-track-bg"><div class="progress-fill-bar" style="width: ${totalLotesCadastrados > 0 ? (qtdPronto / totalLotesCadastrados * 100) : 0}%; background: #10B981;"></div></div>
+            </div>
+
+            <div class="metric-progress-item">
+              <div class="metric-labels-row">
+                <span style="display: flex; align-items: center; gap: 6px; color: #475569;"><span style="width:7px; height:7px; border-radius:50%; background:#06B6D4;"></span>Colhido</span>
+                <strong style="color: #334155;">${qtdColhido} ${qtdColhido === 1 ? 'lote' : 'lotes'}</strong>
+              </div>
+              <div class="progress-track-bg"><div class="progress-fill-bar" style="width: ${totalLotesCadastrados > 0 ? (qtdColhido / totalLotesCadastrados * 100) : 0}%; background: #06B6D4;"></div></div>
             </div>
 
             <div class="metric-progress-item">
@@ -1065,8 +1082,10 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
           </div>
         </div>
 
-        <div style="border-top: 1px solid #F1F5F9; padding-top: 12px; display: flex; justify-content: space-between; font-size: 11px; color: #475569; margin-top: auto;">
-          <span>● ${qtdEmProducao} Em Produção</span>
+        <div style="border-top: 1px solid #F1F5F9; padding-top: 8px; display: flex; flex-wrap: wrap; gap: 8px; font-size: 10px; color: #475569; margin-top: auto;">
+          <span>● ${qtdEmProducao} Produção</span>
+          <span>● ${qtdPronto} Pronto</span>
+          <span>● ${qtdColhido} Colhido</span>
           <span>● ${qtdArmazenado} Armazenado</span>
           <span>● ${qtdTransporte} Transporte</span>
         </div>
@@ -1194,7 +1213,9 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
           </div>
 
           <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
-            <span class="card-status-pill pill-green" style="font-size: 10px; padding: 3px 8px; font-weight: 700;">ESP32 IoT</span>
+            ${(sensores?.reais > 0 || lotesComSensor > 0)
+              ? '<span class="card-status-pill pill-green" style="font-size: 10px; padding: 3px 8px; font-weight: 700;">ESP32 Conectado</span>'
+              : '<span class="card-status-pill pill-blue" style="font-size: 10px; padding: 3px 8px; font-weight: 700;">Sem sensor</span>'}
             <div style="display: flex; gap: 4px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 2px;">
               <button type="button" id="btn-map-zoom-in" style="width: 26px; height: 26px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 6px; font-weight: 700; color: #334155; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; transition: all 0.2s;" title="Aproximar zoom">+</button>
               <button type="button" id="btn-map-zoom-out" style="width: 26px; height: 26px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 6px; font-weight: 700; color: #334155; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; transition: all 0.2s;" title="Afastar zoom">&minus;</button>
@@ -1287,20 +1308,6 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
           </div>
           <div class="chart-canvas-wrap">
             <canvas id="miniChart2"></canvas>
-          </div>
-          <div class="chart-time-labels">
-            <span>-24h</span><span>-18h</span><span>-12h</span><span>-6h</span><span>Agora</span>
-          </div>
-        </div>
-
-        <!-- Gráfico 3: Temperatura do Solo -->
-        <div class="mini-chart-card">
-          <div class="mini-chart-header">
-            <span class="mini-chart-title">Temperatura do Solo</span>
-            <span class="mini-chart-pill pill-blue" id="miniChart3-pill">${dg.temp_solo_24h && dg.temp_solo_24h.length ? `${dg.temp_solo_24h[dg.temp_solo_24h.length - 1]}°C` : 'Sem dados'}</span>
-          </div>
-          <div class="chart-canvas-wrap">
-            <canvas id="miniChart3"></canvas>
           </div>
           <div class="chart-time-labels">
             <span>-24h</span><span>-18h</span><span>-12h</span><span>-6h</span><span>Agora</span>
@@ -1826,13 +1833,11 @@ export async function setupDashboardEvents() {
   if (isResumidoCurrent) {
     criarMiniGraficoApple('miniChart1', dg.umidade_ar_24h || DEFAULT_DADOS_GRAFICOS.umidade_ar_24h, '#10B981');
     criarMiniGraficoApple('miniChart2', dg.umidade_solo_24h || DEFAULT_DADOS_GRAFICOS.umidade_solo_24h, '#0D9488');
-    criarMiniGraficoApple('miniChart3', dg.temp_solo_24h || DEFAULT_DADOS_GRAFICOS.temp_solo_24h, '#0284C7');
     criarMiniGraficoApple('miniChart4', dg.temp_ar_24h || DEFAULT_DADOS_GRAFICOS.temp_ar_24h, '#16A34A');
   } else {
-    // No modo Detalhado, os 4 gráficos são em tom verde esmeralda com pontos conforme Figma
+    // No modo Detalhado, os gráficos são em tom verde esmeralda com pontos conforme Figma
     criarMiniGraficoApple('miniChart1', dg.umidade_ar_24h || DEFAULT_DADOS_GRAFICOS.umidade_ar_24h, '#10B981');
     criarMiniGraficoApple('miniChart2', dg.umidade_solo_24h || DEFAULT_DADOS_GRAFICOS.umidade_solo_24h, '#10B981');
-    criarMiniGraficoApple('miniChart3', dg.temp_solo_24h || DEFAULT_DADOS_GRAFICOS.temp_solo_24h, '#10B981');
     criarMiniGraficoApple('miniChart4', dg.temp_ar_24h || DEFAULT_DADOS_GRAFICOS.temp_ar_24h, '#10B981');
   }
 
@@ -1881,11 +1886,7 @@ export async function setupDashboardEvents() {
             <input id="inp-dg-usolo" type="text" value="${(cur.umidade_solo_24h || []).join(', ')}" style="width:100%; padding:7px 10px; border:1px solid #CBD5E1; border-radius:8px; font-family:monospace;">
           </div>
           <div>
-            <label style="display:block; font-weight:700; margin-bottom:4px;">Série Gráfico 3 — Temperatura do Solo 24h (°C)</label>
-            <input id="inp-dg-tsolo" type="text" value="${(cur.temp_solo_24h || []).join(', ')}" style="width:100%; padding:7px 10px; border:1px solid #CBD5E1; border-radius:8px; font-family:monospace;">
-          </div>
-          <div>
-            <label style="display:block; font-weight:700; margin-bottom:4px;">Série Gráfico 4 — Temperatura do Ar 24h (°C)</label>
+            <label style="display:block; font-weight:700; margin-bottom:4px;">Série Gráfico 3 — Temperatura do Ar 24h (°C)</label>
             <input id="inp-dg-tar" type="text" value="${(cur.temp_ar_24h || []).join(', ')}" style="width:100%; padding:7px 10px; border:1px solid #CBD5E1; border-radius:8px; font-family:monospace;">
           </div>
         </div>
@@ -1907,7 +1908,6 @@ export async function setupDashboardEvents() {
           vazao_ldia: Number(document.getElementById('inp-dg-vazao')?.value || 4200),
           umidade_ar_24h: parseSeries(document.getElementById('inp-dg-uar')?.value, cur.umidade_ar_24h),
           umidade_solo_24h: parseSeries(document.getElementById('inp-dg-usolo')?.value, cur.umidade_solo_24h),
-          temp_solo_24h: parseSeries(document.getElementById('inp-dg-tsolo')?.value, cur.temp_solo_24h),
           temp_ar_24h: parseSeries(document.getElementById('inp-dg-tar')?.value, cur.temp_ar_24h)
         };
 
@@ -1948,13 +1948,11 @@ export async function setupDashboardEvents() {
       if (tf === '24h') {
         criarMiniGraficoApple('miniChart1', cur.umidade_ar_24h || DEFAULT_DADOS_GRAFICOS.umidade_ar_24h, '#10B981');
         criarMiniGraficoApple('miniChart2', cur.umidade_solo_24h || DEFAULT_DADOS_GRAFICOS.umidade_solo_24h, '#0D9488');
-        criarMiniGraficoApple('miniChart3', cur.temp_solo_24h || DEFAULT_DADOS_GRAFICOS.temp_solo_24h, '#0284C7');
         criarMiniGraficoApple('miniChart4', cur.temp_ar_24h || DEFAULT_DADOS_GRAFICOS.temp_ar_24h, '#16A34A');
       } else {
         // Sem agregação histórica de 7d/30d registrada, passa vazio para exibir "Sem dados"
         criarMiniGraficoApple('miniChart1', [], '#10B981');
         criarMiniGraficoApple('miniChart2', [], '#0D9488');
-        criarMiniGraficoApple('miniChart3', [], '#0284C7');
         criarMiniGraficoApple('miniChart4', [], '#16A34A');
       }
     });
