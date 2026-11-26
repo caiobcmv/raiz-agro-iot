@@ -318,7 +318,7 @@ export async function renderConfiguracoes() {
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:24px;">
 
       <!-- Informações e Cadastro da Propriedade -->
-      <div class="apple-card" style="padding:24px 26px;">
+      <div class="apple-card" style="padding:24px 26px; align-self: start; height: auto;">
         <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:18px;">
           <div style="display:flex; align-items:center; gap:10px;">
             <div style="width:36px;height:36px; background:#F0FDF4; border-radius:10px; display:flex;align-items:center;justify-content:center;">

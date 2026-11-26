@@ -977,7 +977,13 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
   // --- Indicadores Reais de Lotes e Condição Geral ---
   const condRotulo = resumo?.condicao_geral?.rotulo || (resumo?.resumo_condicoes?.pct_na_faixa != null ? (resumo.resumo_condicoes.pct_na_faixa >= 80 ? 'Boa' : 'Atenção') : 'Sem dados');
   const condPillClass = condRotulo === 'Boa' || condRotulo === 'Excelente' ? 'pill-green' : (condRotulo === 'Sem dados' ? 'pill-blue' : 'pill-amber');
-  const pctNaFaixa = resumo?.resumo_condicoes?.pct_na_faixa != null ? `${resumo.resumo_condicoes.pct_na_faixa}%` : (confPct != null ? `${confPct}%` : 'Sem dados');
+  const valorPctNum = resumo?.resumo_condicoes?.pct_na_faixa != null ? Number(resumo.resumo_condicoes.pct_na_faixa) : (confPct != null ? Number(confPct) : null);
+  const pctNaFaixa = valorPctNum != null ? `${valorPctNum}%` : 'Sem dados';
+
+  // Coordenadas da agulha (R=43.2 a partir do centro 65, 60; 0% = esquerda, 100% = direita)
+  const anguloRad = valorPctNum != null ? (Math.min(100, Math.max(0, valorPctNum)) / 100) * Math.PI : Math.PI * 0.5;
+  const agulhaX2 = (65 - 43.2 * Math.cos(anguloRad)).toFixed(1);
+  const agulhaY2 = (60 - 43.2 * Math.sin(anguloRad)).toFixed(1);
 
   const etapasLotes = resumo?.fluxo_lotes?.etapas || [];
   const totalLotesCadastrados = resumo?.lotes_monitorados?.total ?? 13;
@@ -1016,7 +1022,7 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
               </defs>
               <path d="M 15,60 A 50,50 0 0,1 115,60" fill="none" stroke="#F1F5F9" stroke-width="11" stroke-linecap="round"/>
               <path d="M 15,60 A 50,50 0 0,1 115,60" fill="none" stroke="url(#gauge-grad-card1)" stroke-width="11" stroke-linecap="round" stroke-dasharray="148 157.1" stroke-dashoffset="0"/>
-              <line x1="65" y1="60" x2="101" y2="36" stroke="#183D2E" stroke-width="3" stroke-linecap="round"/>
+              <line x1="65" y1="60" x2="${agulhaX2}" y2="${agulhaY2}" stroke="#183D2E" stroke-width="3" stroke-linecap="round"/>
               <circle cx="65" cy="60" r="5" fill="#183D2E"/>
               <circle cx="65" cy="60" r="2" fill="#FFFFFF"/>
             </svg>
