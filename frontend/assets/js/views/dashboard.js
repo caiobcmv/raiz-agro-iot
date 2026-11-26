@@ -1293,7 +1293,7 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
             <!-- Sensor 3: Solo ESP32 -->
             <div style="position: absolute; bottom: 26%; right: 28%; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(4px); padding: 5px 12px; border-radius: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.25); font-size: 11px; font-weight: 700; color: #FFFFFF; display: flex; align-items: center; gap: 6px; z-index: 10; border: 1px solid rgba(14, 165, 233, 0.6);">
               <span style="width: 8px; height: 8px; border-radius: 50%; background: #0EA5E9;"></span>
-              <span>Solo ESP32</span>
+              <span>Canal 3500765 · campo 3</span>
             </div>
           </div>
 

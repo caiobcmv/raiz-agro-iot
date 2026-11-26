@@ -232,14 +232,15 @@ async function renderAnalistaAlertas() {
   const ultimaLeituraIso = resumoSensores?.ingestao_24h?.ultima_leitura || curva?.sensor?.ultima_leitura;
 
   let minutosSinc = 0;
-  let sincronizadoTexto = 'Sincronizado recentemente';
+  let sincronizadoTexto = '—';
   let isAtrasado = false;
 
   if (ultimaLeituraIso) {
     const diffMs = Date.now() - new Date(ultimaLeituraIso).getTime();
     const diffSeg = Math.max(0, Math.round(diffMs / 1000));
     minutosSinc = Math.round(diffSeg / 60);
-    sincronizadoTexto = minutosSinc < 1 ? 'Sincronizado agora' : `Sincronizado há ${minutosSinc} min`;
+    const horaRecife = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Recife' }).format(new Date(ultimaLeituraIso));
+    sincronizadoTexto = minutosSinc < 1 ? `${horaRecife} • agora` : `${horaRecife} • há ${minutosSinc} min`;
     const limiteSeg = intervaloEnvioS * 2.5;
     if (diffSeg > limiteSeg) {
       isAtrasado = true;
