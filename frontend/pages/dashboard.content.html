@@ -185,17 +185,13 @@
           </span>
         </div>
 
-        <!-- Gauge Semicircular Perfeitamente Alinhado na Mesma Curva Geométrica -->
-        <div class="gauge-semicircle-wrap">
-          <div class="gauge-svg-container">
-            <svg width="260" height="135" viewBox="0 0 260 135" style="display: block; margin: 0 auto;">
-              <!-- Arco Base Cinza de 180° perfeito -->
-              <path id="gauge-track" d="M 45,120 A 85,85 0 0,1 215,120" fill="none" stroke="#F1F5F9" stroke-width="20" stroke-linecap="round"/>
-              <!-- Segmento Verde Contínuo -->
-              <path d="M 45,120 A 85,85 0 0,1 215,120" fill="none" stroke="#059669" stroke-width="20" stroke-linecap="round" stroke-dasharray="241 268" stroke-dashoffset="0"/>
-            </svg>
-            <div class="gauge-pct-number">90%</div>
-          </div>
+        <!-- Gauge Semicircular — pathLength="100" para dasharray direto em % -->
+        <div class="gauge-semicircle-wrap" style="margin: 4px auto 2px;">
+          <svg class="medidor" viewBox="0 0 120 70">
+            <path d="M10 60 A50 50 0 0 1 110 60" fill="none" stroke="#f1f5f9" stroke-width="10" stroke-linecap="round"/>
+            <path id="arco-resumo" d="M10 60 A50 50 0 0 1 110 60" fill="none" stroke="#059669" stroke-width="10" stroke-linecap="round" pathLength="100" stroke-dasharray="0 100" style="display: none;"/>
+            <text id="texto-resumo" x="60" y="58" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">—</text>
+          </svg>
           <div class="gauge-caption">LEITURAS CONFORMES</div>
         </div>
 
@@ -204,25 +200,25 @@
           <div class="metric-progress-item">
             <div class="metric-labels-row">
               <span style="color:#475569; font-weight: 500;">● Saúde da Plantação (NDVI)</span>
-              <strong style="color: #1E293B;">85%</strong>
+              <strong style="color: #1E293B;">Sem dados</strong>
             </div>
-            <div class="progress-track-bg"><div class="progress-fill-bar" style="width: 85%; background: #059669;"></div></div>
+            <div class="progress-track-bg"><div class="progress-fill-bar" style="width: 0%; background: #059669;"></div></div>
           </div>
 
           <div class="metric-progress-item">
             <div class="metric-labels-row">
               <span style="color:#475569; font-weight: 500;">● Umidade Média do Dossel</span>
-              <strong style="color: #1E293B;">67%</strong>
+              <strong style="color: #1E293B;">Sem dados</strong>
             </div>
-            <div class="progress-track-bg"><div class="progress-fill-bar" style="width: 67%; background: #0284C7;"></div></div>
+            <div class="progress-track-bg"><div class="progress-fill-bar" style="width: 0%; background: #0284C7;"></div></div>
           </div>
 
           <div class="metric-progress-item">
             <div class="metric-labels-row">
               <span style="color:#475569; font-weight: 500;">● Temperatura Foliar</span>
-              <strong style="color: #1E293B;">27°C</strong>
+              <strong style="color: #1E293B;">Sem dados</strong>
             </div>
-            <div class="progress-track-bg"><div class="progress-fill-bar" style="width: 60%; background: #F59E0B;"></div></div>
+            <div class="progress-track-bg"><div class="progress-fill-bar" style="width: 0%; background: #F59E0B;"></div></div>
           </div>
         </div>
 

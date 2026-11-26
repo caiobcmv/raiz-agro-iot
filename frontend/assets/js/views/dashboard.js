@@ -980,10 +980,19 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
   const valorPctNum = resumo?.resumo_condicoes?.pct_na_faixa != null ? Number(resumo.resumo_condicoes.pct_na_faixa) : (confPct != null ? Number(confPct) : null);
   const pctNaFaixa = valorPctNum != null ? `${valorPctNum}%` : 'Sem dados';
 
+  // Medidor do Resumo das Condições e Culturas
+  const temDadoMedidor = valorPctNum != null && Number.isFinite(valorPctNum) && valorPctNum > 0;
+  const vMedidor = temDadoMedidor ? Math.min(100, Math.max(0, valorPctNum)) : 0;
+
   // Coordenadas da agulha (R=43.2 a partir do centro 65, 60; 0% = esquerda, 100% = direita)
-  const anguloRad = valorPctNum != null ? (Math.min(100, Math.max(0, valorPctNum)) / 100) * Math.PI : Math.PI * 0.5;
+  // Fórmula: 0% → ângulo 180° (esquerda), 100% → 0° (direita), sentido anti-horário no SVG
+  const _gaugeClamp = valorPctNum != null ? Math.min(100, Math.max(0, valorPctNum)) : 50;
+  const anguloRad = (_gaugeClamp / 100) * Math.PI; // 0 → π (esquerda=π, direita=0)
   const agulhaX2 = (65 - 43.2 * Math.cos(anguloRad)).toFixed(1);
   const agulhaY2 = (60 - 43.2 * Math.sin(anguloRad)).toFixed(1);
+  // Arco preenchido: circunferência do semicírculo = π*50 ≈ 157.08; preenche proporcionalmente
+  const _arcFill = valorPctNum != null ? ((_gaugeClamp / 100) * 157.08).toFixed(1) : '0';
+  const _arcEmpty = (157.08 - Number(_arcFill) + 10).toFixed(1); // +10 para garantir que o trecho vazio não apareça
 
   const etapasLotes = resumo?.fluxo_lotes?.etapas || [];
   const totalLotesCadastrados = resumo?.lotes_monitorados?.total ?? 13;
@@ -997,6 +1006,22 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
   const qtdColhido = getQtdEtapa('Colhido');
   const qtdArmazenado = getQtdEtapa('Armazenado');
   const qtdTransporte = getQtdEtapa('Em transporte');
+  // Total real = soma dos status (fallback para totalLotesCadastrados se todos zero)
+  const _totalLotesStatus = qtdEmProducao + qtdPronto + qtdColhido + qtdArmazenado + qtdTransporte;
+  const _totalDonut = _totalLotesStatus > 0 ? _totalLotesStatus : totalLotesCadastrados;
+  // Donut segmentado: r=15.9155, circ=100 (stroke-dasharray em unidades percentuais de circunferência)
+  // Usamos a convenção: stroke-dasharray="X 100" com stroke-dashoffset para posicionar cada segmento
+  const _donutCores = ['#059669', '#10B981', '#06B6D4', '#0284C7', '#F59E0B'];
+  const _donutQtds = [qtdEmProducao, qtdPronto, qtdColhido, qtdArmazenado, qtdTransporte];
+  let _donutOffset = 25; // começa no topo (25 = -90° em unidades %)
+  const _donutSegmentos = _donutQtds.map((q, i) => {
+    const pct = _totalDonut > 0 ? (q / _totalDonut) * 100 : 0;
+    const gap = pct > 0 ? 1.5 : 0; // pequeno gap entre segmentos
+    const fill = Math.max(0, pct - gap);
+    const seg = `<path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="${_donutCores[i]}" stroke-width="4.5" stroke-dasharray="${fill.toFixed(2)} ${(100 - fill).toFixed(2)}" stroke-dashoffset="${(100 - _donutOffset).toFixed(2)}"/>`;
+    _donutOffset += pct;
+    return seg;
+  }).join('\n              ');
 
   return `
     <!-- Top Row: 3 Cards (Condição Geral, Lotes em Operação, Previsão do Tempo) -->
@@ -1021,7 +1046,7 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
                 </linearGradient>
               </defs>
               <path d="M 15,60 A 50,50 0 0,1 115,60" fill="none" stroke="#F1F5F9" stroke-width="11" stroke-linecap="round"/>
-              <path d="M 15,60 A 50,50 0 0,1 115,60" fill="none" stroke="url(#gauge-grad-card1)" stroke-width="11" stroke-linecap="round" stroke-dasharray="148 157.1" stroke-dashoffset="0"/>
+              <path d="M 15,60 A 50,50 0 0,1 115,60" fill="none" stroke="url(#gauge-grad-card1)" stroke-width="11" stroke-linecap="round" stroke-dasharray="${_arcFill} ${_arcEmpty}" stroke-dashoffset="0"/>
               <line x1="65" y1="60" x2="${agulhaX2}" y2="${agulhaY2}" stroke="#183D2E" stroke-width="3" stroke-linecap="round"/>
               <circle cx="65" cy="60" r="5" fill="#183D2E"/>
               <circle cx="65" cy="60" r="2" fill="#FFFFFF"/>
@@ -1060,7 +1085,7 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
                 <strong style="color: #1E293B;">${pctNaFaixa}</strong>
               </div>
               <div class="progress-track-bg">
-                <div class="progress-fill-bar" style="width: ${resumo?.resumo_condicoes?.pct_na_faixa != null ? resumo.resumo_condicoes.pct_na_faixa : 0}%; background: #0EA5E9;"></div>
+                <div class="progress-fill-bar" style="width: ${_gaugeClamp}%; background: #0EA5E9;"></div>
               </div>
             </div>
           </div>
@@ -1080,15 +1105,15 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
         </div>
 
         <div style="display: flex; align-items: center; gap: 20px; margin: 12px 0;">
-          <!-- Rosca de Capacidade -->
+          <!-- Rosca Segmentada por Status -->
           <div style="position: relative; width: 90px; height: 90px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
             <svg width="90" height="90" viewBox="0 0 36 36" style="transform: rotate(-90deg);">
               <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#F1F5F9" stroke-width="4.5"/>
-              <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" stroke-dasharray="50, 100" fill="none" stroke="#059669" stroke-width="4.5"/>
+              ${_donutSegmentos}
             </svg>
-            <div style="position: absolute; text-align: center;">
-              <span style="font-size: 18px; font-weight: 800; color: #1E293B;">${lotesComSensor}<small style="font-size: 11px; color: #94A3B8;">/${totalLotesCadastrados}</small></span>
-              <div style="font-size: 8px; font-weight: 700; color: #94A3B8; text-transform: uppercase;">Monitorados</div>
+            <div style="position: absolute; text-align: center; line-height: 1.1;">
+              <span style="font-size: 20px; font-weight: 800; color: #1E293B;">${_totalDonut}</span>
+              <div style="font-size: 7px; font-weight: 700; color: #94A3B8; text-transform: uppercase; margin-top: 1px;">LOTES</div>
             </div>
           </div>
 
@@ -1136,17 +1161,13 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
           </div>
         </div>
 
-        <div style="border-top: 1px solid #F1F5F9; padding-top: 8px; display: flex; flex-wrap: wrap; gap: 8px; font-size: 10px; color: #475569; margin-top: auto;">
-          <span>● ${qtdEmProducao} Produção</span>
-          <span>● ${qtdPronto} Pronto</span>
-          <span>● ${qtdColhido} Colhido</span>
-          <span>● ${qtdArmazenado} Armazenado</span>
-          <span>● ${qtdTransporte} Transporte</span>
+        <div style="border-top: 1px solid #F1F5F9; padding-top: 8px; font-size: 11px; color: #64748B; margin-top: auto; text-align: center;">
+          ${lotesComSensor} de ${_totalDonut} monitorados
         </div>
       </div>
 
       <!-- CARD 3: PREVISÃO DO TEMPO E CLIMA -->
-      <div class="figma-card">
+      <div class="figma-card" style="align-self: start;">
         <div class="card-top-title-row">
           <span class="card-header-label">PREVISÃO DO TEMPO</span>
           <span class="card-status-pill pill-amber" style="display: flex; align-items: center; gap: 4px;">
@@ -1174,7 +1195,7 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
           </div>
         </div>
 
-        <div style="border-top: 1px solid #F1F5F9; padding-top: 12px; display: flex; justify-content: space-between; font-size: 11px; margin-top: auto;">
+        <div style="border-top: 1px solid #F1F5F9; padding-top: 12px; display: flex; justify-content: space-between; font-size: 11px; margin-top: 16px;">
           <div><span style="color:#94A3B8; font-size:10px;">UMIDADE</span><div style="font-weight:700; color:#1E293B;" id="clima-umid-resumido">${climaUmidResumido}</div></div>
           <div><span style="color:#94A3B8; font-size:10px;">CHUVA</span><div style="font-weight:700; color:#1E293B;">${climaChuvaResumido}</div></div>
           <div><span style="color:#94A3B8; font-size:10px;">UV</span><div style="font-weight:700; color:#047857;">${climaUvResumido}</div></div>
@@ -1195,17 +1216,13 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
           </span>
         </div>
 
-        <!-- Gauge Semicircular Perfeitamente Alinhado na Mesma Curva Geométrica -->
-        <div class="gauge-semicircle-wrap">
-          <div class="gauge-svg-container">
-            <svg width="260" height="135" viewBox="0 0 260 135" style="display: block; margin: 0 auto;">
-              <!-- Arco Base Cinza de 180° perfeito -->
-              <path id="gauge-track" d="M 45,120 A 85,85 0 0,1 215,120" fill="none" stroke="#F1F5F9" stroke-width="20" stroke-linecap="round"/>
-              <!-- Segmento Verde Contínuo -->
-              <path d="M 45,120 A 85,85 0 0,1 215,120" fill="none" stroke="#059669" stroke-width="20" stroke-linecap="round" stroke-dasharray="${resumo?.resumo_condicoes?.pct_na_faixa != null ? (resumo.resumo_condicoes.pct_na_faixa * 2.68).toFixed(0) : '0'} 268" stroke-dashoffset="0"/>
-            </svg>
-            <div class="gauge-pct-number" style="font-size: ${pctNaFaixa === 'Sem dados' ? '18px' : '28px'};">${pctNaFaixa}</div>
-          </div>
+        <!-- Gauge Semicircular — pathLength="100" para dasharray direto em % -->
+        <div class="gauge-semicircle-wrap" style="margin: 4px auto 2px;">
+          <svg class="medidor" viewBox="0 0 120 70">
+            <path d="M10 60 A50 50 0 0 1 110 60" fill="none" stroke="#f1f5f9" stroke-width="10" stroke-linecap="round"/>
+            <path id="arco-resumo" d="M10 60 A50 50 0 0 1 110 60" fill="none" stroke="#059669" stroke-width="10" stroke-linecap="round" pathLength="100" stroke-dasharray="${vMedidor} 100" style="display: ${temDadoMedidor ? 'inline' : 'none'};"/>
+            <text id="texto-resumo" x="60" y="58" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">${temDadoMedidor ? `${vMedidor}%` : '—'}</text>
+          </svg>
           <div class="gauge-caption">LEITURAS CONFORMES</div>
         </div>
 
@@ -1754,6 +1771,20 @@ export async function setupDashboardEvents() {
 
   const dg = dadosGraficosCache || DEFAULT_DADOS_GRAFICOS;
 
+  // Sincroniza estado visual do medidor de resumo
+  const arcoResumo = document.getElementById('arco-resumo');
+  const txtResumo = document.getElementById('texto-resumo');
+  if (arcoResumo && txtResumo) {
+    const rawVal = parseFloat(txtResumo.textContent);
+    const temVal = Number.isFinite(rawVal) && rawVal > 0;
+    const v = temVal ? Math.min(100, Math.max(0, rawVal)) : 0;
+    arcoResumo.setAttribute('stroke-dasharray', `${v} 100`);
+    arcoResumo.style.display = temVal ? 'inline' : 'none';
+    if (!temVal && txtResumo.textContent.trim() !== '—') {
+      txtResumo.textContent = '—';
+    }
+  }
+
   // Toggle Resumido vs Detalhado com animação fluida Apple
   const toggleBtn = document.getElementById('toggle-dashboard-mode');
   if (toggleBtn) {
@@ -1955,9 +1986,9 @@ export async function setupDashboardEvents() {
 
         const payload = {
           conformidade_geral_pct: Number(document.getElementById('inp-dg-conf')?.value || 90),
-          saude_plantacao_pct: Number(document.getElementById('inp-dg-saude')?.value || 85),
-          umidade_dossel_pct: Number(document.getElementById('inp-dg-dossel')?.value || 67),
-          temp_foliar_c: Number(document.getElementById('inp-dg-tfoliar')?.value || 27),
+          saude_plantacao_pct: document.getElementById('inp-dg-saude')?.value ? Number(document.getElementById('inp-dg-saude').value) : null,
+          umidade_dossel_pct: document.getElementById('inp-dg-dossel')?.value ? Number(document.getElementById('inp-dg-dossel').value) : null,
+          temp_foliar_c: document.getElementById('inp-dg-tfoliar')?.value ? Number(document.getElementById('inp-dg-tfoliar').value) : null,
           agua_reservatorio_pct: Number(document.getElementById('inp-dg-agua')?.value || 63),
           vazao_ldia: Number(document.getElementById('inp-dg-vazao')?.value || 4200),
           umidade_ar_24h: parseSeries(document.getElementById('inp-dg-uar')?.value, cur.umidade_ar_24h),

@@ -445,9 +445,17 @@
   align-items: center;
   justify-content: center;
   position: relative;
-  margin: 12px auto 6px;
+  margin: 4px auto 2px;
   width: 100%;
   max-width: 280px;
+}
+
+/* Novo medidor SVG pathLength="100" */
+.medidor {
+  display: block;
+  width: 100%;
+  max-width: 220px;
+  margin: 0 auto;
 }
 
 .gauge-svg-container {
