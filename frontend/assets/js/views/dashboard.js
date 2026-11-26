@@ -113,7 +113,11 @@ function atualizarDashboardComSSE(data) {
   }
 
   // 3. Selo de origem real do sensor
-  const isSemDados = data.status === 'sem_dados';
+  // Exibir "Sensor Real" apenas se a leitura for recente (<30 min) e houver dados
+  const now = new Date();
+  const ts = new Date(data.timestamp);
+  const isRecent = !isNaN(ts) && (now - ts) < 30 * 60 * 1000;
+  const isSemDados = data.status === 'sem_dados' || !isRecent;
   const seloTexto = isSemDados ? 'Sem dados' : 'Sensor Real';
   const seloClasseRemover = isSemDados ? 'pill-green' : 'pill-blue';
   const seloClasseAdicionar = isSemDados ? 'pill-blue' : 'pill-green';
@@ -899,17 +903,61 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
 
   // --- Clima Open-Meteo real para o Card 3 ---
   const climaAtual = clima?.agora || clima?.atual || clima || {};
+
+  // Map weather code to description (fallback to existing description)
+  const weatherMap = {
+    0: "Ensolarado",
+    1: "Principalmente claro",
+    2: "Parcialmente nublado",
+    3: "Nublado",
+    45: "Nevoeiro",
+    48: "Nevoeiro",
+    51: "Chuvisco",
+    61: "Chuva leve",
+    80: "Chuva moderada",
+    95: "Tempestade"
+  };
+  const climaDescResumido = weatherMap[climaAtual.weather_code] ||
+    climaAtual.condicao || climaAtual.descricao || 'Predomínio de sol';
+
   const tRaw = climaAtual.temperatura != null ? climaAtual.temperatura : (climaAtual.temperature_2m != null ? climaAtual.temperature_2m : null);
   const climaTempResumido = tRaw != null ? `${Math.round(Number(tRaw))}°C` : '—';
-  const climaDescResumido = climaAtual.condicao || climaAtual.descricao || 'Predomínio de sol';
+
   const vRaw = climaAtual.vento_kmh != null ? climaAtual.vento_kmh : climaAtual.wind_speed_10m;
   const climaVentoResumido = vRaw != null ? `${Math.round(Number(vRaw))} km/h` : '—';
+
   const uRaw = climaAtual.umidade != null ? climaAtual.umidade : climaAtual.relative_humidity_2m;
   const climaUmidResumido = uRaw != null ? `${Math.round(Number(uRaw))}%` : '—';
+
   const cRaw = climaAtual.chuva_mm != null ? climaAtual.chuva_mm : climaAtual.precipitation;
   const climaChuvaResumido = cRaw != null ? `${cRaw} mm` : '0 mm';
+
   const uvRaw = climaAtual.uv != null ? climaAtual.uv : climaAtual.uv_index;
   const climaUvResumido = uvRaw != null ? `Índice ${Number(uvRaw).toFixed(1)}` : 'Mod. 5.0';
+
+  // ---- Skeleton loading placeholder for forecast card ----
+  const forecastContainer = document.getElementById('forecast-card-container');
+  if (!forecastContainer) {
+    // Insert a skeleton container the first time we render this mode
+    const containerHtml = `
+      <div id="forecast-card-container" class="skeleton-card" style="padding:20px;">
+        <div class="skeleton-line short"></div>
+        <div class="skeleton-line medium"></div>
+        <div class="skeleton-line long"></div>
+        <div style="display:flex; gap:10px; margin-top:12px;">
+          <div class="skeleton-square" style="flex:1;"></div>
+          <div class="skeleton-square" style="flex:1;"></div>
+          <div class="skeleton-square" style="flex:1;"></div>
+        </div>
+      </div>`;
+    const parent = document.querySelector('.forecast-section');
+    if (parent) parent.insertAdjacentHTML('afterbegin', containerHtml);
+  }
+
+  // Toast error if core data missing
+  if (climaTempResumido === '—' && climaUmidResumido === '—' && climaVentoResumido === '—') {
+    toast.error('Falha ao carregar previsão', 'Tente novamente');
+  }
 
   const pDia = clima?.periodos_dia || {};
   const climaManha = pDia.manha != null ? `${Math.round(Number(pDia.manha))}°` : '—';
@@ -1317,7 +1365,7 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
         <!-- Gráfico 4: Temperatura do Ar -->
         <div class="mini-chart-card">
           <div class="mini-chart-header">
-            <span class="mini-chart-title">Temperatura do Ar</span>
+            <span class="mini-chart-title">Temperatura <br>do Ar</span>
             <span class="mini-chart-pill pill-green" id="miniChart4-pill">${dg.temp_ar_24h && dg.temp_ar_24h.length ? `${dg.temp_ar_24h[dg.temp_ar_24h.length - 1]}°C` : 'Sem dados'}</span>
           </div>
           <div class="chart-canvas-wrap">
