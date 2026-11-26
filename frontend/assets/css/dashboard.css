@@ -526,6 +526,7 @@
 }
 
 .charts-4col-grid {
+  width: 100%;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 20px;
