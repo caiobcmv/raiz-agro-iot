@@ -118,14 +118,9 @@ export async function renderConfiguracoes() {
                 ${roleBadge} (Usuário #${userId} • ${emailUsuario})
               </span>
             </div>
-            <p style="margin: 3px 0 0; font-size: 12px; color: #94A3B8;">Suas preferências visuais são salvas localmente e carregadas automaticamente em qualquer dispositivo.</p>
+            <p style="margin: 3px 0 0; font-size: 12px; color: #94A3B8;">Seus dados de perfil são definidos pela administração. As preferências visuais ficam salvas neste navegador.</p>
           </div>
         </div>
-
-        <button id="btn-salvar-perfil-banco" style="padding: 9px 18px; background: #059669; color: #FFFFFF; border: none; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; transition: opacity 0.15s; box-shadow: 0 2px 6px rgba(5,150,105,0.25);" onmouseover="this.style.opacity='.9'" onmouseout="this.style.opacity='1'">
-          <i data-lucide="cloud" style="width: 14px; height: 14px;"></i>
-          <span>Salvar Perfil no Banco</span>
-        </button>
       </div>
 
       <!-- Grid com 3 Colunas -->
@@ -136,7 +131,7 @@ export async function renderConfiguracoes() {
           <!-- Nome de Exibição -->
           <div style="margin-bottom: 14px;">
             <label style="display: block; font-size: 11px; font-weight: 600; color: #475569; margin-bottom: 6px;">Nome de Exibição</label>
-            <input id="cfg-profile-name" value="${nomeExibicao}" ${readOnlyAttr} style="width: 100%; padding: 10px 12px; border: 1px solid #E2E8F0; border-radius: 9px; font-size: 13px; color: #0F172A; outline: none; background: ${inputBg}; box-sizing: border-box; cursor: ${inputCursor};">
+            <input id="cfg-profile-name" value="${nomeExibicao}" readonly style="width: 100%; padding: 10px 12px; border: 1px solid #E2E8F0; border-radius: 9px; font-size: 13px; color: #0F172A; outline: none; background: #F8FAFC; box-sizing: border-box; cursor: default;">
           </div>
 
           <!-- Cargo e Iniciais -->
@@ -147,14 +142,14 @@ export async function renderConfiguracoes() {
             </div>
             <div>
               <label style="display: block; font-size: 11px; font-weight: 600; color: #475569; margin-bottom: 6px;">Iniciais</label>
-              <input id="cfg-profile-initials" value="${iniciais}" ${readOnlyAttr} style="width: 100%; padding: 10px 12px; border: 1px solid #E2E8F0; border-radius: 9px; font-size: 13px; font-weight: 700; text-align: center; color: #0F172A; outline: none; background: ${inputBg}; box-sizing: border-box; cursor: ${inputCursor};">
+              <input id="cfg-profile-initials" value="${iniciais}" readonly style="width: 100%; padding: 10px 12px; border: 1px solid #E2E8F0; border-radius: 9px; font-size: 13px; font-weight: 700; text-align: center; color: #0F172A; outline: none; background: #F8FAFC; box-sizing: border-box; cursor: default;">
             </div>
           </div>
 
           <!-- Telefone de Contato -->
           <div>
             <label style="display: block; font-size: 11px; font-weight: 600; color: #475569; margin-bottom: 6px;">Telefone de Contato</label>
-            <input id="cfg-profile-phone" value="${telefone}" ${readOnlyAttr} style="width: 100%; padding: 10px 12px; border: 1px solid #E2E8F0; border-radius: 9px; font-size: 13px; color: #0F172A; outline: none; background: ${inputBg}; box-sizing: border-box; cursor: ${inputCursor};">
+            <input id="cfg-profile-phone" value="${telefone}" readonly style="width: 100%; padding: 10px 12px; border: 1px solid #E2E8F0; border-radius: 9px; font-size: 13px; color: #0F172A; outline: none; background: #F8FAFC; box-sizing: border-box; cursor: default;">
           </div>
         </div>
 
@@ -163,7 +158,7 @@ export async function renderConfiguracoes() {
           <!-- Biografia / Escopo Operacional -->
           <div style="margin-bottom: 14px;">
             <label style="display: block; font-size: 11px; font-weight: 600; color: #475569; margin-bottom: 6px;">Biografia / Escopo Operacional</label>
-            <textarea id="cfg-profile-bio" rows="3" ${readOnlyAttr} style="width: 100%; padding: 10px 12px; border: 1px solid #E2E8F0; border-radius: 9px; font-size: 13px; color: #0F172A; outline: none; background: ${inputBg}; box-sizing: border-box; resize: none; font-family: inherit; line-height: 1.5; cursor: ${inputCursor};">${bio}</textarea>
+            <textarea id="cfg-profile-bio" rows="3" readonly style="width: 100%; padding: 10px 12px; border: 1px solid #E2E8F0; border-radius: 9px; font-size: 13px; color: #0F172A; outline: none; background: #F8FAFC; box-sizing: border-box; resize: none; font-family: inherit; line-height: 1.5; cursor: default;">${bio}</textarea>
           </div>
 
           <!-- Cor do Avatar -->
@@ -189,24 +184,8 @@ export async function renderConfiguracoes() {
           </div>
         </div>
 
-        <!-- Coluna 3: Card de Tema Visual e Toggles -->
+        <!-- Coluna 3: Preferências Visuais e Toggles -->
         <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px 20px;">
-          <!-- Tema Visual da Plataforma -->
-          <div style="margin-bottom: 18px;">
-            <label style="display: block; font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 8px;">Tema Visual da Plataforma</label>
-            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px;">
-              <button class="theme-option-btn active" data-theme="claro" style="padding: 8px 6px; background: #FFFFFF; border: 1.5px solid #10B981; border-radius: 8px; font-size: 11px; font-weight: 700; color: #065F46; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px;">
-                <span style="width: 8px; height: 8px; border-radius: 50%; background: #F59E0B;"></span> Claro
-              </button>
-              <button class="theme-option-btn" data-theme="escuro" style="padding: 8px 6px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 11px; font-weight: 600; color: #475569; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px;">
-                🌙 Escuro
-              </button>
-              <button class="theme-option-btn" data-theme="contraste" style="padding: 8px 6px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 11px; font-weight: 600; color: #475569; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px;">
-                ⚡ Contraste
-              </button>
-            </div>
-          </div>
-
           <!-- Efeitos Visuais e Animações -->
           <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 14px; border-bottom: 1px solid #EEF2F6; margin-bottom: 14px;">
             <div>
@@ -218,16 +197,6 @@ export async function renderConfiguracoes() {
             </div>
           </div>
 
-          <!-- Telemetria em Tempo Real -->
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div>
-              <div style="font-size: 11px; font-weight: 700; color: #0F172A;">Telemetria em Tempo Real</div>
-              <div style="font-size: 10px; color: #94A3B8; margin-top: 1px;">Atualiza leituras automaticamente sem recarregar</div>
-            </div>
-            <div class="toggle-track active" style="width: 36px; height: 20px; background: #059669; border-radius: 10px; position: relative; cursor: pointer; flex-shrink: 0;">
-              <div style="position: absolute; left: 18px; top: 2px; width: 16px; height: 16px; background: #FFFFFF; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.2);"></div>
-            </div>
-          </div>
 
         </div>
 
@@ -252,7 +221,6 @@ export async function renderConfiguracoes() {
           <div>
             <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
               <h3 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 16px; font-weight: 700; color: #0F172A;">Histórico de Safra do Produtor</h3>
-              <span style="background: #ECFDF5; color: #065F46; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 6px;">PostgreSQL • Tempo Real</span>
             </div>
             <p style="margin: 3px 0 0; font-size: 12px; color: #94A3B8;">Ciclos consolidados de colheita com cultura, área plantada, produtividade, consumo hídrico e Brix médio.</p>
           </div>
@@ -286,28 +254,81 @@ export async function renderConfiguracoes() {
             </tr>
           </thead>
           <tbody>
-            ${safrasReais.length === 0 ? `
-              <tr><td colspan="8" style="padding: 18px; text-align: center; font-size: 12px; color: #64748B;">Nenhuma safra cadastrada no banco de dados.</td></tr>
-            ` : safrasReais.map(s => {
-              const dtIni = s.data_inicio ? new Date(s.data_inicio).toLocaleDateString('pt-BR') : '—';
-              const dtFim = s.data_fim ? new Date(s.data_fim).toLocaleDateString('pt-BR') : 'Em andamento';
-              const areaVal = propReal.area_ha != null ? `${Number(propReal.area_ha).toLocaleString('pt-BR')} ha` : '—';
-              const metaVal = s.meta_ton_ha != null ? `${Number(s.meta_ton_ha).toLocaleString('pt-BR')} ton/ha (Meta)` : '—';
-              return `
+            ${(() => {
+              function _lotePertenceASafra(lote, safra) {
+                const dataColheitaStr = String(lote.data_colheita || lote.data_plantio || '').split('T')[0];
+                if (!dataColheitaStr) return true;
+                if (safra.data_inicio) {
+                  const inicioStr = String(safra.data_inicio).split('T')[0];
+                  if (dataColheitaStr < inicioStr) return false;
+                  if (safra.data_fim) {
+                    const fimStr = String(safra.data_fim).split('T')[0];
+                    if (dataColheitaStr > fimStr) return false;
+                  }
+                  return true;
+                }
+                if (safra.ciclo) {
+                  const anos = safra.ciclo.match(/\d{4}/g);
+                  if (anos && anos.length > 0) {
+                    const anoColheita = parseInt(dataColheitaStr.split('-')[0], 10);
+                    const anoMin = Math.min(...anos.map(a => parseInt(a, 10)));
+                    const anoMax = Math.max(...anos.map(a => parseInt(a, 10)));
+                    return anoColheita >= anoMin && anoColheita <= anoMax;
+                  }
+                }
+                return false;
+              }
+              function _calcProd(safra, lotes, prop) {
+                const statusColhidos = ['colhido', 'armazenado', 'em transporte', 'finalizado'];
+                let somaTon = 0; let temValido = false;
+                (lotes || []).filter(l => _lotePertenceASafra(l, safra)).forEach(lote => {
+                  const st = String(lote.status || '').trim().toLowerCase();
+                  if (!statusColhidos.includes(st)) return;
+                  const unid = String(lote.unidade || '').trim().toLowerCase();
+                  const qtd = Number(lote.quantidade);
+                  if (!isNaN(qtd) && qtd > 0) {
+                    if (unid === 'kg') { somaTon += qtd / 1000; temValido = true; }
+                    else if (unid === 't' || unid === 'ton' || unid === 'tonelada') { somaTon += qtd; temValido = true; }
+                  }
+                });
+                const producaoTon = temValido ? somaTon : (safra.volume_total_ton ? Number(safra.volume_total_ton) : null);
+                const areaHa = (prop && Number(prop.area_ha) > 0) ? Number(prop.area_ha) : (safra.area_ha ? Number(safra.area_ha) : null);
+                let produtividadeTonHa = null;
+                if (producaoTon !== null && areaHa && areaHa > 0) { produtividadeTonHa = producaoTon / areaHa; }
+                else if (safra.produtividade_ton_ha) { produtividadeTonHa = Number(safra.produtividade_ton_ha); }
+                return { producaoTon, produtividadeTonHa, areaHa };
+              }
+              const safrasComDados = safrasReais.filter(s => {
+                const m = _calcProd(s, lotesReais, propReal);
+                return m.producaoTon !== null || m.produtividadeTonHa !== null || s.meta_ton_ha != null || s.nome || s.ciclo;
+              });
+              if (safrasComDados.length === 0) {
+                return `<tr><td colspan="8" style="padding: 18px; text-align: center; font-size: 12px; color: #64748B;">Nenhuma safra com dados.</td></tr>`;
+              }
+              return safrasComDados.map(s => {
+                const m = _calcProd(s, lotesReais, propReal);
+                const dtIni = s.data_inicio ? new Date(s.data_inicio).toLocaleDateString('pt-BR') : '—';
+                const dtFim = s.data_fim ? new Date(s.data_fim).toLocaleDateString('pt-BR') : 'Em andamento';
+                const areaVal = m.areaHa != null ? `${Number(m.areaHa).toLocaleString('pt-BR')} ha` : '—';
+                const prodVal = m.produtividadeTonHa !== null ? `${Number(m.produtividadeTonHa).toFixed(1).replace('.', ',')} ton/ha` : '—';
+                const metaVal = s.meta_ton_ha != null ? `${Number(s.meta_ton_ha).toLocaleString('pt-BR')} ton/ha` : '—';
+                const volVal = m.producaoTon !== null ? `${Number(m.producaoTon).toFixed(1).replace('.', ',')} ton` : '—';
+                const culturaVal = CULTURAS_LIST.join(', ') || '—';
+                return `
                 <tr style="border-bottom: 1px solid #F1F5F9;">
-                  <td style="padding: 14px; font-size: 13px; font-weight: 700; color: #0F172A;">${s.nome || ('Safra #' + s.id_safra)}</td>
-                  <td style="padding: 14px; font-size: 13px; color: #334155;">${CULTURAS_LIST.join(', ') || '—'}</td>
+                  <td style="padding: 14px; font-size: 13px; font-weight: 700; color: #0F172A;">${s.nome || s.ciclo || ('Safra #' + s.id_safra)}</td>
+                  <td style="padding: 14px; font-size: 13px; color: #334155;">${culturaVal}</td>
                   <td style="padding: 14px; font-size: 13px; color: #475569;">${areaVal}</td>
-                  <td style="padding: 14px; font-size: 13px; font-weight: 700; color: #059669;">${metaVal}</td>
+                  <td style="padding: 14px; font-size: 13px; font-weight: 700; color: #059669;">${prodVal}</td>
+                  <td style="padding: 14px; font-size: 13px; color: #475569;">${volVal}</td>
                   <td style="padding: 14px; font-size: 13px; color: #475569;">${dtIni} a ${dtFim}</td>
-                  <td style="padding: 14px; font-size: 13px; color: #475569;">—</td>
-                  <td style="padding: 14px; font-size: 13px; color: #475569;">—</td>
+                  <td style="padding: 14px; font-size: 13px; color: #475569;">${metaVal}</td>
                   <td style="padding: 14px;">
                     <span style="background: ${s.ativa ? '#D1FAE5' : '#F1F5F9'}; color: ${s.ativa ? '#065F46' : '#475569'}; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 6px;">${s.ativa ? 'Em Andamento' : 'Concluída'}</span>
                   </td>
-                </tr>
-              `;
-            }).join('')}
+                </tr>`;
+              }).join('');
+            })()}
           </tbody>
         </table>
       </div>
@@ -657,32 +678,21 @@ export async function setupConfiguracoesEvents() {
     });
   });
 
-  // B) Tema Visual da Plataforma (Claro, Escuro, Contraste)
-  document.querySelectorAll('.theme-option-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.theme-option-btn').forEach(b => {
-        b.classList.remove('active');
-        b.style.border = '1px solid #E2E8F0';
-        b.style.fontWeight = '600';
-        b.style.color = '#475569';
+  // B) Limpeza e garantia de tema claro unico
+  (function() {
+    try {
+      document.documentElement.removeAttribute('data-theme');
+      localStorage.removeItem('raiz_tema');
+    } catch(e) {}
+    var btns = document.querySelectorAll('.theme-option-btn');
+    if (btns && btns.length > 0) {
+      btns.forEach(function(btn) {
+        if (btn) btn.style.display = 'none';
       });
-      btn.classList.add('active');
-      btn.style.border = '1.5px solid #10B981';
-      btn.style.fontWeight = '700';
-      btn.style.color = '#065F46';
+    }
+  }());
 
-      const theme = btn.dataset.theme;
-      if (theme === 'escuro') {
-        document.body.classList.add('dark-theme-preview');
-        toast.info('Modo Escuro Ativo', 'Preferência visual aplicada à sua interface.');
-      } else {
-        document.body.classList.remove('dark-theme-preview');
-        toast.info('Tema Atualizado', `Modo ${btn.textContent.trim()} selecionado.`);
-      }
-    });
-  });
-
-  // C) Toggles de Animações e Telemetria em Tempo Real
+  // C) Toggles de Animações e Telemetria
   document.querySelectorAll('.toggle-track').forEach(toggle => {
     toggle.addEventListener('click', () => {
       const knob = toggle.querySelector('div');
@@ -703,7 +713,7 @@ export async function setupConfiguracoesEvents() {
   document.getElementById('btn-recarregar-safra')?.addEventListener('click', () => {
     const icon = document.querySelector('#btn-recarregar-safra i, #btn-recarregar-safra svg');
     if (icon) icon.style.transform = 'rotate(360deg)';
-    toast.success('Histórico Atualizado', 'Dados de safra sincronizados em tempo real com o banco.');
+    toast.success('Histórico Atualizado', 'Dados de safra sincronizados com sucesso.');
   });
 
   // E) Preferências de Moeda
@@ -725,19 +735,11 @@ export async function setupConfiguracoesEvents() {
     });
   });
 
-  // F) Salvar Perfil no Banco (Preferências Pessoais)
-  document.getElementById('btn-salvar-perfil-banco')?.addEventListener('click', () => {
-    const activePill = document.querySelector('.avatar-color-pill.active');
-    const colorKey = activePill?.dataset.color || 'esmeralda';
-    auth.saveAvatarTheme(colorKey);
-    toast.success('Perfil Salvo', 'Preferências de avatar e tema sincronizadas com sucesso.');
-  });
-
   // G) Restaurar Padrões Visuais / Sistema
   document.getElementById('btn-restaurar-padroes')?.addEventListener('click', () => {
     auth.saveAvatarTheme('esmeralda');
     document.body.classList.remove('dark-theme-preview');
-    toast.info('Padrões Restaurados', isAdmin ? 'Padrões de sistema e tema Claro restaurados.' : 'Tema Claro e paleta Esmeralda restaurados.');
+    toast.info('Padrões Restaurados', 'Paleta Esmeralda restaurada.');
   });
 
   // H) Edição de Variedades e Limiares

@@ -20,15 +20,15 @@ import {
   renderSenhaAlterada, setupSenhaAlteradaEvents,
   renderContaBloqueada, setupContaBloqueadaEvents
 } from './views/auth-flow.js?v=20261122-totp1';
-import { renderDashboard, setupDashboardEvents } from './views/dashboard.js?v=20261122-real3';
+import { renderDashboard, setupDashboardEvents } from './views/dashboard.js?v=20261127-real6';
 import { renderSensores, setupSensoresEvents } from './views/sensores.js?v=20261122-real2';
 import { renderRedeEsp32, setupRedeEsp32Events } from './views/rede-esp32.js?v=20261122-real2';
-import { renderLeituras, setupLeiturasEvents } from './views/leituras.js?v=20261122-real3';
+import { renderLeituras, setupLeiturasEvents } from './views/leituras.js?v=20261127-real6';
 import { renderLotes, setupLotesEvents } from './views/lotes.js?v=20261122-real2';
 import { renderAlertas, setupAlertasEvents } from './views/alertas.js?v=20261122-real2';
 import { renderPrevisoes } from './views/previsoes.js?v=20261122-real2';
 import { renderRelatorios, setupRelatoriosEvents } from './views/relatorios.js?v=20261122-real2';
-import { renderConfiguracoes, setupConfiguracoesEvents } from './views/configuracoes.js?v=20261122-totp1';
+import { renderConfiguracoes, setupConfiguracoesEvents } from './views/configuracoes.js?v=20261127-real6';
 import { renderCalibracao, setupCalibracaoEvents } from './views/calibracao.js?v=20261122-real5';
 import { renderUsuarios, setupUsuariosEvents } from './views/usuarios.js?v=20261120-live33';
 import { renderRegrasAgronomicas, setupRegrasAgronomicasEvents } from './views/regras-agronomicas.js?v=20261120-live33';
@@ -300,45 +300,7 @@ export class Router {
       toast.info('Telemetria IoT', `Coleta ativa via nós ESP32 e canal ${profile.gatewayPill} (${profile.gatewayStatus}).`);
     });
 
-    // 5. Seletor de Data do Header com Modal Interativo
-    const dateSelectorBtn = document.getElementById('header-date-selector');
-    if (dateSelectorBtn) {
-      dateSelectorBtn.addEventListener('click', () => {
-        const currentLabel = document.getElementById('header-date-label')?.textContent || '22 de setembro de 2026';
-        Modal.open('Período de Análise e Ciclo de Safra', `
-          <div style="display:flex; flex-direction:column; gap:14px; font-size:13px;">
-            <p style="color:#64748B; margin:0; line-height:1.5; font-size:13px;">Selecione a janela temporal para filtragem dinâmica dos indicadores:</p>
-            <div style="display:flex; flex-direction:column; gap:8px;">
-              ${[
-                'Tempo Real • Hoje (Ciclo Ativo)',
-                '22 de setembro de 2026 (Semana 38)',
-                'Últimos 7 dias consolidados',
-                'Últimos 30 dias (Mensal)',
-                'Safra 2025/2026 Completa'
-              ].map(periodo => {
-                const isChecked = currentLabel.includes(periodo.split(' ')[0]);
-                return `
-                <label style="display:flex; align-items:center; gap:12px; padding:12px 14px; border-radius:10px; background:#F8FAFC; border:1px solid #E2E8F0; color:#0F172A; cursor:pointer; font-weight:600; font-size:13px; transition:all 0.15s ease;" onmouseover="this.style.background='#F1F5F9'; this.style.borderColor='#CBD5E1';" onmouseout="this.style.background='#F8FAFC'; this.style.borderColor='#E2E8F0';">
-                  <input type="radio" name="modal-periodo-safra" value="${periodo}" ${isChecked ? 'checked' : ''} style="accent-color:#059669; width:16px; height:16px; cursor:pointer; flex-shrink:0;">
-                  <span style="color:#0F172A !important; font-weight:600; font-size:13px; line-height:1.3;">${periodo}</span>
-                </label>
-              `;
-              }).join('')}
-            </div>
-          </div>
-        `, (modal) => {
-          const chosen = modal.querySelector('input[name="modal-periodo-safra"]:checked')?.value;
-          if (chosen) {
-            const labelEl = document.getElementById('header-date-label');
-            if (labelEl) labelEl.textContent = chosen;
-            toast.success('Período Atualizado', `Exibindo telemetria e indicadores para: ${chosen}.`);
-          }
-          return true;
-        }, 'Aplicar Período');
-      });
-    }
-
-    // 6. Sincroniza o contador do sino de alertas no header com o status real no banco
+    // 5. Sincroniza o contador do sino de alertas no header com o status real no banco
     api.getEstadoAlertas().then(data => {
       const bell = document.getElementById('header-bell-count');
       if (bell && data && data.resumo) {

@@ -92,12 +92,11 @@ export function renderHeader(title) {
         </button>
         ` : ''}
 
-        <!-- Seletor de Data -->
-        <button type="button" class="date-selector-btn" id="header-date-selector" title="Selecionar período operacional" style="display: inline-flex; align-items: center; gap: 8px; background: #FFFFFF; border: 1px solid #E2E8F0; padding: 7px 16px; border-radius: 9999px; font-size: 13px; font-weight: 500; color: #173A31; white-space: nowrap; box-shadow: 0 1px 3px rgba(0,0,0,0.03); cursor: pointer; flex-shrink: 0;">
+        <!-- Data Atual (estático) -->
+        <div style="display: inline-flex; align-items: center; gap: 8px; background: #FFFFFF; border: 1px solid #E2E8F0; padding: 7px 16px; border-radius: 9999px; font-size: 13px; font-weight: 500; color: #173A31; white-space: nowrap; box-shadow: 0 1px 3px rgba(0,0,0,0.03); cursor: default; flex-shrink: 0;">
           <i data-lucide="calendar" style="width: 15px; height: 15px; color: #71807A; flex-shrink: 0;"></i>
           <span id="header-date-label" style="white-space: nowrap;">${dataFormatada}</span>
-          <i data-lucide="chevron-down" style="width: 13px; height: 13px; color: #71807A; flex-shrink: 0;"></i>
-        </button>
+        </div>
 
         <!-- Notificações com Badge Laranja (#F5A623) -->
         <a href="#/alertas" class="header-bell-btn" title="Ver Alertas Ativos" style="position: relative; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: #F8FAFC; border: 1px solid #E2E8F0; text-decoration: none; flex-shrink: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">

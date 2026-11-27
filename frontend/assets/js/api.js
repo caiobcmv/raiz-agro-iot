@@ -424,6 +424,10 @@ class ApiService {
     });
   }
 
+  async getParecerIA(idLote) {
+    return await this.request(`/ia/parecer?id_lote=${encodeURIComponent(idLote)}`);
+  }
+
   async assinarParecer(idParecer, dadosAssinatura) {
     return await this.request(`/pareceres/${encodeURIComponent(idParecer)}/assinar`, {
       method: 'POST',

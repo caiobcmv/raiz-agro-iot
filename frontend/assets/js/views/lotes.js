@@ -233,7 +233,6 @@ export async function renderLotes() {
         <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
           <div style="display: flex; justify-content: space-between; align-items: center;">
             <span style="font-size: 11px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">MONITORAMENTO DE ESTEIRA</span>
-            <span style="font-size: 10px; font-weight: 700; color: #047857; background: #DCFCE7; padding: 2px 8px; border-radius: 12px;">✓ 100% Rastreável</span>
           </div>
           <div style="margin: 10px 0;">
             <div style="font-size: 18px; font-weight: 800; color: #0F172A;">14 <span style="font-size: 11px; font-weight: 500; color: #64748B;">lotes em esteira</span></div>
@@ -242,12 +241,7 @@ export async function renderLotes() {
             </div>
             <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B;">
               <span>6 estágios (status_lote)</span>
-              <strong style="color: #047857;">Sem gargalo</strong>
             </div>
-          </div>
-          <div style="display: flex; justify-content: space-between; font-size: 11px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px;">
-            <span>Dono Vinculado (auth.sql)</span>
-            <strong style="color: #047857;">fk_usuario_id_usuario</strong>
           </div>
         </div>
       </div>

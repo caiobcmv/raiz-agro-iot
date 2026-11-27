@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+  <script>(function(){try{var t=localStorage.getItem('raiz_tema');if(t==='dark'||t==='contrast'){document.documentElement.setAttribute('data-theme',t);}}catch(e){}}());</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Visão Geral do Sistema | RAIZ Agro IoT</title>
@@ -13,7 +14,10 @@
   <link rel="stylesheet" href="/assets/css/layout.css?v=20261120-live33">
   <link rel="stylesheet" href="/assets/css/dashboard.css?v=20261120-live33">
   <link rel="stylesheet" href="/assets/css/analista.css?v=20261120-live33">
+  <link rel="stylesheet" href="/assets/css/theme.css?v=20261127-real6">
   
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -285,33 +289,6 @@
             <text id="texto-resumo" x="60" y="58" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">—</text>
           </svg>
           <div class="gauge-caption">LEITURAS CONFORMES</div>
-        </div>
-
-        <!-- Barras de Saúde, Umidade e Temperatura -->
-        <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; border-top: 1px solid #F1F5F9; padding-top: 14px;">
-          <div class="metric-progress-item">
-            <div class="metric-labels-row">
-              <span style="color:#475569; font-weight: 500;">● Saúde da Plantação (NDVI)</span>
-              <strong style="color: #1E293B;">Sem dados</strong>
-            </div>
-            <div class="progress-track-bg"><div class="progress-fill-bar" style="width: 0%; background: #059669;"></div></div>
-          </div>
-
-          <div class="metric-progress-item">
-            <div class="metric-labels-row">
-              <span style="color:#475569; font-weight: 500;">● Umidade Média do Dossel</span>
-              <strong style="color: #1E293B;">Sem dados</strong>
-            </div>
-            <div class="progress-track-bg"><div class="progress-fill-bar" style="width: 0%; background: #0284C7;"></div></div>
-          </div>
-
-          <div class="metric-progress-item">
-            <div class="metric-labels-row">
-              <span style="color:#475569; font-weight: 500;">● Temperatura Foliar</span>
-              <strong style="color: #1E293B;">Sem dados</strong>
-            </div>
-            <div class="progress-track-bg"><div class="progress-fill-bar" style="width: 0%; background: #F59E0B;"></div></div>
-          </div>
         </div>
 
         <!-- Rodapé Duplo: Culturas e Status da Água -->

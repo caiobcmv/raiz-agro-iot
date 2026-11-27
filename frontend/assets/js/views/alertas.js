@@ -38,11 +38,12 @@ export async function renderAlertas() {
   }
 
   try {
-    // 1. Busca alertas da API (GET /alertas), clima e sensores reais
-    const [resAlertas, resClima, resSensores] = await Promise.all([
+    // 1. Busca alertas da API (GET /alertas), clima, sensores e auditoria reais
+    const [resAlertas, resClima, resSensores, resAuditoria] = await Promise.all([
       api.getAlertas().catch(() => []),
       api.getClimaAtual().catch(() => null),
-      api.getSensores().catch(() => [])
+      api.getSensores().catch(() => []),
+      api.getAuditoria({ limit: 5 }).catch(() => [])
     ]);
 
     let listaAlertas = Array.isArray(resAlertas) ? resAlertas : (resAlertas && Array.isArray(resAlertas.alertas) ? resAlertas.alertas : []);
@@ -58,8 +59,9 @@ export async function renderAlertas() {
     });
 
     const listaSensores = Array.isArray(resSensores) ? resSensores : (resSensores && Array.isArray(resSensores.sensores) ? resSensores.sensores : []);
+    const listaAuditoria = Array.isArray(resAuditoria) ? resAuditoria : (resAuditoria && Array.isArray(resAuditoria.itens) ? resAuditoria.itens : []);
 
-    return renderGestoraAlertas(listaAlertas, resClima, listaSensores);
+    return renderGestoraAlertas(listaAlertas, resClima, listaSensores, listaAuditoria);
   } catch (err) {
     console.error('Erro ao inicializar Central de Alertas:', err);
     return `
@@ -1636,7 +1638,7 @@ export function renderAlertaError(idAlerta, erroMsg) {
 /**
  * Tela Principal da Central de Alertas
  */
-function renderGestoraAlertas(alertas = [], clima = {}, sensores = []) {
+function renderGestoraAlertas(alertas = [], clima = {}, sensores = [], auditoria = []) {
   // Cálculo estrito e real dos KPIs a partir dos dados recebidos
   const totalAlertas = alertas.length;
   const isAtivo = (a) => {
@@ -1884,45 +1886,60 @@ function renderGestoraAlertas(alertas = [], clima = {}, sensores = []) {
     <div style="display: grid; grid-template-columns: 1.6fr 1fr; gap: 20px; align-items: start;">
 
       <!-- Card 1: Log de Auditoria Recente -->
+      ${(() => {
+        const logsAuditoria = Array.isArray(auditoria) ? auditoria.slice(0, 5) : [];
+        const hoje = new Date();
+        const dataHojeBr = `${String(hoje.getDate()).padStart(2, '0')}/${String(hoje.getMonth() + 1).padStart(2, '0')}`;
+        const escTxt = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const fmtDataHoraAud = (ts) => {
+          if (!ts) return '—';
+          const d = new Date(ts);
+          if (isNaN(d.getTime())) return escTxt(ts);
+          return new Intl.DateTimeFormat('pt-BR', {
+            timeZone: 'America/Recife',
+            day: '2-digit',
+            month: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+          }).format(d);
+        };
+        const itensHtml = logsAuditoria.length > 0
+          ? logsAuditoria.map(item => {
+            const resNorm = String(item?.resultado || '').toLowerCase();
+            const cor = resNorm.includes('erro') || resNorm.includes('falha') || resNorm.includes('negad')
+              ? '#EF4444'
+              : (resNorm.includes('sucess') || resNorm.includes('ok') ? '#10B981' : '#0284C7');
+            const acaoTxt = escTxt(item?.acao || 'Ação registrada');
+            const usuarioTxt = escTxt(item?.usuario || 'Sistema');
+            const dataTxt = fmtDataHoraAud(item?.data_hora);
+            return `
+              <div style="display: flex; gap: 10px; align-items: flex-start;">
+                <span style="width: 7px; height: 7px; border-radius: 50%; background: ${cor}; margin-top: 5px; flex-shrink: 0;"></span>
+                <div>
+                  <div style="font-size: 11px; font-weight: 600; color: #0F172A;">${acaoTxt}</div>
+                  <div style="font-size: 10px; color: #94A3B8;">${dataTxt} • ${usuarioTxt}</div>
+                </div>
+              </div>
+            `;
+          }).join('')
+          : '<div style="font-size: 12px; color: #64748B; padding: 6px 0;">Nenhum registro de auditoria disponível.</div>';
+
+        return `
       <div class="apple-card" style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 16px; padding: 22px 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
           <div style="display: flex; align-items: center; gap: 8px;">
             <i data-lucide="clock" style="width: 15px; height: 15px; color: #64748B;"></i>
             <span style="font-size: 14px; font-weight: 700; color: #0F172A;">Log de Auditoria Recente</span>
           </div>
-          <span style="font-size: 11px; color: #94A3B8;">Hoje</span>
+          ${logsAuditoria.length > 0 ? `<span style="font-size: 11px; color: #94A3B8;">${dataHojeBr}</span>` : ''}
         </div>
 
-        <div id="audit-log-list" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 14px;">
-          <div style="display: flex; gap: 10px; align-items: flex-start;">
-            <span style="width: 7px; height: 7px; border-radius: 50%; background: #EF4444; margin-top: 5px; flex-shrink: 0;"></span>
-            <div>
-              <div style="font-size: 11px; font-weight: 600; color: #0F172A;">Notificação de limiar crítico emitida</div>
-              <div style="font-size: 10px; color: #94A3B8;">Talhão A1 • 11:35 BRT por Sistema IoT</div>
-            </div>
-          </div>
-
-          <div style="display: flex; gap: 10px; align-items: flex-start;">
-            <span style="width: 7px; height: 7px; border-radius: 50%; background: #10B981; margin-top: 5px; flex-shrink: 0;"></span>
-            <div>
-              <div style="font-size: 11px; font-weight: 600; color: #0F172A;">Alerta reconhecido pela gestão técnica</div>
-              <div style="font-size: 10px; color: #94A3B8;">Pomar Uva • 11:15 BRT por Maria Clara</div>
-            </div>
-          </div>
-
-          <div style="display: flex; gap: 10px; align-items: flex-start;">
-            <span style="width: 7px; height: 7px; border-radius: 50%; background: #0284C7; margin-top: 5px; flex-shrink: 0;"></span>
-            <div>
-              <div style="font-size: 11px; font-weight: 600; color: #0F172A;">Limiar térmico ajustado para Uva Vitória</div>
-              <div style="font-size: 10px; color: #94A3B8;">Parâmetros • 09:15 BRT por Eng. Marília</div>
-            </div>
-          </div>
+        <div id="audit-log-list" style="display: flex; flex-direction: column; gap: 12px;">
+          ${itensHtml}
         </div>
-
-        <a id="btn-ver-auditoria-completa" href="javascript:void(0)" style="font-size: 11px; font-weight: 600; color: #059669; text-decoration: none; display: block; text-align: center; padding: 4px 0;">
-          Ver Histórico Completo de Auditoria →
-        </a>
       </div>
+        `;
+      })()}
 
       <!-- Card 2: Diretrizes Globais de Manejo -->
       <div style="background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 16px; padding: 22px 24px;">
@@ -2257,44 +2274,6 @@ function setupGestoraAlertasEvents() {
       );
     });
   }
-
-  // 7. Ver Histórico Completo de Auditoria (Modal)
-  document.getElementById('btn-ver-auditoria-completa')?.addEventListener('click', () => {
-    Modal.open('Log Completo de Auditoria e Rastreabilidade', `
-      <div style="font-size: 12px; color: #334155; max-height: 380px; overflow-y: auto;">
-        <table style="width: 100%; border-collapse: collapse; text-align: left;">
-          <thead>
-            <tr style="border-bottom: 2px solid #E2E8F0; color: #64748B; font-size: 10px; text-transform: uppercase;">
-              <th style="padding: 8px 6px;">Horário</th>
-              <th style="padding: 8px 6px;">Origem</th>
-              <th style="padding: 8px 6px;">Evento</th>
-              <th style="padding: 8px 6px;">Operador</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr style="border-bottom: 1px solid #F1F5F9;">
-              <td style="padding: 8px 6px; font-weight: 600;">11:35 BRT</td>
-              <td style="padding: 8px 6px; color: #64748B;">Sensor S1</td>
-              <td style="padding: 8px 6px;">Disparo de alerta: Temperatura Crítica (34.1°C)</td>
-              <td style="padding: 8px 6px; color: #059669; font-weight: 600;">Automação Central</td>
-            </tr>
-            <tr style="border-bottom: 1px solid #F1F5F9;">
-              <td style="padding: 8px 6px; font-weight: 600;">11:15 BRT</td>
-              <td style="padding: 8px 6px; color: #64748B;">Painel Gestão</td>
-              <td style="padding: 8px 6px;">Alerta marcado como reconhecido</td>
-              <td style="padding: 8px 6px; color: #059669; font-weight: 600;">Maria Clara</td>
-            </tr>
-            <tr style="border-bottom: 1px solid #F1F5F9;">
-              <td style="padding: 8px 6px; font-weight: 600;">09:15 BRT</td>
-              <td style="padding: 8px 6px; color: #64748B;">Configuração</td>
-              <td style="padding: 8px 6px;">Ajuste de teto térmico para 32.0°C</td>
-              <td style="padding: 8px 6px; color: #059669; font-weight: 600;">Eng. Marília</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    `);
-  });
 }
 
 /**
