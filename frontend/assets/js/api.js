@@ -13,6 +13,8 @@ class ApiService {
     this.baseUrl = API_BASE_URL;
     this.isBackendOnline = null;
     this.currentLoginEmail = null;
+    this._refreshPromise = null;
+    this._refreshBlocked = false;
   }
 
   getToken() {
@@ -22,6 +24,7 @@ class ApiService {
   setTokens(access_token, refresh_token) {
     if (access_token) localStorage.setItem('access_token', access_token);
     if (refresh_token) localStorage.setItem('refresh_token', refresh_token);
+    this._refreshBlocked = false;
   }
 
   clearTokens() {
@@ -30,40 +33,60 @@ class ApiService {
     localStorage.removeItem('user_data');
     localStorage.removeItem('pending_login_email');
     this.currentLoginEmail = null;
+    this._refreshPromise = null;
+    this._refreshBlocked = false;
   }
 
   async refreshToken() {
-    const refreshToken = localStorage.getItem('refresh_token');
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-    try {
-      const res = await fetch(`${this.baseUrl}/auth/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(refreshToken ? { refresh_token: refreshToken } : {}),
-        signal: controller.signal
-      });
-      clearTimeout(timeoutId);
-
-      if (!res.ok) {
-        const err = new Error(`Falha ao renovar token (${res.status})`);
-        err.status = res.status;
-        throw err;
-      }
-
-      const data = await res.json();
-      if (data && data.access_token) {
-        this.setTokens(data.access_token, data.refresh_token || refreshToken);
-        return data.access_token;
-      }
-      throw new Error('Resposta de refresh inválida');
-    } catch (error) {
-      clearTimeout(timeoutId);
-      throw error;
+    if (this._refreshBlocked) {
+      const err = new Error('Renovação de sessão indisponível. Faça login novamente.');
+      err.status = 403;
+      throw err;
     }
+    if (this._refreshPromise) {
+      return await this._refreshPromise;
+    }
+
+    this._refreshPromise = (async () => {
+      const refreshToken = localStorage.getItem('refresh_token');
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+      try {
+        const res = await fetch(`${this.baseUrl}/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify(refreshToken ? { refresh_token: refreshToken } : {}),
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        if (!res.ok) {
+          if (res.status === 401 || res.status === 403) {
+            this._refreshBlocked = true;
+          }
+          const err = new Error(`Falha ao renovar token (${res.status})`);
+          err.status = res.status;
+          throw err;
+        }
+
+        const data = await res.json();
+        if (data && data.access_token) {
+          this.setTokens(data.access_token, data.refresh_token || refreshToken);
+          return data.access_token;
+        }
+        throw new Error('Resposta de refresh inválida');
+      } catch (error) {
+        clearTimeout(timeoutId);
+        throw error;
+      } finally {
+        this._refreshPromise = null;
+      }
+    })();
+
+    return await this._refreshPromise;
   }
 
   async getDashboardStreamTicket() {
@@ -178,7 +201,7 @@ class ApiService {
       if (response.status === 401) {
         // Se não é rota de login/2FA e ainda não tentou refresh, tenta renovar o token silenciosamente
         const isPublicAuth = endpoint.startsWith('/auth/login') || endpoint.startsWith('/auth/2fa') || endpoint.startsWith('/auth/refresh');
-        if (!isPublicAuth && !_retried) {
+        if (!isPublicAuth && !_retried && !this._refreshBlocked) {
           try {
             await this.refreshToken();
             return await this.request(endpoint, options, true);
@@ -325,6 +348,17 @@ class ApiService {
     });
   }
 
+  async get2FAPreferencia() {
+    return await this.request('/auth/2fa/preferencia');
+  }
+
+  async salvar2FAPreferencia(emailAtivo) {
+    return await this.request('/auth/2fa/preferencia', {
+      method: 'PUT',
+      body: JSON.stringify({ email_ativo: Boolean(emailAtivo) })
+    });
+  }
+
   // ==========================================
   // DASHBOARD RESUMO
   // ==========================================
@@ -373,6 +407,20 @@ class ApiService {
   async getCatalogoPropriedades() {
     const res = await this.request('/propriedades');
     return Array.isArray(res) ? res : (res?.propriedades || (res ? [res] : []));
+  }
+
+  async atualizarPropriedade(idPropriedade, dados) {
+    return await this.request(`/propriedades/${encodeURIComponent(idPropriedade)}`, {
+      method: 'PUT',
+      body: JSON.stringify(dados)
+    });
+  }
+
+  async atualizarPadraoVariedade(idVariedade, dados) {
+    return await this.request(`/variedades/${encodeURIComponent(idVariedade)}/padrao`, {
+      method: 'PUT',
+      body: JSON.stringify(dados)
+    });
   }
 
   async getClassificacaoResumo(idLote = null) {

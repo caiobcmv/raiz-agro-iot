@@ -1,4 +1,4 @@
-﻿/**
+/**
  * VIEW: REGRAS AGRONÔMICAS E LIMIARES FISIOLÓGICOS (FIGMA PIXEL PERFECT)
  * 100% IDÊNTICO À IMAGEM DE REFERÊNCIA.
  * Sub-barra técnica v4.2 com restauração, exportação e cadastro de regra,
@@ -16,55 +16,68 @@ let _regrasFisiologicas = [];
 
 // Load dynamic data from API and compute derived values
 async function loadRegrasData() {
-  try {
-    const configParams = await api.getConfigParametros(); // expects array of config_parametro
-    const cortes = await api.request('/cortes_alerta_preditivo'); // generic endpoint
-    const sensores = await api.getSensores();
-    // Transform configParams into regra objects (simplified mapping)
-    _regrasFisiologicas = configParams.map(p => ({
-      id: p.id || p.cultura || '',
-      categoria: p.cultura || p.categoria || '',
-      titulo: p.titulo || p.nome || '',
-      subtitulo: p.subtitulo || p.descricao || '',
-      badge: p.badge || '',
-      badgeClass: p.badgeClass || '',
-      icone: p.icone || 'leaf',
-      tempMin: p.temp_min || 0,
-      tempMax: p.temp_max || 0,
-      tempLabel: p.tempLabel || '',
-      pontoFrio: p.pontoFrio || '',
-      pontoQuente: p.pontoQuente || '',
-      pctVermelho: p.pctVermelho || 0,
-      pctVerde: p.pctVerde || 0,
-      pctAmarelo: p.pctAmarelo || 0,
-      urFaixa: p.urFaixa || '',
-      urPct: p.urPct || 0,
-      brixFaixa: p.brixFaixa || '',
-      brixPct: p.brixPct || 0,
-      sensoresInfo: '' // will be filled below
-    }));
-    // Compute sensorsInfo for each regra based on matching sensors
-    _regrasFisiologicas.forEach(r => {
-      const matched = sensores.filter(s => s.categoria === r.categoria);
-      const count = matched.length;
-      if (count > 0) {
-        r.sensoresInfo = `${count} Sensores Atrelados (${r.categoria})`;
-      } else {
-        r.sensoresInfo = 'Sem sensores vinculados';
-      }
-    });
-  } catch (e) {
-    console.warn('Falha ao carregar dados dinâmicos de regras agronômicas:', e);
-  }
-}
+  if (!api.getToken()) return;
+  // FIX: Promise.allSettled para que falha em cortes ou sensores não bloqueie configParams
+  const [configRes, cortesRes, sensoresRes] = await Promise.allSettled([
+    api.getConfigParametros(),
+    api.getCortesPreditivos(), // FIX: era '/cortes_alerta_preditivo' (404) → endpoint correto via api.js
+    api.getSensores()
+  ]);
 
-// Preload data on module load
-loadRegrasData();
+  if (configRes.status === 'rejected') {
+    console.warn('getConfigParametros falhou:', configRes.reason);
+  }
+  if (cortesRes.status === 'rejected') {
+    console.warn('getCortesPreditivos falhou:', cortesRes.reason);
+  }
+  if (sensoresRes.status === 'rejected') {
+    console.warn('getSensores falhou:', sensoresRes.reason);
+  }
+
+  const configParams = configRes.status === 'fulfilled' && Array.isArray(configRes.value)
+    ? configRes.value : [];
+  const sensores = sensoresRes.status === 'fulfilled' && Array.isArray(sensoresRes.value)
+    ? sensoresRes.value : [];
+
+  // Transform configParams into regra objects (simplified mapping)
+  _regrasFisiologicas = configParams.map(p => ({
+    id: p.id || p.cultura || '',
+    categoria: p.cultura || p.categoria || '',
+    titulo: p.titulo || p.nome || '',
+    subtitulo: p.subtitulo || p.descricao || '',
+    badge: p.badge || '',
+    badgeClass: p.badgeClass || '',
+    icone: p.icone || 'leaf',
+    tempMin: p.temp_min || 0,
+    tempMax: p.temp_max || 0,
+    tempLabel: p.tempLabel || '',
+    pontoFrio: p.pontoFrio || '',
+    pontoQuente: p.pontoQuente || '',
+    pctVermelho: p.pctVermelho || 0,
+    pctVerde: p.pctVerde || 0,
+    pctAmarelo: p.pctAmarelo || 0,
+    urFaixa: p.urFaixa || '',
+    urPct: p.urPct || 0,
+    brixFaixa: p.brixFaixa || '',
+    brixPct: p.brixPct || 0,
+    sensoresInfo: '' // will be filled below
+  }));
+
+  // Compute sensorsInfo for each regra based on matching sensors
+  _regrasFisiologicas.forEach(r => {
+    const matched = sensores.filter(s => s.categoria === r.categoria);
+    const count = matched.length;
+    r.sensoresInfo = count > 0
+      ? `${count} Sensores Atrelados (${r.categoria})`
+      : 'Sem sensores vinculados';
+  });
+}
 
 let _filtroCatRegras = 'todos';
 let _termoBuscaRegras = '';
 
 export async function renderRegrasAgronomicas() {
+  await loadRegrasData();
   return `
     <div class="dashboard-canvas apple-animate-in" style="max-width: 1400px; margin: 0 auto;">
       
