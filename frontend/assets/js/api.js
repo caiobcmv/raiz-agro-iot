@@ -396,7 +396,7 @@ class ApiService {
   // LOTES DE PRODUÇÃO
   // ==========================================
   async getLotes() {
-    return await this.request('/lotes');
+    return await this.request('/lotes?limit=1000');
   }
 
   async createLote(data) {
