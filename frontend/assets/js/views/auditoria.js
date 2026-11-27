@@ -173,7 +173,7 @@ export async function renderAuditoria() {
           <div style="display: flex; justify-content: space-between; align-items: flex-start;">
             <div>
               <span style="font-size: 10px; font-weight: 800; color: #64748B; letter-spacing: 0.5px; display: block;">TOTAL DE EVENTOS<br>AUDITADOS (30D)</span>
-              <div style="font-size: 26px; font-weight: 800; color: #0F172A; line-height: 1.1; margin-top: 8px;">${countTotal}</div>
+              <div style="font-size: 26px; font-weight: 800; color: #0F172A; line-height: 1.1; margin-top: 8px;">${_logsAuditoria.length}</div>
             </div>
             <div style="width: 38px; height: 38px; border-radius: 50%; border: 3px solid #10B981; color: #047857; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 800; flex-shrink: 0;">100%</div>
           </div>
@@ -189,7 +189,7 @@ export async function renderAuditoria() {
             <div>
               <span style="font-size: 10px; font-weight: 800; color: #64748B; letter-spacing: 0.5px; display: block;">ACESSOS &amp; SESSÕES<br>(LOG_ACESSO)</span>
               <div style="display: flex; align-items: baseline; gap: 6px; margin-top: 8px;">
-                <span style="font-size: 26px; font-weight: 800; color: #0F172A; line-height: 1.1;">${countAcessos}</span>
+                <span style="font-size: 26px; font-weight: 800; color: #0F172A; line-height: 1.1;">${_logsAuditoria.filter(l=>l.categoria==='acessos').length}</span>
 
               </div>
             </div>
