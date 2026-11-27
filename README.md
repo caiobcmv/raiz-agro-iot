@@ -1,6 +1,7 @@
 # Raiz - Front-End
 
-Plataforma web de **monitoramento climático e logístico de frutas** (Manga, Uva e Melão), do campo ao porto. Sensores IoT (ESP32 + DHT11 via ThingSpeak) alimentam um banco PostgreSQL; uma API FastAPI expõe os dados com autenticação JWT e controle de acesso por perfil; e um dashboard em JavaScript puro exibe leituras em tempo real, alertas, previsões de IA, rastreabilidade de lotes e rotas de exportação.
+
+Plataforma web de **monitoramento climático e logístico de frutas** (Manga, Uva e Melão), abrangendo o percurso do campo ao porto. Sensores IoT (ESP32 + DHT11), integrados ao ThingSpeak, fornecem dados armazenados em um banco de dados PostgreSQL. Uma API FastAPI disponibiliza os dados com autenticação JWT e controle de acesso baseado em perfil. O dashboard, desenvolvido em JavaScript puro, apresenta leituras em tempo real, alertas, previsões de IA, rastreabilidade de lotes e rotas de exportação.
 
 ---
 
