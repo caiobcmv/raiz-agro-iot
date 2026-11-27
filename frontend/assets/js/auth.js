@@ -176,7 +176,7 @@ class AuthState {
       console.warn('Erro ao salvar sessão no localStorage:', e);
     }
 
-    await this.syncPreferencesFromDB();
+    this.syncPreferencesFromDB().catch(() => {});
 
     window.dispatchEvent(new CustomEvent('profile-changed', {
       detail: { profile: this.activeProfile, user: this.user, preferences: this.preferences }

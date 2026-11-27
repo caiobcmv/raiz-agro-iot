@@ -15,6 +15,9 @@ class ApiService {
     this.currentLoginEmail = null;
     this._refreshPromise = null;
     this._refreshBlocked = false;
+    this._getCache = new Map();
+    this._cacheableGetPaths = new Set(['/safras', '/propriedades', '/frutas', '/variedades', '/portos']);
+    this._getCacheTtlMs = 30000;
   }
 
   getToken() {
@@ -35,6 +38,7 @@ class ApiService {
     this.currentLoginEmail = null;
     this._refreshPromise = null;
     this._refreshBlocked = false;
+    this._getCache.clear();
   }
 
   async refreshToken() {
@@ -173,7 +177,22 @@ class ApiService {
   }
 
   async request(endpoint, options = {}, _retried = false) {
-    const { timeoutMs = 15000, ...fetchOptions } = options;
+    const { timeoutMs = 15000, skipCache = false, ...fetchOptions } = options;
+    const method = (fetchOptions.method || 'GET').toUpperCase();
+    const basePath = endpoint.split('?')[0];
+    const isCacheableGet = method === 'GET' && !skipCache && this._cacheableGetPaths.has(basePath);
+
+    if (method !== 'GET') {
+      this._getCache.clear();
+    } else if (isCacheableGet) {
+      const cached = this._getCache.get(endpoint);
+      if (cached && (Date.now() - cached.ts) < this._getCacheTtlMs) {
+        return typeof structuredClone === 'function'
+          ? structuredClone(cached.data)
+          : JSON.parse(JSON.stringify(cached.data));
+      }
+    }
+
     const headers = {
       ...(fetchOptions.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
       ...(fetchOptions.headers || {})
@@ -242,7 +261,16 @@ class ApiService {
 
       const contentType = response.headers.get('content-type') || '';
       if (contentType.includes('application/json')) {
-        return await response.json();
+        const jsonData = await response.json();
+        if (isCacheableGet) {
+          this._getCache.set(endpoint, {
+            ts: Date.now(),
+            data: typeof structuredClone === 'function'
+              ? structuredClone(jsonData)
+              : JSON.parse(JSON.stringify(jsonData))
+          });
+        }
+        return jsonData;
       }
       return await response.text();
     } catch (error) {

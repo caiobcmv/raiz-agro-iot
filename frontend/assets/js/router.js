@@ -184,7 +184,28 @@ export class Router {
     window.addEventListener('hashchange', () => this.handleRoute());
   }
 
+  _isTokenExpiredOrNear(token, skewSec = 30) {
+    if (!token) return true;
+    try {
+      const parts = token.split('.');
+      if (parts.length !== 3) return false;
+      const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+      const payload = JSON.parse(atob(b64));
+      if (!payload || typeof payload.exp !== 'number') return false;
+      return (Date.now() / 1000) >= (payload.exp - skewSec);
+    } catch (_) {
+      return false;
+    }
+  }
+
   async init() {
+    // Se há usuário salvo mas o JWT expirou (ex.: F5 ou aba ociosa), renova silenciosamente antes de rotear
+    const hasSavedUser = Boolean(localStorage.getItem('user_data'));
+    const currentToken = api.getToken();
+    if (hasSavedUser && (!currentToken || this._isTokenExpiredOrNear(currentToken))) {
+      await api.refreshToken().catch(() => null);
+    }
+
     // Checagem assíncrona não bloqueante da API e carregamento das preferências do usuário no PostgreSQL
     api.checkHealth().catch(() => { });
     if (auth.isAuthenticated()) {
