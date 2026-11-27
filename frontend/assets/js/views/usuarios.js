@@ -82,7 +82,7 @@ export async function renderUsuarios() {
   return `
     <div class="dashboard-canvas apple-animate-in">
       <!-- 3 KPIs Superiores de Usuários -->
-      <div class="admin-kpi-grid-4" style="grid-template-columns: repeat(3, minmax(0, 1fr));">
+      <div class="admin-kpi-grid-3">
         <!-- KPI 1: TOTAL DE MEMBROS -->
         <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between;">
           <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -350,14 +350,9 @@ export async function renderUsuarios() {
         </div>
 
         <!-- Paginação inferior -->
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; font-size: 11px; color: #64748B;">
-          <span id="users-pag-info">Exibindo ${totalUsuarios} de ${totalUsuarios} usuários</span>
-          <div style="display: flex; gap: 6px;">
-            <button class="btn-pag-user" data-page="prev" style="padding: 4px 10px; border: 1px solid #CBD5E1; background: #FFFFFF; border-radius: 4px; cursor: pointer;">&lt; Anterior</button>
-            <button class="btn-pag-user active" data-page="1" style="padding: 4px 10px; border: 1px solid #183D2E; background: #183D2E; color: #FFFFFF; border-radius: 4px; font-weight: 700; cursor: pointer;">1</button>
-            <button class="btn-pag-user" data-page="2" style="padding: 4px 10px; border: 1px solid #CBD5E1; background: #FFFFFF; border-radius: 4px; cursor: pointer;">2</button>
-            <button class="btn-pag-user" data-page="next" style="padding: 4px 10px; border: 1px solid #CBD5E1; background: #FFFFFF; border-radius: 4px; cursor: pointer;">Próximo &gt;</button>
-          </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; font-size: 11px; color: #64748B; flex-wrap: wrap; gap: 8px;">
+          <span id="users-pag-info">${totalUsuarios > 0 ? `Mostrando 1–${Math.min(10, totalUsuarios)} de ${totalUsuarios}` : 'Mostrando 0–0 de 0'}</span>
+          <div id="users-pag-controls" style="display: flex; gap: 6px; flex-wrap: wrap;"></div>
         </div>
       </div>
 
@@ -556,13 +551,21 @@ export function setupUsuariosEvents() {
     });
   });
 
-  // Busca na tabela de usuários
+  // Busca, filtros e paginação client-side (10 por página) na tabela de usuários
+  const PAGE_SIZE = 10;
   const buscaUserInput = document.querySelector('input[placeholder*="Buscar por nome"]');
+  const pagInfoEl = document.getElementById('users-pag-info');
+  const pagControlsEl = document.getElementById('users-pag-controls');
   let filtroPerfilAtual = 'todos';
-  const filtrarTabelaUsuarios = () => {
+  let pagAtualUser = 1;
+  let totalPaginasAtual = 1;
+
+  const aplicarFiltroEPaginacao = () => {
     const termo = (buscaUserInput?.value || '').toLowerCase().trim();
-    document.querySelectorAll('tbody tr').forEach(tr => {
-      if (!tr.dataset.status) return;
+    const allRows = Array.from(document.querySelectorAll('tbody tr')).filter(tr => Boolean(tr.dataset.status));
+    const matchingRows = [];
+
+    allRows.forEach(tr => {
       const txt = tr.textContent.toLowerCase();
       const perfilRow = (tr.dataset.perfil || '').toLowerCase();
       const statusRow = (tr.dataset.status || '').toLowerCase();
@@ -574,10 +577,56 @@ export function setupUsuariosEvents() {
         (filtroPerfilAtual === 'admin' && perfilRow.includes('admin')) ||
         (filtroPerfilAtual === 'ativos' && statusRow === 'ativo') ||
         (filtroPerfilAtual === 'inativos' && statusRow === 'inativo');
-      tr.style.display = (matchTermo && matchPerfil) ? '' : 'none';
+      if (matchTermo && matchPerfil) {
+        matchingRows.push(tr);
+      } else {
+        tr.style.display = 'none';
+      }
     });
+
+    const totalFiltrado = matchingRows.length;
+    totalPaginasAtual = Math.max(1, Math.ceil(totalFiltrado / PAGE_SIZE));
+    if (pagAtualUser > totalPaginasAtual) pagAtualUser = totalPaginasAtual;
+    if (pagAtualUser < 1) pagAtualUser = 1;
+
+    const startIdx = (pagAtualUser - 1) * PAGE_SIZE;
+    const endIdx = Math.min(startIdx + PAGE_SIZE, totalFiltrado);
+
+    matchingRows.forEach((tr, idx) => {
+      tr.style.display = (idx >= startIdx && idx < endIdx) ? '' : 'none';
+    });
+
+    if (pagInfoEl) {
+      pagInfoEl.textContent = totalFiltrado > 0
+        ? `Mostrando ${startIdx + 1}–${endIdx} de ${totalFiltrado}`
+        : 'Mostrando 0–0 de 0';
+    }
+
+    if (pagControlsEl) {
+      const maxVisible = 5;
+      let startPage = Math.max(1, pagAtualUser - Math.floor(maxVisible / 2));
+      let endPage = Math.min(totalPaginasAtual, startPage + maxVisible - 1);
+      if (endPage - startPage + 1 < maxVisible) {
+        startPage = Math.max(1, endPage - maxVisible + 1);
+      }
+
+      const prevDisabled = pagAtualUser <= 1;
+      const nextDisabled = pagAtualUser >= totalPaginasAtual;
+
+      let html = `<button class="btn-pag-user" data-page="prev" ${prevDisabled ? 'disabled' : ''} style="padding: 4px 10px; border: 1px solid #CBD5E1; background: #FFFFFF; color: ${prevDisabled ? '#94A3B8' : '#475569'}; border-radius: 4px; cursor: ${prevDisabled ? 'not-allowed' : 'pointer'}; opacity: ${prevDisabled ? '0.6' : '1'};">&lt; Anterior</button>`;
+      for (let p = startPage; p <= endPage; p++) {
+        const isActive = p === pagAtualUser;
+        html += `<button class="btn-pag-user${isActive ? ' active' : ''}" data-page="${p}" style="padding: 4px 10px; border: 1px solid ${isActive ? '#183D2E' : '#CBD5E1'}; background: ${isActive ? '#183D2E' : '#FFFFFF'}; color: ${isActive ? '#FFFFFF' : '#475569'}; border-radius: 4px; font-weight: ${isActive ? '700' : '400'}; cursor: pointer;">${p}</button>`;
+      }
+      html += `<button class="btn-pag-user" data-page="next" ${nextDisabled ? 'disabled' : ''} style="padding: 4px 10px; border: 1px solid #CBD5E1; background: #FFFFFF; color: ${nextDisabled ? '#94A3B8' : '#475569'}; border-radius: 4px; cursor: ${nextDisabled ? 'not-allowed' : 'pointer'}; opacity: ${nextDisabled ? '0.6' : '1'};">Próxima &gt;</button>`;
+      pagControlsEl.innerHTML = html;
+    }
   };
-  buscaUserInput?.addEventListener('input', filtrarTabelaUsuarios);
+
+  buscaUserInput?.addEventListener('input', () => {
+    pagAtualUser = 1;
+    aplicarFiltroEPaginacao();
+  });
 
   // Filtros tabs dinâmicos
   document.querySelectorAll('.tab-filtro-user').forEach(tab => {
@@ -591,28 +640,22 @@ export function setupUsuariosEvents() {
       e.currentTarget.style.color = '#FFFFFF';
       e.currentTarget.classList.add('active');
       filtroPerfilAtual = e.currentTarget.dataset.filtro || 'todos';
-      filtrarTabelaUsuarios();
+      pagAtualUser = 1;
+      aplicarFiltroEPaginacao();
       toast.info('Filtro Aplicado', `Exibindo: ${e.currentTarget.innerText}`);
     });
   });
 
   // Paginação de usuários
-  let pagAtualUser = 1;
-  document.querySelectorAll('.btn-pag-user').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const p = btn.dataset.page;
-      if (p === 'prev') pagAtualUser = Math.max(1, pagAtualUser - 1);
-      else if (p === 'next') pagAtualUser = Math.min(2, pagAtualUser + 1);
-      else pagAtualUser = Number(p) || 1;
-      document.querySelectorAll('.btn-pag-user').forEach(b => {
-        const isActive = Number(b.dataset.page) === pagAtualUser;
-        b.classList.toggle('active', isActive);
-        b.style.background = isActive ? '#183D2E' : '#FFFFFF';
-        b.style.color = isActive ? '#FFFFFF' : '#475569';
-        b.style.borderColor = isActive ? '#183D2E' : '#CBD5E1';
-        b.style.fontWeight = isActive ? '700' : '400';
-      });
-      toast.info('Paginação de Usuários', `Página ${pagAtualUser} selecionada.`);
-    });
+  pagControlsEl?.addEventListener('click', (e) => {
+    const btn = e.target.closest('.btn-pag-user');
+    if (!btn || btn.disabled) return;
+    const p = btn.dataset.page;
+    if (p === 'prev') pagAtualUser = Math.max(1, pagAtualUser - 1);
+    else if (p === 'next') pagAtualUser = Math.min(totalPaginasAtual, pagAtualUser + 1);
+    else pagAtualUser = Number(p) || 1;
+    aplicarFiltroEPaginacao();
   });
+
+  aplicarFiltroEPaginacao();
 }

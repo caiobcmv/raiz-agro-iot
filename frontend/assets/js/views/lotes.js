@@ -244,7 +244,7 @@ export async function renderLotes() {
       </div>
 
       <!-- KPIs Reais do Ciclo de Safra -->
-      <div class="admin-kpi-grid-4" style="grid-template-columns: repeat(${numKpis}, minmax(0, 1fr));">
+      <div class="${numKpis === 3 ? 'admin-kpi-grid-3' : 'admin-kpi-grid-dynamic'}" style="display: grid; grid-template-columns: repeat(${numKpis}, minmax(0, 1fr)); gap: 16px; margin-bottom: 20px; width: 100%;">
         ${mostrarKpiMeta ? `
           <!-- KPI: META DE PRODUTIVIDADE -->
           <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
@@ -378,12 +378,12 @@ export async function renderLotes() {
       </div>
 
       ${mostrarPadroesQualidade ? `
-        <!-- Seção: Padrões Mínimos de Qualidade (padrao_qualidade) -->
+        <!-- Seção: Padrões Mínimos de Qualidade -->
         <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 14px; padding: 20px 22px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
             <h3 style="font-size: 14px; font-weight: 800; color: #0F172A; margin: 0; display: flex; align-items: center; gap: 8px;">
               <i data-lucide="bar-chart-2" style="width: 16px; height: 16px; color: #15803D;"></i>
-              Padrões Mínimos de Qualidade (padrao_qualidade)
+              Padrões Mínimos de Qualidade
             </h3>
           </div>
 
@@ -393,8 +393,8 @@ export async function renderLotes() {
                 <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; flex-wrap: wrap; gap: 8px;">
                   <strong style="color: #0F172A;">${v.fruta || ''} — ${v.nome || ''}</strong>
                   <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                    ${v.brix_min != null ? `<span style="font-size: 10px; color: #64748B; font-family: monospace;">brix_min: ${v.brix_min}°Bx</span>` : ''}
-                    ${v.calibre_min != null ? `<span style="background: #DCFCE7; color: #047857; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 6px;">calibre_min: ${v.calibre_min}</span>` : ''}
+                    ${v.brix_min != null ? `<span style="font-size: 10px; color: #64748B; font-family: monospace;">Brix mínimo: ${v.brix_min} °Bx</span>` : ''}
+                    ${v.calibre_min != null ? `<span style="background: #DCFCE7; color: #047857; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 6px;">Calibre mínimo: ${v.calibre_min}</span>` : ''}
                     ${v.classe ? `<span style="font-size: 10px; color: #334155; font-weight: 600;">Classe: ${v.classe}</span>` : ''}
                   </div>
                 </div>
