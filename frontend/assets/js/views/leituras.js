@@ -365,7 +365,7 @@ function renderTopCards(safraAtiva, metricas, safras) {
           </div>
         </div>
         <div style="font-size: 11px; color: #64748B; margin-top: 10px;">
-          Padrão comercial para exportação
+          Todas as safras · padrão comercial
         </div>
       </div>
 
@@ -419,7 +419,7 @@ function renderComparativoSafras(safras, todosLotes, propriedade, safraAtiva) {
           </h3>
         </div>
 
-        <div style="display: flex; align-items: center; gap: 16px; margin: 8px 0 20px; font-size: 11px; color: #475569;">
+        <div style="display: flex; align-items: center; gap: 16px; margin: 8px 0 20px; font-size: 12px; color: #475569;">
           <span style="display: flex; align-items: center; gap: 6px;">
             <span style="width: 10px; height: 10px; border-radius: 2px; background: #10B981;"></span>
             Produtividade (ton/ha)
@@ -433,22 +433,22 @@ function renderComparativoSafras(safras, todosLotes, propriedade, safraAtiva) {
         <!-- LISTA DE BARRAS POR SAFRA -->
         <div style="display: flex; flex-direction: column; gap: 16px;">
           ${itensComparativo.map(item => {
-            const pctBarra = item.prod !== null ? Math.min(100, Math.max(4, Math.round((item.prod / maxProd) * 100))) : 0;
-            const pctMeta = item.meta !== null ? Math.min(100, Math.max(0, Math.round((item.meta / maxProd) * 100))) : null;
+    const pctBarra = item.prod !== null ? Math.min(100, Math.max(4, Math.round((item.prod / maxProd) * 100))) : 0;
+    const pctMeta = item.meta !== null ? Math.min(100, Math.max(0, Math.round((item.meta / maxProd) * 100))) : null;
 
-            const bgContainer = item.isAtiva ? '#F0FDF4' : '#FFFFFF';
-            const borderContainer = item.isAtiva ? '1.5px solid #86EFAC' : '1px solid #F1F5F9';
-            const corBarra = item.isAtiva ? '#059669' : '#10B981';
+    const bgContainer = item.isAtiva ? '#F0FDF4' : '#FFFFFF';
+    const borderContainer = item.isAtiva ? '1.5px solid #86EFAC' : '1px solid #F1F5F9';
+    const corBarra = item.isAtiva ? '#059669' : '#10B981';
 
-            return `
+    return `
               <div style="background: ${bgContainer}; border: ${borderContainer}; border-radius: 10px; padding: ${item.isAtiva ? '12px 14px' : '8px 10px'};">
-                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 600; color: #1E293B; margin-bottom: 6px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 14px; font-weight: 600; color: #1E293B; margin-bottom: 6px;">
                   <span style="display: flex; align-items: center; gap: 6px;">
                     ${item.nome}
                     ${item.isAtiva ? '<span style="background: #183D2E; color: #FFFFFF; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px;">SAFRA ATIVA</span>' : ''}
                   </span>
-                  <span style="font-family: var(--font-mono, monospace); font-size: 11px; color: #64748B;">
-                    ${item.prod !== null ? `${formatarNumeroPtBr(item.prod, 1)} ton/ha` : '—'}
+                  <span style="font-size: 13px; color: #64748B;">
+                    ${item.prod !== null ? `${formatarNumeroPtBr(item.prod, 1)} ton/ha` : '<span style="color: #94A3B8;">Sem dados</span>'}
                     ${item.meta !== null ? ` • Meta: ${formatarNumeroPtBr(item.meta, 1)}` : ''}
                   </span>
                 </div>
@@ -456,9 +456,14 @@ function renderComparativoSafras(safras, todosLotes, propriedade, safraAtiva) {
                 <!-- Barra com marcador da meta -->
                 <div style="position: relative; height: 22px; background: #F1F5F9; border-radius: 6px; overflow: visible;">
                   <!-- Barra de produtividade calculada -->
-                  <div style="width: ${pctBarra}%; height: 100%; background: ${corBarra}; border-radius: 6px; display: flex; align-items: center; padding-left: 8px; color: #FFFFFF; font-size: 10px; font-weight: 700; transition: width 0.4s ease;">
-                    ${item.prod !== null ? `${formatarNumeroPtBr(item.prod, 1)} ton/ha` : ''}
+                  <div style="width: ${pctBarra}%; height: 100%; background: ${corBarra}; border-radius: 6px; display: flex; align-items: center; padding-left: ${pctBarra >= 28 ? '8px' : '0'}; color: #FFFFFF; font-size: 13px; font-weight: 600; white-space: nowrap; transition: width 0.4s ease;">
+                    ${item.prod !== null && pctBarra >= 28 ? `${formatarNumeroPtBr(item.prod, 1)} ton/ha` : ''}
                   </div>
+                  ${item.prod !== null && pctBarra < 28 ? `
+                    <span style="position: absolute; left: calc(${pctBarra}% + 8px); top: 50%; transform: translateY(-50%); font-size: 13px; font-weight: 600; color: #0F172A; white-space: nowrap; z-index: 3;">
+                      ${formatarNumeroPtBr(item.prod, 1)} ton/ha
+                    </span>
+                  ` : ''}
 
                   <!-- Linha / Marcador de Meta -->
                   ${pctMeta !== null ? `
@@ -467,11 +472,24 @@ function renderComparativoSafras(safras, todosLotes, propriedade, safraAtiva) {
                 </div>
               </div>
             `;
-          }).join('')}
+  }).join('')}
         </div>
+      </div>
+      <div style="font-size: 12px; color: #64748B; margin-top: 14px; padding-top: 10px; border-top: 1px solid #F1F5F9;">
+        Produtividade calculada com a área atual da propriedade.
       </div>
     </div>
   `;
+}
+
+function _formatarNomeCategoria(raw) {
+  const norm = String(raw || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+  const mapa = {
+    exportacao: 'Exportação',
+    mercado_interno: 'Mercado interno',
+    processamento: 'Processamento'
+  };
+  return mapa[norm] || String(raw || '').trim() || 'Outros';
 }
 
 /**
@@ -521,61 +539,71 @@ function renderClassificacaoComercial(classificacao) {
   const catPrincipal = categorias.reduce((max, c) => (Number(c.percentual || 0) > Number(max?.percentual || 0) ? c : max), categorias[0]);
 
   // Rótulo central curto e limpo (ex: "EXPORTAÇÃO", sem parênteses ou cortes com reticências)
-  const nomeBruto = catPrincipal?.categoria || 'Exportação';
+  const nomeBruto = _formatarNomeCategoria(catPrincipal?.categoria || 'Exportação');
   const rotuloCentro = nomeBruto.split('(')[0].trim().toUpperCase();
   const pctPrincipal = catPrincipal?.percentual !== undefined
     ? (Number(catPrincipal.percentual) % 1 === 0 ? Number(catPrincipal.percentual).toFixed(0) : formatarNumeroPtBr(catPrincipal.percentual, 1))
     : '68';
 
+  const temKg = categorias.some(c => c.quantidade_kg !== undefined && c.quantidade_kg !== null && !isNaN(Number(c.quantidade_kg)));
+  const totalKg = temKg
+    ? categorias.reduce((acc, c) => acc + (Number(c.quantidade_kg) || 0), 0)
+    : null;
+  const totalTonStr = totalKg !== null ? `${formatarNumeroPtBr(totalKg / 1000, 1)} ton` : null;
+
   return `
     <div class="apple-card" style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 14px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); display: flex; flex-direction: column; justify-content: space-between; height: 100%;">
-      <div>
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-          <h3 style="margin: 0; font-size: 14px; font-weight: 700; color: #0F172A;">Classificação comercial</h3>
-          <span style="font-size: 10px; font-weight: 700; color: #64748B; letter-spacing: 0.5px; text-transform: uppercase;">DISTRIBUIÇÃO</span>
-        </div>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px;">
+        <h3 style="margin: 0; font-size: 14px; font-weight: 700; color: #0F172A;">Classificação comercial</h3>
+        <span style="font-size: 10px; font-weight: 700; color: #64748B; letter-spacing: 0.5px; text-transform: uppercase;">TODAS AS SAFRAS</span>
+      </div>
 
+      <div style="flex: 1; display: flex; flex-direction: column; justify-content: space-evenly; gap: 14px;">
         <!-- DONUT SVG 100% CENTRALIZADO E RETO -->
-        <div style="position: relative; width: 150px; height: 150px; margin: 16px auto 14px;">
-          <svg width="150" height="150" viewBox="0 0 160 160" style="display: block; margin: 0 auto;">
-            <!-- Arco Base Cinza de Fundo -->
-            <circle cx="80" cy="80" r="${r}" fill="none" stroke="#F1F5F9" stroke-width="15" />
-            <!-- Segmentos Proporcionais -->
-            ${arcosSvg}
-          </svg>
-          <!-- Miolo Central Perfeito -->
-          <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; pointer-events: none;">
-            <div style="font-size: 26px; font-weight: 800; color: #0F172A; line-height: 1; margin-bottom: 3px;">
-              ${pctPrincipal}%
-            </div>
-            <div style="font-size: 10px; font-weight: 700; color: #059669; letter-spacing: 0.8px;">
-              ${rotuloCentro}
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+          <div style="position: relative; width: 156px; height: 156px;">
+            <svg width="156" height="156" viewBox="0 0 160 160" style="display: block; margin: 0 auto;">
+              <!-- Arco Base Cinza de Fundo -->
+              <circle cx="80" cy="80" r="${r}" fill="none" stroke="#F1F5F9" stroke-width="15" />
+              <!-- Segmentos Proporcionais -->
+              ${arcosSvg}
+            </svg>
+            <!-- Miolo Central Perfeito -->
+            <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; pointer-events: none;">
+              <div style="font-size: 26px; font-weight: 800; color: #0F172A; line-height: 1; margin-bottom: 3px;">
+                ${pctPrincipal}%
+              </div>
+              <div style="font-size: 10px; font-weight: 700; color: #059669; letter-spacing: 0.8px;">
+                ${rotuloCentro}
+              </div>
             </div>
           </div>
+          ${totalTonStr ? `<div style="font-size: 14px; font-weight: 600; color: #334155;">Total: ${totalTonStr}</div>` : ''}
         </div>
 
         <!-- LEGENDA DINÂMICA ALINHADA -->
-        <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 18px;">
+        <div style="display: flex; flex-direction: column; gap: 10px; padding-top: 12px; border-top: 1px solid #F1F5F9;">
           ${categorias.map((cat, idx) => {
-            const cor = paletaCores[idx % paletaCores.length];
-            const nomeCat = cat.categoria || `Categoria ${idx + 1}`;
-            const qtdKg = cat.quantidade_kg !== undefined && cat.quantidade_kg !== null
-              ? `${formatarNumeroPtBr(cat.quantidade_kg, 0)} kg`
-              : (cat.quantidade_ton ? `${formatarNumeroPtBr(cat.quantidade_ton, 1)} ton` : '—');
-            const pct = cat.percentual !== undefined ? `${formatarNumeroPtBr(cat.percentual, 1)}%` : '—';
+    const cor = paletaCores[idx % paletaCores.length];
+    const nomeCat = _formatarNomeCategoria(cat.categoria || `Categoria ${idx + 1}`);
+    const qtdKg = cat.quantidade_kg !== undefined && cat.quantidade_kg !== null
+      ? `${formatarNumeroPtBr(cat.quantidade_kg, 0)} kg`
+      : (cat.quantidade_ton ? `${formatarNumeroPtBr(cat.quantidade_ton, 1)} ton` : '—');
+    const pct = cat.percentual !== undefined ? `${formatarNumeroPtBr(cat.percentual, 1)}%` : '—';
 
-            return `
-              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px;">
-                <span style="display: flex; align-items: center; gap: 7px; color: #334155;">
-                  <span style="width: 8px; height: 8px; border-radius: 50%; background: ${cor}; flex-shrink: 0;"></span>
-                  <span style="font-weight: 500;">${nomeCat}</span>
+    return `
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 4px 10px;">
+                <span style="display: flex; align-items: center; gap: 8px; color: #0F172A; font-size: 14px; font-weight: 500;">
+                  <span style="width: 10px; height: 10px; border-radius: 50%; background: ${cor}; flex-shrink: 0;"></span>
+                  <span>${nomeCat}</span>
                 </span>
-                <strong style="color: #0F172A; font-family: var(--font-mono, monospace);">
-                  ${pct} <span style="font-size: 10px; color: #64748B; font-weight: 400;">(${qtdKg})</span>
+                <strong style="color: #0F172A; font-size: 14px; font-weight: 700; display: inline-flex; align-items: baseline; flex-wrap: wrap; justify-content: flex-end; gap: 4px;">
+                  <span>${pct}</span>
+                  <span style="font-size: 12px; color: #475569; font-weight: 400;">(${qtdKg})</span>
                 </strong>
               </div>
             `;
-          }).join('')}
+  }).join('')}
         </div>
       </div>
     </div>
@@ -636,36 +664,36 @@ function renderTabelaLotes(lotesSafra, paginaAtual, itensPorPagina) {
           </thead>
           <tbody style="font-size: 12px; color: #334155;">
             ${lotesPaginados.map(lote => {
-              const etapa = String(lote.etapa || '').toLowerCase();
-              let badgeBg = '#F1F5F9';
-              let badgeColor = '#475569';
-              let badgeBorder = '#E2E8F0';
-              let etapaLabel = lote.etapa || '—';
+    const etapa = String(lote.etapa || '').toLowerCase();
+    let badgeBg = '#F1F5F9';
+    let badgeColor = '#475569';
+    let badgeBorder = '#E2E8F0';
+    let etapaLabel = lote.etapa || '—';
 
-              if (etapa.includes('campo')) {
-                badgeBg = '#ECFDF5';
-                badgeColor = '#047857';
-                badgeBorder = '#A7F3D0';
-                etapaLabel = 'Campo';
-              } else if (etapa.includes('armazen') || etapa.includes('camara')) {
-                badgeBg = '#EFF6FF';
-                badgeColor = '#0369A1';
-                badgeBorder = '#BAE6FD';
-                etapaLabel = 'Armazenamento';
-              } else if (etapa.includes('transp') || etapa.includes('viagem')) {
-                badgeBg = '#FEF3C7';
-                badgeColor = '#B45309';
-                badgeBorder = '#FDE68A';
-                etapaLabel = 'Transporte';
-              }
+    if (etapa.includes('campo')) {
+      badgeBg = '#ECFDF5';
+      badgeColor = '#047857';
+      badgeBorder = '#A7F3D0';
+      etapaLabel = 'Campo';
+    } else if (etapa.includes('armazen') || etapa.includes('camara')) {
+      badgeBg = '#EFF6FF';
+      badgeColor = '#0369A1';
+      badgeBorder = '#BAE6FD';
+      etapaLabel = 'Armazenamento';
+    } else if (etapa.includes('transp') || etapa.includes('viagem')) {
+      badgeBg = '#FEF3C7';
+      badgeColor = '#B45309';
+      badgeBorder = '#FDE68A';
+      etapaLabel = 'Transporte';
+    }
 
-              // Quantidade + Unidade
-              const qtd = lote.quantidade !== undefined && lote.quantidade !== null
-                ? Number(lote.quantidade).toLocaleString('pt-BR')
-                : '—';
-              const unid = lote.unidade || '';
+    // Quantidade + Unidade
+    const qtd = lote.quantidade !== undefined && lote.quantidade !== null
+      ? Number(lote.quantidade).toLocaleString('pt-BR')
+      : '—';
+    const unid = lote.unidade || '';
 
-              return `
+    return `
                 <tr style="border-bottom: 1px solid #F8FAFC; transition: background 0.15s;" onmouseover="this.style.background='#F8FAFC'" onmouseout="this.style.background='transparent'">
                   <td style="padding: 12px; font-weight: 700; color: #0F172A; font-family: var(--font-mono, monospace);">
                     #${lote.id_lote || '—'}
@@ -695,7 +723,7 @@ function renderTabelaLotes(lotesSafra, paginaAtual, itensPorPagina) {
                   </td>
                 </tr>
               `;
-            }).join('')}
+  }).join('')}
           </tbody>
         </table>
       </div>
@@ -728,6 +756,13 @@ function renderTabelaLotes(lotesSafra, paginaAtual, itensPorPagina) {
  */
 function renderTelemetria(sensores, sensorSelecionadoId, periodo, leituras, carregandoTelemetria) {
   const sensorAtivo = sensores.find(s => String(s.id_sensor) === String(sensorSelecionadoId)) || sensores[0];
+  const isSensorSolo = Boolean(
+    sensorAtivo && (
+      String(sensorAtivo.ambiente || '').toLowerCase().includes('solo') ||
+      String(sensorAtivo.tipo_sensor || '').toLowerCase().includes('solo') ||
+      String(sensorAtivo.nome || '').toLowerCase().includes('solo')
+    )
+  );
 
   return `
     <div id="secao-telemetria" class="apple-card" style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 14px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
@@ -740,7 +775,7 @@ function renderTelemetria(sensores, sensorSelecionadoId, periodo, leituras, carr
             Telemetria e Série Histórica
           </h3>
           <p style="margin: 2px 0 0; font-size: 11px; color: #64748B;">
-            Acompanhamento contínuo de temperatura e umidade via sensores instalados
+            Leituras registradas de temperatura e umidade dos sensores instalados
           </p>
         </div>
 
@@ -773,15 +808,16 @@ function renderTelemetria(sensores, sensorSelecionadoId, periodo, leituras, carr
       </div>
 
       <!-- LEGENDA DO GRÁFICO -->
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; font-size: 11px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: ${isSensorSolo ? '8px' : '12px'}; font-size: 11px; flex-wrap: wrap; gap: 8px;">
         <div style="display: flex; align-items: center; gap: 16px;">
+          ${isSensorSolo ? '' : `
           <span style="display: flex; align-items: center; gap: 6px;">
             <span style="width: 10px; height: 10px; border-radius: 50%; background: #10B981;"></span>
             <strong style="color: #0F172A;">Temperatura (°C)</strong>
-          </span>
+          </span>`}
           <span style="display: flex; align-items: center; gap: 6px;">
             <span style="width: 10px; height: 10px; border-radius: 50%; background: #0284C7;"></span>
-            <strong style="color: #0F172A;">Umidade (%)</strong>
+            <strong style="color: #0F172A;">${isSensorSolo ? 'Umidade do solo (%)' : 'Umidade (%)'}</strong>
           </span>
         </div>
 
@@ -789,6 +825,12 @@ function renderTelemetria(sensores, sensorSelecionadoId, periodo, leituras, carr
           Fuso horário: <strong>America/Recife (UTC-3)</strong>
         </span>
       </div>
+
+      ${isSensorSolo ? `
+        <div style="margin-bottom: 10px; font-size: 11px; color: #B45309; background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 8px; padding: 6px 10px;">
+          Sensor de solo em calibração: valores ainda não são confiáveis.
+        </div>
+      ` : ''}
 
       <!-- CORPO DO GRÁFICO / ESTADO DE CARREGAMENTO / VAZIO -->
       ${carregandoTelemetria ? `
@@ -800,43 +842,26 @@ function renderTelemetria(sensores, sensorSelecionadoId, periodo, leituras, carr
         <div style="height: 240px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #F8FAFC; border-radius: 10px; color: #64748B; font-size: 13px;">
           Sem leituras registradas para o período de ${periodo}
         </div>
-      ` : renderGraficoTelemetriaSvg(leituras, periodo))}
+      ` : renderGraficoTelemetriaSvg(leituras, periodo, isSensorSolo))}
 
     </div>
   `;
 }
 
 /**
- * Gera um caminho SVG com curvas de Bézier cúbicas suaves através dos pontos
+ * Gera um caminho SVG com segmentos retos entre os pontos reais
  */
-function gerarCaminhoBezierSuave(pontos) {
+function gerarCaminhoLinear(pontos) {
   if (!pontos || pontos.length === 0) return '';
-  if (pontos.length === 1) return `M ${pontos[0].x.toFixed(1)},${pontos[0].y.toFixed(1)}`;
-  if (pontos.length === 2) {
-    return `M ${pontos[0].x.toFixed(1)},${pontos[0].y.toFixed(1)} L ${pontos[1].x.toFixed(1)},${pontos[1].y.toFixed(1)}`;
-  }
-
-  let d = `M ${pontos[0].x.toFixed(1)},${pontos[0].y.toFixed(1)}`;
-  for (let i = 0; i < pontos.length - 1; i++) {
-    const p0 = pontos[i === 0 ? 0 : i - 1];
-    const p1 = pontos[i];
-    const p2 = pontos[i + 1];
-    const p3 = pontos[i + 2 < pontos.length ? i + 2 : i + 1];
-
-    const cp1x = p1.x + (p2.x - p0.x) / 6;
-    const cp1y = p1.y + (p2.y - p0.y) / 6;
-    const cp2x = p2.x - (p3.x - p1.x) / 6;
-    const cp2y = p2.y - (p3.y - p1.y) / 6;
-
-    d += ` C ${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${cp2x.toFixed(1)},${cp2y.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`;
-  }
-  return d;
+  return pontos
+    .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)},${p.y.toFixed(1)}`)
+    .join(' ');
 }
 
 /**
- * Gráfico SVG profissional com curvas suaves Bézier (sem dentes de serra) e eixos perfeitamente formatados
+ * Gráfico SVG profissional com segmentos retos entre os pontos reais e eixos formatados
  */
-function renderGraficoTelemetriaSvg(leituras, periodo) {
+function renderGraficoTelemetriaSvg(leituras, periodo, isSensorSolo = false) {
   // Ordena cronologicamente
   const dados = [...leituras].sort((a, b) => new Date(a.instante || a.data_hora || 0) - new Date(b.instante || b.data_hora || 0));
 
@@ -851,40 +876,67 @@ function renderGraficoTelemetriaSvg(leituras, periodo) {
   const hUtil = altura - padTop - padBot;
 
   // Escala Temperatura (Eixo esquerdo: 18°C a 32°C suave)
+  // Escala Temperatura (Eixo esquerdo: 18°C a 32°C)
   const minTemp = 18;
   const maxTemp = 32;
-
-  // Escala Umidade (Eixo direito: 40% a 90%)
-  const minUmid = 40;
-  const maxUmid = 90;
 
   const n = dados.length;
 
   const getX = (idx) => padEsq + (n > 1 ? (idx / (n - 1)) * wUtil : wUtil / 2);
   const getYTemp = (val) => padTop + hUtil - (Math.max(0, Math.min(1, (val - minTemp) / (maxTemp - minTemp)))) * hUtil;
-  const getYUmid = (val) => padTop + hUtil - (Math.max(0, Math.min(1, (val - minUmid) / (maxUmid - minUmid)))) * hUtil;
 
-  // Pontos com coordenadas X, Y
-  const ptsTemp = dados.map((d, i) => {
-    const val = Number(d.temperatura);
+  // Pontos válidos de Temperatura (ignorando null/undefined e ocultando no sensor de solo)
+  const ptsTemp = isSensorSolo ? [] : dados.map((d, i) => {
+    const raw = d?.temperatura;
+    const val = (raw !== null && raw !== undefined && raw !== '') ? Number(raw) : NaN;
     return isNaN(val) ? null : { x: getX(i), y: getYTemp(val), val, instante: d.instante || d.data_hora };
   }).filter(Boolean);
 
-  const ptsUmid = dados.map((d, i) => {
-    const val = Number(d.umidade);
-    return isNaN(val) ? null : { x: getX(i), y: getYUmid(val), val, instante: d.instante || d.data_hora };
+  // Valores válidos de Umidade (solo usa umidade_solo ou umidade)
+  const rawUmids = dados.map((d, i) => {
+    const raw = isSensorSolo ? (d?.umidade_solo ?? d?.umidade) : d?.umidade;
+    const val = (raw !== null && raw !== undefined && raw !== '') ? Number(raw) : NaN;
+    return isNaN(val) ? null : { idx: i, val, instante: d.instante || d.data_hora };
   }).filter(Boolean);
 
-  // Curvas suaves Bézier spline
-  const dPathTempBezier = gerarCaminhoBezierSuave(ptsTemp);
-  const dPathUmidBezier = gerarCaminhoBezierSuave(ptsUmid);
+  // Escala dinâmica de Umidade (%) baseada no mínimo e máximo reais com folga
+  let minUmid = 40;
+  let maxUmid = 90;
+  if (rawUmids.length > 0) {
+    const valsU = rawUmids.map(p => p.val);
+    const rawMin = Math.min(...valsU);
+    const rawMax = Math.max(...valsU);
+    const span = Math.max(rawMax - rawMin, 6);
+    const folga = Math.max(2, Math.round(span * 0.15));
+    minUmid = Math.max(0, Math.floor(rawMin - folga));
+    maxUmid = Math.min(100, Math.ceil(rawMax + folga));
+    if (maxUmid <= minUmid) {
+      minUmid = Math.max(0, minUmid - 5);
+      maxUmid = Math.min(100, maxUmid + 5);
+    }
+  }
 
-  // Área preenchida sob a curva de temperatura
+  const getYUmid = (val) => padTop + hUtil - (Math.max(0, Math.min(1, (val - minUmid) / (maxUmid - minUmid)))) * hUtil;
+  const ptsUmid = rawUmids.map(u => ({ x: getX(u.idx), y: getYUmid(u.val), val: u.val, instante: u.instante }));
+
+  if (ptsTemp.length === 0 && ptsUmid.length === 0) {
+    return `
+      <div style="height: 240px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #F8FAFC; border-radius: 10px; color: #64748B; font-size: 13px;">
+        Sem leituras registradas para o período de ${periodo}
+      </div>
+    `;
+  }
+
+  // Linhas retas entre os pontos reais (sem suavização)
+  const dPathTempBezier = ptsTemp.length > 0 ? gerarCaminhoLinear(ptsTemp) : '';
+  const dPathUmidBezier = ptsUmid.length > 0 ? gerarCaminhoLinear(ptsUmid) : '';
+
+  // Área preenchida sob a curva de temperatura (somente se houver série de temperatura)
   const dAreaTemp = ptsTemp.length > 0
     ? `${dPathTempBezier} L ${ptsTemp[ptsTemp.length - 1].x.toFixed(1)},${padTop + hUtil} L ${ptsTemp[0].x.toFixed(1)},${padTop + hUtil} Z`
     : '';
 
-  // Linhas de grade horizontal (3 intervalos limpos)
+  // Linhas de grade horizontal (3 intervalos limpos) — só exibe eixo de série com pontos
   const passosGrade = 3;
   const linhasGrade = [];
   for (let step = 0; step <= passosGrade; step++) {
@@ -894,43 +946,72 @@ function renderGraficoTelemetriaSvg(leituras, periodo) {
 
     linhasGrade.push(`
       <line x1="${padEsq}" y1="${y.toFixed(1)}" x2="${(largura - padDir).toFixed(1)}" y2="${y.toFixed(1)}" stroke="#F1F5F9" stroke-width="1.2" />
-      <text x="${padEsq - 10}" y="${(y + 4).toFixed(1)}" font-size="10" font-weight="600" font-family="var(--font-mono, monospace)" fill="#10B981" text-anchor="end">${valTempLabel}°C</text>
-      <text x="${(largura - padDir + 10).toFixed(1)}" y="${(y + 4).toFixed(1)}" font-size="10" font-weight="600" font-family="var(--font-mono, monospace)" fill="#0284C7" text-anchor="start">${valUmidLabel}%</text>
+      ${ptsTemp.length > 0 ? `<text x="${padEsq - 10}" y="${(y + 4).toFixed(1)}" font-size="10" font-weight="600" font-family="var(--font-mono, monospace)" fill="#10B981" text-anchor="end">${valTempLabel}°C</text>` : ''}
+      ${ptsUmid.length > 0 ? `<text x="${(largura - padDir + 10).toFixed(1)}" y="${(y + 4).toFixed(1)}" font-size="10" font-weight="600" font-family="var(--font-mono, monospace)" fill="#0284C7" text-anchor="start">${valUmidLabel}%</text>` : ''}
     `);
   }
 
-  // Rótulos do eixo X (distribuídos por dia sem cortes nas bordas)
-  const qtdLabels = periodo === '30d' ? 6 : 7;
-  const rotulosX = [];
-  for (let r = 0; r < qtdLabels; r++) {
-    const idx = Math.round((r / (qtdLabels - 1)) * (n - 1));
-    const pto = dados[idx];
-    if (pto) {
-      const x = getX(idx);
-      const dataObj = new Date(pto.instante || pto.data_hora);
-      const strDia = isNaN(dataObj.getTime()) ? '' : new Intl.DateTimeFormat('pt-BR', {
-        timeZone: 'America/Recife',
-        day: '2-digit',
-        month: '2-digit'
-      }).format(dataObj);
-
-      const isUltimo = r === qtdLabels - 1;
-      const labelText = isUltimo ? `Hoje (${strDia})` : strDia;
-      const textAnchor = r === 0 ? 'start' : (isUltimo ? 'end' : 'middle');
-
-      rotulosX.push(`
-        <text x="${x.toFixed(1)}" y="${altura - 10}" font-size="10" font-weight="500" font-family="var(--font-mono, monospace)" fill="#64748B" text-anchor="${textAnchor}">${labelText}</text>
-      `);
-    }
+  // Rótulos do eixo X a partir dos horários reais das leituras, sem repetição
+  const qtdAlvo = Math.min(n, periodo === '30d' ? 6 : 7);
+  const idxsUnicos = [];
+  for (let r = 0; r < qtdAlvo; r++) {
+    const idx = qtdAlvo > 1 ? Math.round((r / (qtdAlvo - 1)) * (n - 1)) : 0;
+    if (!idxsUnicos.includes(idx)) idxsUnicos.push(idx);
   }
+
+  const fmtDia = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Recife', day: '2-digit', month: '2-digit' });
+  const fmtHora = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Recife', hour: '2-digit', hour12: false });
+
+  const candidatos = idxsUnicos.map((idx, pos) => {
+    const pto = dados[idx];
+    const dataObj = new Date(pto?.instante || pto?.data_hora || '');
+    const valido = !isNaN(dataObj.getTime());
+    const strDia = valido ? fmtDia.format(dataObj) : '';
+    const strHora = valido ? fmtHora.format(dataObj).padStart(2, '0') : '';
+    return {
+      idx,
+      x: getX(idx),
+      strDia,
+      strHora,
+      isPrimeiro: pos === 0,
+      isUltimo: pos === idxsUnicos.length - 1
+    };
+  });
+
+  const contagemPorDia = {};
+  candidatos.forEach(c => {
+    if (c.strDia) contagemPorDia[c.strDia] = (contagemPorDia[c.strDia] || 0) + 1;
+  });
+
+  const rotulosUsados = new Set();
+  const rotulosX = [];
+  candidatos.forEach(c => {
+    if (!c.strDia) return;
+    let labelText = '';
+    if (c.isUltimo) {
+      labelText = `Hoje(${c.strDia})`;
+    } else if (contagemPorDia[c.strDia] > 1 && c.strHora) {
+      labelText = `${c.strDia} ${c.strHora} h`;
+    } else {
+      labelText = c.strDia;
+    }
+
+    if (rotulosUsados.has(labelText)) return;
+    rotulosUsados.add(labelText);
+
+    const textAnchor = c.isPrimeiro ? 'start' : (c.isUltimo ? 'end' : 'middle');
+    rotulosX.push(`
+      <text x="${c.x.toFixed(1)}" y="${altura - 10}" font-size="10" font-weight="500" font-family="var(--font-mono, monospace)" fill="#64748B" text-anchor="${textAnchor}">${labelText}</text>
+    `);
+  });
 
   return `
     <div style="width: 100%; overflow-x: auto; background: #FFFFFF; border-radius: 10px; border: 1px solid #F1F5F9; padding: 12px 0;">
       <svg width="100%" height="${altura}" viewBox="0 0 ${largura} ${altura}" preserveAspectRatio="none" style="display: block; min-width: 650px;">
         <defs>
           <linearGradient id="grad-temp-suave" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#10B981" stop-opacity="0.20"/>
-            <stop offset="100%" stop-color="#10B981" stop-opacity="0.0"/>
+            <stop offset="0%" stop-color="#10B981" stop-opacity="0.20" />
+            <stop offset="100%" stop-color="#10B981" stop-opacity="0.0" />
           </linearGradient>
         </defs>
 

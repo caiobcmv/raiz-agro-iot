@@ -11,6 +11,13 @@ import { toast } from '../components/toast.js';
 import { Modal } from '../components/modal.js';
 import { downloadCSV, downloadPDF, openExportChoiceModal } from '../utils/export-utils.js';
 
+// Não existe sonda de solo instalada; o field3 do ThingSpeak lê um pino solto.
+const SONDA_SOLO_INSTALADA = false;
+const LIMITE_LEITURA_RECENTE_MIN = 30;
+const MAPA_PROPRIEDADE_LAT = -9.3300;   // editar aqui
+const MAPA_PROPRIEDADE_LNG = -40.6000;  // editar aqui
+const MAPA_PROPRIEDADE_ZOOM = 16;       // editar aqui
+
 function temValor(v) {
   return v !== null && v !== undefined && !Number.isNaN(Number(v));
 }
@@ -18,6 +25,32 @@ function temValor(v) {
 let chartInstances = [];
 let dadosGraficosCache = null;
 let sseConnection = null;
+let ultimaLeituraTimestamp = null;
+let resumoCache = null;
+
+function isLeituraRecente30m(ts) {
+  if (!ts) return false;
+  const diffMs = Date.now() - new Date(ts).getTime();
+  return !isNaN(diffMs) && diffMs >= 0 && diffMs < LIMITE_LEITURA_RECENTE_MIN * 60 * 1000;
+}
+
+function verificarLeiturasNoPeriodo(periodo) {
+  const ts = ultimaLeituraTimestamp || dashboardStream?.lastPayload?.timestamp;
+  if (!ts) {
+    if (periodo === '24h') {
+      return (resumoCache?.resumo_condicoes?.n_leituras_ar ?? 0) > 0;
+    }
+    return false;
+  }
+  const diffMs = Date.now() - new Date(ts).getTime();
+  if (isNaN(diffMs) || diffMs < 0) return false;
+  const diffHoras = diffMs / (1000 * 60 * 60);
+
+  if (periodo === '24h') return diffHoras <= 24;
+  if (periodo === '7d') return diffHoras <= 7 * 24;
+  if (periodo === '30d') return diffHoras <= 30 * 24;
+  return false;
+}
 
 // ==========================================
 // FUNÇÕES AUXILIARES DE FORMATAÇÃO E SSE
@@ -60,6 +93,26 @@ function formatarHoraSimplesRecife(isoTimestamp) {
   }
 }
 
+function parseDateBr(isoStr) {
+  if (!isoStr) return null;
+  const m = String(isoStr).trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? { iso: `${m[1]}-${m[2]}-${m[3]}`, br: `${m[3]}/${m[2]}`, y: Number(m[1]), mo: Number(m[2]), d: Number(m[3]) } : null;
+}
+
+function formatarTempoDecorrido(isoTimestamp) {
+  if (!isoTimestamp) return 'Sem dados de leitura';
+  const d = new Date(isoTimestamp);
+  const ms = d.getTime();
+  if (isNaN(ms)) return 'Sem dados de leitura';
+  const diffMs = Math.max(0, Date.now() - ms);
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 60) return `há ${mins} min`;
+  const horas = Math.floor(mins / 60);
+  if (horas < 24) return `há ${horas} h`;
+  const dias = Math.floor(horas / 24);
+  return dias === 1 ? 'há 1 dia' : `há ${dias} dias`;
+}
+
 function _pulseElement(el) {
   if (!el) return;
   el.classList.remove('live-pulse-breath');
@@ -70,47 +123,15 @@ function _pulseElement(el) {
 function atualizarDashboardComSSE(data) {
   if (!data) return;
 
+  if (data.timestamp) {
+    ultimaLeituraTimestamp = data.timestamp;
+  }
+
   const tempNum = Number(data.temperatura);
   const umidNum = Number(data.umidade);
   const tempStr = !isNaN(tempNum) ? `${tempNum.toFixed(1)}°C` : '—';
   const tempIntStr = !isNaN(tempNum) ? `${Math.round(tempNum)}°C` : '—';
   const umidStr = !isNaN(umidNum) ? `${Math.round(umidNum)}%` : '—';
-
-  // 1. Atualizar Temperatura na tela
-  const elTempDetalhado = document.getElementById('sse-detalhado-temp') || document.querySelector('[data-live="temp-ar"]');
-  if (elTempDetalhado) {
-    elTempDetalhado.textContent = tempStr;
-    _pulseElement(elTempDetalhado);
-  }
-
-  document.querySelectorAll('[data-kpi="temp-ar"], #kpi-temp-ar').forEach(el => {
-    el.textContent = tempStr;
-    _pulseElement(el);
-  });
-
-  const elPillTemp = document.getElementById('miniChart4-pill');
-  if (elPillTemp && !isNaN(tempNum)) {
-    elPillTemp.textContent = `${tempNum.toFixed(1)}°C Ideal`;
-    _pulseElement(elPillTemp);
-  }
-
-  // 2. Atualizar Umidade na tela
-  const elUmidDetalhado = document.getElementById('sse-detalhado-umid');
-  if (elUmidDetalhado) {
-    elUmidDetalhado.textContent = umidStr;
-    _pulseElement(elUmidDetalhado);
-  }
-
-  const elUmidBar = document.getElementById('sse-detalhado-umid-bar') || document.querySelector('.progress-bar-umid');
-  if (elUmidBar && !isNaN(umidNum)) {
-    elUmidBar.style.width = `${Math.min(100, Math.max(0, umidNum))}%`;
-  }
-
-  const elPillUmid = document.getElementById('miniChart1-pill');
-  if (elPillUmid && !isNaN(umidNum)) {
-    elPillUmid.textContent = `${Math.round(umidNum)}%`;
-    _pulseElement(elPillUmid);
-  }
 
   // 3. Selo de origem real do sensor
   // Exibir "Sensor Real" apenas se a leitura for recente (<30 min) e houver dados
@@ -128,14 +149,108 @@ function atualizarDashboardComSSE(data) {
     badge.classList.add(seloClasseAdicionar);
   });
 
-  // 4. Horário da última leitura em pt-BR (America/Recife)
+  // 1 & 2. Atualizar Temperatura e Umidade na tela (SOMENTE SE RECENTE; se offline, mostra 'Sem dados')
+  const elPillTemp = document.getElementById('miniChart4-pill');
+  const elPillUmid = document.getElementById('miniChart1-pill');
+  const elPillSolo = document.getElementById('miniChart2-pill');
+
+  if (isRecent) {
+    if (elPillTemp && !isNaN(tempNum)) {
+      elPillTemp.textContent = `${tempNum.toFixed(1)}°C Ideal`;
+      _pulseElement(elPillTemp);
+    }
+    if (elPillUmid && !isNaN(umidNum)) {
+      elPillUmid.textContent = `${Math.round(umidNum)}%`;
+      _pulseElement(elPillUmid);
+    }
+    const elTempDetalhado = document.getElementById('sse-detalhado-temp') || document.querySelector('[data-live="temp-ar"]');
+    if (elTempDetalhado) {
+      elTempDetalhado.textContent = tempStr;
+      _pulseElement(elTempDetalhado);
+    }
+    document.querySelectorAll('[data-kpi="temp-ar"], #kpi-temp-ar').forEach(el => {
+      el.textContent = tempStr;
+      _pulseElement(el);
+    });
+    const elUmidDetalhado = document.getElementById('sse-detalhado-umid');
+    if (elUmidDetalhado) {
+      elUmidDetalhado.textContent = umidStr;
+      _pulseElement(elUmidDetalhado);
+    }
+    const elUmidBar = document.getElementById('sse-detalhado-umid-bar') || document.querySelector('.progress-bar-umid');
+    if (elUmidBar && !isNaN(umidNum)) {
+      elUmidBar.style.width = `${Math.min(100, Math.max(0, umidNum))}%`;
+    }
+  } else {
+    // Se não há leitura recente (<30min), mantém os gráficos 24h caso haja dados reais em series-24h
+    const cacheAtual = dadosGraficosCache || {};
+    const temUmidCache = Array.isArray(cacheAtual.umidade_ar_24h) && cacheAtual.umidade_ar_24h.length > 0;
+    const temTempCache = Array.isArray(cacheAtual.temp_ar_24h) && cacheAtual.temp_ar_24h.length > 0;
+
+    if (elPillTemp && !temTempCache) {
+      elPillTemp.textContent = 'Sem dados';
+      elPillTemp.classList.remove('pill-green');
+      elPillTemp.classList.add('pill-blue');
+    }
+    if (elPillUmid && !temUmidCache) {
+      elPillUmid.textContent = 'Sem dados';
+      elPillUmid.classList.remove('pill-green');
+      elPillUmid.classList.add('pill-blue');
+    }
+    if (SONDA_SOLO_INSTALADA && elPillSolo) {
+      elPillSolo.textContent = 'Sem dados';
+      elPillSolo.classList.remove('pill-green');
+      elPillSolo.classList.add('pill-blue');
+    }
+    if (!temUmidCache) {
+      criarMiniGraficoApple('miniChart1', [], '#10B981', 'Sem leituras no período');
+    }
+    if (SONDA_SOLO_INSTALADA) {
+      criarMiniGraficoApple('miniChart2', [], '#0D9488', 'Sem leituras no período');
+    }
+    if (!temTempCache) {
+      criarMiniGraficoApple('miniChart4', [], '#16A34A', 'Sem leituras no período');
+    }
+  }
+
+  // 4. Horário da última leitura em pt-BR (America/Recife) - SEMPRE MANTÉM DATA E HORA REAIS DA ÚLTIMA LEITURA
   const horaFormatadaRecife = formatarTimestampRecife(data.timestamp);
   document.querySelectorAll('#sse-horario-leitura, #sse-horario-leitura-detalhado, .sse-horario-leitura').forEach(el => {
-    el.textContent = horaFormatadaRecife ? `Última leitura: ${horaFormatadaRecife}` : (isSemDados ? 'Aguardando telemetria' : '');
+    el.textContent = horaFormatadaRecife ? `Última leitura: ${horaFormatadaRecife}` : '—';
   });
 
-  // 5. Adicionar nova leitura ao gráfico mantendo as últimas 30 leituras
-  if (window.Chart && typeof window.Chart.getChart === 'function') {
+  // Atualiza card "Condição Geral" com dados reais do sensor de ar
+  const elCondPill = document.getElementById('condicao-status-pill');
+  if (elCondPill) {
+    if (isRecent) {
+      elCondPill.textContent = 'Leitura recente';
+      elCondPill.className = 'card-status-pill pill-green';
+      elCondPill.removeAttribute('style');
+    } else {
+      elCondPill.textContent = 'Sem leituras recentes';
+      elCondPill.className = 'card-status-pill';
+      elCondPill.setAttribute('style', 'background: #F1F5F9; border: 1px solid #CBD5E1; color: #64748B;');
+    }
+  }
+  const elCondTemp = document.getElementById('condicao-temp-ar');
+  if (elCondTemp && !isNaN(tempNum)) {
+    elCondTemp.textContent = `${tempNum.toFixed(1).replace('.', ',')} °C`;
+  }
+  const elCondUmid = document.getElementById('condicao-umid-ar');
+  if (elCondUmid && !isNaN(umidNum)) {
+    elCondUmid.textContent = `${Math.round(umidNum)}%`;
+  }
+  const elCondUlt = document.getElementById('condicao-ultima-leitura');
+  if (elCondUlt) {
+    elCondUlt.textContent = horaFormatadaRecife ? `Última leitura: ${horaFormatadaRecife}` : 'Última leitura: —';
+  }
+  const elCondDecorrido = document.getElementById('condicao-tempo-decorrido');
+  if (elCondDecorrido) {
+    elCondDecorrido.textContent = formatarTempoDecorrido(data.timestamp);
+  }
+
+  // 5. Adicionar nova leitura ao gráfico mantendo as últimas 30 leituras (apenas se recente)
+  if (isRecent && !isSemDados && window.Chart && typeof window.Chart.getChart === 'function') {
     const horaLabel = formatarHoraSimplesRecife(data.timestamp);
 
     // miniChart4 = Temperatura do Ar
@@ -214,29 +329,43 @@ export async function renderDashboard() {
   }
 
   const isResumido = localStorage.getItem('DASHBOARD_MODE') === 'resumido';
-  
+
   // Busca dados reais do PostgreSQL em paralelo (sem usar cache desatualizado)
-  let resumo = null, clima = null, graficos = null, series24h = null;
+  let resumo = null, clima = null, graficos = null, series24h = null, ultimaLeituraObj = null, lotesLista = null;
   try {
     const results = await Promise.allSettled([
       api.getDashboardResumo(),
       api.getClimaAtual(),
       api.getDadosGraficos(),
-      api.getSeries24h()
+      api.getSeries24h(),
+      api.getUltimaLeitura(1),
+      api.getLotes()
     ]);
     resumo = results[0].status === 'fulfilled' ? results[0].value : null;
     clima = results[1].status === 'fulfilled' ? results[1].value : null;
     graficos = results[2].status === 'fulfilled' ? results[2].value : null;
     series24h = results[3].status === 'fulfilled' ? results[3].value : null;
+    ultimaLeituraObj = results[4].status === 'fulfilled' ? results[4].value : null;
+    lotesLista = results[5].status === 'fulfilled' ? results[5].value : null;
   } catch (e) {
     console.warn('Erro ao obter métricas online:', e);
   }
 
+  resumoCache = resumo;
+  if (ultimaLeituraObj?.data_hora && ultimaLeituraObj?.id_sensor !== 3) {
+    ultimaLeituraTimestamp = ultimaLeituraObj.data_hora;
+  }
+
   dadosGraficosCache = {
     ...DEFAULT_DADOS_GRAFICOS,
-    ...(series24h || {}),
-    ...(graficos || {})
+    ...(graficos || {}),
+    ...(series24h || {})
   };
+  if (series24h) {
+    if (series24h.umidade_ar_24h) dadosGraficosCache.umidade_ar_24h = series24h.umidade_ar_24h;
+    if (series24h.temp_ar_24h) dadosGraficosCache.temp_ar_24h = series24h.temp_ar_24h;
+    if (series24h.umidade_solo_24h) dadosGraficosCache.umidade_solo_24h = series24h.umidade_solo_24h;
+  }
 
   // Modo detalhado: recomendação de irrigação, sensores, mercado e janela de colheita
   let extrasDetalhado = { irrigacao: null, sensores: null, mercado: null, janelas: null };
@@ -257,7 +386,7 @@ export async function renderDashboard() {
 
   return `
     <div class="dashboard-canvas apple-animate-in">
-      ${isResumido ? renderModoResumido(resumo, clima, dadosGraficosCache) : renderModoDetalhado(resumo, clima, dadosGraficosCache, extrasDetalhado)}
+      ${isResumido ? renderModoResumido(resumo, clima, dadosGraficosCache, ultimaLeituraTimestamp, ultimaLeituraObj, lotesLista) : renderModoDetalhado(resumo, clima, dadosGraficosCache, extrasDetalhado, lotesLista)}
     </div>
   `;
 }
@@ -320,7 +449,7 @@ async function renderAnalistaDashboard() {
     console.warn('Erro ao carregar dados do dashboard do analista:', err);
   }
 
-  
+
   const { resumo, topologia, dashResumo, rejeitadas, preditivos, cortes } = analistaDashboardData;
 
   // A) 4 CARDS NO TOPO
@@ -886,10 +1015,57 @@ async function renderAnalistaDashboard() {
   `;
 }
 
+function _formatarCondicaoClima(climaObj, climaAtual) {
+  const temAgora = Boolean(climaObj?.agora || climaObj?.atual || (climaAtual && (climaAtual.temperature_2m != null || climaAtual.temperatura != null)));
+  const c = climaObj?.agora || climaObj?.atual || climaAtual || {};
+
+  if (temAgora) {
+    const code = c.weather_code != null ? Number(c.weather_code) : (c.weathercode != null ? Number(c.weathercode) : null);
+    let desc = c.condicao || c.descricao || '';
+
+    let isNoite = false;
+    if (c.is_day != null) {
+      isNoite = Number(c.is_day) === 0;
+    } else {
+      const t = c.time;
+      let h = NaN;
+      if (t && typeof t === 'string' && t.includes('T')) {
+        h = parseInt(t.split('T')[1].slice(0, 2), 10);
+      }
+      if (Number.isNaN(h)) {
+        h = new Date().getHours();
+      }
+      isNoite = h < 6 || h >= 18;
+    }
+
+    if (isNoite) {
+      if (code === 0 || code === 1) return 'Céu limpo';
+      if (code === 2) return 'Parcialmente nublado';
+      if (/predom[íi]nio\s+de\s+sol/i.test(desc) || /ensolarado/i.test(desc) || /^sol$/i.test(desc) || /claro/i.test(desc)) {
+        return 'Céu limpo';
+      }
+      if (/sol\s+com\s+nuvens/i.test(desc) || /sol\s+entre\s+nuvens/i.test(desc)) {
+        return 'Parcialmente nublado';
+      }
+      desc = desc.replace(/(\s+com\s+sol|\s+de\s+sol)/gi, '').trim();
+      return desc || 'Céu limpo';
+    }
+
+    if (code === 0) return 'Céu limpo';
+    if (code === 1) return 'Predomínio de sol';
+    if (code === 2) return 'Parcialmente nublado';
+    return desc || 'Céu limpo';
+  }
+
+  const primeiroDia = Array.isArray(climaObj?.dias) && climaObj.dias.length > 0 ? climaObj.dias[0] : null;
+  const descDia = primeiroDia?.condicao || primeiroDia?.descricao || climaObj?.condicao || climaObj?.descricao || 'Céu limpo';
+  return `Hoje: ${descDia}`;
+}
+
 /**
  * 1. MODO RESUMIDO (Primeira Imagem do Figma)
  */
-function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
+function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS, ultimaLeituraTs = null, ultimaLeituraAr = null, lotesRaw = null) {
   const rc = resumo?.resumo_condicoes || {};
   const confPct = dg.conformidade_geral_pct;
   const saudePct = dg.saude_plantacao_pct;
@@ -897,28 +1073,17 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
   const tempFoliar = dg.temp_foliar_c;
   const aguaPct = dg.agua_reservatorio_pct;
   const vazaoLdia = dg.vazao_ldia;
-  const uArLast = (dg.umidade_ar_24h && dg.umidade_ar_24h.length) ? dg.umidade_ar_24h[dg.umidade_ar_24h.length - 1] : null;
-  const uSoloLast = (dg.umidade_solo_24h && dg.umidade_solo_24h.length) ? dg.umidade_solo_24h[dg.umidade_solo_24h.length - 1] : null;
-  const tArLast = (dg.temp_ar_24h && dg.temp_ar_24h.length) ? dg.temp_ar_24h[dg.temp_ar_24h.length - 1] : null;
+  const temUmidAr24h = Array.isArray(dg.umidade_ar_24h) && dg.umidade_ar_24h.length > 0;
+  const temTempAr24h = Array.isArray(dg.temp_ar_24h) && dg.temp_ar_24h.length > 0;
+  const temLeituras24h = temUmidAr24h || temTempAr24h;
+  const uArLast = temUmidAr24h ? dg.umidade_ar_24h[dg.umidade_ar_24h.length - 1] : null;
+  const uSoloLast = (temLeituras24h && dg.umidade_solo_24h && dg.umidade_solo_24h.length) ? dg.umidade_solo_24h[dg.umidade_solo_24h.length - 1] : null;
+  const tArLast = temTempAr24h ? dg.temp_ar_24h[dg.temp_ar_24h.length - 1] : null;
 
   // --- Clima Open-Meteo real para o Card 3 ---
   const climaAtual = clima?.agora || clima?.atual || clima || {};
 
-  // Map weather code to description (fallback to existing description)
-  const weatherMap = {
-    0: "Ensolarado",
-    1: "Principalmente claro",
-    2: "Parcialmente nublado",
-    3: "Nublado",
-    45: "Nevoeiro",
-    48: "Nevoeiro",
-    51: "Chuvisco",
-    61: "Chuva leve",
-    80: "Chuva moderada",
-    95: "Tempestade"
-  };
-  const climaDescResumido = weatherMap[climaAtual.weather_code] ||
-    climaAtual.condicao || climaAtual.descricao || 'Predomínio de sol';
+  const climaDescResumido = _formatarCondicaoClima(clima, climaAtual);
 
   const tRaw = climaAtual.temperatura != null ? climaAtual.temperatura : (climaAtual.temperature_2m != null ? climaAtual.temperature_2m : null);
   const climaTempResumido = tRaw != null ? `${Math.round(Number(tRaw))}°C` : '—';
@@ -930,10 +1095,10 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
   const climaUmidResumido = uRaw != null ? `${Math.round(Number(uRaw))}%` : '—';
 
   const cRaw = climaAtual.chuva_mm != null ? climaAtual.chuva_mm : climaAtual.precipitation;
-  const climaChuvaResumido = cRaw != null ? `${cRaw} mm` : '0 mm';
+  const climaChuvaResumido = cRaw != null ? `${cRaw} mm` : '—';
 
   const uvRaw = climaAtual.uv != null ? climaAtual.uv : climaAtual.uv_index;
-  const climaUvResumido = uvRaw != null ? `Índice ${Number(uvRaw).toFixed(1)}` : 'Mod. 5.0';
+  const climaUvResumido = uvRaw != null ? `${Number(uvRaw).toFixed(1)}` : '—';
 
   // ---- Skeleton loading placeholder for forecast card ----
   const forecastContainer = document.getElementById('forecast-card-container');
@@ -965,19 +1130,60 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
   const climaNoite = pDia.noite != null ? `${Math.round(Number(pDia.noite))}°` : '—';
 
   const proximosDias = Array.isArray(clima?.dias) ? clima.dias.slice(1, 4) : [];
+  const formatarDiaCurto = (rawData) => {
+    if (!rawData) return '—';
+    const m = String(rawData).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    return m ? `${m[3]}/${m[2]}` : String(rawData);
+  };
   const climaProximosDiasHtml = proximosDias.length > 0
-    ? proximosDias.map(d => {
-        const diaNome = d.dia_semana || (d.data ? d.data.slice(5) : '');
-        const maxVal = d.temp_max != null ? d.temp_max : d.temperature_2m_max;
-        const maxT = maxVal != null ? `${Math.round(Number(maxVal))}°` : '—';
-        return `<div><span style="color:#94A3B8; font-size:10px;">${diaNome}</span><div style="font-weight:700; color:#334155;">${maxT}</div></div>`;
-      }).join('')
-    : '<div><span style="color:#94A3B8; font-size:10px;">Amanhã</span><div style="font-weight:700; color:#334155;">—</div></div>';
+    ? proximosDias.map((d, idx) => {
+      const diaNome = d.dia_semana || formatarDiaCurto(d.data || d.time);
+      const maxVal = d.temp_max != null ? d.temp_max : d.temperature_2m_max;
+      const maxT = maxVal != null ? `${Math.round(Number(maxVal))}°C` : '—';
+      const minVal = d.temp_min != null ? d.temp_min : d.temperature_2m_min;
+      const probVal = d.chance_chuva != null ? d.chance_chuva : d.precipitation_probability_max;
+      const et0Val = d.et0 != null ? d.et0 : d.et0_fao_evapotranspiration;
 
-  // --- Indicadores Reais de Lotes e Condição Geral ---
-  const condRotulo = resumo?.condicao_geral?.rotulo || (resumo?.resumo_condicoes?.pct_na_faixa != null ? (resumo.resumo_condicoes.pct_na_faixa >= 80 ? 'Boa' : 'Atenção') : 'Sem dados');
-  const condPillClass = condRotulo === 'Boa' || condRotulo === 'Excelente' ? 'pill-green' : (condRotulo === 'Sem dados' ? 'pill-blue' : 'pill-amber');
-  const pctNaFaixa = resumo?.resumo_condicoes?.pct_na_faixa != null ? `${resumo.resumo_condicoes.pct_na_faixa}%` : (confPct != null ? `${confPct}%` : 'Sem dados');
+      const extrasDia = [];
+      if (minVal != null) extrasDia.push(`Mín ${Math.round(Number(minVal))}°C`);
+      if (probVal != null) extrasDia.push(`Chuva ${Math.round(Number(probVal))}%`);
+      if (et0Val != null) extrasDia.push(`ET0 ${Number(et0Val).toFixed(1)} mm`);
+
+      const borderStyle = idx < proximosDias.length - 1 ? 'border-bottom: 1px solid #F1F5F9;' : '';
+      return `
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 0; font-size: 11px; ${borderStyle}">
+          <span style="color: #475569; font-weight: 600; white-space: nowrap;">${diaNome}</span>
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; color: #64748B;">
+            ${extrasDia.map(item => `<span style="font-size: 10.5px;">${item}</span>`).join('')}
+            <strong style="color: #1E293B; font-weight: 700;">${maxT}</strong>
+          </div>
+        </div>
+      `;
+    }).join('')
+    : `<div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; font-size: 11px;">
+         <span style="color: #94A3B8;">Amanhã</span>
+         <strong style="color: #334155;">—</strong>
+       </div>`;
+
+  // --- Indicadores Reais do Sensor de Ar (DHT11, sensor 1) para Condição Geral ---
+  const leituraSensor1 = (ultimaLeituraAr && ultimaLeituraAr.id_sensor !== 3) ? ultimaLeituraAr : null;
+  const tsCondicao = leituraSensor1?.data_hora || null;
+  const leituraRecenteCondicao = isLeituraRecente30m(tsCondicao);
+  const condPillTexto = leituraRecenteCondicao ? 'Leitura recente' : 'Sem leituras recentes';
+  const condPillStyle = leituraRecenteCondicao ? '' : 'style="background: #F1F5F9; border: 1px solid #CBD5E1; color: #64748B;"';
+  const condPillClass = leituraRecenteCondicao ? 'card-status-pill pill-green' : 'card-status-pill';
+
+  const tempArRaw = (leituraSensor1 && temValor(leituraSensor1.temperatura))
+    ? Number(leituraSensor1.temperatura)
+    : null;
+  const umidArRaw = (leituraSensor1 && temValor(leituraSensor1.umidade))
+    ? Number(leituraSensor1.umidade)
+    : null;
+
+  const condTempArTxt = tempArRaw != null ? `${tempArRaw.toFixed(1).replace('.', ',')} °C` : '—';
+  const condUmidArTxt = umidArRaw != null ? `${Math.round(umidArRaw)}%` : '—';
+  const condUltimaLeituraTxt = tsCondicao ? formatarTimestampRecife(tsCondicao) : '—';
+  const condTempoDecorridoTxt = formatarTempoDecorrido(tsCondicao);
 
   const etapasLotes = resumo?.fluxo_lotes?.etapas || [];
   const totalLotesCadastrados = resumo?.lotes_monitorados?.total ?? 13;
@@ -992,102 +1198,137 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
   const qtdArmazenado = getQtdEtapa('Armazenado');
   const qtdTransporte = getQtdEtapa('Em transporte');
 
+  // --- Próxima janela de colheita por cultura (sem new Date() para evitar fuso) ---
+  const agoraLocal = new Date();
+  const hojeIso = `${agoraLocal.getFullYear()}-${String(agoraLocal.getMonth() + 1).padStart(2, '0')}-${String(agoraLocal.getDate()).padStart(2, '0')}`;
+  const lotesArray = extrairArraySeguro(lotesRaw);
+  const lotesElegiveis = lotesArray
+    .map(l => {
+      const st = String(l?.status || '').trim();
+      const stLower = st.toLowerCase();
+      if (stLower !== 'em produção' && stLower !== 'pronto para colheita') return null;
+      const m = String(l?.data_colheita || '').trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (!m) return null;
+      const iso = `${m[1]}-${m[2]}-${m[3]}`;
+      if (iso < hojeIso) return null;
+      return {
+        fruta: String(l?.fruta || '').trim(),
+        status: st,
+        iso,
+        dataBr: `${m[3]}/${m[2]}/${m[1]}`
+      };
+    })
+    .filter(Boolean);
+
+  const culturasJanela = ['Manga', 'Uva', 'Melão'];
+  const janelasPorCulturaHtml = culturasJanela.map((cultura, idx) => {
+    const candidatos = lotesElegiveis
+      .filter(l => l.fruta.toLowerCase().includes(cultura.toLowerCase()))
+      .sort((a, b) => a.iso.localeCompare(b.iso));
+    const proximo = candidatos[0] || null;
+    const borderStyle = idx < culturasJanela.length - 1 ? 'border-bottom: 1px solid #E2E8F0;' : '';
+    return `
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 0; font-size: 12px; ${borderStyle}">
+        <span style="color: #334155; font-weight: 700;">${cultura}</span>
+        ${proximo
+        ? `<div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end;">
+               <strong style="color: #0F172A; font-weight: 700;">${proximo.dataBr}</strong>
+               <span style="font-size: 10.5px; color: #047857; background: #ECFDF5; border: 1px solid #A7F3D0; padding: 2px 8px; border-radius: 999px; font-weight: 600;">${proximo.status}</span>
+             </div>`
+        : `<span style="color: #94A3B8; font-weight: 500;">Sem dados</span>`
+      }
+      </div>
+    `;
+  }).join('');
+  // Total real = soma dos status (fallback para totalLotesCadastrados se todos zero)
+  const _totalLotesStatus = qtdEmProducao + qtdPronto + qtdColhido + qtdArmazenado + qtdTransporte;
+  const _totalDonut = _totalLotesStatus > 0 ? _totalLotesStatus : totalLotesCadastrados;
+  // Donut segmentado: r=15.9155, circ=100 (stroke-dasharray em unidades percentuais de circunferência)
+  // Usamos a convenção: stroke-dasharray="X 100" com stroke-dashoffset para posicionar cada segmento
+  const _donutCores = ['#059669', '#10B981', '#06B6D4', '#0284C7', '#F59E0B'];
+  const _donutQtds = [qtdEmProducao, qtdPronto, qtdColhido, qtdArmazenado, qtdTransporte];
+  let _donutOffset = 25; // começa no topo (25 = -90° em unidades %)
+  const _donutSegmentos = _donutQtds.map((q, i) => {
+    const pct = _totalDonut > 0 ? (q / _totalDonut) * 100 : 0;
+    const gap = pct > 0 ? 1.5 : 0; // pequeno gap entre segmentos
+    const fill = Math.max(0, pct - gap);
+    const seg = `<path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="${_donutCores[i]}" stroke-width="4.5" stroke-dasharray="${fill.toFixed(2)} ${(100 - fill).toFixed(2)}" stroke-dashoffset="${(100 - _donutOffset).toFixed(2)}"/>`;
+    _donutOffset += pct;
+    return seg;
+  }).join('\n              ');
+
   return `
     <!-- Top Row: 3 Cards (Condição Geral, Lotes em Operação, Previsão do Tempo) -->
     <div class="top-kpi-3col">
       
       <!-- CARD 1: CONDIÇÃO GERAL -->
-      <div class="figma-card">
+      <div class="figma-card" style="display: flex; flex-direction: column; gap: 12px;">
         <div class="card-top-title-row">
           <span class="card-header-label">CONDIÇÃO GERAL</span>
-          <span class="card-status-pill ${condPillClass}">${condRotulo}</span>
+          <span id="condicao-status-pill" class="${condPillClass}" ${condPillStyle}>${condPillTexto}</span>
         </div>
 
-        <div style="display: flex; align-items: center; gap: 20px; margin: 12px 0;">
-          <!-- Gauge Semicircular com agulha -->
-          <div style="position: relative; width: 130px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-            <svg width="130" height="72" viewBox="0 0 130 72" style="overflow: visible;">
-              <defs>
-                <linearGradient id="gauge-grad-card1" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stop-color="#EAB308" />
-                  <stop offset="45%" stop-color="#10B981" />
-                  <stop offset="100%" stop-color="#059669" />
-                </linearGradient>
-              </defs>
-              <path d="M 15,60 A 50,50 0 0,1 115,60" fill="none" stroke="#F1F5F9" stroke-width="11" stroke-linecap="round"/>
-              <path d="M 15,60 A 50,50 0 0,1 115,60" fill="none" stroke="url(#gauge-grad-card1)" stroke-width="11" stroke-linecap="round" stroke-dasharray="148 157.1" stroke-dashoffset="0"/>
-              <line x1="65" y1="60" x2="101" y2="36" stroke="#183D2E" stroke-width="3" stroke-linecap="round"/>
-              <circle cx="65" cy="60" r="5" fill="#183D2E"/>
-              <circle cx="65" cy="60" r="2" fill="#FFFFFF"/>
-            </svg>
-            <div style="font-size: 16px; font-weight: 800; color: #1E293B; margin-top: 4px; display: flex; align-items: center; gap: 6px;">
-              ${pctNaFaixa}
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;">
+          <div style="background: rgba(248, 250, 252, 0.9); border: 1px solid #F1F5F9; border-radius: 12px; padding: 18px 12px; min-height: 112px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px;">
+            <div style="display: flex; align-items: center; justify-content: center; gap: 6px; color: #059669;">
+              <i data-lucide="thermometer" style="width: 16px; height: 16px; flex-shrink: 0;"></i>
+              <span style="font-size: 11px; font-weight: 600; color: #64748B;">Temperatura do ar</span>
             </div>
-            <span style="font-size: 9px; font-weight: 700; color: #64748B; letter-spacing: 0.6px; text-transform: uppercase; margin-top: 2px;">ÍNDICE NA FAIXA</span>
+            <div id="condicao-temp-ar" style="font-size: 28px; font-weight: 800; color: #1E293B; line-height: 1.1; letter-spacing: -0.5px;">${condTempArTxt}</div>
           </div>
 
-          <!-- Barras de Sub-métricas -->
-          <div style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
-            <div class="metric-progress-item">
-              <div class="metric-labels-row">
-                <span style="color: #64748B;">Água e Solo</span>
-                <strong style="color: #1E293B;">${aguaPct != null ? `${aguaPct}%` : 'Sem dados'}</strong>
-              </div>
-              <div class="progress-track-bg">
-                <div class="progress-fill-bar" style="width: ${aguaPct != null ? aguaPct : 0}%; background: #10B981;"></div>
-              </div>
+          <div style="background: rgba(248, 250, 252, 0.9); border: 1px solid #F1F5F9; border-radius: 12px; padding: 18px 12px; min-height: 112px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px;">
+            <div style="display: flex; align-items: center; justify-content: center; gap: 6px; color: #0284C7;">
+              <i data-lucide="droplets" style="width: 16px; height: 16px; flex-shrink: 0;"></i>
+              <span style="font-size: 11px; font-weight: 600; color: #64748B;">Umidade do ar</span>
             </div>
-
-            <div class="metric-progress-item">
-              <div class="metric-labels-row">
-                <span style="color: #64748B;">Saúde Foliar</span>
-                <strong style="color: #1E293B;">${saudePct != null ? `${saudePct}%` : 'Sem dados'}</strong>
-              </div>
-              <div class="progress-track-bg">
-                <div class="progress-fill-bar" style="width: ${saudePct != null ? saudePct : 0}%; background: #059669;"></div>
-              </div>
-            </div>
-
-            <div class="metric-progress-item">
-              <div class="metric-labels-row">
-                <span style="color: #64748B;">Microclima</span>
-                <strong style="color: #1E293B;">${pctNaFaixa}</strong>
-              </div>
-              <div class="progress-track-bg">
-                <div class="progress-fill-bar" style="width: ${resumo?.resumo_condicoes?.pct_na_faixa != null ? resumo.resumo_condicoes.pct_na_faixa : 0}%; background: #0EA5E9;"></div>
-              </div>
-            </div>
+            <div id="condicao-umid-ar" style="font-size: 28px; font-weight: 800; color: #1E293B; line-height: 1.1; letter-spacing: -0.5px;">${condUmidArTxt}</div>
           </div>
         </div>
 
-        <div style="border-top: 1px solid #F1F5F9; padding-top: 12px; display: flex; justify-content: space-between; font-size: 11px; color: #64748B; margin-top: auto;">
-          <span>${resumo?.resumo_condicoes?.leituras_avaliadas ? `${resumo.resumo_condicoes.leituras_avaliadas} Leituras Avaliadas` : 'Sem leituras recentes'}</span>
-          <span style="color: #047857; font-weight: 600;">${resumo?.resumo_condicoes?.pct_na_faixa != null ? '● Conforme' : '● Aguardando dados'}</span>
+        <div style="flex: 1; display: flex; flex-direction: column; justify-content: space-evenly; font-size: 11.5px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #F1F5F9;">
+            <span style="color: #64748B;">Sensor</span>
+            <strong style="color: #1E293B; font-weight: 600;">DHT11</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #F1F5F9;">
+            <span style="color: #64748B;">Placa</span>
+            <strong style="color: #1E293B; font-weight: 600;">ESP32-C3</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0;">
+            <span style="color: #64748B;">Envio</span>
+            <strong style="color: #1E293B; font-weight: 600;">ThingSpeak</strong>
+          </div>
+        </div>
+
+        <div style="border-top: 1px solid #F1F5F9; padding-top: 10px; font-size: 11px; color: #64748B; margin-top: auto;">
+          <div id="condicao-ultima-leitura" style="color: #334155; font-weight: 600;">Última leitura: ${condUltimaLeituraTxt}</div>
+          <div id="condicao-tempo-decorrido" style="color: #94A3B8; font-size: 10.5px; margin-top: 2px;">${condTempoDecorridoTxt}</div>
         </div>
       </div>
 
       <!-- CARD 2: LOTES EM OPERAÇÃO -->
-      <div class="figma-card">
+      <div class="figma-card" style="display: flex; flex-direction: column;">
         <div class="card-top-title-row">
           <span class="card-header-label">LOTES EM OPERAÇÃO</span>
           <span class="card-status-pill pill-blue">${totalLotesCadastrados} Lotes</span>
         </div>
 
-        <div style="display: flex; align-items: center; gap: 20px; margin: 12px 0;">
-          <!-- Rosca de Capacidade -->
-          <div style="position: relative; width: 90px; height: 90px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-            <svg width="90" height="90" viewBox="0 0 36 36" style="transform: rotate(-90deg);">
+        <div style="flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 12px 6px;">
+          <!-- Rosca Segmentada por Status -->
+          <div style="position: relative; width: 108px; height: 108px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+            <svg width="108" height="108" viewBox="0 0 36 36" style="transform: rotate(-90deg);">
               <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#F1F5F9" stroke-width="4.5"/>
-              <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" stroke-dasharray="50, 100" fill="none" stroke="#059669" stroke-width="4.5"/>
+              ${_donutSegmentos}
             </svg>
-            <div style="position: absolute; text-align: center;">
-              <span style="font-size: 18px; font-weight: 800; color: #1E293B;">${lotesComSensor}<small style="font-size: 11px; color: #94A3B8;">/${totalLotesCadastrados}</small></span>
-              <div style="font-size: 8px; font-weight: 700; color: #94A3B8; text-transform: uppercase;">Monitorados</div>
+            <div style="position: absolute; text-align: center; line-height: 1.1;">
+              <span style="font-size: 22px; font-weight: 800; color: #1E293B;">${_totalDonut}</span>
+              <div style="font-size: 7.5px; font-weight: 700; color: #94A3B8; text-transform: uppercase; margin-top: 1px;">LOTES</div>
             </div>
           </div>
 
           <!-- Lista de Categorias -->
-          <div style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
+          <div style="flex: 1; display: flex; flex-direction: column; gap: 9px;">
             <div class="metric-progress-item">
               <div class="metric-labels-row">
                 <span style="display: flex; align-items: center; gap: 6px; color: #475569;"><span style="width:7px; height:7px; border-radius:50%; background:#059669;"></span>Em Produção</span>
@@ -1130,48 +1371,55 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
           </div>
         </div>
 
-        <div style="border-top: 1px solid #F1F5F9; padding-top: 8px; display: flex; flex-wrap: wrap; gap: 8px; font-size: 10px; color: #475569; margin-top: auto;">
-          <span>● ${qtdEmProducao} Produção</span>
-          <span>● ${qtdPronto} Pronto</span>
-          <span>● ${qtdColhido} Colhido</span>
-          <span>● ${qtdArmazenado} Armazenado</span>
-          <span>● ${qtdTransporte} Transporte</span>
+        <div style="border-top: 1px solid #F1F5F9; padding-top: 8px; font-size: 11px; color: #64748B; margin-top: auto; text-align: center;">
+          ${lotesComSensor} de ${_totalDonut} monitorados
         </div>
       </div>
 
       <!-- CARD 3: PREVISÃO DO TEMPO E CLIMA -->
-      <div class="figma-card">
-        <div class="card-top-title-row">
-          <span class="card-header-label">PREVISÃO DO TEMPO</span>
-          <span class="card-status-pill pill-amber" style="display: flex; align-items: center; gap: 4px;">
-            <i data-lucide="map-pin" style="width: 11px; height: 11px;"></i> Petrolina, PE • Hoje
-          </span>
-        </div>
+      <div class="figma-card" style="display: flex; flex-direction: column; justify-content: space-between; gap: 10px;">
+        <div>
+          <div class="card-top-title-row">
+            <span class="card-header-label">PREVISÃO DO TEMPO</span>
+            <span class="card-status-pill pill-amber" style="display: flex; align-items: center; gap: 4px;">
+              <i data-lucide="map-pin" style="width: 11px; height: 11px;"></i> Petrolina, PE • Hoje
+            </span>
+          </div>
 
-        <div style="display: flex; justify-content: space-between; align-items: center; margin: 10px 0;">
-          <div style="display: flex; align-items: center; gap: 12px;">
-            <div style="width: 44px; height: 44px; background: #FFFBEB; border: 1px solid #FEF3C7; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
-              <i data-lucide="sun" style="width: 26px; height: 26px; color: #F59E0B;"></i>
+          <div style="display: flex; align-items: center; gap: 12px; margin-top: 10px;">
+            <div style="width: 42px; height: 42px; background: #FFFBEB; border: 1px solid #FEF3C7; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+              <i data-lucide="sun" style="width: 24px; height: 24px; color: #F59E0B;"></i>
             </div>
-            <div>
-              <div style="font-size: 28px; font-weight: 800; color: #1E293B; line-height: 1;" id="clima-temp-resumido">${climaTempResumido}</div>
-              <div style="font-size: 11px; color: #64748B; margin-top: 2px;">${climaDescResumido} • Vento ${climaVentoResumido}</div>
+            <div style="min-width: 0;">
+              <div style="font-size: 26px; font-weight: 800; color: #1E293B; line-height: 1;" id="clima-temp-resumido">${climaTempResumido}</div>
+              <div style="font-size: 11px; color: #64748B; margin-top: 3px;">${climaDescResumido} • Vento ${climaVentoResumido}</div>
             </div>
           </div>
 
-          <div style="display: flex; gap: 8px; text-align: center; font-size: 10px;">
-            <div><span style="color:#94A3B8;">MANHÃ</span><div style="font-weight:700; color:#334155;">${climaManha}</div></div>
-            <div style="border-right: 1px solid #E2E8F0;"></div>
-            <div><span style="color:#94A3B8;">TARDE</span><div style="font-weight:700; color:#D97706;">${climaTarde}</div></div>
-            <div style="border-right: 1px solid #E2E8F0;"></div>
-            <div><span style="color:#94A3B8;">NOITE</span><div style="font-weight:700; color:#334155;">${climaNoite}</div></div>
+          <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 10px; padding: 7px 10px; background: #F8FAFC; border: 1px solid #F1F5F9; border-radius: 10px; text-align: center; font-size: 10px;">
+            <div><span style="color:#94A3B8; display:block;">MANHÃ</span><strong style="color:#334155; font-size:11.5px;">${climaManha}</strong></div>
+            <div style="border-left: 1px solid #E2E8F0; border-right: 1px solid #E2E8F0;"><span style="color:#94A3B8; display:block;">TARDE</span><strong style="color:#D97706; font-size:11.5px;">${climaTarde}</strong></div>
+            <div><span style="color:#94A3B8; display:block;">NOITE</span><strong style="color:#334155; font-size:11.5px;">${climaNoite}</strong></div>
           </div>
         </div>
 
-        <div style="border-top: 1px solid #F1F5F9; padding-top: 12px; display: flex; justify-content: space-between; font-size: 11px; margin-top: auto;">
-          <div><span style="color:#94A3B8; font-size:10px;">UMIDADE</span><div style="font-weight:700; color:#1E293B;" id="clima-umid-resumido">${climaUmidResumido}</div></div>
-          <div><span style="color:#94A3B8; font-size:10px;">CHUVA</span><div style="font-weight:700; color:#1E293B;">${climaChuvaResumido}</div></div>
-          <div><span style="color:#94A3B8; font-size:10px;">UV</span><div style="font-weight:700; color:#047857;">${climaUvResumido}</div></div>
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;">
+          <div style="background: rgba(248, 250, 252, 0.9); border: 1px solid #F1F5F9; border-radius: 10px; padding: 8px 10px; text-align: center;">
+            <span style="color:#94A3B8; font-size:9.5px; font-weight:700; display:block;">UMIDADE</span>
+            <strong style="color:#1E293B; font-size:12px;" id="clima-umid-resumido">${climaUmidResumido}</strong>
+          </div>
+          <div style="background: rgba(248, 250, 252, 0.9); border: 1px solid #F1F5F9; border-radius: 10px; padding: 8px 10px; text-align: center;">
+            <span style="color:#94A3B8; font-size:9.5px; font-weight:700; display:block;">CHUVA</span>
+            <strong style="color:#1E293B; font-size:12px;">${climaChuvaResumido}</strong>
+          </div>
+          <div style="background: rgba(248, 250, 252, 0.9); border: 1px solid #F1F5F9; border-radius: 10px; padding: 8px 10px; text-align: center;">
+            <span style="color:#94A3B8; font-size:9.5px; font-weight:700; display:block;">UV</span>
+            <strong style="color:#047857; font-size:12px;">${climaUvResumido}</strong>
+          </div>
+        </div>
+
+        <div style="border-top: 1px solid #F1F5F9; padding-top: 8px; margin-top: auto;">
+          <div style="font-size: 9.5px; font-weight: 700; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 2px;">Próximos dias</div>
           ${climaProximosDiasHtml}
         </div>
       </div>
@@ -1182,70 +1430,46 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
     <div class="middle-split-row">
       
       <!-- Card Esquerdo: Resumo das Condições e Culturas -->
-      <div class="figma-card">
+      <div class="figma-card" style="display: flex; flex-direction: column; gap: 14px;">
         <div class="card-top-title-row">
           <span style="font-size: 14px; font-weight: 700; color: #1E293B; letter-spacing: 0.5px; text-transform: uppercase;">
             RESUMO DAS CONDIÇÕES E CULTURAS
           </span>
         </div>
 
-        <!-- Gauge Semicircular Perfeitamente Alinhado na Mesma Curva Geométrica -->
-        <div class="gauge-semicircle-wrap">
-          <div class="gauge-svg-container">
-            <svg width="260" height="135" viewBox="0 0 260 135" style="display: block; margin: 0 auto;">
-              <!-- Arco Base Cinza de 180° perfeito -->
-              <path id="gauge-track" d="M 45,120 A 85,85 0 0,1 215,120" fill="none" stroke="#F1F5F9" stroke-width="20" stroke-linecap="round"/>
-              <!-- Segmento Verde Contínuo -->
-              <path d="M 45,120 A 85,85 0 0,1 215,120" fill="none" stroke="#059669" stroke-width="20" stroke-linecap="round" stroke-dasharray="${resumo?.resumo_condicoes?.pct_na_faixa != null ? (resumo.resumo_condicoes.pct_na_faixa * 2.68).toFixed(0) : '0'} 268" stroke-dashoffset="0"/>
-            </svg>
-            <div class="gauge-pct-number" style="font-size: ${pctNaFaixa === 'Sem dados' ? '18px' : '28px'};">${pctNaFaixa}</div>
-          </div>
-          <div class="gauge-caption">LEITURAS CONFORMES</div>
-        </div>
-
-        <!-- Barras de Saúde, Umidade e Temperatura -->
-        <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; border-top: 1px solid #F1F5F9; padding-top: 14px;">
-          <div class="metric-progress-item">
-            <div class="metric-labels-row">
-              <span style="color:#475569; font-weight: 500;">● Saúde da Plantação (NDVI)</span>
-              <strong style="color: #1E293B;">${saudePct != null ? `${saudePct}%` : 'Sem dados'}</strong>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div style="background: rgba(248, 250, 252, 0.8); border: 1px solid #F1F5F9; border-radius: 12px; padding: 14px 16px;">
+            <div style="font-size: 10px; font-weight: 700; color: #94A3B8; text-transform: uppercase;">LOTES PRONTOS PARA COLHEITA</div>
+            <div style="font-size: 26px; font-weight: 800; color: #1E293B; margin-top: 6px; line-height: 1.1;">
+              ${Array.isArray(resumo?.fluxo_lotes?.etapas) ? qtdPronto : 'Sem dados'}
             </div>
-            <div class="progress-track-bg"><div class="progress-fill-bar" style="width: ${saudePct != null ? saudePct : 0}%; background: #059669;"></div></div>
+            <div style="font-size: 11px; color: #64748B; margin-top: 4px;">Status: Pronto para colheita</div>
           </div>
 
-          <div class="metric-progress-item">
-            <div class="metric-labels-row">
-              <span style="color:#475569; font-weight: 500;">● Umidade Média do Dossel</span>
-              <strong style="color: #1E293B;">${umidDosselPct != null ? `${umidDosselPct}%` : 'Sem dados'}</strong>
+          <div style="background: rgba(248, 250, 252, 0.8); border: 1px solid #F1F5F9; border-radius: 12px; padding: 14px 16px;">
+            <div style="font-size: 10px; font-weight: 700; color: #94A3B8; text-transform: uppercase;">ALERTAS ABERTOS</div>
+            <div style="font-size: 26px; font-weight: 800; color: #1E293B; margin-top: 6px; line-height: 1.1;">
+              ${resumo?.alertas?.abertos != null ? resumo.alertas.abertos : 'Sem dados'}
             </div>
-            <div class="progress-track-bg"><div class="progress-fill-bar" style="width: ${umidDosselPct != null ? umidDosselPct : 0}%; background: #0284C7;"></div></div>
-          </div>
-
-          <div class="metric-progress-item">
-            <div class="metric-labels-row">
-              <span style="color:#475569; font-weight: 500;">● Temperatura Foliar</span>
-              <strong style="color: #1E293B;">${tempFoliar != null ? `${tempFoliar}°C` : 'Sem dados'}</strong>
-            </div>
-            <div class="progress-track-bg"><div class="progress-fill-bar" style="width: ${tempFoliar != null ? Math.min(100, tempFoliar * 2.5) : 0}%; background: #F59E0B;"></div></div>
+            <div style="font-size: 11px; color: #64748B; margin-top: 4px;">Ocorrências em aberto</div>
           </div>
         </div>
 
-        <!-- Rodapé Duplo: Culturas e Status da Água -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; border-top: 1px solid #F1F5F9; padding-top: 14px; margin-top: auto;">
+        <div style="background: rgba(248, 250, 252, 0.8); border: 1px solid #F1F5F9; border-radius: 12px; padding: 14px 16px; flex: 1; display: flex; flex-direction: column; justify-content: space-between;">
+          <div style="font-size: 10px; font-weight: 700; color: #94A3B8; text-transform: uppercase; margin-bottom: 6px;">PRÓXIMA JANELA DE COLHEITA POR CULTURA</div>
+          <div style="display: flex; flex-direction: column; flex: 1; justify-content: center;">
+            ${janelasPorCulturaHtml}
+          </div>
+        </div>
+
+        <!-- Rodapé: Culturas -->
+        <div style="border-top: 1px solid #F1F5F9; padding-top: 14px; margin-top: auto;">
           <div style="background: rgba(248, 250, 252, 0.8); border: 1px solid #F1F5F9; border-radius: 12px; padding: 10px 14px;">
             <div style="font-size: 10px; font-weight: 700; color: #94A3B8; text-transform: uppercase;">CULTURAS</div>
             <div style="font-size: 12px; color: #334155; font-weight: 600; margin-top: 4px;">
               Manga, Uva e Melão
             </div>
             <div style="font-size: 10px; color: #94A3B8; margin-top: 2px;">Culturas cadastradas</div>
-          </div>
-
-          <div style="background: rgba(248, 250, 252, 0.8); border: 1px solid #F1F5F9; border-radius: 12px; padding: 10px 14px; display: flex; flex-direction: column; justify-content: space-between;">
-            <div style="font-size: 10px; font-weight: 700; color: #94A3B8; text-transform: uppercase;">STATUS ÁGUA</div>
-            <div style="font-size: 12px; color: #334155; font-weight: 600; margin-top: 4px;">
-              ${temValor(rc.pct_na_faixa) ? `${confPct}% na faixa` : 'Sem dados de irrigação'}
-            </div>
-            <div style="font-size: 10px; color: #94A3B8; margin-top: 2px;">Parâmetro de campo</div>
           </div>
         </div>
       </div>
@@ -1262,8 +1486,8 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
 
           <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
             ${(resumo?.sensores?.reais > 0 || lotesComSensor > 0)
-              ? '<span class="card-status-pill pill-green" style="font-size: 10px; padding: 3px 8px; font-weight: 700;">ESP32 Conectado</span>'
-              : '<span class="card-status-pill pill-blue" style="font-size: 10px; padding: 3px 8px; font-weight: 700;">Sem sensor</span>'}
+      ? '<span class="card-status-pill pill-green" style="font-size: 10px; padding: 3px 8px; font-weight: 700;">ESP32 Conectado</span>'
+      : '<span class="card-status-pill pill-blue" style="font-size: 10px; padding: 3px 8px; font-weight: 700;">Sem sensor</span>'}
             <div style="display: flex; gap: 4px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 2px;">
               <button type="button" id="btn-map-zoom-in" style="width: 26px; height: 26px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 6px; font-weight: 700; color: #334155; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; transition: all 0.2s;" title="Aproximar zoom">+</button>
               <button type="button" id="btn-map-zoom-out" style="width: 26px; height: 26px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 6px; font-weight: 700; color: #334155; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; transition: all 0.2s;" title="Afastar zoom">&minus;</button>
@@ -1274,34 +1498,32 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
           </div>
         </div>
 
-        <div id="satellite-map-viewport" class="satellite-map-container" style="position: relative; overflow: hidden; border-radius: 12px; min-height: 270px; flex: 1; background: #0F172A; cursor: grab; user-select: none;">
-          <div id="satellite-map-stage" style="position: absolute; inset: 0; transform-origin: center center; transition: transform 0.2s ease-out;">
+        <div id="satellite-map-viewport" class="satellite-map-container" style="position: relative; overflow: hidden; border-radius: 12px; min-height: 270px; flex: 1; background: #0F172A; user-select: none;">
+          <div id="leaflet-propriedade-map" style="position: absolute; inset: 0; z-index: 5; border-radius: 12px;"></div>
+
+          <div id="satellite-map-fallback" style="position: absolute; inset: 0; z-index: 4;">
             <img src="assets/images/topologia-sensores-campo.jpg" alt="Visão Aérea dos Talhões" class="satellite-bg-img" style="width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; border-radius: 12px;">
 
-            <!-- Sensor 1: DHT11 ESP32-C3 -->
+            <!-- Sensor 1: DHT11 ESP32-C3 (ar) -->
             <div style="position: absolute; top: 22%; left: 24%; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(4px); padding: 5px 12px; border-radius: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.25); font-size: 11px; font-weight: 700; color: #FFFFFF; display: flex; align-items: center; gap: 6px; z-index: 10; border: 1px solid rgba(16, 185, 129, 0.6);">
               <span style="width: 8px; height: 8px; border-radius: 50%; background: #10B981;"></span>
-              <span>DHT11 ESP32-C3 (Ar)</span>
+              <span>DHT11 ESP32-C3 (ar)</span>
             </div>
 
-            <!-- Sensor 3: Solo ESP32 -->
+            <!-- Sensor 2: Solo · em calibração -->
             <div style="position: absolute; bottom: 26%; right: 28%; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(4px); padding: 5px 12px; border-radius: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.25); font-size: 11px; font-weight: 700; color: #FFFFFF; display: flex; align-items: center; gap: 6px; z-index: 10; border: 1px solid rgba(14, 165, 233, 0.6);">
               <span style="width: 8px; height: 8px; border-radius: 50%; background: #0EA5E9;"></span>
-              <span>Solo ESP32</span>
+              <span>Solo · em calibração</span>
             </div>
-          </div>
-
-          <div id="map-zoom-badge" style="position: absolute; bottom: 10px; right: 10px; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(4px); color: #FFFFFF; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 12px; pointer-events: none; opacity: 0; transition: opacity 0.3s; z-index: 20;">
-            100%
           </div>
         </div>
 
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; font-size: 11px; color: #94A3B8;">
-          <div style="display: flex; gap: 16px;">
-            <span><strong style="color: #10B981;">●</strong> DHT11 (Ar)</span>
-            <span><strong style="color: #0EA5E9;">●</strong> Sensor Solo</span>
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 14px; font-size: 11px; color: #94A3B8;">
+          <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+            <span><strong style="color: #10B981;">●</strong> DHT11 (ar)</span>
+            <span><strong style="color: #0EA5E9;">●</strong> Solo (em calibração)</span>
           </div>
-          <div>Rede Local ESP32 • ThingSpeak</div>
+          <div style="font-size: 10.5px; color: #94A3B8;">Localização aproximada · Rede Local ESP32 • ThingSpeak</div>
         </div>
       </div>
 
@@ -1315,10 +1537,10 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
             TELEMETRIA DE CAMPO (24H)
           </span>
           <p style="font-size: 12px; color: #94A3B8; margin-top: 2px;">
-            Leituras em tempo real via ESP32 (DHT11 e Sensor de Umidade do Solo)
-            <span id="sse-origem-badge" class="card-status-pill pill-green sse-origem-badge" style="font-size: 10px; padding: 2px 8px; margin-left: 8px;">Sensor Real</span>
+            Últimas leituras registradas do ESP32 (DHT11)
+            <span id="sse-origem-badge" class="card-status-pill ${temLeituras24h ? 'pill-green' : 'pill-blue'} sse-origem-badge" style="font-size: 10px; padding: 2px 8px; margin-left: 8px;">${temLeituras24h ? 'Sensor Real' : 'Sem dados'}</span>
             <span id="sse-aviso-reconectando" class="sse-aviso-reconectando" style="display: none; margin-left: 8px; font-size: 11px; font-weight: 600; color: #D97706; background: #FFFBEB; border: 1px solid #FDE68A; padding: 2px 8px; border-radius: 6px;">Reconectando...</span>
-            <span id="sse-horario-leitura" class="sse-horario-leitura" style="margin-left: 8px; font-size: 11px; color: #64748B;"></span>
+            <span id="sse-horario-leitura" class="sse-horario-leitura" style="margin-left: 8px; font-size: 11px; color: #64748B;">${(ultimaLeituraTs || ultimaLeituraTimestamp) ? `Última leitura: ${formatarTimestampRecife(ultimaLeituraTs || ultimaLeituraTimestamp)}` : ''}</span>
           </p>
         </div>
 
@@ -1338,7 +1560,7 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
         <div class="mini-chart-card">
           <div class="mini-chart-header">
             <span class="mini-chart-title">Umidade do Ar</span>
-            <span class="mini-chart-pill pill-green" id="miniChart1-pill">${dg.umidade_ar_24h && dg.umidade_ar_24h.length ? `${Math.round(dg.umidade_ar_24h[dg.umidade_ar_24h.length - 1])}%` : 'Sem dados'}</span>
+            <span class="mini-chart-pill ${temUmidAr24h ? 'pill-green' : 'pill-blue'}" id="miniChart1-pill">${temUmidAr24h ? `${Math.round(dg.umidade_ar_24h[dg.umidade_ar_24h.length - 1])}%` : 'Sem dados'}</span>
           </div>
           <div class="chart-canvas-wrap">
             <canvas id="miniChart1"></canvas>
@@ -1352,10 +1574,16 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
         <div class="mini-chart-card">
           <div class="mini-chart-header">
             <span class="mini-chart-title">Umidade do Solo</span>
-            <span class="mini-chart-pill pill-green" id="miniChart2-pill">${dg.umidade_solo_24h && dg.umidade_solo_24h.length ? `${Math.round(dg.umidade_solo_24h[dg.umidade_solo_24h.length - 1])}%` : 'Sem dados'}</span>
+            ${SONDA_SOLO_INSTALADA
+      ? `<span class="mini-chart-pill ${temLeituras24h ? 'pill-green' : 'pill-blue'}" id="miniChart2-pill">${temLeituras24h && dg.umidade_solo_24h && dg.umidade_solo_24h.length ? `${Math.round(dg.umidade_solo_24h[dg.umidade_solo_24h.length - 1])}%` : 'Sem dados'}</span>`
+      : `<span class="mini-chart-pill" id="miniChart2-pill" style="background: #F1F5F9; border: 1px solid #CBD5E1; color: #64748B;">Sem sonda instalada</span>`
+    }
           </div>
           <div class="chart-canvas-wrap">
-            <canvas id="miniChart2"></canvas>
+            ${SONDA_SOLO_INSTALADA
+      ? `<canvas id="miniChart2"></canvas>`
+      : `<div class="grafico-sem-dados" style="height: 100%; min-height: 48px; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #94A3B8; font-style: italic; text-align: center;">Sensor de umidade do solo ainda não instalado</div>`
+    }
           </div>
           <div class="chart-time-labels">
             <span>-24h</span><span>-18h</span><span>-12h</span><span>-6h</span><span>Agora</span>
@@ -1366,7 +1594,7 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
         <div class="mini-chart-card">
           <div class="mini-chart-header">
             <span class="mini-chart-title">Temperatura <br>do Ar</span>
-            <span class="mini-chart-pill pill-green" id="miniChart4-pill">${dg.temp_ar_24h && dg.temp_ar_24h.length ? `${dg.temp_ar_24h[dg.temp_ar_24h.length - 1]}°C` : 'Sem dados'}</span>
+            <span class="mini-chart-pill ${temTempAr24h ? 'pill-green' : 'pill-blue'}" id="miniChart4-pill">${temTempAr24h ? `${dg.temp_ar_24h[dg.temp_ar_24h.length - 1]}°C` : 'Sem dados'}</span>
           </div>
           <div class="chart-canvas-wrap">
             <canvas id="miniChart4"></canvas>
@@ -1384,10 +1612,230 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS) {
 /**
  * 2. MODO DETALHADO (Base 100% no Banco de Dados PostgreSQL e Telemetria Real)
  */
-function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS, extras = {}) {
+let ptaxDolarCache = null;
+
+function _lerPtaxCache() {
+  if (ptaxDolarCache && typeof ptaxDolarCache.valor === 'number' && ptaxDolarCache.dataBr) {
+    return ptaxDolarCache;
+  }
+  try {
+    const raw = sessionStorage.getItem('PTAX_DOLAR_CACHE');
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed.valor === 'number' && parsed.dataBr) {
+      ptaxDolarCache = parsed;
+      return parsed;
+    }
+  } catch (_) { }
+  return null;
+}
+
+function _salvarPtaxCache(obj) {
+  ptaxDolarCache = obj;
+  try {
+    sessionStorage.setItem('PTAX_DOLAR_CACHE', JSON.stringify(obj));
+  } catch (_) { }
+}
+
+async function _buscarDolarPtax() {
+  const cached = _lerPtaxCache();
+  if (cached) return cached;
+
+  for (let offset = 0; offset <= 7; offset++) {
+    const d = new Date();
+    d.setDate(d.getDate() - offset);
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const yyyy = d.getFullYear();
+    const dataParam = `${mm}-${dd}-${yyyy}`;
+    const url = `https://olinda.bcb.gov.br/olinda/servico/PTAX/versao/v1/odata/CotacaoDolarDia(dataCotacao=@dataCotacao)?@dataCotacao='${dataParam}'&$format=json&$select=cotacaoVenda,dataHoraCotacao`;
+
+    try {
+      const resp = await fetch(url);
+      if (!resp.ok) continue;
+      const json = await resp.json();
+      const lista = Array.isArray(json?.value) ? json.value : [];
+      const item = lista.length > 0 ? lista[lista.length - 1] : null;
+      if (item && item.cotacaoVenda != null && !Number.isNaN(Number(item.cotacaoVenda))) {
+        const dp = parseDateBr(item.dataHoraCotacao);
+        const resultado = {
+          valor: Number(item.cotacaoVenda),
+          dataBr: dp ? dp.br : `${dd}/${mm}`
+        };
+        _salvarPtaxCache(resultado);
+        return resultado;
+      }
+    } catch (_) {
+      break;
+    }
+  }
+  return _lerPtaxCache();
+}
+
+let janelasDetalhadoCache = [];
+let janelaDiasAtualCache = [];
+const FRUTAS_JANELA_OPCOES = ['Manga', 'Uva', 'Melão'];
+
+function _textoMotivoDia(item) {
+  if (!item || !item.raw) return '';
+  const { raw: d, dp } = item;
+  if (d.adequado) {
+    return `${dp.br}: Dia adequado para colheita`;
+  }
+  const motivos = Array.isArray(d.motivos)
+    ? d.motivos.map(m => String(m || '').trim()).filter(Boolean)
+    : [];
+  if (motivos.length === 0) return '';
+  return `${dp.br}: ${motivos.join('; ')}`;
+}
+
+function _normFrutaJanela(nome) {
+  return String(nome || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+}
+
+function _hojeIsoLocal() {
+  const agora = new Date();
+  return `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}-${String(agora.getDate()).padStart(2, '0')}`;
+}
+
+function _isJanelaValida(j, hojeIso) {
+  return Boolean(j && j.janela_inicio && j.janela_fim && j.janela_fim >= hojeIso);
+}
+
+function _selecionarJanelaPorFruta(janLista, frutaNome) {
+  const hojeIso = _hojeIsoLocal();
+  const alvo = _normFrutaJanela(frutaNome);
+  const daFruta = (Array.isArray(janLista) ? janLista : []).filter(j => _normFrutaJanela(j?.fruta) === alvo);
+  if (daFruta.length === 0) return { janelaExibida: null, janelaValida: null };
+
+  const ordenarRecente = (a, b) => String(b?.gerado_em || '').localeCompare(String(a?.gerado_em || ''));
+  const validas = daFruta.filter(j => _isJanelaValida(j, hojeIso)).sort(ordenarRecente);
+  if (validas.length > 0) {
+    return { janelaExibida: validas[0], janelaValida: validas[0] };
+  }
+  const recentes = [...daFruta].sort(ordenarRecente);
+  return { janelaExibida: recentes[0], janelaValida: null };
+}
+
+function _frutaInicialJanela(janLista) {
+  const hojeIso = _hojeIsoLocal();
+  const lista = Array.isArray(janLista) ? janLista : [];
+  for (const fruta of FRUTAS_JANELA_OPCOES) {
+    const alvo = _normFrutaJanela(fruta);
+    if (lista.some(j => _normFrutaJanela(j?.fruta) === alvo && _isJanelaValida(j, hojeIso))) {
+      return fruta;
+    }
+  }
+  return 'Manga';
+}
+
+function _renderCorpoJanelaColheita(janLista, frutaSelecionada) {
+  const hojeIsoJan = _hojeIsoLocal();
+  const { janelaExibida, janelaValida } = _selecionarJanelaPorFruta(janLista, frutaSelecionada);
+  const janInicioP = parseDateBr(janelaValida?.janela_inicio);
+  const janFimP = parseDateBr(janelaValida?.janela_fim);
+  const janPeriodo = (janInicioP && janFimP) ? `${janInicioP.br} a ${janFimP.br}` : null;
+  const janProb = (janelaValida && janelaValida.probabilidade != null) ? Math.round(Number(janelaValida.probabilidade)) : null;
+
+  const _diasSemana = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'];
+  const janDiasLista = (janelaExibida && Array.isArray(janelaExibida.dias))
+    ? janelaExibida.dias
+      .map(d => {
+        const dateStr = d?.data || d?.time || (typeof d === 'string' ? d : '');
+        const dp = parseDateBr(dateStr);
+        return dp ? { raw: d, dp } : null;
+      })
+      .filter(item => item && item.dp.iso >= hojeIsoJan)
+      .slice(0, 7)
+    : [];
+  janelaDiasAtualCache = janDiasLista;
+
+  const janDiasHtml = janDiasLista.length > 0
+    ? janDiasLista.map(({ raw: d, dp }, idx) => {
+      const jsDate = new Date(dp.y, dp.mo - 1, dp.d);
+      const diaSem = _diasSemana[jsDate.getDay()];
+      const adequado = Boolean(d?.adequado);
+      const tempMaxStr = d?.temp_max != null ? `${Math.round(Number(d.temp_max))}°C` : '—';
+      const probChuvaStr = d?.prob_chuva_pct != null ? `${Math.round(Number(d.prob_chuva_pct))}%` : '—';
+      return `
+        <div class="harvest-day-box${adequado ? '' : ' harvest-day-box--amber'}${idx === 0 ? ' harvest-day-box--selected' : ''}" data-dia-idx="${idx}" style="cursor: pointer;">
+          <span class="harvest-day-name">${diaSem}</span>
+          <strong class="harvest-day-num" style="font-size: 13px;">${dp.br}</strong>
+          <span style="font-size: 12px; font-weight: 700; color: #1E293B; margin-top: 2px;">${tempMaxStr}</span>
+          <span style="font-size: 10.5px; color: #475569; display: inline-flex; align-items: center; gap: 3px;">
+            <i data-lucide="droplets" style="width: 11px; height: 11px; color: #0284C7;"></i>${probChuvaStr}
+          </span>
+        </div>`;
+    }).join('')
+    : '<div style="grid-column: 1 / -1; text-align: center; font-size: 12px; color: #64748B; padding: 18px 8px;">Previsão ainda não disponível</div>';
+
+  const motivoInicial = janDiasLista.length > 0 ? _textoMotivoDia(janDiasLista[0]) : '';
+  const motivoInicialEsc = motivoInicial.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  const destaqueTexto = !janelaExibida
+    ? 'Sem previsão para esta fruta'
+    : (janPeriodo || 'Nenhum dia ideal na previsão');
+  const loteBadge = janelaExibida?.id_lote != null
+    ? `<span style="font-size: 11px; font-weight: 600; color: #475569; background: #F1F5F9; padding: 3px 8px; border-radius: 999px;">Lote #${janelaExibida.id_lote}</span>`
+    : '';
+
+  return `
+    <!-- 2. Destaque: período ou sem janela / sem registro + lote -->
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; padding: 4px 0;">
+      <div style="font-size: ${janPeriodo ? '26px' : '19px'}; font-weight: 800; color: ${janPeriodo ? '#1E293B' : '#64748B'}; letter-spacing: -0.4px;">
+        ${destaqueTexto}
+      </div>
+      ${loteBadge}
+    </div>
+
+    <!-- 3. Grade com os dias recebidos a partir de hoje -->
+    <div class="harvest-days-grid" style="flex: 1; align-content: stretch;">
+      ${janDiasHtml}
+    </div>
+
+    <div id="janela-dia-motivo" style="${motivoInicial ? '' : 'display: none; '}font-size: 11.5px; color: #475569; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 7px 10px; line-height: 1.4;">${motivoInicialEsc}</div>
+
+    <!-- 4. Rodapé: legenda e probabilidade (só com janela válida) -->
+    <div style="padding-top: 12px; border-top: 1px solid #F1F5F9; display: flex; flex-direction: column; gap: 10px;">
+      <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap; font-size: 11px; color: #475569;">
+        <span style="display: inline-flex; align-items: center; gap: 6px;">
+          <span style="width: 10px; height: 10px; border-radius: 3px; background: #F0FDF4; border: 1px solid #059669; display: inline-block;"></span>
+          Adequado
+        </span>
+        <span style="display: inline-flex; align-items: center; gap: 6px;">
+          <span style="width: 10px; height: 10px; border-radius: 3px; background: #FFFBEB; border: 1px solid #D97706; display: inline-block;"></span>
+          Fora da faixa ideal
+        </span>
+      </div>
+      ${janPeriodo && janProb != null ? `
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <div style="position: relative; width: 38px; height: 38px; flex-shrink: 0;">
+          <svg width="38" height="38" viewBox="0 0 40 40" style="transform: rotate(-90deg);">
+            <circle cx="20" cy="20" r="15.5" fill="none" stroke="#E2E8F0" stroke-width="3.5" />
+            <circle cx="20" cy="20" r="15.5" fill="none" stroke="#059669" stroke-width="3.5" stroke-dasharray="97.4" stroke-dashoffset="${Math.round(97.4 - (janProb / 100) * 97.4)}" stroke-linecap="round" />
+          </svg>
+          <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; color: #1E293B;">
+            ${janProb}%
+          </div>
+        </div>
+        <span style="font-size: 11.5px; color: #475569; line-height: 1.4;">
+          de probabilidade de a janela atender às condições climáticas ideais.
+        </span>
+      </div>` : ''}
+    </div>
+  `;
+}
+
+let lotesDetalhadoParecerCache = [];
+
+function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS, extras = {}, lotesRaw = null) {
+  lotesDetalhadoParecerCache = extrairArraySeguro(lotesRaw).filter(l => {
+    const st = _normFrutaJanela(l?.status);
+    return st === 'em producao' || st === 'pronto para colheita';
+  });
   const r = resumo || {};
   const fmtNum = (n, casas = 1) => Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: casas });
-  
+
 
   // --- Condição geral: rótulo calculado pelo backend (vw_lote_saude) ---
   const cond = r.condicao_geral || {};
@@ -1397,10 +1845,9 @@ function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS, extras 
   // --- Lotes em operação ---
   const lotesTotal = r.lotes_monitorados?.total ?? 0;
 
-  // --- Alertas ativos ---
+  // --- Alertas abertos ---
   const alertasAbertos = Number(r.alertas?.abertos ?? 0);
-  const alertaTexto = alertasAbertos > 0 ? `${alertasAbertos} para revisar` : 'Sem alertas';
-  const alertaPillTxt = alertasAbertos === 0 ? 'Sem alertas' : 'Atenção leve';
+  const alertaTexto = alertasAbertos > 0 ? `${alertasAbertos} para revisar` : '0';
 
   // --- Irrigação recomendada hoje ---
   const previsoesIrr = Array.isArray(extras.irrigacao) ? extras.irrigacao : null;
@@ -1412,7 +1859,7 @@ function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS, extras 
     const mms = precisam.map(p => Number(p.quantidade_agua_mm)).filter(v => !Number.isNaN(v) && v > 0);
     const irrMm = mms.length ? mms.reduce((a, b) => a + b, 0) / mms.length : 0;
     const areaHa = temValor(r.propriedade?.area_ha) ? Number(r.propriedade.area_ha) : null;
-    
+
     if (precisam.length === 0) {
       irrValor = '0 mm';
       irrCaption = 'Sem necessidade hoje';
@@ -1422,43 +1869,104 @@ function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS, extras 
       irrCaption = `${fmtNum(irrMm, 1)} mm · ${fmtNum(litros, 0)} L estimados`;
     } else if (irrMm) {
       irrValor = `${fmtNum(irrMm, 1)} mm`;
-      irrCaption = 'Área não informada';
+      irrCaption = 'Registrada no sistema';
     }
   }
 
-  // --- Condições de cultivo ---
+  // --- Condições de cultivo (médias das últimas 24 h em resumo_condicoes) ---
   const rc = r.resumo_condicoes || {};
-  const confPct = temValor(rc.pct_na_faixa) ? Math.round(Number(rc.pct_na_faixa)) : 0;
-  const umidVal = temValor(rc.umidade_ar_media) ? Math.round(Number(rc.umidade_ar_media)) : '—';
-  const tempVal = temValor(rc.temperatura_ar_media) ? fmtNum(rc.temperatura_ar_media, 1) : '—';
-  const vpdVal = temValor(rc.vpd_medio_kpa) ? `${fmtNum(rc.vpd_medio_kpa, 2)} kPa` : '— kPa';
-  const vpdSub = temValor(rc.vpd_medio_kpa) ? 'Déficit de pressão' : 'Valor não informado';
+  const temPctFaixa = temValor(rc.pct_na_faixa);
+  const pctFaixaNum = temPctFaixa ? Math.min(100, Math.max(0, Number(rc.pct_na_faixa))) : 0;
+  const pctFaixaTexto = temPctFaixa ? `${fmtNum(rc.pct_na_faixa, 1)}% das leituras na faixa ideal` : '—';
+  const qtdAvaliadas = temValor(rc.leituras_avaliadas) ? Number(rc.leituras_avaliadas) : (temValor(rc.n_leituras_ar) ? Number(rc.n_leituras_ar) : null);
+  const baseLeiturasTexto = temPctFaixa
+    ? (qtdAvaliadas != null && qtdAvaliadas > 0
+      ? `Base: ${qtdAvaliadas} ${qtdAvaliadas === 1 ? 'leitura' : 'leituras'} nas últimas 24 h`
+      : 'Últimas 24 h')
+    : 'Sem leituras no período';
+
+  const temUmidMedia = temValor(rc.umidade_ar_media);
+  const umidTexto = temUmidMedia ? `${Math.round(Number(rc.umidade_ar_media))}%` : '—';
+  const umidSub = temUmidMedia ? 'Média nas últimas 24 h' : 'Sem leituras no período';
+
+  const temTempMedia = temValor(rc.temperatura_ar_media);
+  const tempTexto = temTempMedia ? `${fmtNum(rc.temperatura_ar_media, 1)} °C` : '—';
+  const tempSub = temTempMedia ? 'Média nas últimas 24 h' : 'Sem leituras no período';
+
+  const temVpdMedio = temValor(rc.vpd_medio_kpa);
+  const vpdTexto = temVpdMedio ? `${fmtNum(rc.vpd_medio_kpa, 2)} kPa` : '—';
+  const vpdSub = temVpdMedio ? 'Quanto o ar puxa água da planta' : 'Sem leituras no período';
 
   // --- Janela de colheita real ---
   const janLista = Array.isArray(extras.janelas) ? extras.janelas : [];
-  const primeiraJanela = janLista[0] || null;
-  const janProb = primeiraJanela?.probabilidade != null ? Math.round(Number(primeiraJanela.probabilidade)) : 0;
-  const janDiasHtml = (primeiraJanela && Array.isArray(primeiraJanela.dias) && primeiraJanela.dias.length > 0)
-    ? primeiraJanela.dias.slice(0, 7).map(d => {
-        const dt = new Date(d.data || d);
-        const diaSem = isNaN(dt.getTime()) ? '' : dt.toLocaleDateString('pt-BR', { weekday: 'short' }).toUpperCase().replace('.', '');
-        const diaNum = isNaN(dt.getTime()) ? String(d) : String(dt.getDate()).padStart(2, '0');
-        return `<div class="harvest-day-box"><span class="harvest-day-name">${diaSem}</span><strong class="harvest-day-num">${diaNum}</strong></div>`;
-      }).join('')
-    : '<div style="grid-column: 1 / -1; text-align: center; font-size: 12px; color: #64748B; padding: 12px;">Sem previsão de janela cadastrada</div>';
+  janelasDetalhadoCache = janLista;
+  const frutaInicialJanela = _frutaInicialJanela(janLista);
+  const { janelaValida: janInicialValida } = _selecionarJanelaPorFruta(janLista, frutaInicialJanela);
+  const primeiraJanela = janInicialValida || janLista.find(j => _isJanelaValida(j, _hojeIsoLocal())) || null;
+  const janCorpoHtml = _renderCorpoJanelaColheita(janLista, frutaInicialJanela);
+
+  // --- Próximos passos baseados nos dados do painel ---
+  const temAlertasResumo = temValor(r.alertas?.abertos);
+  const passoAlertasTexto = !temAlertasResumo
+    ? 'Dados de alertas indisponíveis no momento.'
+    : alertasAbertos === 0
+      ? 'Nenhum alerta em aberto. Continue acompanhando.'
+      : alertasAbertos === 1
+        ? '1 alerta em aberto para revisar.'
+        : `${alertasAbertos} alertas em aberto para revisar.`;
+
+  const pJanIni = parseDateBr(primeiraJanela?.janela_inicio);
+  const pJanFim = parseDateBr(primeiraJanela?.janela_fim);
+  let passoColheitaTexto = 'Previsão de colheita ainda não disponível.';
+  if (primeiraJanela && pJanIni && pJanFim) {
+    const detalhesJan = [
+      primeiraJanela.fruta || null,
+      primeiraJanela.id_lote != null ? `Lote #${primeiraJanela.id_lote}` : null
+    ].filter(Boolean).join(' · ');
+    passoColheitaTexto = `Janela de ${pJanIni.br} a ${pJanFim.br}${detalhesJan ? ` (${detalhesJan})` : ''}.`;
+  } else {
+    const janComDias = janLista.find(j => Array.isArray(j?.dias) && j.dias.length > 0);
+    if (janComDias) {
+      passoColheitaTexto = janComDias.fruta
+        ? `Nenhum dia ideal para ${janComDias.fruta} na previsão. Acompanhe as próximas atualizações.`
+        : 'Nenhum dia ideal na previsão. Acompanhe as próximas atualizações.';
+    }
+  }
+
+  const hojeIsoClima = _hojeIsoLocal();
+  const climaDiasArr = Array.isArray(clima?.dias) ? clima.dias : [];
+  const clima3Dias = climaDiasArr
+    .filter(d => {
+      const dp = parseDateBr(d?.data || d?.time);
+      return dp ? dp.iso >= hojeIsoClima : true;
+    })
+    .slice(0, 3);
+  const probsChuva3d = clima3Dias
+    .map(d => (d?.chance_chuva != null ? d.chance_chuva : (d?.precipitation_probability_max != null ? d.precipitation_probability_max : d?.prob_chuva_pct)))
+    .filter(v => temValor(v))
+    .map(v => Number(v));
+  const maiorChuva3d = probsChuva3d.length > 0 ? Math.round(Math.max(...probsChuva3d)) : null;
+
+  const irrRecomendada = (previsoesIrr && previsoesIrr.length)
+    ? previsoesIrr.find(p => p?.necessita_irrigacao && temValor(p?.quantidade_agua_mm) && Number(p.quantidade_agua_mm) > 0) || null
+    : null;
+  let passoIrrigacaoTexto = 'Sem recomendação de irrigação no momento.';
+  if (irrRecomendada) {
+    const loteIrrTxt = irrRecomendada.id_lote != null ? ` (Lote #${irrRecomendada.id_lote})` : '';
+    passoIrrigacaoTexto = `Recomendação registrada: ${fmtNum(irrRecomendada.quantidade_agua_mm, 1)} mm${loteIrrTxt}.`;
+  }
+  if (maiorChuva3d != null) {
+    passoIrrigacaoTexto += ` Maior chance de chuva (hoje e próximos 2 dias): ${maiorChuva3d}%.`;
+  }
 
   // --- Mercado real ---
   const mercadoLista = Array.isArray(extras.mercado) ? extras.mercado : [];
   const mercadoCardsHtml = mercadoLista.length > 0
     ? mercadoLista.slice(0, 2).map(m => `
-        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px 14px; position: relative;">
+        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px 14px;">
           <div style="font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px;">${m.fruta || m.cultura || 'Cultura'}</div>
-          <div style="display: flex; align-items: baseline; justify-content: space-between;">
-            <span style="font-size: 20px; font-weight: 800; color: #1E293B;">R$ ${m.preco_kg != null ? Number(m.preco_kg).toFixed(2).replace('.', ',') : '—'}</span>
-            <span style="background: #ECFDF5; color: #059669; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 6px;">${m.demanda || m.tendencia || 'Ativo'}</span>
-          </div>
-          <div style="font-size: 10px; color: #94A3B8; margin-top: 2px; margin-bottom: 10px;">por kg</div>
-          <div style="width: 100%; height: 3px; background: #059669; border-radius: 2px;"></div>
+          <div style="font-size: 20px; font-weight: 800; color: #1E293B; line-height: 1.1;">R$ ${m.preco_kg != null ? Number(m.preco_kg).toFixed(2).replace('.', ',') : '—'}</div>
+          <div style="font-size: 10px; color: #94A3B8; margin-top: 4px;">por kg</div>
         </div>
       `).join('')
     : '<div style="grid-column: 1 / -1; text-align: center; font-size: 12px; color: #64748B; padding: 18px;">Nenhum dado de mercado cadastrado</div>';
@@ -1467,7 +1975,7 @@ function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS, extras 
   const climaAtual = clima?.atual || clima?.agora || clima || {};
   const tVal = climaAtual.temperatura != null ? climaAtual.temperatura : (climaAtual.temperature_2m != null ? climaAtual.temperature_2m : null);
   const climaTemp = tVal != null ? `${Math.round(Number(tVal))}°C` : '—';
-  const climaDesc = climaAtual.condicao || climaAtual.descricao || 'Dados meteorológicos';
+  const climaDesc = _formatarCondicaoClima(clima, climaAtual);
   const uVal = climaAtual.umidade != null ? climaAtual.umidade : (climaAtual.relative_humidity_2m != null ? climaAtual.relative_humidity_2m : null);
   const climaUmid = uVal != null ? `${Math.round(Number(uVal))}% umidade` : '— umidade';
   const vVal = climaAtual.vento_kmh != null ? climaAtual.vento_kmh : (climaAtual.wind_speed_10m != null ? climaAtual.wind_speed_10m : null);
@@ -1475,18 +1983,14 @@ function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS, extras 
   const climaDias = Array.isArray(clima?.dias) ? clima.dias.slice(0, 6) : [];
   const climaDiasHtml = climaDias.length > 0
     ? climaDias.map(d => {
-        const diaNome = d.dia_semana || (d.data ? d.data.slice(5) : '');
-        const maxVal = d.temp_max != null ? d.temp_max : d.temperature_2m_max;
-        const minVal = d.temp_min != null ? d.temp_min : d.temperature_2m_min;
-        const maxStr = maxVal != null ? `${Math.round(Number(maxVal))}°` : '—';
-        const minStr = minVal != null ? `${Math.round(Number(minVal))}°` : '—';
-        return `<div><span style="font-size: 10px; color: #94A3B8; display: block;">${diaNome}</span><strong style="font-size: 11px; color: #1E293B;">${maxStr} / ${minStr}</strong></div>`;
-      }).join('')
+      const diaNome = d.dia_semana || (d.data ? d.data.slice(5) : '');
+      const maxVal = d.temp_max != null ? d.temp_max : d.temperature_2m_max;
+      const minVal = d.temp_min != null ? d.temp_min : d.temperature_2m_min;
+      const maxStr = maxVal != null ? `${Math.round(Number(maxVal))}°` : '—';
+      const minStr = minVal != null ? `${Math.round(Number(minVal))}°` : '—';
+      return `<div><span style="font-size: 10px; color: #94A3B8; display: block;">${diaNome}</span><strong style="font-size: 11px; color: #1E293B;">${maxStr} / ${minStr}</strong></div>`;
+    }).join('')
     : '<div style="grid-column: 1 / -1; text-align: center; font-size: 11px; color: #94A3B8; padding: 6px;">Previsão estendida indisponível</div>';
-
-  // SVG Donut calculation: raio = 44, circunferência = 2 * PI * 44 = 276.46
-  const circ = 276.46;
-  const strokeDashoffset = Math.round(circ - (confPct / 100) * circ);
 
   return `
     <div class="dd-wrap">
@@ -1512,21 +2016,24 @@ function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS, extras 
               <i data-lucide="layout-grid" style="width: 16px; height: 16px;"></i>
             </div>
           </div>
-          <span class="dd-caption">lotes ativos</span>
+          <span class="dd-caption">lotes não finalizados</span>
         </div>
 
-        <!-- KPI 3: Alertas Ativos -->
+        <!-- KPI 3: Alertas Abertos -->
         <div class="dd-card dd-kpi">
-          <span class="dd-label">ALERTAS ATIVOS</span>
+          <span class="dd-label">ALERTAS ABERTOS</span>
           <div style="display: flex; align-items: center; justify-content: space-between; margin: 10px 0 6px;">
             <span style="font-size: 22px; font-weight: 800; color: #1E293B;" data-kpi="alertas-count">${alertaTexto}</span>
             <div style="width: 32px; height: 32px; border-radius: 8px; background: #FFFBEB; display: flex; align-items: center; justify-content: center; color: #D97706;">
               <i data-lucide="alert-triangle" style="width: 16px; height: 16px;"></i>
             </div>
           </div>
-          <div style="display: flex; align-items: center;">
-            <span class="dd-pill dd-pill-amber" style="font-size: 10px; padding: 2px 8px;">${alertaPillTxt}</span>
-          </div>
+          ${alertasAbertos > 0
+      ? `<div style="display: flex; align-items: center;">
+                 <span class="dd-pill dd-pill-amber" style="font-size: 10px; padding: 2px 8px;">Atenção leve</span>
+               </div>`
+      : `<span class="dd-caption">Nenhum alerta em aberto</span>`
+    }
         </div>
 
         <!-- KPI 4: Irrigação Recomendada Hoje -->
@@ -1542,107 +2049,72 @@ function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS, extras 
       <!-- Linha 2: Janela de Colheita (com 7 dias) + Condições de Cultivo (com Donut Chart) -->
       <div class="dd-split-grid">
         <!-- Card: Janela Ideal de Colheita -->
-        <div class="dd-card dd-card-lg" style="padding: 22px 24px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-            <span class="dd-label">JANELA IDEAL DE COLHEITA</span>
-            <div style="width: 26px; height: 26px; border-radius: 6px; background: #ECFDF5; display: flex; align-items: center; justify-content: center; color: #059669;">
+        <div class="dd-card dd-card-lg" style="padding: 22px 24px; display: flex; flex-direction: column;">
+          <!-- 1. Cabeçalho: título, botões de fruta e ícone -->
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+              <span class="dd-label">JANELA IDEAL DE COLHEITA</span>
+              <div id="janela-fruta-btns" style="display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                ${FRUTAS_JANELA_OPCOES.map(fruta => {
+      const ativa = fruta === frutaInicialJanela;
+      return `<button type="button" class="janela-fruta-btn${ativa ? ' is-active' : ''}" data-fruta="${fruta}" style="padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; cursor: pointer; border: 1px solid ${ativa ? '#059669' : '#E2E8F0'}; background: ${ativa ? '#059669' : '#F8FAFC'}; color: ${ativa ? '#FFFFFF' : '#475569'}; touch-action: manipulation; transition: all 0.15s ease;">${fruta}</button>`;
+    }).join('')}
+              </div>
+            </div>
+            <div style="width: 26px; height: 26px; border-radius: 6px; background: #ECFDF5; display: flex; align-items: center; justify-content: center; color: #059669; flex-shrink: 0;">
               <i data-lucide="calendar" style="width: 14px; height: 14px;"></i>
             </div>
           </div>
 
-          <div style="font-size: 28px; font-weight: 800; color: #1E293B; letter-spacing: -0.5px; margin: 4px 0 2px;">
-            ${primeiraJanela ? `${primeiraJanela.janela_inicio || ''} — ${primeiraJanela.janela_fim || ''}` : 'Sem janela prevista'}
-          </div>
-          <p style="font-size: 11px; color: #64748B; margin: 0 0 16px 0;">
-            ${primeiraJanela ? `${primeiraJanela.fruta || 'Cultura'} · ${primeiraJanela.categoria || 'Recomendado'}` : 'Aguardando geração de previsão no backend'}
-          </p>
-
-          <!-- 7 Dias da Janela de Colheita -->
-          <div class="harvest-days-grid" style="margin-bottom: 20px;">
-            ${janDiasHtml}
-          </div>
-
-          <!-- Probabilidade com aro circular -->
-          <div style="display: flex; align-items: center; gap: 14px; padding-top: 4px;">
-            <div style="position: relative; width: 40px; height: 40px; flex-shrink: 0;">
-              <svg width="40" height="40" viewBox="0 0 40 40" style="transform: rotate(-90deg);">
-                <circle cx="20" cy="20" r="15.5" fill="none" stroke="#E2E8F0" stroke-width="3.5" />
-                <circle cx="20" cy="20" r="15.5" fill="none" stroke="#059669" stroke-width="3.5" stroke-dasharray="97.4" stroke-dashoffset="${Math.round(97.4 - (janProb / 100) * 97.4)}" stroke-linecap="round" />
-              </svg>
-              <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 10.5px; font-weight: 800; color: #1E293B;">
-                ${janProb}%
-              </div>
-            </div>
-            <span style="font-size: 11.5px; color: #475569; line-height: 1.4;">
-              de probabilidade de a janela atender às condições climáticas ideais.
-            </span>
+          <div id="janela-colheita-corpo" style="display: flex; flex-direction: column; flex: 1; justify-content: space-between; gap: 14px;">
+            ${janCorpoHtml}
           </div>
         </div>
 
         <!-- Card: Condições de Cultivo -->
-        <div class="dd-card dd-card-lg" style="padding: 22px 24px;">
+        <div class="dd-card dd-card-lg" style="padding: 20px 24px; display: flex; flex-direction: column; height: 100%;">
           <div style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 8px;">
             <div>
               <h3 style="font-size: 16px; font-weight: 700; color: #1E293B; margin: 0;">Condições de cultivo</h3>
               <div style="font-size: 11px; color: #94A3B8; margin-top: 2px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                <span>Últimas 24 horas</span>
+                <span>Médias das últimas 24 horas</span>
                 <span>•</span>
-                <span id="sse-origem-badge-detalhado" class="card-status-pill pill-green sse-origem-badge" style="font-size: 10px; padding: 1px 7px;">Sensor Real</span>
+                <span id="sse-origem-badge-detalhado" class="card-status-pill ${isLeituraRecente30m(ultimaLeituraTimestamp) ? 'pill-green' : 'pill-blue'} sse-origem-badge" style="font-size: 10px; padding: 1px 7px;">${isLeituraRecente30m(ultimaLeituraTimestamp) ? 'Sensor Real' : 'Sem dados'}</span>
                 <span id="sse-aviso-reconectando-detalhado" class="sse-aviso-reconectando" style="display: none; font-size: 10px; font-weight: 600; color: #D97706; background: #FFFBEB; border: 1px solid #FDE68A; padding: 1px 6px; border-radius: 4px;">Reconectando...</span>
                 <span id="sse-horario-leitura-detalhado" class="sse-horario-leitura" style="font-size: 10px; color: #64748B;"></span>
               </div>
             </div>
           </div>
 
-          <div style="display: grid; grid-template-columns: 140px 1fr; gap: 24px; align-items: center; margin-top: 10px;">
-            <!-- Donut Chart 90% na faixa -->
-            <div style="display: flex; flex-direction: column; align-items: center;">
-              <div style="position: relative; width: 110px; height: 110px;">
-                <svg width="110" height="110" viewBox="0 0 110 110" style="transform: rotate(-90deg);">
-                  <circle cx="55" cy="55" r="44" fill="none" stroke="#E2E8F0" stroke-width="11" />
-                  <circle cx="55" cy="55" r="44" fill="none" stroke="#059669" stroke-width="11" stroke-dasharray="${circ}" stroke-dashoffset="${strokeDashoffset}" stroke-linecap="round" />
-                </svg>
-                <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">
-                  <span style="font-size: 26px; font-weight: 800; color: #1E293B; line-height: 1;">${temValor(rc.pct_na_faixa) ? `${confPct}%` : '—'}</span>
-                  <span style="font-size: 10px; color: #64748B; margin-top: 2px;">na faixa</span>
-                </div>
-              </div>
-              <div style="font-size: 10px; color: #475569; display: flex; align-items: center; gap: 5px; margin-top: 10px;">
-                <span style="width: 6px; height: 6px; border-radius: 50%; background: #059669;"></span>
-                Leituras dentro da faixa
-              </div>
+          <!-- 1. Destaque horizontal com barra de progresso -->
+          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px 14px; margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 6px;">
+              <strong style="font-size: 15px; font-weight: 800; color: ${temPctFaixa ? '#1E293B' : '#64748B'};">${pctFaixaTexto}</strong>
+              <span style="font-size: 11px; color: #64748B;">${baseLeiturasTexto}</span>
+            </div>
+            <div style="width: 100%; height: 7px; background: #E2E8F0; border-radius: 9999px; overflow: hidden;">
+              <div style="width: ${pctFaixaNum}%; height: 100%; background: #059669; border-radius: 9999px; transition: width 0.5s ease;"></div>
+            </div>
+          </div>
+
+          <!-- 2. Três blocos iguais: Umidade do ar, Temperatura do ar e VPD médio -->
+          <div class="dd-condicoes-grid">
+            <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px; display: flex; flex-direction: column; justify-content: space-between;">
+              <span style="font-size: 11px; font-weight: 600; color: #475569;">Umidade do ar (média)</span>
+              <strong style="font-size: 20px; font-weight: 800; color: ${temUmidMedia ? '#1E293B' : '#94A3B8'}; margin: 6px 0 4px; line-height: 1.1;">${umidTexto}</strong>
+              <span style="font-size: 10px; color: #64748B; line-height: 1.35;">${umidSub}</span>
             </div>
 
-            <!-- 3 Linhas de Métricas -->
-            <div style="display: flex; flex-direction: column; gap: 14px;">
-              <!-- Umidade do ar -->
-              <div>
-                <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px;">
-                  <span style="font-size: 11.5px; color: #475569;">Umidade do ar</span>
-                  <strong style="font-size: 16px; font-weight: 700; color: #1E293B;" data-live="umid-ar" id="sse-detalhado-umid">${umidVal}%</strong>
-                </div>
-                <div style="width: 100%; height: 6px; background: #F1F5F9; border-radius: 9999px; overflow: hidden;">
-                  <div class="progress-bar-umid" id="sse-detalhado-umid-bar" style="width: ${umidVal}%; height: 100%; background: #059669; border-radius: 9999px; transition: width 0.6s ease;"></div>
-                </div>
-              </div>
+            <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px; display: flex; flex-direction: column; justify-content: space-between;">
+              <span style="font-size: 11px; font-weight: 600; color: #475569;">Temperatura do ar (média)</span>
+              <strong style="font-size: 20px; font-weight: 800; color: ${temTempMedia ? '#1E293B' : '#94A3B8'}; margin: 6px 0 4px; line-height: 1.1;">${tempTexto}</strong>
+              <span style="font-size: 10px; color: #64748B; line-height: 1.35;">${tempSub}</span>
+            </div>
 
-              <!-- Temperatura -->
-              <div>
-                <div style="display: flex; justify-content: space-between; align-items: baseline;">
-                  <span style="font-size: 11.5px; color: #475569;">Temperatura</span>
-                  <strong style="font-size: 16px; font-weight: 700; color: #1E293B;" data-live="temp-ar" id="sse-detalhado-temp">${tempVal}°C</strong>
-                </div>
-                <span style="font-size: 10px; color: #94A3B8;">Leitura do ambiente</span>
-              </div>
-
-              <!-- VPD Médio -->
-              <div>
-                <div style="display: flex; justify-content: space-between; align-items: baseline;">
-                  <span style="font-size: 11.5px; color: #475569;">VPD médio</span>
-                  <strong style="font-size: 16px; font-weight: 700; color: #1E293B;">${vpdVal}</strong>
-                </div>
-                <span style="font-size: 10px; color: #94A3B8;">${vpdSub}</span>
-              </div>
+            <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px; display: flex; flex-direction: column; justify-content: space-between;">
+              <span style="font-size: 11px; font-weight: 600; color: #475569;">VPD médio</span>
+              <strong style="font-size: 20px; font-weight: 800; color: ${temVpdMedio ? '#1E293B' : '#94A3B8'}; margin: 6px 0 4px; line-height: 1.1;">${vpdTexto}</strong>
+              <span style="font-size: 10px; color: #64748B; line-height: 1.35;">${vpdSub}</span>
             </div>
           </div>
         </div>
@@ -1650,15 +2122,27 @@ function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS, extras 
 
       <!-- Linha 3: Mercado (com sub-cards estilizados) + Previsão do tempo -->
       <div class="dd-split-grid">
-        <!-- Card: Preço e Demanda de Mercado -->
+        <!-- Card: Preços de Mercado -->
         <div class="dd-card dd-card-lg" style="padding: 20px 22px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-            <h3 style="font-size: 15px; font-weight: 700; color: #1E293B; margin: 0;">Preço e demanda de mercado</h3>
-            <span style="font-size: 10.5px; color: #94A3B8;">Cadastro manual</span>
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px;">
+            <h3 style="font-size: 15px; font-weight: 700; color: #1E293B; margin: 0;">Preços de mercado</h3>
+            <span style="font-size: 10.5px; color: #94A3B8;">Melão e Uva: cadastro manual</span>
           </div>
 
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 14px;">
             ${mercadoCardsHtml}
+            ${(() => {
+      const ptaxIni = _lerPtaxCache();
+      const ptaxValTxt = ptaxIni ? `R$ ${ptaxIni.valor.toFixed(2).replace('.', ',')}` : '—';
+      const ptaxSubTxt = ptaxIni ? `PTAX Banco Central · ${ptaxIni.dataBr}` : 'PTAX Banco Central';
+      return `
+                <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px 14px;">
+                  <div style="font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px;">Dólar (PTAX)</div>
+                  <div id="mercado-dolar-valor" style="font-size: 20px; font-weight: 800; color: #1E293B; line-height: 1.1;">${ptaxValTxt}</div>
+                  <div id="mercado-dolar-sub" style="font-size: 10px; color: #94A3B8; margin-top: 4px;">${ptaxSubTxt}</div>
+                </div>
+              `;
+    })()}
           </div>
         </div>
 
@@ -1682,20 +2166,42 @@ function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS, extras 
         </div>
       </div>
 
-      <!-- Linha 4: Próximos passos -->
+      <!-- Linha 4: Parecer do lote -->
+      <div class="dd-card dd-card-lg" style="padding: 20px 24px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px;">
+          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <div style="width: 28px; height: 28px; border-radius: 7px; background: #ECFDF5; display: flex; align-items: center; justify-content: center; color: #059669; flex-shrink: 0;">
+              <i data-lucide="file-text" style="width: 15px; height: 15px;"></i>
+            </div>
+            <div>
+              <h3 style="font-size: 15px; font-weight: 700; color: #1E293B; margin: 0;">Parecer do lote</h3>
+              <span style="font-size: 11px; color: #64748B;">Consulta sob demanda de análise agronômica e fisiológica</span>
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <select id="select-parecer-lote" aria-label="Selecionar lote" style="padding: 7px 12px; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 12.5px; color: #1E293B; background: #FFFFFF; min-width: 190px; max-width: 100%;"></select>
+            <button type="button" id="btn-ver-parecer-lote" style="padding: 8px 14px; border-radius: 8px; border: none; background: #059669; color: #FFFFFF; font-size: 12.5px; font-weight: 600; cursor: pointer; touch-action: manipulation; transition: opacity 0.15s ease;">Ver parecer</button>
+          </div>
+        </div>
+        <div id="parecer-lote-resultado" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px 16px; font-size: 12.5px; color: #475569; line-height: 1.5;">
+          Selecione um lote e clique em "Ver parecer" para consultar.
+        </div>
+      </div>
+
+      <!-- Linha 5: Próximos passos -->
       <div class="dd-card dd-card-lg" style="padding: 18px 22px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
           <h3 style="font-size: 15px; font-weight: 700; color: #1E293B; margin: 0;">Próximos passos</h3>
-          <span style="font-size: 10.5px; color: #64748B;">Sugestões de acompanhamento</span>
+          <span style="font-size: 10.5px; color: #64748B;">Com base nos dados do painel</span>
         </div>
 
-        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px;">
           <!-- 01: Revisar os alertas -->
           <a href="#/alertas" style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px 16px; display: flex; align-items: flex-start; gap: 12px; text-decoration: none; transition: transform 0.2s, box-shadow 0.2s;">
             <i data-lucide="alert-triangle" style="width: 18px; height: 18px; color: #059669; flex-shrink: 0; margin-top: 2px;"></i>
             <div>
               <strong style="font-size: 13px; font-weight: 700; color: #1E293B; display: block; margin-bottom: 3px;">Revisar os alertas</strong>
-              <p style="font-size: 11px; color: #64748B; margin: 0; line-height: 1.4;">Confira os ${alertasAbertos} alertas e defina a prioridade.</p>
+              <p style="font-size: 11px; color: #64748B; margin: 0; line-height: 1.4;">${passoAlertasTexto}</p>
             </div>
           </a>
 
@@ -1704,7 +2210,7 @@ function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS, extras 
             <i data-lucide="calendar" style="width: 18px; height: 18px; color: #059669; flex-shrink: 0; margin-top: 2px;"></i>
             <div>
               <strong style="font-size: 13px; font-weight: 700; color: #1E293B; display: block; margin-bottom: 3px;">Preparar a colheita</strong>
-              <p style="font-size: 11px; color: #64748B; margin: 0; line-height: 1.4;">${primeiraJanela ? `Janela prevista: ${primeiraJanela.janela_inicio || ''} a ${primeiraJanela.janela_fim || ''}.` : 'Aguardando previsão de janela de colheita.'}</p>
+              <p style="font-size: 11px; color: #64748B; margin: 0; line-height: 1.4;">${passoColheitaTexto}</p>
             </div>
           </div>
 
@@ -1713,7 +2219,7 @@ function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS, extras 
             <span style="width: 8px; height: 8px; border-radius: 50%; background: #059669; display: inline-block; flex-shrink: 0; margin-top: 6px;"></span>
             <div>
               <strong style="font-size: 13px; font-weight: 700; color: #1E293B; display: block; margin-bottom: 3px;">Acompanhar a irrigação</strong>
-              <p style="font-size: 11px; color: #64748B; margin: 0; line-height: 1.4;">Consulte a previsão antes de aplicar água.</p>
+              <p style="font-size: 11px; color: #64748B; margin: 0; line-height: 1.4;">${passoIrrigacaoTexto}</p>
             </div>
           </div>
         </div>
@@ -1748,6 +2254,20 @@ export async function setupDashboardEvents() {
 
   const dg = dadosGraficosCache || DEFAULT_DADOS_GRAFICOS;
 
+  // Sincroniza estado visual do medidor de resumo
+  const arcoResumo = document.getElementById('arco-resumo');
+  const txtResumo = document.getElementById('texto-resumo');
+  if (arcoResumo && txtResumo) {
+    const rawVal = parseFloat(txtResumo.textContent);
+    const temVal = Number.isFinite(rawVal) && rawVal > 0;
+    const v = temVal ? Math.min(100, Math.max(0, rawVal)) : 0;
+    arcoResumo.setAttribute('stroke-dasharray', `${v} 100`);
+    arcoResumo.style.display = temVal ? 'inline' : 'none';
+    if (!temVal && txtResumo.textContent.trim() !== '—') {
+      txtResumo.textContent = '—';
+    }
+  }
+
   // Toggle Resumido vs Detalhado com animação fluida Apple
   const toggleBtn = document.getElementById('toggle-dashboard-mode');
   if (toggleBtn) {
@@ -1755,7 +2275,7 @@ export async function setupDashboardEvents() {
       const atual = localStorage.getItem('DASHBOARD_MODE') || 'resumido';
       const novo = atual === 'resumido' ? 'detalhado' : 'resumido';
       localStorage.setItem('DASHBOARD_MODE', novo);
-      
+
       if (novo === 'detalhado') {
         toggleBtn.classList.add('detalhado');
         document.getElementById('toggle-label-text').textContent = 'Detalhado';
@@ -1786,107 +2306,388 @@ export async function setupDashboardEvents() {
     });
   });
 
-  // Zoom & Pan Interativo no Mapa de Satélite
-  const mapStage = document.getElementById('satellite-map-stage');
-  const mapViewport = document.getElementById('satellite-map-viewport');
-  const btnZoomIn = document.getElementById('btn-map-zoom-in');
-  const btnZoomOut = document.getElementById('btn-map-zoom-out');
-  const btnFullscreen = document.getElementById('btn-map-fullscreen');
-  const zoomBadge = document.getElementById('map-zoom-badge');
-
-  if (mapStage && mapViewport) {
-    let scale = 1.0;
-    let panX = 0;
-    let panY = 0;
-    let isDragging = false;
-    let startX = 0;
-    let startY = 0;
-
-    const applyTransform = () => {
-      mapStage.style.transform = `scale(${scale}) translate(${panX}px, ${panY}px)`;
-      if (zoomBadge) {
-        zoomBadge.textContent = `${Math.round(scale * 100)}%`;
-        zoomBadge.style.opacity = scale > 1.0 ? '1' : '0';
+  // Seletor de fruta na Janela Ideal de Colheita (Detalhado)
+  document.querySelectorAll('#janela-fruta-btns .janela-fruta-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const fruta = btn.getAttribute('data-fruta') || 'Manga';
+      document.querySelectorAll('#janela-fruta-btns .janela-fruta-btn').forEach(b => {
+        const ativo = b === btn;
+        b.classList.toggle('is-active', ativo);
+        b.style.background = ativo ? '#059669' : '#F8FAFC';
+        b.style.color = ativo ? '#FFFFFF' : '#475569';
+        b.style.borderColor = ativo ? '#059669' : '#E2E8F0';
+      });
+      const corpoEl = document.getElementById('janela-colheita-corpo');
+      if (corpoEl) {
+        corpoEl.innerHTML = _renderCorpoJanelaColheita(janelasDetalhadoCache, fruta);
+        if (window.lucide) window.lucide.createIcons();
       }
-      mapViewport.style.cursor = scale > 1.0 ? (isDragging ? 'grabbing' : 'grab') : 'default';
-    };
-
-    if (btnZoomIn) {
-      btnZoomIn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        scale = Math.min(2.5, +(scale + 0.25).toFixed(2));
-        applyTransform();
-      });
-    }
-
-    if (btnZoomOut) {
-      btnZoomOut.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        scale = Math.max(1.0, +(scale - 0.25).toFixed(2));
-        if (scale === 1.0) { panX = 0; panY = 0; }
-        applyTransform();
-      });
-    }
-
-    if (btnFullscreen) {
-      btnFullscreen.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        scale = scale > 1.0 ? 1.0 : 1.5;
-        if (scale === 1.0) { panX = 0; panY = 0; }
-        applyTransform();
-      });
-    }
-
-    // Zoom via Scroll da Roda do Mouse
-    mapViewport.addEventListener('wheel', (e) => {
-      e.preventDefault();
-      const delta = e.deltaY < 0 ? 0.15 : -0.15;
-      scale = Math.min(2.5, Math.max(1.0, +(scale + delta).toFixed(2)));
-      if (scale === 1.0) { panX = 0; panY = 0; }
-      applyTransform();
-    }, { passive: false });
-
-    // Pan via Click e Arrastar
-    mapViewport.addEventListener('mousedown', (e) => {
-      if (scale <= 1.0) return;
-      isDragging = true;
-      startX = e.clientX - panX;
-      startY = e.clientY - panY;
-      mapViewport.style.cursor = 'grabbing';
     });
+  });
 
-    window.addEventListener('mousemove', (e) => {
-      if (!isDragging) return;
-      panX = e.clientX - startX;
-      panY = e.clientY - startY;
-      const maxPan = (scale - 1) * 120;
-      panX = Math.max(-maxPan, Math.min(maxPan, panX));
-      panY = Math.max(-maxPan, Math.min(maxPan, panY));
-      applyTransform();
-    });
+  // Seletor de dia na grade da Janela Ideal de Colheita (Detalhado)
+  const corpoJanelaEl = document.getElementById('janela-colheita-corpo');
+  if (corpoJanelaEl) {
+    corpoJanelaEl.addEventListener('click', (e) => {
+      const box = e.target.closest('.harvest-day-box[data-dia-idx]');
+      if (!box) return;
+      const idx = Number(box.getAttribute('data-dia-idx'));
+      if (Number.isNaN(idx) || !janelaDiasAtualCache[idx]) return;
 
-    window.addEventListener('mouseup', () => {
-      if (isDragging) {
-        isDragging = false;
-        mapViewport.style.cursor = scale > 1.0 ? 'grab' : 'default';
+      corpoJanelaEl.querySelectorAll('.harvest-day-box').forEach(b => {
+        b.classList.toggle('harvest-day-box--selected', b === box);
+      });
+      const motivoEl = document.getElementById('janela-dia-motivo');
+      if (motivoEl) {
+        const texto = _textoMotivoDia(janelaDiasAtualCache[idx]);
+        motivoEl.textContent = texto;
+        motivoEl.style.display = texto ? '' : 'none';
       }
     });
   }
 
-  // Gera curvas suaves com os dados reais persistidos no PostgreSQL
+  // Cotação Dólar (PTAX) no card Preços de mercado (sem repetir se já estiver em cache)
+  const dolarValEl = document.getElementById('mercado-dolar-valor');
+  const dolarSubEl = document.getElementById('mercado-dolar-sub');
+  if (dolarValEl && dolarSubEl && !_lerPtaxCache()) {
+    _buscarDolarPtax().then(res => {
+      if (res && typeof res.valor === 'number') {
+        dolarValEl.textContent = `R$ ${res.valor.toFixed(2).replace('.', ',')}`;
+        dolarSubEl.textContent = `PTAX Banco Central · ${res.dataBr}`;
+      } else {
+        dolarValEl.textContent = 'Indisponível';
+        dolarSubEl.textContent = 'PTAX Banco Central';
+      }
+    }).catch(() => {
+      dolarValEl.textContent = 'Indisponível';
+      dolarSubEl.textContent = 'PTAX Banco Central';
+    });
+  }
+
+  // Card "Parecer do lote" (Detalhado) — apenas sob clique, sem innerHTML para dados da API
+  const selectParecer = document.getElementById('select-parecer-lote');
+  const btnParecer = document.getElementById('btn-ver-parecer-lote');
+  const resultadoParecer = document.getElementById('parecer-lote-resultado');
+  if (selectParecer && btnParecer && resultadoParecer) {
+    selectParecer.replaceChildren();
+    if (lotesDetalhadoParecerCache.length === 0) {
+      const optVazio = document.createElement('option');
+      optVazio.value = '';
+      optVazio.textContent = 'Nenhum lote elegível';
+      selectParecer.appendChild(optVazio);
+      selectParecer.disabled = true;
+      btnParecer.disabled = true;
+      btnParecer.style.opacity = '0.5';
+      btnParecer.style.cursor = 'not-allowed';
+      resultadoParecer.textContent = 'Nenhum lote em produção ou pronto para colheita disponível.';
+    } else {
+      lotesDetalhadoParecerCache.forEach(lote => {
+        const opt = document.createElement('option');
+        opt.value = String(lote.id_lote);
+        const frutaTxt = lote.fruta ? String(lote.fruta) : 'Cultura';
+        opt.textContent = `Lote #${lote.id_lote} — ${frutaTxt}`;
+        selectParecer.appendChild(opt);
+      });
+
+      let carregandoParecer = false;
+      const resolverSeloParecer = (origem, modelo) => {
+        const orig = String(origem || '').toUpperCase();
+        const mod = String(modelo || '').toLowerCase();
+        if (orig === 'SEM_DADOS' || mod === 'sem-dados') {
+          return { texto: 'Sem leituras suficientes', bg: '#F1F5F9', color: '#475569', border: '#CBD5E1' };
+        }
+        if (orig === 'FALLBACK_TEMPLATE' || (orig === 'CACHE' && mod.includes('fallback'))) {
+          return { texto: 'Texto automático (sem IA)', bg: '#FFFBEB', color: '#B45309', border: '#FDE68A' };
+        }
+        return { texto: 'Gerado por IA', bg: '#ECFDF5', color: '#047857', border: '#A7F3D0' };
+      };
+
+      const criarSecaoTexto = (titulo, texto) => {
+        const box = document.createElement('div');
+        box.style.marginBottom = '10px';
+        const lbl = document.createElement('div');
+        lbl.style.fontSize = '11px';
+        lbl.style.fontWeight = '700';
+        lbl.style.color = '#334155';
+        lbl.style.marginBottom = '3px';
+        lbl.textContent = titulo;
+        const p = document.createElement('p');
+        p.style.margin = '0';
+        p.style.color = '#1E293B';
+        p.textContent = texto || '—';
+        box.append(lbl, p);
+        return box;
+      };
+
+      const criarSecaoLista = (titulo, itens) => {
+        const box = document.createElement('div');
+        box.style.marginBottom = '10px';
+        const lbl = document.createElement('div');
+        lbl.style.fontSize = '11px';
+        lbl.style.fontWeight = '700';
+        lbl.style.color = '#334155';
+        lbl.style.marginBottom = '4px';
+        lbl.textContent = titulo;
+        box.appendChild(lbl);
+        const lista = Array.isArray(itens) && itens.length > 0 ? itens : ['—'];
+        const ul = document.createElement('ul');
+        ul.style.margin = '0';
+        ul.style.paddingLeft = '18px';
+        ul.style.color = '#1E293B';
+        lista.forEach(item => {
+          const li = document.createElement('li');
+          li.style.marginBottom = '2px';
+          li.textContent = String(item);
+          ul.appendChild(li);
+        });
+        box.appendChild(ul);
+        return box;
+      };
+
+      btnParecer.addEventListener('click', async () => {
+        if (carregandoParecer) return;
+        const idLote = Number(selectParecer.value);
+        if (!idLote) return;
+
+        carregandoParecer = true;
+        btnParecer.disabled = true;
+        selectParecer.disabled = true;
+        btnParecer.textContent = 'Carregando...';
+        btnParecer.style.opacity = '0.7';
+        btnParecer.style.cursor = 'wait';
+        resultadoParecer.textContent = 'Consultando parecer do lote...';
+
+        try {
+          const res = await api.getParecerIA(idLote);
+          const conteudo = res?.conteudo || {};
+          const seloInfo = resolverSeloParecer(res?.origem, res?.modelo);
+
+          const wrap = document.createElement('div');
+
+          // Cabeçalho do resultado: selo + confiança + data de geração
+          const topo = document.createElement('div');
+          topo.style.display = 'flex';
+          topo.style.alignItems = 'center';
+          topo.style.justifyContent = 'space-between';
+          topo.style.flexWrap = 'wrap';
+          topo.style.gap = '8px';
+          topo.style.marginBottom = '12px';
+          topo.style.paddingBottom = '10px';
+          topo.style.borderBottom = '1px solid #E2E8F0';
+
+          const badgesWrap = document.createElement('div');
+          badgesWrap.style.display = 'flex';
+          badgesWrap.style.alignItems = 'center';
+          badgesWrap.style.gap = '8px';
+          badgesWrap.style.flexWrap = 'wrap';
+
+          const seloEl = document.createElement('span');
+          seloEl.style.fontSize = '11px';
+          seloEl.style.fontWeight = '700';
+          seloEl.style.padding = '3px 9px';
+          seloEl.style.borderRadius = '999px';
+          seloEl.style.background = seloInfo.bg;
+          seloEl.style.color = seloInfo.color;
+          seloEl.style.border = `1px solid ${seloInfo.border}`;
+          seloEl.textContent = seloInfo.texto;
+
+          const confEl = document.createElement('span');
+          confEl.style.fontSize = '11px';
+          confEl.style.fontWeight = '600';
+          confEl.style.color = '#334155';
+          confEl.textContent = `Confiança: ${conteudo.nivel_confianca || '—'}`;
+
+          badgesWrap.append(seloEl, confEl);
+
+          const dataEl = document.createElement('span');
+          dataEl.style.fontSize = '11px';
+          dataEl.style.color = '#64748B';
+          dataEl.textContent = `Gerado em: ${res?.data_geracao ? formatarTimestampRecife(res.data_geracao) : '—'}`;
+
+          topo.append(badgesWrap, dataEl);
+          wrap.appendChild(topo);
+
+          wrap.appendChild(criarSecaoTexto('Parecer agronômico', conteudo.parecer_agronomico));
+          wrap.appendChild(criarSecaoTexto('Parecer fisiológico', conteudo.parecer_fisiologico));
+          wrap.appendChild(criarSecaoLista('Recomendações', conteudo.recomendacoes));
+          wrap.appendChild(criarSecaoLista('Limitações', conteudo.limitacoes));
+
+          resultadoParecer.replaceChildren(wrap);
+        } catch (err) {
+          console.error('Erro ao obter parecer do lote:', err);
+          resultadoParecer.textContent = 'Não foi possível obter o parecer. Tente novamente.';
+        } finally {
+          carregandoParecer = false;
+          btnParecer.disabled = false;
+          selectParecer.disabled = false;
+          btnParecer.textContent = 'Ver parecer';
+          btnParecer.style.opacity = '1';
+          btnParecer.style.cursor = 'pointer';
+        }
+      });
+    }
+  }
+
+  // Mapa Interativo de Satélite com Leaflet (Esri World Imagery + fallback OSM e foto estática)
+  const mapEl = document.getElementById('leaflet-propriedade-map');
+  const mapViewport = document.getElementById('satellite-map-viewport');
+  const mapFallback = document.getElementById('satellite-map-fallback');
+  const btnZoomIn = document.getElementById('btn-map-zoom-in');
+  const btnZoomOut = document.getElementById('btn-map-zoom-out');
+  const btnFullscreen = document.getElementById('btn-map-fullscreen');
+
+  if (window._propriedadeLeafletMap) {
+    try { window._propriedadeLeafletMap.remove(); } catch (_) { }
+    window._propriedadeLeafletMap = null;
+  }
+
+  if (mapEl && mapViewport && typeof window.L !== 'undefined') {
+    try {
+      const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      const map = window.L.map(mapEl, {
+        center: [MAPA_PROPRIEDADE_LAT, MAPA_PROPRIEDADE_LNG],
+        zoom: MAPA_PROPRIEDADE_ZOOM,
+        zoomControl: false,
+        scrollWheelZoom: false,
+        dragging: !isTouch,
+        touchZoom: true
+      });
+      window._propriedadeLeafletMap = map;
+
+      const esriLayer = window.L.tileLayer(
+        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        {
+          attribution: 'Tiles &copy; Esri',
+          maxZoom: 19
+        }
+      );
+      const osmLayer = window.L.tileLayer(
+        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+        {
+          attribution: '&copy; OpenStreetMap contributors',
+          maxZoom: 19
+        }
+      );
+
+      let osmFallbackUsado = false;
+      esriLayer.on('tileerror', () => {
+        if (!osmFallbackUsado) {
+          osmFallbackUsado = true;
+          try {
+            map.removeLayer(esriLayer);
+            osmLayer.addTo(map);
+          } catch (_) { }
+        }
+      });
+      esriLayer.addTo(map);
+
+      const criarMarcadorSensor = (lat, lng, texto, corHex, bordaRgba) => {
+        const icon = window.L.divIcon({
+          className: '',
+          iconSize: null,
+          html: `<div style="background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(4px); padding: 5px 12px; border-radius: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.25); font-size: 11px; font-weight: 700; color: #FFFFFF; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; border: 1px solid ${bordaRgba}; transform: translate(-50%, -50%);"><span style="width: 8px; height: 8px; border-radius: 50%; background: ${corHex}; flex-shrink: 0;"></span><span>${texto}</span></div>`
+        });
+        return window.L.marker([lat, lng], { icon }).addTo(map);
+      };
+
+      criarMarcadorSensor(
+        MAPA_PROPRIEDADE_LAT + 0.00018,
+        MAPA_PROPRIEDADE_LNG - 0.00022,
+        'DHT11 ESP32-C3 (ar)',
+        '#10B981',
+        'rgba(16, 185, 129, 0.6)'
+      );
+      criarMarcadorSensor(
+        MAPA_PROPRIEDADE_LAT - 0.00018,
+        MAPA_PROPRIEDADE_LNG + 0.00022,
+        'Solo · em calibração',
+        '#0EA5E9',
+        'rgba(14, 165, 233, 0.6)'
+      );
+
+      if (mapFallback) mapFallback.style.display = 'none';
+
+      if (btnZoomIn) {
+        btnZoomIn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          map.zoomIn();
+        });
+      }
+      if (btnZoomOut) {
+        btnZoomOut.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          map.zoomOut();
+        });
+      }
+      if (btnFullscreen) {
+        btnFullscreen.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          map.setView([MAPA_PROPRIEDADE_LAT, MAPA_PROPRIEDADE_LNG], MAPA_PROPRIEDADE_ZOOM);
+        });
+      }
+
+      // No celular: 1 dedo rola a página; 2 dedos movem o mapa
+      if (isTouch) {
+        mapEl.addEventListener('touchstart', (e) => {
+          if (e.touches.length >= 2) {
+            map.dragging.enable();
+          } else {
+            map.dragging.disable();
+          }
+        }, { passive: true });
+        mapEl.addEventListener('touchend', (e) => {
+          if (e.touches.length < 2) {
+            map.dragging.disable();
+          }
+        }, { passive: true });
+      }
+
+      const atualizarTamanhoMapa = () => {
+        try {
+          if (document.body.contains(mapEl)) {
+            map.invalidateSize();
+          }
+        } catch (_) { }
+      };
+      setTimeout(atualizarTamanhoMapa, 150);
+      window.addEventListener('resize', atualizarTamanhoMapa);
+      if (typeof ResizeObserver !== 'undefined') {
+        try {
+          const ro = new ResizeObserver(atualizarTamanhoMapa);
+          ro.observe(mapViewport);
+        } catch (_) { }
+      }
+    } catch (_) {
+      mapEl.style.display = 'none';
+      if (mapFallback) mapFallback.style.display = 'block';
+    }
+  } else if (mapEl && mapFallback) {
+    mapEl.style.display = 'none';
+    mapFallback.style.display = 'block';
+  }
+
+  // Gera curvas suaves com os dados reais de series-24h (ou mostra aviso se as listas vierem vazias)
   const isResumidoCurrent = localStorage.getItem('DASHBOARD_MODE') !== 'detalhado';
+  const ptsUar = Array.isArray(dg.umidade_ar_24h) ? dg.umidade_ar_24h : [];
+  const ptsUsolo = Array.isArray(dg.umidade_solo_24h) ? dg.umidade_solo_24h : [];
+  const ptsTar = Array.isArray(dg.temp_ar_24h) ? dg.temp_ar_24h : [];
+
   if (isResumidoCurrent) {
-    criarMiniGraficoApple('miniChart1', dg.umidade_ar_24h || DEFAULT_DADOS_GRAFICOS.umidade_ar_24h, '#10B981');
-    criarMiniGraficoApple('miniChart2', dg.umidade_solo_24h || DEFAULT_DADOS_GRAFICOS.umidade_solo_24h, '#0D9488');
-    criarMiniGraficoApple('miniChart4', dg.temp_ar_24h || DEFAULT_DADOS_GRAFICOS.temp_ar_24h, '#16A34A');
+    criarMiniGraficoApple('miniChart1', ptsUar, '#10B981', 'Sem leituras no período');
+    if (SONDA_SOLO_INSTALADA) {
+      criarMiniGraficoApple('miniChart2', ptsUsolo, '#0D9488', 'Sem leituras no período');
+    }
+    criarMiniGraficoApple('miniChart4', ptsTar, '#16A34A', 'Sem leituras no período');
   } else {
     // No modo Detalhado, os gráficos são em tom verde esmeralda com pontos conforme Figma
-    criarMiniGraficoApple('miniChart1', dg.umidade_ar_24h || DEFAULT_DADOS_GRAFICOS.umidade_ar_24h, '#10B981');
-    criarMiniGraficoApple('miniChart2', dg.umidade_solo_24h || DEFAULT_DADOS_GRAFICOS.umidade_solo_24h, '#10B981');
-    criarMiniGraficoApple('miniChart4', dg.temp_ar_24h || DEFAULT_DADOS_GRAFICOS.temp_ar_24h, '#10B981');
+    criarMiniGraficoApple('miniChart1', ptsUar, '#10B981', 'Sem leituras no período');
+    if (SONDA_SOLO_INSTALADA) {
+      criarMiniGraficoApple('miniChart2', ptsUsolo, '#10B981', 'Sem leituras no período');
+    }
+    criarMiniGraficoApple('miniChart4', ptsTar, '#10B981', 'Sem leituras no período');
   }
 
   // Modal para Editar Dados e Gráficos (Salva no PostgreSQL e atualiza os gráficos)
@@ -1949,9 +2750,9 @@ export async function setupDashboardEvents() {
 
         const payload = {
           conformidade_geral_pct: Number(document.getElementById('inp-dg-conf')?.value || 90),
-          saude_plantacao_pct: Number(document.getElementById('inp-dg-saude')?.value || 85),
-          umidade_dossel_pct: Number(document.getElementById('inp-dg-dossel')?.value || 67),
-          temp_foliar_c: Number(document.getElementById('inp-dg-tfoliar')?.value || 27),
+          saude_plantacao_pct: document.getElementById('inp-dg-saude')?.value ? Number(document.getElementById('inp-dg-saude').value) : null,
+          umidade_dossel_pct: document.getElementById('inp-dg-dossel')?.value ? Number(document.getElementById('inp-dg-dossel').value) : null,
+          temp_foliar_c: document.getElementById('inp-dg-tfoliar')?.value ? Number(document.getElementById('inp-dg-tfoliar').value) : null,
           agua_reservatorio_pct: Number(document.getElementById('inp-dg-agua')?.value || 63),
           vazao_ldia: Number(document.getElementById('inp-dg-vazao')?.value || 4200),
           umidade_ar_24h: parseSeries(document.getElementById('inp-dg-uar')?.value, cur.umidade_ar_24h),
@@ -1993,15 +2794,22 @@ export async function setupDashboardEvents() {
       chartInstances = [];
 
       const cur = dadosGraficosCache || DEFAULT_DADOS_GRAFICOS;
-      if (tf === '24h') {
-        criarMiniGraficoApple('miniChart1', cur.umidade_ar_24h || DEFAULT_DADOS_GRAFICOS.umidade_ar_24h, '#10B981');
-        criarMiniGraficoApple('miniChart2', cur.umidade_solo_24h || DEFAULT_DADOS_GRAFICOS.umidade_solo_24h, '#0D9488');
-        criarMiniGraficoApple('miniChart4', cur.temp_ar_24h || DEFAULT_DADOS_GRAFICOS.temp_ar_24h, '#16A34A');
+      const temSeries24h = (Array.isArray(cur.umidade_ar_24h) && cur.umidade_ar_24h.length > 0)
+        || (Array.isArray(cur.temp_ar_24h) && cur.temp_ar_24h.length > 0);
+
+      if (temSeries24h && tf === '24h') {
+        criarMiniGraficoApple('miniChart1', cur.umidade_ar_24h || [], '#10B981', 'Sem leituras no período');
+        if (SONDA_SOLO_INSTALADA) {
+          criarMiniGraficoApple('miniChart2', cur.umidade_solo_24h || [], '#0D9488', 'Sem leituras no período');
+        }
+        criarMiniGraficoApple('miniChart4', cur.temp_ar_24h || [], '#16A34A', 'Sem leituras no período');
       } else {
-        // Sem agregação histórica de 7d/30d registrada, passa vazio para exibir "Sem dados"
-        criarMiniGraficoApple('miniChart1', [], '#10B981');
-        criarMiniGraficoApple('miniChart2', [], '#0D9488');
-        criarMiniGraficoApple('miniChart4', [], '#16A34A');
+        // Se não houver leitura na janela escolhida (24h, 7 ou 30 dias), não desenha curva e mostra "Sem leituras no período"
+        criarMiniGraficoApple('miniChart1', [], '#10B981', 'Sem leituras no período');
+        if (SONDA_SOLO_INSTALADA) {
+          criarMiniGraficoApple('miniChart2', [], '#0D9488', 'Sem leituras no período');
+        }
+        criarMiniGraficoApple('miniChart4', [], '#16A34A', 'Sem leituras no período');
       }
     });
   });
@@ -2010,19 +2818,26 @@ export async function setupDashboardEvents() {
 /**
  * Função de renderização de gráficos Chart.js refinados com estética Apple em Alta Resolução (Retina DPI)
  */
-function criarMiniGraficoApple(canvasId, dataPoints, strokeColor) {
+function criarMiniGraficoApple(canvasId, dataPoints, strokeColor, mensagemVazio = 'Sem leituras no período') {
   const canvas = document.getElementById(canvasId);
   if (!canvas) return;
 
   const parent = canvas.parentElement;
   if (!Array.isArray(dataPoints) || dataPoints.length === 0) {
+    if (window.Chart && typeof window.Chart.getChart === 'function') {
+      const existingChart = window.Chart.getChart(canvas);
+      if (existingChart) existingChart.destroy();
+    }
     canvas.style.display = 'none';
-    if (parent && !parent.querySelector('.grafico-sem-dados')) {
-      const noDataEl = document.createElement('div');
-      noDataEl.className = 'grafico-sem-dados';
-      noDataEl.style.cssText = 'height: 100%; min-height: 48px; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #94A3B8; font-style: italic;';
-      noDataEl.textContent = 'Sem dados';
-      parent.appendChild(noDataEl);
+    if (parent) {
+      let noDataEl = parent.querySelector('.grafico-sem-dados');
+      if (!noDataEl) {
+        noDataEl = document.createElement('div');
+        noDataEl.className = 'grafico-sem-dados';
+        noDataEl.style.cssText = 'height: 100%; min-height: 48px; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #94A3B8; font-style: italic;';
+        parent.appendChild(noDataEl);
+      }
+      noDataEl.textContent = mensagemVazio;
     }
     return;
   }
@@ -2514,6 +3329,14 @@ async function renderAdminDashboard() {
   const sensReais = resumo?.sensores?.reais ?? 0;
   const sensSimulados = resumo?.sensores?.simulados ?? Math.max(0, sensAtivos - sensReais);
   const pctSensOnline = sensTotal > 0 ? Math.round((sensAtivos / sensTotal) * 100) : 0;
+  const maxLeituraAdminTs = leituras.reduce((max, l) => {
+    const t = l?.data_hora ? new Date(l.data_hora).getTime() : NaN;
+    return (!isNaN(t) && t > max) ? t : max;
+  }, 0);
+  const temLeituraRecente30m = maxLeituraAdminTs > 0 && (Date.now() - maxLeituraAdminTs) < 30 * 60 * 1000;
+  const badgeSensoresHtml = temLeituraRecente30m
+    ? `<span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 2px 8px; border-radius: 12px;">${pctSensOnline}% ATIVOS</span>`
+    : `<span style="font-size: 10px; font-weight: 700; color: #B45309; background: #FEF3C7; padding: 2px 8px; border-radius: 12px;">${sensTotal} cadastrados • sem leitura recente</span>`;
 
   // 4. Alertas (/dashboard/resumo -> tabela alerta)
   const alertAbertos = resumo?.alertas?.abertos ?? 0;
@@ -2700,7 +3523,7 @@ async function renderAdminDashboard() {
         <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between;">
           <div style="display: flex; justify-content: space-between; align-items: center;">
             <span style="font-size: 11px; font-weight: 700; color: #64748B; letter-spacing: 0.5px;">SENSORES DE CAMPO (IOT)</span>
-            <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 2px 8px; border-radius: 12px;">${pctSensOnline}% ATIVOS</span>
+            ${badgeSensoresHtml}
           </div>
           <div style="margin: 12px 0; display: flex; justify-content: space-between; align-items: center;">
             <div>
@@ -2740,7 +3563,7 @@ async function renderAdminDashboard() {
           <div>
             <div style="display: flex; align-items: center; gap: 8px;">
               <h3 style="font-size: 15px; font-weight: 700; color: #0F172A; margin: 0;">Telemetria Consolidada (<code>leitura_climatica</code>)</h3>
-              <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 2px 8px; border-radius: 12px;">PostgreSQL Live</span>
+              <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 2px 8px; border-radius: 12px;">Últimas leituras registradas</span>
             </div>
             <p style="font-size: 12px; color: #64748B; margin: 4px 0 0 0;">Temperatura do ar, umidade relativa e umidade do solo (VWC) registradas pelos sensores</p>
           </div>
@@ -2909,7 +3732,7 @@ function setupAdminDashboardEvents() {
         scales: {
           x: { grid: { display: false }, ticks: { font: { size: 10 }, color: '#94A3B8' } },
           y: { position: 'left', min: 0, max: 100, ticks: { callback: v => v + '%', font: { size: 10 }, color: '#10B981' }, grid: { color: '#F1F5F9' } },
-          y1: { position: 'right', ticks: { callback: v => v + '°C', font: { size: 10 }, color: '#0284C7' }, grid: { display: false } }
+          y1: { position: 'right', min: 0, max: 50, ticks: { callback: v => v + '°C', font: { size: 10 }, color: '#0284C7' }, grid: { display: false } }
         }
       }
     });

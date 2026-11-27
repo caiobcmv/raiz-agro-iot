@@ -182,7 +182,7 @@ function renderSubBarHtml(podeSincronizar) {
         ThingSpeak conectado • canal ${canal} • ${ativos} sensores ativos
       </span>
       <span id="texto-sincronizado-min" style="font-size: 11px; ${estiloSinc}">
-        Sincronizado há ${minDesde} min
+        ${ultimaLeituraIso ? new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Recife' }).format(new Date(ultimaLeituraIso)) + ' • há ' + minDesde + ' min' : '—'}
       </span>
     </div>
     <div class="analista-subbar-actions">
@@ -881,7 +881,8 @@ export function setupRedeEsp32Events() {
     if (el) {
       const ultimaLeituraIso = redeState.resumo?.ingestao_24h?.ultima_leitura;
       const minDesde = calcularMinutosDesde(ultimaLeituraIso) ?? 2;
-      el.textContent = `Sincronizado há ${minDesde} min`;
+      const horaRecife = ultimaLeituraIso ? new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Recife' }).format(new Date(ultimaLeituraIso)) : null;
+      el.textContent = horaRecife ? `${horaRecife} • há ${minDesde} min` : `há ${minDesde} min`;
       if (minDesde > 10) {
         el.style.color = '#D97706';
         el.style.fontWeight = '700';

@@ -1,0 +1,66 @@
+/* ==========================================================
+   RAIZ AGRO IOT — Theme System (Claro / Escuro / Contraste)
+   Carregado por último, sobrepõe os outros CSS.
+   ========================================================== */
+
+/* ---- CLARO: padrão — sem nenhuma regra extra ---- */
+
+/* ---- ESCURO: desativado ---- */
+/*
+html[data-theme="dark"] {
+  filter: invert(1) hue-rotate(180deg);
+  background: #111;
+}
+
+Re-inverte elementos que não devem ser distorcidos:
+html[data-theme="dark"] img,
+html[data-theme="dark"] video,
+html[data-theme="dark"] canvas,
+html[data-theme="dark"] svg.map-svg,
+html[data-theme="dark"] .leaflet-container,
+html[data-theme="dark"] .leaflet-tile,
+html[data-theme="dark"] #profile-avatar-display,
+html[data-theme="dark"] .avatar-initials-pill {
+  filter: invert(1) hue-rotate(180deg);
+}
+*/
+
+/* ---- CONTRASTE ALTO: desativado ---- */
+/*
+html[data-theme="contrast"] {
+  background: #FFFFFF;
+}
+
+html[data-theme="contrast"] body,
+html[data-theme="contrast"] p,
+html[data-theme="contrast"] span,
+html[data-theme="contrast"] div,
+html[data-theme="contrast"] h1,
+html[data-theme="contrast"] h2,
+html[data-theme="contrast"] h3,
+html[data-theme="contrast"] h4,
+html[data-theme="contrast"] label,
+html[data-theme="contrast"] input,
+html[data-theme="contrast"] select,
+html[data-theme="contrast"] textarea,
+html[data-theme="contrast"] th,
+html[data-theme="contrast"] td {
+  color: #000000 !important;
+  font-weight: 500;
+}
+
+html[data-theme="contrast"] .apple-card,
+html[data-theme="contrast"] [class*="card"],
+html[data-theme="contrast"] input,
+html[data-theme="contrast"] select,
+html[data-theme="contrast"] textarea,
+html[data-theme="contrast"] button {
+  border: 2px solid #333333 !important;
+  background: #FFFFFF !important;
+}
+
+html[data-theme="contrast"] button {
+  color: #000000 !important;
+  font-weight: 600 !important;
+}
+*/

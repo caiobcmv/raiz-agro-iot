@@ -1,6 +1,7 @@
-ï»¿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+  <script>(function(){try{var t=localStorage.getItem('raiz_tema');if(t==='dark'||t==='contrast'){document.documentElement.setAttribute('data-theme',t);}}catch(e){}}());</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Modelos de IA e Mercado | RAIZ Agro IoT</title>
@@ -12,6 +13,7 @@
   <link rel="stylesheet" href="/assets/css/components.css?v=20261120-live33">
   <link rel="stylesheet" href="/assets/css/layout.css?v=20261120-live33">
   <link rel="stylesheet" href="/assets/css/analista.css?v=20261120-live33">
+  <link rel="stylesheet" href="/assets/css/theme.css?v=20261127-real6">
   
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -21,18 +23,18 @@
     <div class="app-container">
       
     <aside class="sidebar">
-      <!-- Logo RAIZ com imagem nÃ­tida sobre fundo escuro -->
+      <!-- Logo RAIZ com imagem nítida sobre fundo escuro -->
       <div class="sidebar-brand-container">
         <a href="/pages/dashboard.html" style="display: block; text-decoration: none;">
           <img src="/assets/images/logo-raiz.png" width="105" height="105" alt="RAIZ" style="object-fit: contain; display: block; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.15));">
         </a>
       </div>
 
-      <!-- Menu Principal DinÃ¢mico -->
+      <!-- Menu Principal Dinâmico -->
       <nav class="sidebar-nav-container">
         <a href="/pages/dashboard.html" class="sidebar-menu-item">
           <i data-lucide="layout-grid"></i>
-          <span>VisÃ£o geral</span>
+          <span>Visão geral</span>
         </a>
 
         
@@ -49,7 +51,7 @@
 
         <a href="/pages/leituras.html" class="sidebar-menu-item ">
           <i data-lucide="file-text"></i>
-          <span>HistÃ³rico Safra</span>
+          <span>Histórico Safra</span>
         </a>
 
         <a href="/pages/alertas.html" class="sidebar-menu-item ">
@@ -59,7 +61,7 @@
 
         <a href="/pages/configuracoes.html" class="sidebar-menu-item ">
           <i data-lucide="settings"></i>
-          <span>ConfiguraÃ§Ãµes</span>
+          <span>Configurações</span>
         </a>
       </nav>
 
@@ -90,7 +92,7 @@
         <header class="topbar-header">
           <div class="header-title-wrap">
             <h2>Modelos de IA e Mercado</h2>
-            <p>Plataforma de InteligÃªncia Agro IoT e LogÃ­stica de ExportaÃ§Ã£o â€¢ Conectado ao Banco Local (raiz_agro.db)</p>
+            <p>Plataforma de Inteligência Agro IoT e Logística de Exportação • Conectado ao Banco Local (raiz_agro.db)</p>
           </div>
           <div class="header-right-controls">
             <div class="date-selector-btn">
@@ -116,8 +118,8 @@
       
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 16px;">
         <div>
-          <h2 style="font-family: 'Space Grotesk', sans-serif; font-size: 26px; font-weight: 700;">InteligÃªncia Preditiva e Mercado</h2>
-          <p style="color: #94A3B8; font-size: 14px;">Estimativa de vida Ãºtil (shelf-life), cÃ¡lculo de quebra financeira por temperatura e cotaÃ§Ãµes de mercado.</p>
+          <h2 style="font-family: 'Space Grotesk', sans-serif; font-size: 26px; font-weight: 700;">Inteligência Preditiva e Mercado</h2>
+          <p style="color: #94A3B8; font-size: 14px;">Estimativa de vida útil (shelf-life), cálculo de quebra financeira por temperatura e cotações de mercado.</p>
         </div>
 
         <span class="badge badge-info" style="font-size: 14px; padding: 8px 16px;">
@@ -134,13 +136,13 @@
           </div>
           <div class="kpi-value">21 <span style="font-size: 16px; color: #94A3B8;">dias restantes</span></div>
           <div class="kpi-footer">
-            <span style="color: #4ADE80;">CÃ¢mara fria mantida a 11.4Â°C</span>
+            <span style="color: #4ADE80;">Câmara fria mantida a 11.4°C</span>
           </div>
         </div>
 
         <div class="kpi-card">
           <div class="kpi-top">
-            <span class="kpi-title">Risco Financeiro MÃ©dio</span>
+            <span class="kpi-title">Risco Financeiro Médio</span>
             <div class="kpi-icon-wrap blue"><i data-lucide="dollar-sign"></i></div>
           </div>
           <div class="kpi-value">2.4% <span style="font-size: 16px; color: #94A3B8;">perda estimada</span></div>
@@ -151,7 +153,7 @@
 
         <div class="kpi-card">
           <div class="kpi-top">
-            <span class="kpi-title">CotaÃ§Ã£o Manga Tommy (CEAGESP)</span>
+            <span class="kpi-title">Cotação Manga Tommy (CEAGESP)</span>
             <div class="kpi-icon-wrap amber"><i data-lucide="trending-up"></i></div>
           </div>
           <div class="kpi-value">R$ 5,80 <span style="font-size: 16px; color: #94A3B8;">/ kg</span></div>
@@ -162,7 +164,7 @@
 
         <div class="kpi-card">
           <div class="kpi-top">
-            <span class="kpi-title">CotaÃ§Ã£o Uva VitÃ³ria</span>
+            <span class="kpi-title">Cotação Uva Vitória</span>
             <div class="kpi-icon-wrap green"><i data-lucide="bar-chart"></i></div>
           </div>
           <div class="kpi-value">R$ 11,20 <span style="font-size: 16px; color: #94A3B8;">/ kg</span></div>
@@ -172,12 +174,12 @@
         </div>
       </div>
 
-      <!-- RecomendaÃ§Ãµes AutomÃ¡ticas do Sistema -->
+      <!-- Recomendações Automáticas do Sistema -->
       <div class="chart-card" style="margin-bottom: 28px;">
         <div class="card-header-row">
           <div>
-            <h3 class="card-title">RecomendaÃ§Ãµes AgronÃ´micas e LogÃ­sticas</h3>
-            <p class="card-subtitle">SugestÃµes geradas por algoritmos preditivos baseados na correlaÃ§Ã£o clima x fisiologia pÃ³s-colheita</p>
+            <h3 class="card-title">Recomendações Agronômicas e Logísticas</h3>
+            <p class="card-subtitle">Sugestões geradas por algoritmos preditivos baseados na correlação clima x fisiologia pós-colheita</p>
           </div>
         </div>
 
@@ -188,17 +190,17 @@
               <span class="badge badge-success">Prioridade Alta</span>
             </div>
             <p style="color: #CBD5E1; font-size: 13px;">
-              Devido Ã  onda tÃ©rmica de 34Â°C prevista para o sertÃ£o pernambucano, recomenda-se diminuir o setpoint do container para 10.8Â°C antes da saÃ­da da carreta para compensar a dissipaÃ§Ã£o solar na lataria.
+              Devido à onda térmica de 34°C prevista para o sertão pernambucano, recomenda-se diminuir o setpoint do container para 10.8°C antes da saída da carreta para compensar a dissipação solar na lataria.
             </p>
           </div>
 
           <div style="background: rgba(255,255,255,0.03); border-left: 4px solid #38BDF8; border-radius: 8px; padding: 16px 20px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-              <strong style="color: #FFFFFF; font-size: 15px;">Janela Ã“tima de Colheita de Uva (LOTE 04)</strong>
+              <strong style="color: #FFFFFF; font-size: 15px;">Janela Ótima de Colheita de Uva (LOTE 04)</strong>
               <span class="badge badge-info">Oportunidade</span>
             </div>
             <p style="color: #CBD5E1; font-size: 13px;">
-              A previsÃ£o de umidade do ar nos prÃ³ximos 3 dias indica Ã­ndice favorÃ¡vel de sÃ³lidos solÃºveis (Brix &gt; 17Â°). Recomenda-se colheita matutina atÃ© as 10h para evitar quebra tÃ©rmica precoce.
+              A previsão de umidade do ar nos próximos 3 dias indica índice favorável de sólidos solúveis (Brix &gt; 17°). Recomenda-se colheita matutina até as 10h para evitar quebra térmica precoce.
             </p>
           </div>
         </div>

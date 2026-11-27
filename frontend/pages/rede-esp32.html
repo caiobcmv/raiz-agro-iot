@@ -1,7 +1,8 @@
-ï»¿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 
 <head>
+  <script>(function(){try{var t=localStorage.getItem('raiz_tema');if(t==='dark'||t==='contrast'){document.documentElement.setAttribute('data-theme',t);}}catch(e){}}());</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Rede ESP32 e Topologia | RAIZ Agro IoT</title>
@@ -16,6 +17,7 @@
   <link rel="stylesheet" href="/assets/css/components.css?v=20261120-live33">
   <link rel="stylesheet" href="/assets/css/layout.css?v=20261120-live33">
   <link rel="stylesheet" href="/assets/css/analista.css?v=20261120-live33">
+  <link rel="stylesheet" href="/assets/css/theme.css?v=20261127-real6">
 
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -26,7 +28,7 @@
   <div class="app-container">
 
     <aside class="sidebar">
-      <!-- Logo RAIZ com imagem nÃ­tida sobre fundo escuro -->
+      <!-- Logo RAIZ com imagem nítida sobre fundo escuro -->
       <div class="sidebar-brand-container">
         <a href="/pages/dashboard.html" style="display: block; text-decoration: none;">
           <img src="/assets/images/logo-raiz.png" width="105" height="105" alt="RAIZ"
@@ -34,11 +36,11 @@
         </a>
       </div>
 
-      <!-- Menu Principal DinÃ¢mico -->
+      <!-- Menu Principal Dinâmico -->
       <nav class="sidebar-nav-container">
         <a href="/pages/dashboard.html" class="sidebar-menu-item">
           <i data-lucide="layout-grid"></i>
-          <span>VisÃ£o geral</span>
+          <span>Visão geral</span>
         </a>
 
 
@@ -55,7 +57,7 @@
 
         <a href="/pages/leituras.html" class="sidebar-menu-item ">
           <i data-lucide="file-text"></i>
-          <span>HistÃ³rico Safra</span>
+          <span>Histórico Safra</span>
         </a>
 
         <a href="/pages/alertas.html" class="sidebar-menu-item ">
@@ -65,7 +67,7 @@
 
         <a href="/pages/configuracoes.html" class="sidebar-menu-item ">
           <i data-lucide="settings"></i>
-          <span>ConfiguraÃ§Ãµes</span>
+          <span>Configurações</span>
         </a>
       </nav>
 
@@ -100,7 +102,7 @@
       <header class="topbar-header">
         <div class="header-title-wrap">
           <h2>Rede ESP32 e Topologia</h2>
-          <p>Plataforma de InteligÃªncia Agro IoT e LogÃ­stica de ExportaÃ§Ã£o â€¢ Conectado ao Banco Local (raiz_agro.db)</p>
+          <p>Plataforma de Inteligência Agro IoT e Logística de Exportação • Conectado ao Banco Local (raiz_agro.db)</p>
         </div>
         <div class="header-right-controls">
           <div class="date-selector-btn">
@@ -124,12 +126,12 @@
       <main class="page-body">
         <div id="view-container">
           <div class="dashboard-canvas apple-animate-in">
-            <!-- Sub-barra TÃ©cnica do Analista -->
+            <!-- Sub-barra Técnica do Analista -->
             <div class="analista-subbar">
               <div class="analista-subbar-info">
                 <span class="analista-dot-pulse"></span>
-                <span>Gateway Petrolina-04 Conectado â€¢ Wi-Fi 2.4 GHz â€¢ 24 Sensores Ativos</span>
-                <span style="color: #64748B; font-size: 11px; font-weight: 400;">Sincronizado hÃ¡ 2 min</span>
+                <span>Gateway Petrolina-04 Conectado • Wi-Fi 2.4 GHz • 24 Sensores Ativos</span>
+                <span style="color: #64748B; font-size: 11px; font-weight: 400;">Sincronizado há 2 min</span>
               </div>
               <div class="analista-subbar-actions">
                 <button class="btn-analista-sync" id="btn-sync-rede">
@@ -153,10 +155,10 @@
                 </div>
                 <div class="kpi-value-row">
                   <span class="kpi-big-num">96%</span>
-                  <span class="kpi-sub-num">24 de 25 nÃ³s ativos</span>
+                  <span class="kpi-sub-num">24 de 25 nós ativos</span>
                 </div>
                 <div class="kpi-bottom-row">
-                  <span>LatÃªncia mÃ©dia: <strong>118 ms</strong></span>
+                  <span>Latência média: <strong>118 ms</strong></span>
                   <span style="color: #059669; font-weight: 600;">Mesh OK</span>
                 </div>
               </div>
@@ -180,15 +182,15 @@
               <!-- KPI 3 -->
               <div class="kpi-analista-card">
                 <div class="kpi-top-row">
-                  <span class="kpi-label">INGESTÃƒO THINGSPEAK</span>
-                  <span class="kpi-badge blue">EstÃ¡vel</span>
+                  <span class="kpi-label">INGESTÃO THINGSPEAK</span>
+                  <span class="kpi-badge blue">Estável</span>
                 </div>
                 <div class="kpi-value-row">
                   <span class="kpi-big-num" style="color: #0284C7;">99.8%</span>
                   <span class="kpi-sub-num">Taxa de Sucesso</span>
                 </div>
                 <div class="kpi-bottom-row">
-                  <span>CadÃªncia de lote: <strong>300s (5 min)</strong></span>
+                  <span>Cadência de lote: <strong>300s (5 min)</strong></span>
                   <span>Batch Write: <strong>200</strong></span>
                 </div>
               </div>
@@ -197,33 +199,33 @@
               <div class="kpi-analista-card">
                 <div class="kpi-top-row">
                   <span class="kpi-label">LEITURAS REJEITADAS</span>
-                  <span class="kpi-badge yellow">AtenÃ§Ã£o Leve</span>
+                  <span class="kpi-badge yellow">Atenção Leve</span>
                 </div>
                 <div class="kpi-value-row">
                   <span class="kpi-big-num" style="color: #D97706;">2</span>
                   <span class="kpi-sub-num">Descartes hoje</span>
                 </div>
                 <div class="kpi-bottom-row">
-                  <span>1 outlier tÃ©rmico, 1 sinal anl.</span>
+                  <span>1 outlier térmico, 1 sinal anl.</span>
                   <span style="color: #059669; font-weight: 600;">Auto-filtro</span>
                 </div>
               </div>
             </div>
 
-            <!-- SeÃ§Ã£o do Meio (2 Colunas): Topologia Espacial (65%) + InventÃ¡rio TÃ©cnico (35%) -->
+            <!-- Seção do Meio (2 Colunas): Topologia Espacial (65%) + Inventário Técnico (35%) -->
             <div style="display: grid; grid-template-columns: 1.8fr 1fr; gap: 20px; margin-bottom: 20px;">
-              <!-- Coluna Esquerda: Topologia Espacial dos NÃ³s ESP32 -->
+              <!-- Coluna Esquerda: Topologia Espacial dos Nós ESP32 -->
               <div class="analista-chart-box" style="margin-bottom: 0;">
                 <div class="chart-header-row">
                   <div>
                     <h3
                       style="font-size: 16px; font-weight: 700; color: #0F172A; display: flex; align-items: center; gap: 8px;">
                       <i data-lucide="share-2" style="width: 18px; height: 18px; color: #10B981;"></i>
-                      Topologia Espacial dos NÃ³s ESP32
+                      Topologia Espacial dos Nós ESP32
                       <span style="font-size: 11px; color: #64748B; font-weight: 400;">Petrolina 45.0 ha</span>
                     </h3>
                     <p style="font-size: 12px; color: #64748B; margin-top: 2px;">
-                      DistribuiÃ§Ã£o georreferenciada dos nÃ³s ESP32 e links de radiofrequÃªncia ao Gateway
+                      Distribuição georreferenciada dos nós ESP32 e links de radiofrequência ao Gateway
                     </p>
                   </div>
 
@@ -239,33 +241,33 @@
                   style="position: relative; width: 100%; height: 450px; border-radius: 12px; overflow: hidden; border: 1px solid #CBD5E1;">
                   <!-- Imagem de Fundo da Topologia Espacial (Petrolina / Juazeiro) -->
                   <img src="assets/images/topologia-espacial-esp32.png"
-                    alt="Topologia Espacial dos NÃ³s ESP32 - Petrolina e Juazeiro"
+                    alt="Topologia Espacial dos Nós ESP32 - Petrolina e Juazeiro"
                     style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1;">
 
                   <!-- SVG com Enlaces Radiais Transparente por cima da imagem -->
                   <svg viewBox="0 0 700 350"
                     style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none;"
                     preserveAspectRatio="none">
-                    <!-- CÃ­rculos de Alcance do Gateway com traÃ§os destacados -->
+                    <!-- Círculos de Alcance do Gateway com traços destacados -->
                     <circle cx="350" cy="175" r="90" fill="none" stroke="rgba(2, 132, 199, 0.45)" stroke-width="1.4"
                       stroke-dasharray="4,4" />
                     <circle cx="350" cy="175" r="140" fill="none" stroke="rgba(2, 132, 199, 0.35)" stroke-width="1.4"
                       stroke-dasharray="4,4" />
 
-                    <!-- Linhas de Enlace de RadiofrequÃªncia do Gateway aos NÃ³s -->
+                    <!-- Linhas de Enlace de Radiofrequência do Gateway aos Nós -->
                     <!-- Link N-01 -->
                     <line x1="350" y1="175" x2="240" y2="150" stroke="#10B981" stroke-width="2" stroke-dasharray="3,3"
                       opacity="0.9" />
                     <!-- Link N-02 -->
                     <line x1="350" y1="175" x2="490" y2="120" stroke="#38BDF8" stroke-width="2" stroke-dasharray="3,3"
                       opacity="0.9" />
-                    <!-- Link N-03 (AtenÃ§Ã£o) -->
+                    <!-- Link N-03 (Atenção) -->
                     <line x1="350" y1="175" x2="520" y2="210" stroke="#FBBF24" stroke-width="2" stroke-dasharray="3,3"
                       opacity="0.9" />
                     <!-- Link N-04 -->
                     <line x1="350" y1="175" x2="260" y2="240" stroke="#38BDF8" stroke-width="2" stroke-dasharray="3,3"
                       opacity="0.9" />
-                    <!-- Link N-05 (RejeiÃ§Ã£o) -->
+                    <!-- Link N-05 (Rejeição) -->
                     <line x1="350" y1="175" x2="160" y2="200" stroke="#F87171" stroke-width="2" stroke-dasharray="3,3"
                       opacity="0.9" />
                   </svg>
@@ -284,54 +286,54 @@
                     </span>
                   </div>
 
-                  <!-- NÃ³s Espalhados com RÃ³tulos -->
-                  <!-- N-01 â€¢ Solo -->
+                  <!-- Nós Espalhados com Rótulos -->
+                  <!-- N-01 • Solo -->
                   <div style="position: absolute; top: 40%; left: 32%; z-index: 10; cursor: pointer;"
-                    class="topo-node-item" data-node="N-01" title="N-01 â€¢ Solo (-74 dBm)">
+                    class="topo-node-item" data-node="N-01" title="N-01 • Solo (-74 dBm)">
                     <div
                       style="background: rgba(15, 23, 42, 0.92); border: 1.5px solid #10B981; color: #FFFFFF; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; display: flex; align-items: center; gap: 4px; box-shadow: 0 2px 6px rgba(0,0,0,0.4);">
                       <span style="width: 6px; height: 6px; border-radius: 50%; background: #10B981;"></span>
-                      N-01 â€¢ Solo
+                      N-01 • Solo
                     </div>
                   </div>
 
-                  <!-- N-02 â€¢ Ar -->
+                  <!-- N-02 • Ar -->
                   <div style="position: absolute; top: 32%; left: 68%; z-index: 10; cursor: pointer;"
-                    class="topo-node-item" data-node="N-02" title="N-02 â€¢ Ar (-79 dBm)">
+                    class="topo-node-item" data-node="N-02" title="N-02 • Ar (-79 dBm)">
                     <div
                       style="background: rgba(15, 23, 42, 0.92); border: 1.5px solid #0284C7; color: #FFFFFF; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; display: flex; align-items: center; gap: 4px; box-shadow: 0 2px 6px rgba(0,0,0,0.4);">
                       <span style="width: 6px; height: 6px; border-radius: 50%; background: #0284C7;"></span>
-                      N-02 â€¢ Ar
+                      N-02 • Ar
                     </div>
                   </div>
 
-                  <!-- N-03 â€¢ AtenÃ§Ã£o -->
+                  <!-- N-03 • Atenção -->
                   <div style="position: absolute; top: 58%; left: 72%; z-index: 10; cursor: pointer;"
-                    class="topo-node-item" data-node="N-03" title="N-03 â€¢ AtenÃ§Ã£o (-89 dBm)">
+                    class="topo-node-item" data-node="N-03" title="N-03 • Atenção (-89 dBm)">
                     <div
                       style="background: rgba(15, 23, 42, 0.92); border: 1.5px solid #F59E0B; color: #FFFFFF; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; display: flex; align-items: center; gap: 4px; box-shadow: 0 2px 6px rgba(0,0,0,0.4);">
                       <span style="width: 6px; height: 6px; border-radius: 50%; background: #F59E0B;"></span>
-                      N-03 â€¢ AtenÃ§Ã£o
+                      N-03 • Atenção
                     </div>
                   </div>
 
-                  <!-- N-04 â€¢ Solo -->
+                  <!-- N-04 • Solo -->
                   <div style="position: absolute; top: 66%; left: 35%; z-index: 10; cursor: pointer;"
-                    class="topo-node-item" data-node="N-04" title="N-04 â€¢ Solo (-72 dBm)">
+                    class="topo-node-item" data-node="N-04" title="N-04 • Solo (-72 dBm)">
                     <div
                       style="background: rgba(15, 23, 42, 0.92); border: 1.5px solid #0284C7; color: #FFFFFF; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; display: flex; align-items: center; gap: 4px; box-shadow: 0 2px 6px rgba(0,0,0,0.4);">
                       <span style="width: 6px; height: 6px; border-radius: 50%; background: #0284C7;"></span>
-                      N-04 â€¢ Solo
+                      N-04 • Solo
                     </div>
                   </div>
 
-                  <!-- N-05 â€¢ RejeiÃ§Ã£o -->
+                  <!-- N-05 • Rejeição -->
                   <div style="position: absolute; top: 55%; left: 20%; z-index: 10; cursor: pointer;"
-                    class="topo-node-item" data-node="N-05" title="N-05 â€¢ RejeiÃ§Ã£o (-95 dBm)">
+                    class="topo-node-item" data-node="N-05" title="N-05 • Rejeição (-95 dBm)">
                     <div
                       style="background: rgba(15, 23, 42, 0.92); border: 1.5px solid #EF4444; color: #FFFFFF; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; display: flex; align-items: center; gap: 4px; box-shadow: 0 2px 6px rgba(0,0,0,0.4);">
                       <span style="width: 6px; height: 6px; border-radius: 50%; background: #EF4444;"></span>
-                      N-05 â€¢ RejeiÃ§Ã£o
+                      N-05 • Rejeição
                     </div>
                   </div>
                 </div>
@@ -341,11 +343,11 @@
                   <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
                     <span style="display: flex; align-items: center; gap: 6px;">
                       <span style="width: 8px; height: 8px; border-radius: 50%; background: #10B981;"></span>
-                      NÃ³s Ativos (22 nÃ³s &gt; -85 dBm)
+                      Nós Ativos (22 nós &gt; -85 dBm)
                     </span>
                     <span style="display: flex; align-items: center; gap: 6px;">
                       <span style="width: 8px; height: 8px; border-radius: 50%; background: #F59E0B;"></span>
-                      AtenÃ§Ã£o / Limiar (2 nÃ³s)
+                      Atenção / Limiar (2 nós)
                     </span>
                     <span style="display: flex; align-items: center; gap: 6px;">
                       <span
@@ -354,20 +356,20 @@
                     </span>
                   </div>
                   <span style="color: #64748B; font-size: 10px; font-weight: 600;">
-                    Wi-Fi 802.11 b/g/n â€¢ ThingSpeak Ingest
+                    Wi-Fi 802.11 b/g/n • ThingSpeak Ingest
                   </span>
                 </div>
               </div>
 
-              <!-- Coluna Direita: InventÃ¡rio TÃ©cnico de Sensores (35%) -->
+              <!-- Coluna Direita: Inventário Técnico de Sensores (35%) -->
               <div class="analista-chart-box" style="margin-bottom: 0;">
                 <div class="chart-header-row">
                   <div>
                     <h3 style="font-size: 15px; font-weight: 700; color: #0F172A;">
-                      InventÃ¡rio TÃ©cnico de Sensores
+                      Inventário Técnico de Sensores
                     </h3>
                     <p style="font-size: 11px; color: #64748B; margin-top: 2px;">
-                      Tabela 'sensor' â€¢ Lotes vinculados
+                      Tabela 'sensor' • Lotes vinculados
                     </p>
                   </div>
                   <span
@@ -380,7 +382,7 @@
                 <input type="text" id="input-busca-tecnica" placeholder="Buscar sensor, lote ou channel_id..."
                   style="width: 100%; background: #F8FAFC; border: 1px solid #CBD5E1; border-radius: 8px; padding: 8px 12px; font-size: 12px; margin-bottom: 12px; outline: none;">
 
-                <!-- Lista de Sensores TÃ©cnicos -->
+                <!-- Lista de Sensores Técnicos -->
                 <div
                   style="display: flex; flex-direction: column; gap: 10px; max-height: 290px; overflow-y: auto; padding-right: 4px;">
                   <!-- Sensor 1 -->
@@ -392,7 +394,7 @@
                       <span
                         style="background: #ECFDF5; color: #047857; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px;">Ativo</span>
                     </div>
-                    <div style="font-size: 11px; color: #334155; font-weight: 600;">#01 LOTE A1 â€¢ Uva VitÃ³ria</div>
+                    <div style="font-size: 11px; color: #334155; font-weight: 600;">#01 LOTE A1 • Uva Vitória</div>
                     <div style="font-size: 10px; color: #64748B; margin-top: 2px;">id_lote: 1</div>
                     <div
                       style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B; margin-top: 6px; border-top: 1px solid #EDF2F7; padding-top: 4px;">
@@ -410,7 +412,7 @@
                       <span
                         style="background: #ECFDF5; color: #047857; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px;">Ativo</span>
                     </div>
-                    <div style="font-size: 11px; color: #334155; font-weight: 600;">#02 LOTE A1 â€¢ Microclima</div>
+                    <div style="font-size: 11px; color: #334155; font-weight: 600;">#02 LOTE A1 • Microclima</div>
                     <div style="font-size: 10px; color: #64748B; margin-top: 2px;">id_lote: 1</div>
                     <div
                       style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B; margin-top: 6px; border-top: 1px solid #EDF2F7; padding-top: 4px;">
@@ -428,7 +430,7 @@
                       <span
                         style="background: #ECFDF5; color: #047857; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px;">Ativo</span>
                     </div>
-                    <div style="font-size: 11px; color: #334155; font-weight: 600;">#03 LOTE B2 â€¢ Uva Thompson</div>
+                    <div style="font-size: 11px; color: #334155; font-weight: 600;">#03 LOTE B2 • Uva Thompson</div>
                     <div style="font-size: 10px; color: #64748B; margin-top: 2px;">id_lote: 2</div>
                     <div
                       style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B; margin-top: 6px; border-top: 1px solid #EDF2F7; padding-top: 4px;">
@@ -440,27 +442,27 @@
               </div>
             </div>
 
-            <!-- SeÃ§Ã£o Inferior: HistÃ³rico de TransmissÃ£o e Sinal 24h -->
+            <!-- Seção Inferior: Histórico de Transmissão e Sinal 24h -->
             <div class="analista-chart-box">
               <div class="chart-header-row">
                 <div>
                   <h3
                     style="font-size: 16px; font-weight: 700; color: #0F172A; display: flex; align-items: center; gap: 8px;">
                     <i data-lucide="radio-tower" style="width: 18px; height: 18px; color: #10B981;"></i>
-                    HistÃ³rico de TransmissÃ£o e Sinal 24h
+                    Histórico de Transmissão e Sinal 24h
                     <span
-                      style="font-size: 11px; color: #059669; font-weight: 600; background: #ECFDF5; padding: 2px 8px; border-radius: 4px;">MÃ©dia
+                      style="font-size: 11px; color: #059669; font-weight: 600; background: #ECFDF5; padding: 2px 8px; border-radius: 4px;">Média
                       Global do Enlace</span>
                   </h3>
                   <p style="font-size: 12px; color: #64748B; margin-top: 2px;">
-                    VariaÃ§Ã£o do RSSI mÃ©dio (-dBm) e integridade dos pacotes transmitidos por amostragem horÃ¡ria
+                    Variação do RSSI médio (-dBm) e integridade dos pacotes transmitidos por amostragem horária
                   </p>
                 </div>
 
                 <div style="display: flex; align-items: center; gap: 16px; font-size: 11px;">
                   <span style="display: flex; align-items: center; gap: 6px;">
                     <span style="width: 10px; height: 10px; border-radius: 50%; background: #10B981;"></span>
-                    RSSI MÃ©dio (-81 dBm)
+                    RSSI Médio (-81 dBm)
                   </span>
                   <span style="display: flex; align-items: center; gap: 6px;">
                     <span style="width: 10px; height: 10px; border-radius: 50%; background: #0284C7;"></span>
@@ -469,7 +471,7 @@
                 </div>
               </div>
 
-              <!-- GrÃ¡fico SVG Ãrea Dupla (RSSI vs PDR) -->
+              <!-- Gráfico SVG Área Dupla (RSSI vs PDR) -->
               <div
                 style="position: relative; width: 100%; height: 200px; background: #FAFDFB; border: 1px solid #E2E8F0; border-radius: 12px; overflow: hidden; padding: 10px;">
                 <svg viewBox="0 0 800 180" style="width: 100%; height: 100%;" preserveAspectRatio="none">
@@ -509,7 +511,7 @@
                   style="display: flex; justify-content: space-between; font-size: 10px; color: #94A3B8; margin-top: 4px; padding: 0 10px;">
                   <span>00:00</span>
                   <span>04:00</span>
-                  <span style="color: #047857; font-weight: 600;">08:00 (IrrigaÃ§Ã£o)</span>
+                  <span style="color: #047857; font-weight: 600;">08:00 (Irrigação)</span>
                   <span style="color: #0284C7; font-weight: 600;">12:00 (Pico Solar)</span>
                   <span>16:00</span>
                   <span>20:00</span>
@@ -517,7 +519,7 @@
                 </div>
               </div>
 
-              <!-- 3 KPIs no RodapÃ© do Sinal -->
+              <!-- 3 KPIs no Rodapé do Sinal -->
               <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 14px;">
                 <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 10px 14px;">
                   <div style="font-size: 10px; color: #64748B; font-weight: 700; text-transform: uppercase;">MARGEM DE
@@ -530,14 +532,14 @@
                   <div style="font-size: 10px; color: #64748B; font-weight: 700; text-transform: uppercase;">PERDA DE
                     PACOTES</div>
                   <div style="font-size: 18px; font-weight: 800; color: #0284C7; margin-top: 2px;">0.18%</div>
-                  <div style="font-size: 10px; color: #64748B; margin-top: 2px;">TolerÃ¢ncia mÃ¡xima: 1.5%</div>
+                  <div style="font-size: 10px; color: #64748B; margin-top: 2px;">Tolerância máxima: 1.5%</div>
                 </div>
 
                 <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 10px 14px;">
                   <div style="font-size: 10px; color: #64748B; font-weight: 700; text-transform: uppercase;">THROUGHPUT
-                    MÃ‰DIO</div>
+                    MÉDIO</div>
                   <div style="font-size: 18px; font-weight: 800; color: #0F172A; margin-top: 2px;">5,47 kbps</div>
-                  <div style="font-size: 10px; color: #64748B; margin-top: 2px;">AlocaÃ§Ã£o 100% nominal</div>
+                  <div style="font-size: 10px; color: #64748B; margin-top: 2px;">Alocação 100% nominal</div>
                 </div>
               </div>
             </div>

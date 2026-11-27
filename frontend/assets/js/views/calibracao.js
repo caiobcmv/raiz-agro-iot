@@ -46,7 +46,7 @@ export async function renderCalibracao() {
     ? dados.sensores
     : [
         { id_sensor: 1, nome: 'DHT11 ESP32-C3', tipo_sensor: 'DHT11', localizacao: 'Bancada', channel_id: 3500765, ambiente: 'ar', status: 'ativo', lote_codigo: 'Lote #1', variedade: 'Uva Vitória' },
-        { id_sensor: 3, nome: 'Solo ESP32', tipo_sensor: 'umidade do solo', localizacao: 'Bancada', channel_id: null, ambiente: 'solo', status: 'ativo', lote_codigo: 'Lote #1', variedade: 'Uva Vitória' }
+        { id_sensor: 3, nome: 'Solo ESP32', tipo_sensor: 'umidade do solo', localizacao: 'Bancada', channel_id: 3500765, field_number: 3, ambiente: 'solo', status: 'ativo', lote_codigo: 'Lote #1', variedade: 'Uva Vitória' }
       ];
 
   const rejeitadas24h = dados?.rejeitadas_24h ?? 0;
