@@ -25,42 +25,15 @@ export async function renderUsuarios() {
     usuarios = [];
   }
 
-  // Se o backend retornou vazio ou deu erro, recupera da persistência local (localStorage)
-  if (!Array.isArray(usuarios) || usuarios.length === 0) {
-    const saved = localStorage.getItem('RAIZ_USUARIOS_LIST');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          usuarios = parsed;
-        }
-      } catch (err) {}
-    }
+  // Se o backend retornou vazio ou deu erro, mantém lista vazia (sem dados de exemplo)
+  if (!Array.isArray(usuarios)) {
+    usuarios = [];
   }
-
-  // Lista padrão caso persistência também não tenha dados
-  if (!Array.isArray(usuarios) || usuarios.length === 0) {
-    usuarios = [
-      { id_usuario: 3, nome: 'Lorena Lira', email: 'lorena.lira@raizagro.agr.br', perfil: 'Administrador', data_cadastro: '14/01/2025', ultimo_acesso: 'Hoje às 15:42 • IP 192.168.1.45', status: 'ativo', deve_trocar_senha: false, ativado_em: '2025-01-14 10:00:00' },
-      { id_usuario: 1, nome: 'Maria Clara Gestora', email: 'maria.clara@raizagro.agr.br', perfil: 'Produtor / Exportador', data_cadastro: '02/02/2025', ultimo_acesso: 'Hoje às 15:40 • IP 187.54.12.8', status: 'ativo', deve_trocar_senha: false, ativado_em: '2025-02-02 11:20:00' },
-      { id_usuario: 2, nome: 'Luiz Felipe', email: 'luiz.felipe@raizagro.agr.br', perfil: 'Analista de Dados', data_cadastro: '10/02/2025', ultimo_acesso: 'Hoje às 15:15 • IP 10.0.0.12', status: 'ativo', deve_trocar_senha: false, ativado_em: '2025-02-10 09:30:00' },
-      { id_usuario: 4, nome: 'Rodrigo Alves', email: 'rodrigo.alves@raizagro.agr.br', perfil: 'Produtor / Exportador', data_cadastro: '22/03/2025', ultimo_acesso: 'Hoje às 14:50 • Terminal Mobile', status: 'ativo', deve_trocar_senha: false, ativado_em: '2025-03-22 14:10:00' },
-      { id_usuario: 5, nome: 'Dra. Gabriela Sales', email: 'gabriela.sales@raizagro.agr.br', perfil: 'Analista de Dados', data_cadastro: '05/04/2025', ultimo_acesso: 'Ontem às 18:20 • API Gateway', status: 'ativo', deve_trocar_senha: false, ativado_em: '2025-04-05 16:45:00' },
-      { id_usuario: 6, nome: 'João Pedro', email: 'joao.pedro@raizagro.agr.br', perfil: 'Produtor / Exportador', data_cadastro: '12/05/2025', ultimo_acesso: 'Aguardando Primeiro Acesso', status: 'pendente', deve_trocar_senha: true, ativado_em: null }
-    ];
-  }
-
-  // Garante sincronização permanente no localStorage
-  try {
-    localStorage.setItem('RAIZ_USUARIOS_LIST', JSON.stringify(usuarios));
-  } catch (err) {}
 
   const usuarioLogado = auth.getUser();
   const emailLogado = usuarioLogado ? (usuarioLogado.email || '').trim().toLowerCase() : '';
 
-  const listaSegura = Array.isArray(usuarios) ? usuarios : [];
-
-  usuarios = listaSegura.map(u => {
+  usuarios = usuarios.map(u => {
     const nomeSeguro = String(u?.nome || 'Usuário').trim() || 'Usuário';
     const perfilSeguro = String(u?.perfil || (u?.id_perfil === 3 ? 'Administrador' : (u?.id_perfil === 2 ? 'Analista de Dados' : 'Produtor / Exportador')));
     return {
@@ -69,20 +42,25 @@ export async function renderUsuarios() {
       email: String(u?.email || ''),
       perfil: perfilSeguro,
       isVoce: String(u?.email || '').trim().toLowerCase() === emailLogado,
-      status: u?.status || 'ativo',
-      data_cadastro: u?.data_cadastro || '14/01/2025',
-      ultimo_acesso: u?.ultimo_acesso || (u?.status === 'pendente' ? 'Aguardando Primeiro Acesso' : 'Hoje às 15:30 • IP 192.168.1.45')
+      status: String(u?.status || '').toLowerCase() === 'inativo' ? 'inativo' : 'ativo',
+      data_cadastro: u?.data_cadastro ? String(u.data_cadastro).slice(0, 10) : '—'
     };
   });
 
-  const totalUsuarios = Array.isArray(usuarios) ? usuarios.length : 0;
-  const totalAtivos = (Array.isArray(usuarios) ? usuarios : []).filter(u => u && u.status !== 'inativo').length;
-  const totalInativos = (Array.isArray(usuarios) ? usuarios : []).filter(u => u && u.status === 'inativo').length;
+  const totalUsuarios = usuarios.length;
+  const totalAtivos = usuarios.filter(u => u && u.status === 'ativo').length;
+  const totalInativos = usuarios.filter(u => u && u.status === 'inativo').length;
+  const totalProdutores = usuarios.filter(u => String(u?.perfil || '').toLowerCase().includes('produtor')).length;
+  const totalAnalistas = usuarios.filter(u => String(u?.perfil || '').toLowerCase().includes('analista')).length;
+  const totalAdmins = usuarios.filter(u => String(u?.perfil || '').toLowerCase().includes('admin')).length;
+  const pctProdutores = totalUsuarios > 0 ? Math.round((totalProdutores / totalUsuarios) * 100) : 0;
+  const pctAnalistas = totalUsuarios > 0 ? Math.round((totalAnalistas / totalUsuarios) * 100) : 0;
+  const pctAdmins = totalUsuarios > 0 ? Math.max(0, 100 - pctProdutores - pctAnalistas) : 0;
 
   return `
     <div class="dashboard-canvas apple-animate-in">
-      <!-- 4 KPIs Superiores de Usuários -->
-      <div class="admin-kpi-grid-4">
+      <!-- 3 KPIs Superiores de Usuários -->
+      <div class="admin-kpi-grid-4" style="grid-template-columns: repeat(3, minmax(0, 1fr));">
         <!-- KPI 1: TOTAL DE MEMBROS -->
         <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between;">
           <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -106,22 +84,22 @@ export async function renderUsuarios() {
           </div>
           <div style="margin: 10px 0;">
             <div style="width: 100%; height: 6px; background: #E2E8F0; border-radius: 3px; display: flex; overflow: hidden; margin-bottom: 8px;">
-              <div style="width: 42%; background: #10B981;"></div>
-              <div style="width: 33%; background: #0284C7;"></div>
-              <div style="width: 25%; background: #0F172A;"></div>
+              <div style="width: ${pctProdutores}%; background: #10B981;"></div>
+              <div style="width: ${pctAnalistas}%; background: #0284C7;"></div>
+              <div style="width: ${pctAdmins}%; background: #0F172A;"></div>
             </div>
             <div style="font-size: 10px; color: #475569; display: flex; flex-direction: column; gap: 2px;">
               <div style="display: flex; justify-content: space-between;">
                 <span>• Produtor / Exp.</span>
-                <strong>5 (42%)</strong>
+                <strong>${totalProdutores} (${pctProdutores}%)</strong>
               </div>
               <div style="display: flex; justify-content: space-between;">
                 <span>• Analista IoT</span>
-                <strong>4 (33%)</strong>
+                <strong>${totalAnalistas} (${pctAnalistas}%)</strong>
               </div>
               <div style="display: flex; justify-content: space-between;">
                 <span>• Administrador</span>
-                <strong>3 (25%)</strong>
+                <strong>${totalAdmins} (${pctAdmins}%)</strong>
               </div>
             </div>
           </div>
@@ -148,32 +126,15 @@ export async function renderUsuarios() {
             <span style="color: #64748B;">Soft Delete via fn_bloquear_delete</span>
           </div>
         </div>
-
-        <!-- KPI 4: SESSÕES NAS ÚLTIMAS 24H -->
-        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between;">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 11px; font-weight: 700; color: #64748B;">SESSÕES NAS ÚLTIMAS 24H</span>
-            <i data-lucide="clock" style="width: 14px; height: 14px; color: #64748B;"></i>
-          </div>
-          <div style="margin: 12px 0;">
-            <div style="font-size: 26px; font-weight: 800; color: #0F172A; line-height: 1;">48</div>
-            <div style="font-size: 11px; color: #64748B; margin-top: 4px;">conexões autenticadas</div>
-          </div>
-          <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 6px;">
-            <span style="color: #047857; font-weight: 600;">Zero falhas de login</span>
-            <span style="color: #047857; font-weight: 600;">0% err</span>
-          </div>
-        </div>
       </div>
 
-      <!-- Seção: Matriz de Perfis e Governança de Escopo (RBAC v2.4) -->
+      <!-- Seção: Matriz de Perfis e Governança de Escopo -->
       <div style="margin-bottom: 24px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
           <div>
             <h3 style="font-size: 15px; font-weight: 700; color: #0F172A; margin: 0;">Matriz de Perfis e Governança de Escopo</h3>
             <p style="font-size: 12px; color: #64748B; margin: 4px 0 0 0;">Definição dos níveis de privilégio estruturados conforme as diretrizes agrícolas e de telemetria.</p>
           </div>
-          <span style="font-size: 11px; font-weight: 600; color: #64748B; background: #F1F5F9; padding: 4px 10px; border-radius: 6px;">Esquema RBAC v2.4</span>
         </div>
 
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
@@ -182,7 +143,7 @@ export async function renderUsuarios() {
             <div>
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                 <span style="font-size: 10px; font-weight: 700; color: #047857; background: #ECFDF5; padding: 2px 8px; border-radius: 4px;">Operação de Campo</span>
-                <span style="font-size: 11px; font-weight: 600; color: #64748B;">5 contas</span>
+                <span style="font-size: 11px; font-weight: 600; color: #64748B;">${totalProdutores} contas</span>
               </div>
               <h4 style="font-size: 14px; font-weight: 700; color: #0F172A; margin: 0 0 6px 0; display: flex; align-items: center; gap: 6px;">
                 <i data-lucide="sprout" style="width: 16px; height: 16px; color: #10B981;"></i> Produtor / Exportador
@@ -213,7 +174,7 @@ export async function renderUsuarios() {
             <div>
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                 <span style="font-size: 10px; font-weight: 700; color: #0284C7; background: #F0F9FF; padding: 2px 8px; border-radius: 4px;">Análise Avançada</span>
-                <span style="font-size: 11px; font-weight: 600; color: #64748B;">4 contas</span>
+                <span style="font-size: 11px; font-weight: 600; color: #64748B;">${totalAnalistas} contas</span>
               </div>
               <h4 style="font-size: 14px; font-weight: 700; color: #0F172A; margin: 0 0 6px 0; display: flex; align-items: center; gap: 6px;">
                 <i data-lucide="cpu" style="width: 16px; height: 16px; color: #0284C7;"></i> Analista de Dados e IoT
@@ -244,7 +205,7 @@ export async function renderUsuarios() {
             <div>
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                 <span style="font-size: 10px; font-weight: 700; color: #0F172A; background: #F1F5F9; padding: 2px 8px; border-radius: 4px;">Gestão da Plataforma</span>
-                <span style="font-size: 11px; font-weight: 600; color: #64748B;">3 contas</span>
+                <span style="font-size: 11px; font-weight: 600; color: #64748B;">${totalAdmins} contas</span>
               </div>
               <h4 style="font-size: 14px; font-weight: 700; color: #0F172A; margin: 0 0 6px 0; display: flex; align-items: center; gap: 6px;">
                 <i data-lucide="shield" style="width: 16px; height: 16px; color: #0F172A;"></i> Administrador
@@ -277,7 +238,7 @@ export async function renderUsuarios() {
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
           <div>
             <h3 style="font-size: 15px; font-weight: 700; color: #0F172A; margin: 0;">Usuários Cadastrados</h3>
-            <p style="font-size: 11px; color: #64748B; margin: 2px 0 0 0;">Sincronização em tempo real com a tabela segura de autenticação</p>
+            <p style="font-size: 11px; color: #64748B; margin: 2px 0 0 0;">Dados da tabela de usuários</p>
           </div>
           <div style="display: flex; align-items: center; gap: 8px;">
             <div style="position: relative;">
@@ -293,12 +254,12 @@ export async function renderUsuarios() {
 
         <!-- Filtros em Tabs -->
         <div style="display: flex; gap: 6px; margin-bottom: 16px; border-bottom: 1px solid #F1F5F9; padding-bottom: 10px; overflow-x: auto;">
-          <button class="tab-filtro-user active" data-filtro="todos" style="padding: 6px 12px; font-size: 11px; font-weight: 700; background: #183D2E; color: #FFFFFF; border: none; border-radius: 6px; cursor: pointer;">Todos (${Array.isArray(usuarios) ? usuarios.length : 0})</button>
-          <button class="tab-filtro-user" data-filtro="produtor" style="padding: 6px 12px; font-size: 11px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Produtores</button>
-          <button class="tab-filtro-user" data-filtro="analista" style="padding: 6px 12px; font-size: 11px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Analistas</button>
-          <button class="tab-filtro-user" data-filtro="admin" style="padding: 6px 12px; font-size: 11px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Administradores</button>
-          <button class="tab-filtro-user" data-filtro="pendentes" style="padding: 6px 12px; font-size: 11px; font-weight: 600; background: #FFFBEB; color: #B45309; border: 1px solid #FDE68A; border-radius: 6px; cursor: pointer;">• Pendentes / 1º Acesso</button>
-          <button class="tab-filtro-user" data-filtro="ativos" style="padding: 6px 12px; font-size: 11px; font-weight: 600; background: #F8FAFC; color: #047857; border: 1px solid #A7F3D0; border-radius: 6px; cursor: pointer;">• Ativos</button>
+          <button class="tab-filtro-user active" data-filtro="todos" style="padding: 6px 12px; font-size: 11px; font-weight: 700; background: #183D2E; color: #FFFFFF; border: none; border-radius: 6px; cursor: pointer;">Todos (${totalUsuarios})</button>
+          <button class="tab-filtro-user" data-filtro="produtor" style="padding: 6px 12px; font-size: 11px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Produtores (${totalProdutores})</button>
+          <button class="tab-filtro-user" data-filtro="analista" style="padding: 6px 12px; font-size: 11px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Analistas (${totalAnalistas})</button>
+          <button class="tab-filtro-user" data-filtro="admin" style="padding: 6px 12px; font-size: 11px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Administradores (${totalAdmins})</button>
+          <button class="tab-filtro-user" data-filtro="ativos" style="padding: 6px 12px; font-size: 11px; font-weight: 600; background: #F8FAFC; color: #047857; border: 1px solid #A7F3D0; border-radius: 6px; cursor: pointer;">• Ativos (${totalAtivos})</button>
+          <button class="tab-filtro-user" data-filtro="inativos" style="padding: 6px 12px; font-size: 11px; font-weight: 600; background: #F8FAFC; color: #64748B; border: 1px solid #CBD5E1; border-radius: 6px; cursor: pointer;">• Inativos (${totalInativos})</button>
         </div>
 
         <!-- Tabela Customizada -->
@@ -309,13 +270,16 @@ export async function renderUsuarios() {
                 <th style="padding: 10px 14px;">USUÁRIO</th>
                 <th style="padding: 10px 14px;">PERFIL (PAPEL)</th>
                 <th style="padding: 10px 14px;">DATA DE CADASTRO</th>
-                <th style="padding: 10px 14px;">ÚLTIMO ACESSO (LOG_ACESSO)</th>
                 <th style="padding: 10px 14px;">STATUS</th>
                 <th style="padding: 10px 14px; text-align: right;">AÇÕES</th>
               </tr>
             </thead>
             <tbody>
-              ${(Array.isArray(usuarios) ? usuarios : []).map(u => {
+              ${usuarios.length === 0 ? `
+                <tr>
+                  <td colspan="5" style="padding: 24px; text-align: center; color: #64748B;">Não foi possível carregar os usuários.</td>
+                </tr>
+              ` : usuarios.map(u => {
     const nomeStr = String(u.nome || 'US');
     const initials = nomeStr.split(/\s+/).filter(Boolean).map(n => n[0]).slice(0, 2).join('').toUpperCase() || 'US';
     const perfilStr = String(u.perfil || 'Produtor / Exportador');
@@ -329,7 +293,7 @@ export async function renderUsuarios() {
     }
 
     return `
-                  <tr style="border-bottom: 1px solid #F1F5F9;">
+                  <tr style="border-bottom: 1px solid #F1F5F9;" data-status="${String(u.status || '').toLowerCase()}" data-perfil="${perfilStr.toLowerCase()}">
                     <td style="padding: 12px 14px;">
                       <div style="display: flex; align-items: center; gap: 10px;">
                         <div style="width: 34px; height: 34px; border-radius: 50%; background: #F1F5F9; border: 1px solid #CBD5E1; color: #334155; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 11px;">
@@ -352,30 +316,16 @@ export async function renderUsuarios() {
                     <td style="padding: 12px 14px; color: #475569;">
                       ${u.data_cadastro}
                     </td>
-                    <td style="padding: 12px 14px; color: #475569;">
-                      ${u.ultimo_acesso}
-                    </td>
                     <td style="padding: 12px 14px;">
-                      ${u.status === 'pendente' ? `
-                        <span style="font-size: 10px; font-weight: 700; color: #B45309; background: #FEF3C7; border: 1px solid #FCD34D; padding: 2px 7px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;">
-                          <span style="width: 5px; height: 5px; border-radius: 50%; background: #F59E0B;"></span> Pendente
-                        </span>
-                      ` : `
                         <label style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
                           <span style="font-size: 10px; font-weight: 700; color: ${u.status === 'inativo' ? '#64748B' : '#047857'}; background: ${u.status === 'inativo' ? '#F1F5F9' : '#D1FAE5'}; padding: 2px 6px; border-radius: 4px;">
                             • ${u.status === 'inativo' ? 'Inativo' : 'Ativo'}
                           </span>
                           <input type="checkbox" ${u.status !== 'inativo' ? 'checked' : ''} style="accent-color: #10B981; cursor: pointer;" data-id="${u.id_usuario}" class="chk-status-user">
                         </label>
-                      `}
                     </td>
                     <td style="padding: 12px 14px; text-align: right;">
                       <div style="display: inline-flex; gap: 8px; align-items: center;">
-                        ${u.status === 'pendente' ? `
-                          <button class="btn-reenviar-ativacao" data-email="${u.email}" title="Reenviar Código de Ativação (ativacao.sql)" style="background: #FFFBEB; border: 1px solid #FCD34D; color: #B45309; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
-                            <i data-lucide="send" style="width: 12px; height: 12px;"></i> Reenviar Ativação
-                          </button>
-                        ` : ''}
                         <button class="btn-acao-user" data-id="${u.id_usuario}" data-acao="editar" title="Editar Usuário" style="background: none; border: none; cursor: pointer; color: #64748B;">
                           <i data-lucide="edit-3" style="width: 14px; height: 14px;"></i>
                         </button>
@@ -396,7 +346,7 @@ export async function renderUsuarios() {
 
         <!-- Paginação inferior -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; font-size: 11px; color: #64748B;">
-          <span id="users-pag-info">Exibindo 1-6 de 12 usuários</span>
+          <span id="users-pag-info">Exibindo ${totalUsuarios} de ${totalUsuarios} usuários</span>
           <div style="display: flex; gap: 6px;">
             <button class="btn-pag-user" data-page="prev" style="padding: 4px 10px; border: 1px solid #CBD5E1; background: #FFFFFF; border-radius: 4px; cursor: pointer;">&lt; Anterior</button>
             <button class="btn-pag-user active" data-page="1" style="padding: 4px 10px; border: 1px solid #183D2E; background: #183D2E; color: #FFFFFF; border-radius: 4px; font-weight: 700; cursor: pointer;">1</button>
@@ -462,36 +412,14 @@ export function setupUsuariosEvents() {
           return;
         }
 
-        const novoUserObj = {
-          id_usuario: Date.now(),
-          nome,
-          email,
-          perfil: perfilNome,
-          id_perfil: perfilId,
-          data_cadastro: new Date().toLocaleDateString('pt-BR'),
-          ultimo_acesso: 'Aguardando Primeiro Acesso',
-          status: 'pendente',
-          deve_trocar_senha: true,
-          ativado_em: null
-        };
-
         try {
-          const res = await api.criarUsuario({ nome, email, senha: 'TempPassword@2026', id_perfil: perfilId, fk_perfil_id_perfil: perfilId });
-          if (res && res.id_usuario) {
-            novoUserObj.id_usuario = res.id_usuario;
-          }
+          await api.criarUsuario({ nome, email, senha: 'TempPassword@2026', id_perfil: perfilId, fk_perfil_id_perfil: perfilId });
+          toast.success('Usuário Cadastrado', `Convite com credencial enviado com sucesso para ${nome} (${email}).`);
         } catch (err) {
-          console.warn('API offline ao criar usuário, garantindo persistência local:', err);
+          console.warn('Falha ao cadastrar usuário no backend:', err);
+          toast.error('Erro ao Cadastrar', err.message || 'Não foi possível cadastrar o usuário.');
+          return;
         }
-
-        try {
-          const parsedLista = JSON.parse(localStorage.getItem('RAIZ_USUARIOS_LIST') || '[]');
-          const listaAtual = Array.isArray(parsedLista) ? parsedLista : [];
-          listaAtual.unshift(novoUserObj);
-          localStorage.setItem('RAIZ_USUARIOS_LIST', JSON.stringify(listaAtual));
-        } catch (e) {}
-
-        toast.success('Usuário Cadastrado', `Convite com credencial e 2FA (ativacao_token) enviado com sucesso para ${nome} (${email}).`);
 
         // Re-renderiza a rota dinamicamente
         setTimeout(() => {
@@ -623,42 +551,24 @@ export function setupUsuariosEvents() {
     });
   });
 
-  // Reenviar ativação por e-mail (ativacao.sql / ativacao_token)
-  document.querySelectorAll('.btn-reenviar-ativacao').forEach(btn => {
-    btn.addEventListener('click', async (e) => {
-      const email = e.currentTarget.dataset.email;
-      e.currentTarget.disabled = true;
-      e.currentTarget.innerHTML = '<span style="display:inline-block; animation:spin 1s linear infinite;">↻</span> Reenviando...';
-      try {
-        await api.reenviarAtivacao(email);
-        toast.success('Ativação Reenviada', `Novo token seguro (ativacao_token) gerado e enviado para ${email}.`);
-      } catch (err) {
-        toast.info('Ativação Reenviada', `Token de ativação reemitido para ${email}.`);
-      } finally {
-        setTimeout(() => {
-          btn.disabled = false;
-          btn.innerHTML = '<i data-lucide="send" style="width: 12px; height: 12px;"></i> Reenviar Ativação';
-          if (window.lucide) window.lucide.createIcons();
-        }, 800);
-      }
-    });
-  });
-
-  // Busca em tempo real na tabela de usuários
+  // Busca na tabela de usuários
   const buscaUserInput = document.querySelector('input[placeholder*="Buscar por nome"]');
   let filtroPerfilAtual = 'todos';
   const filtrarTabelaUsuarios = () => {
     const termo = (buscaUserInput?.value || '').toLowerCase().trim();
     document.querySelectorAll('tbody tr').forEach(tr => {
+      if (!tr.dataset.status) return;
       const txt = tr.textContent.toLowerCase();
+      const perfilRow = (tr.dataset.perfil || '').toLowerCase();
+      const statusRow = (tr.dataset.status || '').toLowerCase();
       const matchTermo = !termo || txt.includes(termo);
       const matchPerfil =
         filtroPerfilAtual === 'todos' ||
-        (filtroPerfilAtual === 'produtores' && txt.includes('produtor')) ||
-        (filtroPerfilAtual === 'analistas' && txt.includes('analista')) ||
-        (filtroPerfilAtual === 'administradores' && txt.includes('administrador')) ||
-        (filtroPerfilAtual === 'pendentes' && txt.includes('pendente')) ||
-        (filtroPerfilAtual === 'ativos' && txt.includes('ativo') && !txt.includes('inativo'));
+        (filtroPerfilAtual === 'produtor' && perfilRow.includes('produtor')) ||
+        (filtroPerfilAtual === 'analista' && perfilRow.includes('analista')) ||
+        (filtroPerfilAtual === 'admin' && perfilRow.includes('admin')) ||
+        (filtroPerfilAtual === 'ativos' && statusRow === 'ativo') ||
+        (filtroPerfilAtual === 'inativos' && statusRow === 'inativo');
       tr.style.display = (matchTermo && matchPerfil) ? '' : 'none';
     });
   };
@@ -675,13 +585,7 @@ export function setupUsuariosEvents() {
       e.currentTarget.style.background = '#183D2E';
       e.currentTarget.style.color = '#FFFFFF';
       e.currentTarget.classList.add('active');
-      const label = e.currentTarget.innerText.toLowerCase();
-      if (label.includes('produtor')) filtroPerfilAtual = 'produtores';
-      else if (label.includes('analista')) filtroPerfilAtual = 'analistas';
-      else if (label.includes('admin')) filtroPerfilAtual = 'administradores';
-      else if (label.includes('pendente')) filtroPerfilAtual = 'pendentes';
-      else if (label.includes('ativo')) filtroPerfilAtual = 'ativos';
-      else filtroPerfilAtual = 'todos';
+      filtroPerfilAtual = e.currentTarget.dataset.filtro || 'todos';
       filtrarTabelaUsuarios();
       toast.info('Filtro Aplicado', `Exibindo: ${e.currentTarget.innerText}`);
     });
@@ -703,9 +607,7 @@ export function setupUsuariosEvents() {
         b.style.borderColor = isActive ? '#183D2E' : '#CBD5E1';
         b.style.fontWeight = isActive ? '700' : '400';
       });
-      const info = document.getElementById('users-pag-info');
-      if (info) info.textContent = pagAtualUser === 1 ? 'Exibindo 1-6 de 12 usuários' : 'Exibindo 7-12 de 12 usuários';
-      toast.info('Paginação de Usuários', `Página ${pagAtualUser} de 2 selecionada.`);
+      toast.info('Paginação de Usuários', `Página ${pagAtualUser} selecionada.`);
     });
   });
 }

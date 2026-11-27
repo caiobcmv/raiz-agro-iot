@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ROTEADOR CLIENT-SIDE MODULAR (SPA COM TRANSIÇÕES DINÂMICAS, SKELETONS, TEMPO REAL E RESPONSIVIDADE)
  */
 
@@ -30,7 +30,7 @@ import { renderPrevisoes } from './views/previsoes.js?v=20261122-real2';
 import { renderRelatorios, setupRelatoriosEvents } from './views/relatorios.js?v=20261122-real2';
 import { renderConfiguracoes, setupConfiguracoesEvents } from './views/configuracoes.js?v=20261127-real6';
 import { renderCalibracao, setupCalibracaoEvents } from './views/calibracao.js?v=20261122-real5';
-import { renderUsuarios, setupUsuariosEvents } from './views/usuarios.js?v=20261120-live33';
+import { renderUsuarios, setupUsuariosEvents } from './views/usuarios.js?v=20261127-real7';
 import { renderRegrasAgronomicas, setupRegrasAgronomicasEvents } from './views/regras-agronomicas.js?v=20261120-live33';
 import { renderAuditoria, setupAuditoriaEvents } from './views/auditoria.js?v=20261120-live33';
 import { renderSensoresAdmin, setupSensoresAdminEvents } from './views/sensores-admin.js?v=20261120-live33';
