@@ -13,6 +13,7 @@ import { Modal } from '../components/modal.js';
 import { auth } from '../auth.js';
 import { api } from '../api.js';
 import { downloadCSV, downloadPDF, openExportChoiceModal } from '../utils/export-utils.js';
+import { calcularStatusColeta, formatarIntervaloColeta, formatarDataHoraRecife } from '../utils/analista-metrics.js';
 
 let _calibracaoCache = null;
 
@@ -21,11 +22,15 @@ export async function renderCalibracao() {
   let safras = [];
   let propriedades = [];
   let ultimaLeituraApi = null;
-  const [resCalib, resSafras, resProps, resUltima] = await Promise.allSettled([
+  let cortesFallback = [];
+  let resumoAnalista = null;
+  const [resCalib, resSafras, resProps, resUltima, resCortes, resResumoAnalista] = await Promise.allSettled([
     api.getCalibracaoResumo(),
     api.getCatalogoSafras(),
     api.getCatalogoPropriedades(),
-    api.getUltimaLeitura()
+    api.getUltimaLeitura(),
+    api.getCortesPreditivos(),
+    api.getAnalistaSensoresResumo()
   ]);
 
   if (resCalib.status === 'fulfilled' && resCalib.value) {
@@ -45,6 +50,12 @@ export async function renderCalibracao() {
   if (resUltima.status === 'fulfilled' && resUltima.value) {
     ultimaLeituraApi = resUltima.value;
   }
+  if (resCortes.status === 'fulfilled' && Array.isArray(resCortes.value)) {
+    cortesFallback = resCortes.value;
+  }
+  if (resResumoAnalista.status === 'fulfilled' && resResumoAnalista.value) {
+    resumoAnalista = resResumoAnalista.value;
+  }
 
   const safraVigente = safras.find(s => s && s.ativa === true) || safras[0] || null;
   const areaTotalHa = propriedades
@@ -58,24 +69,20 @@ export async function renderCalibracao() {
   const pillSafraTexto = areaLabel ? `${safraLabel} • ${areaLabel}` : safraLabel;
 
   const limiares = Array.isArray(dados?.limiares) ? dados.limiares : [];
-  const cortes = Array.isArray(dados?.cortes) ? dados.cortes : [];
+  const cortesRaw = Array.isArray(dados?.cortes) && dados.cortes.length > 0 && dados.cortes[0]?.limiar_min != null
+    ? dados.cortes
+    : cortesFallback;
+  const cortes = Array.isArray(cortesRaw) ? cortesRaw : [];
   const sensores = Array.isArray(dados?.sensores) ? dados.sensores : [];
 
   const rejeitadas24h = dados?.rejeitadas_24h ?? 0;
-  const channelId = dados?.broker?.channel_id || '—';
-  const pollSegundos = dados?.broker?.poll_interval_seconds ?? 20;
+  const channelId = dados?.broker?.channel_id || resumoAnalista?.coleta?.canal || '—';
+  const intervaloRealSeg = resumoAnalista?.coleta?.intervalo_s ?? dados?.broker?.poll_interval_seconds ?? null;
+  const intervaloFormatado = formatarIntervaloColeta(intervaloRealSeg);
   const ultimaLeitura = ultimaLeituraApi || dados?.ultima_leitura || null;
-  const rawUltDt = ultimaLeitura?.data_hora ? String(ultimaLeitura.data_hora).trim() : '';
-  const isoUltUtc = rawUltDt
-    ? (/[zZ]$|[+-]\d{2}:?\d{2}$/.test(rawUltDt) ? rawUltDt : `${rawUltDt.replace(' ', 'T')}Z`)
-    : '';
-  const ultimaLeituraStr = isoUltUtc
-    ? new Intl.DateTimeFormat('pt-BR', {
-        timeZone: 'America/Recife',
-        day: '2-digit', month: '2-digit', year: 'numeric',
-        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
-      }).format(new Date(isoUltUtc))
-    : 'Sem leitura registrada';
+  const ultimaLeituraIso = ultimaLeitura?.data_hora || resumoAnalista?.ingestao_24h?.ultima_leitura || null;
+  const statusColeta = calcularStatusColeta(ultimaLeituraIso, intervaloRealSeg);
+  const ultimaLeituraStr = formatarDataHoraRecife(ultimaLeituraIso, true) || 'Sem leitura';
   const entryIdTag = ultimaLeitura?.entry_id_thingspeak ? ` (Entry #${ultimaLeitura.entry_id_thingspeak})` : '';
 
   return `
@@ -296,28 +303,30 @@ export async function renderCalibracao() {
                 <div style="font-size: 11px; color: #64748B;">Pipeline de telemetria dos nós ESP32-C3</div>
               </div>
             </div>
-            <span style="background: #ECFDF5; border: 1px solid #A7F3D0; color: #047857; font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 9999px; display: inline-flex; align-items: center; gap: 5px;">
-              <span style="width: 6px; height: 6px; border-radius: 50%; background: #10B981;"></span> Canal Ativo
+            <span style="background: ${statusColeta.ativo ? '#ECFDF5' : (statusColeta.estado === 'atrasado' ? '#FFFBEB' : '#FEF2F2')}; border: 1px solid ${statusColeta.ativo ? '#A7F3D0' : (statusColeta.estado === 'atrasado' ? '#FDE68A' : '#FECACA')}; color: ${statusColeta.cor}; font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 9999px; display: inline-flex; align-items: center; gap: 5px;">
+              <span style="width: 6px; height: 6px; border-radius: 50%; background: ${statusColeta.cor};"></span> ${statusColeta.ativo ? 'Canal Ativo' : statusColeta.label}
             </span>
           </div>
 
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+          <div style="display: grid; grid-template-columns: ${intervaloFormatado ? '1fr 1fr' : '1fr'}; gap: 12px; margin-bottom: 16px;">
             <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px;">
               <div style="font-size: 10px; color: #64748B; font-weight: 600; margin-bottom: 4px;">Channel ID</div>
               <div style="font-size: 18px; font-weight: 800; color: #0F172A; font-family: 'Space Grotesk', sans-serif;">#${channelId}</div>
-              <div style="font-size: 10px; color: #059669; font-weight: 600; margin-top: 4px;">✓ Conexão Ativa</div>
+              <div style="font-size: 10px; color: ${statusColeta.cor}; font-weight: 600; margin-top: 4px;">${statusColeta.ativo ? '✓ Conexão Ativa' : statusColeta.label}</div>
             </div>
+            ${intervaloFormatado ? `
             <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px;">
-              <div style="font-size: 10px; color: #64748B; font-weight: 600; margin-bottom: 4px;">Taxa de Polling</div>
-              <div style="font-size: 18px; font-weight: 800; color: #0F172A; font-family: 'Space Grotesk', sans-serif;">${pollSegundos} segundos</div>
+              <div style="font-size: 10px; color: #64748B; font-weight: 600; margin-bottom: 4px;">Intervalo de Coleta</div>
+              <div style="font-size: 18px; font-weight: 800; color: #0F172A; font-family: 'Space Grotesk', sans-serif;">${intervaloFormatado}</div>
               <div style="font-size: 10px; color: #64748B; margin-top: 4px;">Intervalo configurado no servidor</div>
             </div>
+            ` : ''}
           </div>
         </div>
 
         <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 10px; border-top: 1px solid #F1F5F9; flex-wrap: wrap; gap: 8px;">
           <span style="font-size: 11px; color: #64748B; display: inline-flex; align-items: center; gap: 6px;">
-            <span style="width: 7px; height: 7px; border-radius: 50%; background: #10B981;"></span>
+            <span style="width: 7px; height: 7px; border-radius: 50%; background: ${statusColeta.cor};"></span>
             Último pacote recebido: <strong>${ultimaLeituraStr}</strong>${entryIdTag}
           </span>
           <button id="btn-testar-broker-calib" style="padding: 7px 14px; background: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 8px; font-size: 11px; font-weight: 700; color: #047857; cursor: pointer;">Testar Conexão</button>

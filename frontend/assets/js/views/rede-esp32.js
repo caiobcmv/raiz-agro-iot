@@ -16,6 +16,13 @@ import { Modal } from '../components/modal.js';
 import { toast } from '../components/toast.js';
 import { downloadCSV, downloadPDF, openExportChoiceModal } from '../utils/export-utils.js';
 import { liveTelemetry } from '../live-telemetry.js';
+import {
+  calcularStatusColeta,
+  contarSensoresAtivosReais,
+  formatarIntervaloColeta,
+  obterLabelOrigem,
+  formatarDataHoraRecife
+} from '../utils/analista-metrics.js';
 
 // ==========================================
 // FUNÇÕES AUXILIARES DE FORMATAÇÃO E RESILIÊNCIA
@@ -159,14 +166,16 @@ export async function renderRedeEsp32() {
 // ==========================================
 
 function renderSubBarHtml(podeSincronizar) {
-  const { resumo } = redeState;
-  const canal = resumo?.coleta?.canal ?? 248901;
-  const ativos = resumo?.sensores?.ativos ?? 22;
-  const ultimaLeituraIso = resumo?.ingestao_24h?.ultima_leitura;
-  const minDesde = calcularMinutosDesde(ultimaLeituraIso) ?? 2;
+  const { resumo, topologia, sensores } = redeState;
+  const canal = resumo?.coleta?.canal ?? '—';
+  const intervaloSeg = resumo?.coleta?.intervalo_s ?? null;
+  const ultimaLeituraIso = resumo?.ingestao_24h?.ultima_leitura || null;
+  const statusColeta = calcularStatusColeta(ultimaLeituraIso, intervaloSeg);
+  const listaSensores = (topologia?.sensores?.length ? topologia.sensores : sensores) || [];
+  const ativos = contarSensoresAtivosReais(listaSensores, statusColeta, intervaloSeg);
 
-  const corSinc = minDesde > 10 ? '#D97706' : '#64748B';
-  const estiloSinc = minDesde > 10 ? 'font-weight: 700; color: #D97706;' : 'color: #64748B;';
+  const estiloSinc = statusColeta.atrasado ? `font-weight: 700; color: ${statusColeta.cor};` : 'color: #64748B;';
+  const dataHoraTexto = formatarDataHoraRecife(ultimaLeituraIso);
 
   const btnSyncHtml = podeSincronizar ? `
     <button class="btn-analista-sync" id="btn-sync-rede">
@@ -177,12 +186,12 @@ function renderSubBarHtml(podeSincronizar) {
 
   return `
     <div class="analista-subbar-info">
-      <span class="analista-dot-pulse"></span>
+      <span class="analista-dot-pulse" style="background: ${statusColeta.cor};"></span>
       <span style="font-weight: 600; color: #0F172A;">
-        ThingSpeak conectado • canal ${canal} • ${ativos} sensores ativos
+        ThingSpeak ${statusColeta.ativo ? 'conectado' : statusColeta.label} • canal ${canal} • ${ativos} sensores ativos
       </span>
       <span id="texto-sincronizado-min" style="font-size: 11px; ${estiloSinc}">
-        ${ultimaLeituraIso ? new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Recife' }).format(new Date(ultimaLeituraIso)) + ' • há ' + minDesde + ' min' : '—'}
+        ${dataHoraTexto ? `${dataHoraTexto} (${statusColeta.tempoRelativo})` : 'Sem leitura'}
       </span>
     </div>
     <div class="analista-subbar-actions">
@@ -196,41 +205,47 @@ function renderSubBarHtml(podeSincronizar) {
 }
 
 function renderCardsRedeHtml() {
-  const { resumo, topologia } = redeState;
+  const { resumo, topologia, sensores } = redeState;
   const contadores = topologia?.contadores || {};
   const ingestao = resumo?.ingestao_24h || {};
   const sensoresInfo = resumo?.sensores || {};
   const coleta = resumo?.coleta || {};
 
-  // Card 1: Nós online
-  const nosAtivos = contadores.ativos ?? sensoresInfo.ativos ?? 22;
-  const nosTotal = contadores.todos ?? sensoresInfo.total ?? 24;
+  const intervaloSeg = coleta.intervalo_s ?? null;
+  const intervaloFormatado = formatarIntervaloColeta(intervaloSeg);
+  const statusColeta = calcularStatusColeta(ingestao.ultima_leitura, intervaloSeg);
+
+  // Card 1: Nós online (sensor sem leitura recente não conta como ativo)
+  const listaSensores = (topologia?.sensores?.length ? topologia.sensores : sensores) || [];
+  const nosTotal = contadores.todos ?? sensoresInfo.total ?? listaSensores.length;
+  const nosAtivos = contarSensoresAtivosReais(listaSensores, statusColeta, intervaloSeg);
   const atrasoMedio = ingestao.atraso_medio_s != null ? `${ingestao.atraso_medio_s} s` : '—';
-  const badgeCard1 = nosAtivos === nosTotal ? 'green' : 'yellow';
-  const badgeCard1Texto = nosAtivos === nosTotal ? 'Excelente' : 'Atenção';
+  const badgeCard1 = !statusColeta.ativo ? statusColeta.badgeClass : (nosTotal > 0 && nosAtivos === nosTotal ? 'green' : 'yellow');
+  const badgeCard1Texto = !statusColeta.ativo ? statusColeta.label : (nosTotal > 0 && nosAtivos === nosTotal ? 'Excelente' : (nosTotal === 0 ? 'Sem dados' : 'Atenção'));
 
-  // Card 2: Sensores por ambiente (tipo_sensor real do ar)
+  // Card 2: Sensores por ambiente (sem fallbacks inventados)
   const totalSensores = sensoresInfo.total ?? nosTotal;
-  const totalSolo = sensoresInfo.total_solo ?? 16;
-  const totalAr = sensoresInfo.total_ar ?? 8;
-  const tipoArReal = redeState.sensores.find(s => s.ambiente === 'ar')?.tipo_sensor || 'DHT11';
+  const totalSolo = sensoresInfo.total_solo ?? listaSensores.filter(s => s.ambiente === 'solo').length;
+  const totalAr = sensoresInfo.total_ar ?? listaSensores.filter(s => s.ambiente === 'ar').length;
+  const tipoArReal = redeState.sensores.find(s => s.ambiente === 'ar')?.tipo_sensor || 'Ar';
 
-  // Card 3: Ingestão ThingSpeak
-  const taxaPct = ingestao.taxa_sucesso_pct != null ? Number(ingestao.taxa_sucesso_pct) : 99.8;
-  const taxaStr = `${taxaPct.toFixed(1)}%`;
-  let seloTaxa = 'Estável';
-  let badgeTaxaClass = 'blue';
-  if (taxaPct >= 99) {
-    seloTaxa = 'Estável';
-    badgeTaxaClass = 'blue';
-  } else if (taxaPct >= 95) {
-    seloTaxa = 'Atenção';
-    badgeTaxaClass = 'yellow';
-  } else {
-    seloTaxa = 'Crítico';
-    badgeTaxaClass = 'red';
+  // Card 3: Ingestão ThingSpeak (sem fallback 99.8 inventado)
+  const taxaPct = ingestao.taxa_sucesso_pct != null ? Number(ingestao.taxa_sucesso_pct) : null;
+  const taxaStr = taxaPct != null ? `${taxaPct.toFixed(1)}%` : '—';
+  let seloTaxa = statusColeta.ativo ? 'Sem dados' : statusColeta.label;
+  let badgeTaxaClass = statusColeta.ativo ? 'blue' : statusColeta.badgeClass;
+  if (statusColeta.ativo && taxaPct != null) {
+    if (taxaPct >= 99) {
+      seloTaxa = 'Estável';
+      badgeTaxaClass = 'blue';
+    } else if (taxaPct >= 95) {
+      seloTaxa = 'Atenção';
+      badgeTaxaClass = 'yellow';
+    } else {
+      seloTaxa = 'Crítico';
+      badgeTaxaClass = 'red';
+    }
   }
-  const intervaloColeta = coleta.intervalo_s ?? 300;
 
   // Card 4: Leituras rejeitadas
   const rejeitadasHoje = resumo?.rejeitadas_hoje ?? 0;
@@ -254,7 +269,7 @@ function renderCardsRedeHtml() {
       </div>
       <div class="kpi-bottom-row">
         <span>Atraso médio de ingestão: <strong>${atrasoMedio}</strong></span>
-        <span style="color: #059669; font-weight: 600;">Direto ThingSpeak</span>
+        <span style="color: ${statusColeta.cor}; font-weight: 600;">${statusColeta.ativo ? 'Coleta ativa' : statusColeta.label}</span>
       </div>
     </div>
 
@@ -280,12 +295,12 @@ function renderCardsRedeHtml() {
         <span class="kpi-badge ${badgeTaxaClass}">${seloTaxa}</span>
       </div>
       <div class="kpi-value-row">
-        <span class="kpi-big-num" style="color: #0284C7;">${taxaStr}</span>
+        <span class="kpi-big-num" style="color: ${statusColeta.ativo ? '#0284C7' : statusColeta.cor};">${taxaStr}</span>
         <span class="kpi-sub-num">Taxa de Sucesso</span>
       </div>
       <div class="kpi-bottom-row">
-        <span>Coleta a cada <strong>${intervaloColeta} s</strong></span>
-        <span style="color: #059669; font-weight: 600;">Pipeline Contínuo</span>
+        <span>${intervaloFormatado ? `Coleta a cada <strong>${intervaloFormatado}</strong>` : statusColeta.tempoRelativo}</span>
+        <span style="color: ${statusColeta.cor}; font-weight: 600;">${statusColeta.coletaLabel}</span>
       </div>
     </div>
 
@@ -470,9 +485,12 @@ function renderInventarioTecnicoHtml() {
       : 'Sem lote vinculado';
 
     const ambLabel = s.ambiente === 'solo' ? 'Umidade do Solo' : 'Microclima / Ar';
-    const origemBadge = s.origem === 'real'
+    const labelOrig = obterLabelOrigem(s.origem);
+    const origemBadge = labelOrig === 'Real'
       ? `<span style="background: #ECFDF5; color: #065F46; padding: 1px 6px; border-radius: 4px; font-weight: 700; font-size: 9px;">Real</span>`
-      : `<span style="background: #F1F5F9; color: #475569; padding: 1px 6px; border-radius: 4px; font-weight: 700; font-size: 9px;">Simulado</span>`;
+      : (labelOrig === 'Simulado'
+        ? `<span style="background: #F1F5F9; color: #475569; padding: 1px 6px; border-radius: 4px; font-weight: 700; font-size: 9px;">Simulado</span>`
+        : '');
 
     const statusBadge = s.status === 'ativo'
       ? '<span style="background: #ECFDF5; color: #047857; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px;">Ativo</span>'
@@ -522,16 +540,24 @@ function renderInventarioTecnicoHtml() {
 }
 
 function renderHistoricoRedeHtml() {
-  const { historico, topologia } = redeState;
-  const pontos = historico?.pontos || [];
-  const temRssi = pontos.some(p => p.rssi_dbm != null);
+  const { historico } = redeState;
+  const pontos = Array.isArray(historico?.pontos) ? historico.pontos : [];
+  const temRssi = pontos.some(p => p.rssi_dbm != null && !isNaN(Number(p.rssi_dbm)));
 
-  // Calcula PDR médio e perda de pacotes
-  const pdrValidos = pontos.map(p => Number(p.pdr_pct)).filter(v => !isNaN(v));
-  const pdrMedio = pdrValidos.length > 0
-    ? (pdrValidos.reduce((a, b) => a + b, 0) / pdrValidos.length)
-    : 99.8;
-  const perdaPacotes = Math.max(0, 100 - pdrMedio).toFixed(1);
+  // Calcula PDR médio real apenas quando há pontos reais (sem fallback 99.8 inventado)
+  const pdrPontos = pontos
+    .map((p, idx) => ({
+      idx,
+      hora: p.hora || p.instante || p.label || '',
+      pdr: p.pdr_pct != null && !isNaN(Number(p.pdr_pct)) ? Math.max(0, Math.min(100, Number(p.pdr_pct))) : null
+    }))
+    .filter(p => p.pdr != null);
+
+  const temPdr = pdrPontos.length > 0;
+  const pdrMedio = temPdr
+    ? (pdrPontos.reduce((a, b) => a + b.pdr, 0) / pdrPontos.length)
+    : null;
+  const perdaPacotes = pdrMedio != null ? Math.max(0, 100 - pdrMedio).toFixed(1) : null;
 
   // RSSI médio
   const rssiValidos = pontos.map(p => Number(p.rssi_dbm)).filter(v => !isNaN(v));
@@ -540,7 +566,6 @@ function renderHistoricoRedeHtml() {
     : null;
   const margemSinal = rssiMedio != null ? `+${(rssiMedio - (-100)).toFixed(1)} dBm` : null;
 
-  // Rótulo da legenda do RSSI
   const legendaRssiHtml = temRssi ? `
     <span style="display: flex; align-items: center; gap: 6px;">
       <span style="width: 10px; height: 10px; border-radius: 50%; background: #10B981;"></span>
@@ -552,7 +577,6 @@ function renderHistoricoRedeHtml() {
     </span>
   `;
 
-  // Mini card de Margem de Sinal (só aparece com RSSI real)
   const cardMargemSinalHtml = temRssi ? `
     <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 10px 14px;" title="Fórmula: RSSI médio − sensibilidade do ESP32 (-100 dBm)">
       <div style="font-size: 10px; color: #64748B; font-weight: 700; text-transform: uppercase;">MARGEM DE SINAL</div>
@@ -562,6 +586,71 @@ function renderHistoricoRedeHtml() {
   ` : '';
 
   const gridCols = temRssi ? 'repeat(2, 1fr)' : '1fr';
+
+  let graficoHtml = `
+    <div style="height: 170px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; background: #FAFDFB; border: 1px dashed #CBD5E1; border-radius: 12px; padding: 16px; text-align: center;">
+      <div style="font-size: 13px; font-weight: 700; color: #475569;">Sem dados suficientes para exibir o histórico de PDR 24h</div>
+      <div style="font-size: 11px; color: #94A3B8;">O cálculo de PDR exige amostragem horária real de leituras recebidas versus esperadas.</div>
+    </div>
+  `;
+
+  if (temPdr) {
+    const W = 800, H = 160;
+    const padL = temRssi ? 58 : 20;
+    const padR = 52;
+    const padT = 18;
+    const padB = 18;
+    const plotW = W - padL - padR;
+    const plotH = H - padT - padB;
+    const xOf = (i) => pdrPontos.length === 1 ? padL + plotW / 2 : padL + (i / (pdrPontos.length - 1)) * plotW;
+    const yOf = (pct) => padT + plotH - (pct / 100) * plotH;
+    const coords = pdrPontos.map((p, i) => ({ ...p, x: xOf(i), y: yOf(p.pdr) }));
+    const polyPts = coords.map(c => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(' ');
+    const areaPath = coords.length > 1
+      ? `M ${coords[0].x.toFixed(1)},${(padT + plotH).toFixed(1)} L ${coords.map(c => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(' L ')} L ${coords[coords.length - 1].x.toFixed(1)},${(padT + plotH).toFixed(1)} Z`
+      : '';
+
+    const labelsX = [];
+    const passo = Math.max(1, Math.floor(coords.length / 6));
+    for (let i = 0; i < coords.length; i += passo) {
+      labelsX.push(coords[i].hora ? formatarHoraSimplesRecife(coords[i].hora) || coords[i].hora : '');
+    }
+
+    graficoHtml = `
+      <div style="background: #FAFDFB; border: 1px solid #E2E8F0; border-radius: 12px; padding: 14px 16px 12px;">
+        <div style="width: 100%; height: 170px;">
+          <svg viewBox="0 0 ${W} ${H}" style="width: 100%; height: 100%; display: block;" preserveAspectRatio="xMidYMid meet">
+            <defs>
+              <linearGradient id="grad-pdr-rede" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#0284C7" stop-opacity="0.25"/>
+                <stop offset="100%" stop-color="#0284C7" stop-opacity="0.01"/>
+              </linearGradient>
+            </defs>
+            <line x1="${padL}" y1="${padT}" x2="${W - padR}" y2="${padT}" stroke="#E2E8F0" stroke-width="1" stroke-dasharray="3,3"/>
+            <line x1="${padL}" y1="${padT + plotH / 2}" x2="${W - padR}" y2="${padT + plotH / 2}" stroke="#E2E8F0" stroke-width="1" stroke-dasharray="3,3"/>
+            <line x1="${padL}" y1="${padT + plotH}" x2="${W - padR}" y2="${padT + plotH}" stroke="#E2E8F0" stroke-width="1" stroke-dasharray="3,3"/>
+
+            ${temRssi ? `
+            <text x="10" y="${padT + 3}" fill="#64748B" font-size="9" font-weight="600">-60 dBm</text>
+            <text x="10" y="${padT + plotH / 2 + 3}" fill="#64748B" font-size="9" font-weight="600">-80 dBm</text>
+            <text x="10" y="${padT + plotH + 3}" fill="#64748B" font-size="9" font-weight="600">-100 dBm</text>
+            ` : ''}
+
+            <text x="${W - padR + 8}" y="${padT + 3}" fill="#0284C7" font-size="9" font-weight="700">100%</text>
+            <text x="${W - padR + 8}" y="${padT + plotH / 2 + 3}" fill="#0284C7" font-size="9" font-weight="700">50%</text>
+            <text x="${W - padR + 8}" y="${padT + plotH + 3}" fill="#0284C7" font-size="9" font-weight="700">0%</text>
+
+            ${areaPath ? `<path d="${areaPath}" fill="url(#grad-pdr-rede)"/>` : ''}
+            <polyline points="${polyPts}" fill="none" stroke="#0284C7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            ${coords.map(c => `<circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="3.5" fill="#0284C7" stroke="#FFFFFF" stroke-width="1.5"/>`).join('')}
+          </svg>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B; margin-top: 8px; padding: 0 12px; line-height: 1.2;">
+          ${labelsX.map(l => `<span>${l}</span>`).join('')}
+        </div>
+      </div>
+    `;
+  }
 
   return `
     <div class="chart-header-row">
@@ -579,62 +668,18 @@ function renderHistoricoRedeHtml() {
         ${legendaRssiHtml}
         <span style="display: flex; align-items: center; gap: 6px;">
           <span style="width: 10px; height: 10px; border-radius: 50%; background: #0284C7;"></span>
-          Integridade PDR (${pdrMedio.toFixed(1)}%)
+          Integridade PDR (${pdrMedio != null ? `${pdrMedio.toFixed(1)}%` : 'Sem dados'})
         </span>
       </div>
     </div>
 
-    <!-- Gráfico SVG com Eixos Rotulados -->
-    <div style="position: relative; width: 100%; height: 210px; background: #FAFDFB; border: 1px solid #E2E8F0; border-radius: 12px; overflow: hidden; padding: 12px 16px;">
-      <svg viewBox="0 0 800 180" style="width: 100%; height: 100%;" preserveAspectRatio="none">
-        <defs>
-          <linearGradient id="grad-pdr-rede" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#0284C7" stop-opacity="0.25"/>
-            <stop offset="100%" stop-color="#0284C7" stop-opacity="0.01"/>
-          </linearGradient>
-        </defs>
-
-        <!-- Linhas de Grade -->
-        <line x1="50" y1="35" x2="750" y2="35" stroke="#E2E8F0" stroke-width="1" stroke-dasharray="3,3"/>
-        <line x1="50" y1="80" x2="750" y2="80" stroke="#E2E8F0" stroke-width="1" stroke-dasharray="3,3"/>
-        <line x1="50" y1="125" x2="750" y2="125" stroke="#E2E8F0" stroke-width="1" stroke-dasharray="3,3"/>
-
-        <!-- Eixo Y Esquerdo (dBm) ou aviso -->
-        <text x="12" y="38" fill="#64748B" font-size="9" font-weight="600">${temRssi ? '-60 dBm' : 'dBm'}</text>
-        <text x="12" y="83" fill="#64748B" font-size="9" font-weight="600">${temRssi ? '-80 dBm' : ''}</text>
-        <text x="12" y="128" fill="#64748B" font-size="9" font-weight="600">${temRssi ? '-100 dBm' : ''}</text>
-
-        <!-- Eixo Y Direito (%) -->
-        <text x="760" y="38" fill="#0284C7" font-size="9" font-weight="700">100%</text>
-        <text x="760" y="83" fill="#0284C7" font-size="9" font-weight="700">95%</text>
-        <text x="760" y="128" fill="#0284C7" font-size="9" font-weight="700">90%</text>
-
-        <!-- Curva PDR Integridade (Azul) -->
-        <path d="M 50,45 C 150,42 270,40 380,48 C 500,42 620,40 750,45 L 750,150 L 50,150 Z" fill="url(#grad-pdr-rede)"/>
-        <path d="M 50,45 C 150,42 270,40 380,48 C 500,42 620,40 750,45" fill="none" stroke="#0284C7" stroke-width="2.5" stroke-linecap="round"/>
-
-        <!-- Pontos e Tooltips -->
-        <circle cx="380" cy="48" r="4" fill="#0284C7" stroke="#FFFFFF" stroke-width="2"/>
-        <circle cx="750" cy="45" r="4" fill="#0284C7" stroke="#FFFFFF" stroke-width="2"/>
-      </svg>
-
-      <!-- Eixo X em Horas no Fuso America/Recife -->
-      <div style="display: flex; justify-content: space-between; font-size: 10px; color: #94A3B8; margin-top: 4px; padding: 0 45px 0 50px;">
-        <span>00:00</span>
-        <span>04:00</span>
-        <span>08:00</span>
-        <span>12:00</span>
-        <span>16:00</span>
-        <span>20:00</span>
-        <span style="color: #0F172A; font-weight: 700;">Agora</span>
-      </div>
-    </div>
+    ${graficoHtml}
 
     <!-- Cards de Baixo: Perda de Pacotes e Margem de Sinal -->
     <div style="display: grid; grid-template-columns: ${gridCols}; gap: 14px; margin-top: 14px;">
       <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 10px 14px;">
         <div style="font-size: 10px; color: #64748B; font-weight: 700; text-transform: uppercase;">PERDA DE PACOTES</div>
-        <div style="font-size: 18px; font-weight: 800; color: ${perdaPacotes > 5 ? '#DC2626' : '#059669'}; margin-top: 2px;">${perdaPacotes}%</div>
+        <div style="font-size: 18px; font-weight: 800; color: ${perdaPacotes == null ? '#64748B' : (Number(perdaPacotes) > 5 ? '#DC2626' : '#059669')}; margin-top: 2px;">${perdaPacotes != null ? `${perdaPacotes}%` : 'Sem dados'}</div>
         <div style="font-size: 10px; color: #64748B; margin-top: 2px;">100 − PDR médio da amostragem</div>
       </div>
       ${cardMargemSinalHtml}

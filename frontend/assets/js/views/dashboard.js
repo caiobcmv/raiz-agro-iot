@@ -10,6 +10,11 @@ import { auth } from '../auth.js';
 import { toast } from '../components/toast.js';
 import { Modal } from '../components/modal.js';
 import { downloadCSV, downloadPDF, openExportChoiceModal } from '../utils/export-utils.js';
+import {
+  calcularStatusColeta,
+  contarSensoresAtivosReais,
+  resumirAlertasAnalista
+} from '../utils/analista-metrics.js';
 
 // Não existe sonda de solo instalada; o field3 do ThingSpeak lê um pino solto.
 const SONDA_SOLO_INSTALADA = false;
@@ -429,21 +434,24 @@ let analistaDashboardData = {
  */
 async function renderAnalistaDashboard() {
   try {
-    const [resumoRes, topologiaRes, dashResumoRes, rejeitadasRes, preditivosRes, cortesRes] = await Promise.allSettled([
+    const [resumoRes, topologiaRes, dashResumoRes, rejeitadasRes, centralAlertasRes, cortesRes] = await Promise.allSettled([
       api.getAnalistaSensoresResumo(),
       api.getSensoresTopologia(),
       api.getDashboardResumo(),
       api.getLeiturasRejeitadas({ limit: 5 }),
-      api.getAlertasPreditivos({ status: 'EM ABERTO', limit: 20 }),
+      api.getCentralAlertas({ status: 'aberto' }),
       api.getCortesPreditivos()
     ]);
+
+    const centralVal = centralAlertasRes.status === 'fulfilled' ? centralAlertasRes.value : null;
+    const centralItens = Array.isArray(centralVal?.itens) ? centralVal.itens : extrairArraySeguro(centralVal);
 
     analistaDashboardData = {
       resumo: (resumoRes.status === 'fulfilled' && resumoRes.value && typeof resumoRes.value === 'object') ? resumoRes.value : null,
       topologia: (topologiaRes.status === 'fulfilled' && topologiaRes.value && typeof topologiaRes.value === 'object') ? topologiaRes.value : null,
       dashResumo: (dashResumoRes.status === 'fulfilled' && dashResumoRes.value && typeof dashResumoRes.value === 'object') ? dashResumoRes.value : null,
       rejeitadas: extrairArraySeguro(rejeitadasRes.status === 'fulfilled' ? rejeitadasRes.value : null),
-      preditivos: extrairArraySeguro(preditivosRes.status === 'fulfilled' ? preditivosRes.value : null),
+      preditivos: centralItens,
       cortes: extrairArraySeguro(cortesRes.status === 'fulfilled' ? cortesRes.value : null)
     };
   } catch (err) {
@@ -457,16 +465,17 @@ async function renderAnalistaDashboard() {
   // 1. Saúde da Coleta
   const ingestao_24h = resumo?.ingestao_24h || {};
   const sensoresInfo = resumo?.sensores || {};
-  const alertasAbertos = resumo?.alertas_abertos || {};
+  const intervaloSeg = resumo?.coleta?.intervalo_s ?? null;
+  const statusColeta = calcularStatusColeta(ingestao_24h.ultima_leitura, intervaloSeg);
   const rejeitadasHoje = resumo?.rejeitadas_hoje ?? 0;
 
   const taxaPct = ingestao_24h.taxa_sucesso_pct != null ? Number(ingestao_24h.taxa_sucesso_pct) : null;
   const taxaStr = taxaPct != null ? `${taxaPct.toFixed(1)}%` : '—';
-  let taxaBadgeClass = 'yellow';
-  let taxaBadgeText = '—';
-  let taxaNumColor = '#64748B';
+  let taxaBadgeClass = statusColeta.badgeClass;
+  let taxaBadgeText = statusColeta.ativo ? '—' : statusColeta.label.toUpperCase();
+  let taxaNumColor = statusColeta.cor;
 
-  if (taxaPct != null) {
+  if (statusColeta.ativo && taxaPct != null) {
     if (taxaPct >= 95) {
       taxaBadgeClass = 'green';
       taxaBadgeText = 'EXCELENTE';
@@ -482,40 +491,39 @@ async function renderAnalistaDashboard() {
     }
   }
 
-  const totalSensores = sensoresInfo.total != null ? sensoresInfo.total : (topologia?.sensores?.length ?? 0);
-  const ativosSensores = sensoresInfo.ativos != null ? sensoresInfo.ativos : (topologia?.sensores?.filter(s => s.estado_mapa === 'ativo').length ?? 0);
+  const sensoresTopoList = Array.isArray(topologia?.sensores) ? topologia.sensores : [];
+  const totalSensores = sensoresInfo.total != null ? sensoresInfo.total : sensoresTopoList.length;
+  const ativosSensores = sensoresTopoList.length > 0
+    ? contarSensoresAtivosReais(sensoresTopoList, statusColeta, intervaloSeg)
+    : (statusColeta.ativo ? (sensoresInfo.ativos ?? 0) : 0);
 
-  let tempoRelativoColeta = 'Última leitura: —';
-  if (ingestao_24h.ultima_leitura) {
-    const tMs = new Date(ingestao_24h.ultima_leitura).getTime();
-    if (!isNaN(tMs)) {
-      const diffMin = Math.max(0, Math.floor((Date.now() - tMs) / 60000));
-      tempoRelativoColeta = diffMin === 1 ? 'Última leitura há 1 min' : (diffMin < 60 ? `Última leitura há ${diffMin} min` : `Última leitura há ${Math.floor(diffMin / 60)}h ${diffMin % 60}min`);
-    }
-  }
+  const tempoRelativoColeta = ingestao_24h.ultima_leitura
+    ? `Última leitura ${statusColeta.tempoRelativo}`
+    : 'Sem leitura';
 
   // 2. Sensores e Sondas
-  const totalSolo = sensoresInfo.total_solo != null ? sensoresInfo.total_solo : (topologia?.sensores?.filter(s => s.ambiente === 'solo').length ?? 0);
-  const totalAr = sensoresInfo.total_ar != null ? sensoresInfo.total_ar : (topologia?.sensores?.filter(s => s.ambiente === 'ar').length ?? 0);
+  const totalSolo = sensoresInfo.total_solo != null ? sensoresInfo.total_solo : (sensoresTopoList.filter(s => s.ambiente === 'solo').length);
+  const totalAr = sensoresInfo.total_ar != null ? sensoresInfo.total_ar : (sensoresTopoList.filter(s => s.ambiente === 'ar').length);
 
   // 3. Média Climática
   const condicoes = dashResumo?.resumo_condicoes || {};
   const tempArMedia = condicoes.temperatura_ar_media != null ? Number(condicoes.temperatura_ar_media) : null;
   const umidArMedia = condicoes.umidade_ar_media != null ? Number(condicoes.umidade_ar_media) : null;
 
-  const sensoresSolo = (topologia?.sensores || []).filter(s => s.ambiente === 'solo' && s.umidade != null && !isNaN(Number(s.umidade)));
+  const sensoresSolo = sensoresTopoList.filter(s => s.ambiente === 'solo' && s.umidade != null && !isNaN(Number(s.umidade)));
   let mediaSoloStr = '—';
   if (sensoresSolo.length > 0) {
     const sumUmidSolo = sensoresSolo.reduce((acc, s) => acc + Number(s.umidade), 0);
     mediaSoloStr = `${(sumUmidSolo / sensoresSolo.length).toFixed(1)}%`;
   }
 
-  // 4. Alertas do Sistema
-  const totalAlertas = alertasAbertos.total != null ? alertasAbertos.total : (preditivos.length);
-  const reativosQtd = alertasAbertos.reativos ?? 0;
-  const preditivosQtd = alertasAbertos.preditivos ?? preditivos.length;
-  const badgeAlertas = totalAlertas === 0 ? 'green' : (totalAlertas > 3 ? 'red' : 'yellow');
-  const badgeAlertasTexto = totalAlertas === 0 ? 'NORMAL' : 'ATENÇÃO';
+  // 4. Alertas do Sistema (fonte única unificada com Central de Alertas e Sensores)
+  const resumoAlertasUnificado = resumirAlertasAnalista(preditivos, cortes);
+  const totalAlertas = resumoAlertasUnificado.total;
+  const reativosQtd = resumoAlertasUnificado.reativos;
+  const preditivosQtd = resumoAlertasUnificado.preditivos;
+  const badgeAlertas = totalAlertas === 0 ? 'green' : (resumoAlertasUnificado.critico > 0 ? 'red' : 'yellow');
+  const badgeAlertasTexto = totalAlertas === 0 ? 'NORMAL' : (resumoAlertasUnificado.critico > 0 ? 'CRÍTICO' : 'ATENÇÃO');
 
   // B) TOPOLOGIA DE SENSORES NO CAMPO
   const propriedade = topologia?.propriedade || {
@@ -668,46 +676,49 @@ async function renderAnalistaDashboard() {
 
   const horaRecifeSinc = formatarHoraSimplesRecife(ingestao_24h.ultima_leitura);
 
-  // D) MODELOS PREDITIVOS E LIMIARES DE ALERTA
-  const preditivosList = extrairArraySeguro(preditivos);
-  const alertaMaisRecente = preditivosList.length > 0
-    ? [...preditivosList].sort((a, b) => new Date(b.data_geracao || 0) - new Date(a.data_geracao || 0))[0]
+  // D) MODELOS PREDITIVOS E LIMIARES DE ALERTA (somente ativos e não vencidos)
+  const preditivosAtivos = resumoAlertasUnificado.ativos.filter(a => a._eh_preditivo);
+  const alertaMaisRecente = preditivosAtivos.length > 0
+    ? [...preditivosAtivos].sort((a, b) => new Date(b.data_hora || b.data_geracao || 0) - new Date(a.data_hora || a.data_geracao || 0))[0]
     : null;
 
   let alertaRecenteHtml = `
     <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px; margin: 10px 0; font-size: 12px; color: #64748B; text-align: center;">
-      Nenhum alerta preditivo em aberto
+      Nenhum alerta preditivo ativo
     </div>
   `;
 
   if (alertaMaisRecente) {
-    const severidade = (alertaMaisRecente.nivel_severidade || '').toUpperCase();
-    const nivelLabel = severidade === 'CRITICO' ? 'Alto' : (severidade === 'MEDIO' ? 'Médio' : 'Baixo');
+    const severidade = alertaMaisRecente._nivel_padrao || 'BAIXO';
+    const nivelLabel = alertaMaisRecente._nivel_curto || 'Baixo';
     const badgeBg = severidade === 'CRITICO' ? '#FEE2E2' : (severidade === 'MEDIO' ? '#FEF3C7' : '#E0F2FE');
     const badgeColor = severidade === 'CRITICO' ? '#991B1B' : (severidade === 'MEDIO' ? '#92400E' : '#0369A1');
     const dotBg = severidade === 'CRITICO' ? '#EF4444' : (severidade === 'MEDIO' ? '#D97706' : '#0284C7');
-    const probPct = alertaMaisRecente.probabilidade_risco != null ? `${(Number(alertaMaisRecente.probabilidade_risco) * 100).toFixed(0)}%` : '—';
-    const s = alertaMaisRecente.id_sensor ? topologiaSensorsMap[alertaMaisRecente.id_sensor] : null;
-    const sensorNome = s ? s.nome : (alertaMaisRecente.id_sensor ? `Sensor #${alertaMaisRecente.id_sensor}` : 'Sensor');
-    const loteTexto = alertaMaisRecente.id_lote ? `Lote #${alertaMaisRecente.id_lote}` : '';
+    const probRaw = alertaMaisRecente.probabilidade_risco != null ? Number(alertaMaisRecente.probabilidade_risco) : (alertaMaisRecente.probabilidade != null ? Number(alertaMaisRecente.probabilidade) : null);
+    const probPct = probRaw != null && !isNaN(probRaw) ? `${Math.round(probRaw > 1 ? probRaw : probRaw * 100)}%` : '—';
+    const sensorId = alertaMaisRecente.id_sensor ?? alertaMaisRecente.sensor?.id_sensor ?? null;
+    const s = sensorId != null ? topologiaSensorsMap[sensorId] : null;
+    const sensorNome = s ? s.nome : (alertaMaisRecente.sensor_nome || alertaMaisRecente.sensor?.nome || (sensorId != null ? `Sensor #${sensorId}` : 'Sem sensor vinculado'));
+    const loteId = alertaMaisRecente.id_lote ?? alertaMaisRecente.lote?.id_lote ?? null;
+    const loteTexto = loteId != null ? `Lote #${loteId}` : '';
 
     alertaRecenteHtml = `
       <div style="background: ${badgeBg}; border: 1px solid rgba(0,0,0,0.06); border-radius: 10px; padding: 12px; margin: 10px 0;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; flex-wrap:wrap; gap:6px;">
           <span style="font-size: 12px; font-weight: 700; color: ${badgeColor}; display: flex; align-items: center; gap: 6px;">
             <span style="width: 7px; height: 7px; border-radius: 50%; background: ${dotBg};"></span>
-            Risco climático
+            ${alertaMaisRecente.titulo || 'Risco climático'}
           </span>
           <span style="font-size: 10px; font-weight: 700; background: rgba(255,255,255,0.7); color: ${badgeColor}; padding: 2px 6px; border-radius: 4px;">
             NÍVEL: ${nivelLabel.toUpperCase()} (${probPct})
           </span>
         </div>
         <p style="font-size: 11px; color: ${badgeColor}; line-height: 1.4; margin-bottom: 6px;">
-          ${alertaMaisRecente.mensagem || 'Condição de alerta preditivo detectada pelo modelo.'}
+          ${alertaMaisRecente.descricao || alertaMaisRecente.mensagem || 'Condição de alerta preditivo detectada pelo modelo.'}
         </p>
         <div style="font-size: 10px; color: ${badgeColor}; opacity: 0.9; display: flex; justify-content: space-between; align-items: center; flex-wrap:wrap; gap:4px;">
           <span>${[sensorNome, loteTexto].filter(Boolean).join(' • ')}</span>
-          <span>Previsão: ${formatarDataRecife(alertaMaisRecente.previsao_data_hora)}</span>
+          <span>${alertaMaisRecente.previsao_data_hora ? `Previsão: ${formatarDataRecife(alertaMaisRecente.previsao_data_hora)}` : ''}</span>
         </div>
       </div>
     `;
@@ -779,8 +790,8 @@ async function renderAnalistaDashboard() {
       <!-- Sub-barra Técnica do Analista -->
       <div class="analista-subbar">
         <div class="analista-subbar-info">
-          <span class="analista-dot-pulse"></span>
-          <span>${propriedade.nome.toUpperCase()} • CONCENTRADOR ATIVO</span>
+          <span class="analista-dot-pulse" style="background: ${statusColeta.cor};"></span>
+          <span>${propriedade.nome.toUpperCase()} • ${statusColeta.ativo ? 'CONCENTRADOR ATIVO' : statusColeta.label.toUpperCase()}</span>
           <span class="analista-badge-tech">TELEMETRIA IOT</span>
         </div>
         <div class="analista-subbar-actions">
@@ -809,8 +820,8 @@ async function renderAnalistaDashboard() {
           </div>
           <div class="kpi-bottom-row">
             <span>${tempoRelativoColeta}</span>
-            <span style="color: #059669; font-weight: 600; display: flex; align-items: center; gap: 4px;">
-              <i data-lucide="check-circle-2" style="width: 13px; height: 13px;"></i> Coleta ativa
+            <span style="color: ${statusColeta.cor}; font-weight: 600; display: flex; align-items: center; gap: 4px;">
+              <i data-lucide="${statusColeta.ativo ? 'check-circle-2' : 'alert-circle'}" style="width: 13px; height: 13px;"></i> ${statusColeta.coletaLabel}
             </span>
           </div>
         </div>
@@ -938,8 +949,8 @@ async function renderAnalistaDashboard() {
         <div class="map-legend-row">
           <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
             <span style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #334155;">
-              <span style="width: 9px; height: 9px; border-radius: 50%; background: #10B981;"></span>
-              Sensores ativos (${contadores.ativos ?? 0})
+              <span style="width: 9px; height: 9px; border-radius: 50%; background: ${statusColeta.ativo ? '#10B981' : '#94A3B8'};"></span>
+              Sensores ativos (${ativosSensores})
             </span>
             <span style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #334155;">
               <span style="width: 9px; height: 9px; border-radius: 50%; background: #F59E0B;"></span>
