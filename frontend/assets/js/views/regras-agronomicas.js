@@ -12,7 +12,54 @@ import { Modal } from '../components/modal.js';
 import { toast } from '../components/toast.js';
 import { downloadCSV, downloadPDF, openExportChoiceModal } from '../utils/export-utils.js';
 
-let _regrasFisiologicas = [
+let _regrasFisiologicas = [];
+
+// Load dynamic data from API and compute derived values
+async function loadRegrasData() {
+  try {
+    const configParams = await api.getConfigParametros(); // expects array of config_parametro
+    const cortes = await api.request('/cortes_alerta_preditivo'); // generic endpoint
+    const sensores = await api.getSensores();
+    // Transform configParams into regra objects (simplified mapping)
+    _regrasFisiologicas = configParams.map(p => ({
+      id: p.id || p.cultura || '',
+      categoria: p.cultura || p.categoria || '',
+      titulo: p.titulo || p.nome || '',
+      subtitulo: p.subtitulo || p.descricao || '',
+      badge: p.badge || '',
+      badgeClass: p.badgeClass || '',
+      icone: p.icone || 'leaf',
+      tempMin: p.temp_min || 0,
+      tempMax: p.temp_max || 0,
+      tempLabel: p.tempLabel || '',
+      pontoFrio: p.pontoFrio || '',
+      pontoQuente: p.pontoQuente || '',
+      pctVermelho: p.pctVermelho || 0,
+      pctVerde: p.pctVerde || 0,
+      pctAmarelo: p.pctAmarelo || 0,
+      urFaixa: p.urFaixa || '',
+      urPct: p.urPct || 0,
+      brixFaixa: p.brixFaixa || '',
+      brixPct: p.brixPct || 0,
+      sensoresInfo: '' // will be filled below
+    }));
+    // Compute sensorsInfo for each regra based on matching sensors
+    _regrasFisiologicas.forEach(r => {
+      const matched = sensores.filter(s => s.categoria === r.categoria);
+      const count = matched.length;
+      if (count > 0) {
+        r.sensoresInfo = `${count} Sensores Atrelados (${r.categoria})`;
+      } else {
+        r.sensoresInfo = 'Sem sensores vinculados';
+      }
+    });
+  } catch (e) {
+    console.warn('Falha ao carregar dados dinâmicos de regras agronômicas:', e);
+  }
+}
+
+// Preload data on module load
+loadRegrasData();
   {
     id: 'uva',
     categoria: 'uva',

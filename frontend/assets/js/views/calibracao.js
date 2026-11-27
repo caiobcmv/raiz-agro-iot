@@ -190,15 +190,15 @@ export async function renderCalibracao() {
 
       <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;">
         ${cortes.map(c => {
-          const isCrit = c.nivel.toUpperCase() === 'CRITICO';
-          const isMed = c.nivel.toUpperCase() === 'MEDIO';
+          const isCrit = String(c.nivel || '').toUpperCase() === 'CRITICO';
+          const isMed = String(c.nivel || '').toUpperCase() === 'MEDIO';
           const bgPill = isCrit ? '#FEE2E2' : (isMed ? '#FEF3C7' : '#ECFDF5');
           const colPill = isCrit ? '#B91C1C' : (isMed ? '#B45309' : '#047857');
           return `
             <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between;">
               <div>
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                  <span style="font-size: 11px; font-weight: 800; color: ${colPill}; background: ${bgPill}; padding: 3px 8px; border-radius: 6px;">${c.nivel.toUpperCase()}</span>
+                  <span style="font-size: 11px; font-weight: 800; color: ${colPill}; background: ${bgPill}; padding: 3px 8px; border-radius: 6px;">${String(c.nivel || '').toUpperCase()}</span>
                   <span style="font-size: 11px; font-weight: 700; color: #1E293B;">${(parseFloat(c.limiar_min) * 100).toFixed(0)}% a ${(parseFloat(c.limiar_max) * 100).toFixed(0)}%</span>
                 </div>
                 <p style="font-size: 11.5px; color: #475569; margin: 0 0 10px; line-height: 1.4;">${c.acao_recomendada}</p>
