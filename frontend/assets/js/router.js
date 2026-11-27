@@ -181,6 +181,8 @@ export class Router {
   constructor(appContainer) {
     this.appContainer = appContainer;
     this.realtimeInterval = null;
+    this._navToken = 0;
+    this._lastBellCount = null;
     window.addEventListener('hashchange', () => this.handleRoute());
   }
 
@@ -284,6 +286,37 @@ export class Router {
     }
   }
 
+  _applyBellCount(count) {
+    this._lastBellCount = count;
+    const bell = document.getElementById('header-bell-count');
+    if (bell && count != null) {
+      bell.textContent = String(count);
+      bell.style.display = count > 0 ? 'flex' : 'none';
+    }
+  }
+
+  setupHeaderEvents() {
+    const sidebar = document.getElementById('app-sidebar');
+    const backdrop = document.getElementById('sidebar-mobile-backdrop');
+    const openBtn = document.getElementById('mobile-menu-btn');
+    if (openBtn && !openBtn.dataset.bound) {
+      openBtn.dataset.bound = 'true';
+      openBtn.addEventListener('click', () => {
+        sidebar?.classList.add('mobile-open');
+        backdrop?.classList.add('active');
+        document.body.style.overflow = 'hidden';
+      });
+    }
+    const syncPill = document.getElementById('header-live-sync-pill');
+    if (syncPill && !syncPill.dataset.bound) {
+      syncPill.dataset.bound = 'true';
+      syncPill.addEventListener('click', () => this.pulseRealtimeTelemetry(true));
+    }
+    if (this._lastBellCount != null) {
+      this._applyBellCount(this._lastBellCount);
+    }
+  }
+
   setupShellEvents() {
     // 1. Logout na Sidebar
     const logoutBtn = document.getElementById('logout-btn');
@@ -294,7 +327,6 @@ export class Router {
     // 2. Gaveta Mobile (Hamburger Menu + Backdrop + Fechar)
     const sidebar = document.getElementById('app-sidebar');
     const backdrop = document.getElementById('sidebar-mobile-backdrop');
-    const openBtn = document.getElementById('mobile-menu-btn');
     const closeBtn = document.getElementById('sidebar-mobile-close');
 
     const closeDrawer = () => {
@@ -303,13 +335,6 @@ export class Router {
       document.body.style.overflow = '';
     };
 
-    const openDrawer = () => {
-      sidebar?.classList.add('mobile-open');
-      backdrop?.classList.add('active');
-      document.body.style.overflow = 'hidden';
-    };
-
-    openBtn?.addEventListener('click', openDrawer);
     closeBtn?.addEventListener('click', closeDrawer);
     backdrop?.addEventListener('click', closeDrawer);
 
@@ -319,9 +344,8 @@ export class Router {
       });
     });
 
-    // 3. Indicador Tempo Real no Header
-    const syncPill = document.getElementById('header-live-sync-pill');
-    syncPill?.addEventListener('click', () => this.pulseRealtimeTelemetry(true));
+    // 3. Eventos do Header (Menu Mobile + Indicador Tempo Real)
+    this.setupHeaderEvents();
 
     // 4. Gateway Status Pill na Sidebar
     const gatewayPill = document.getElementById('sidebar-gateway-pill');
@@ -330,14 +354,12 @@ export class Router {
       toast.info('Telemetria IoT', `Coleta ativa via nós ESP32 e canal ${profile.gatewayPill} (${profile.gatewayStatus}).`);
     });
 
-    // 5. Sincroniza o contador do sino de alertas no header com o status real no banco
+    // 5. Sincroniza o contador do sino de alertas no header com o status real no banco (uma vez na montagem do shell)
     api.getEstadoAlertas().then(data => {
-      const bell = document.getElementById('header-bell-count');
-      if (bell && data && data.resumo) {
+      if (data && data.resumo) {
         const role = auth.getActiveProfile();
         const count = role === 'analista' ? data.resumo.analista_ativos : data.resumo.gestora_ativos;
-        bell.textContent = String(count);
-        bell.style.display = count > 0 ? 'flex' : 'none';
+        this._applyBellCount(count);
       }
     }).catch(() => {});
 
@@ -436,53 +458,89 @@ export class Router {
     ];
 
     if (FULLSCREEN_ROUTES.includes(hash)) {
+      this._navToken += 1;
       this.appContainer.innerHTML = `<div class="page-transition-enter">${route.render()}</div>`;
       if (route.setup) await route.setup();
-    } else {
-      try {
-        // Se já existe o shell .dashboard-layout, mostra skeleton rápido durante a transição da view
-        const existingMain = this.appContainer.querySelector('#route-view-container');
-        if (existingMain) {
-          existingMain.innerHTML = renderRouteSkeleton();
-        }
+      if (window.lucide) window.lucide.createIcons();
+      return;
+    }
 
-        const contentHtml = await route.render();
+    const navToken = ++this._navToken;
+    try {
+      const existingLayout = this.appContainer.querySelector('.dashboard-layout');
+      const canReuseShell = Boolean(existingLayout && existingLayout.dataset.profile === (activeProfile || ''));
 
+      if (!canReuseShell) {
+        // Monta o shell imediatamente com skeleton antes de aguardar as requisições da view
         this.appContainer.innerHTML = `
-          <div class="dashboard-layout">
+          <div class="dashboard-layout" data-profile="${activeProfile || ''}">
             ${renderSidebar(hash)}
             <main class="main-content">
               ${renderHeader(route.title)}
               <div id="route-view-container" class="page-transition-enter">
-                ${contentHtml}
+                ${renderRouteSkeleton()}
               </div>
             </main>
           </div>
         `;
-
         this.setupShellEvents();
-        if (route.setup) await route.setup();
-        this.bindGlobalButtonEnhancements();
-      } catch (renderError) {
-        console.error('Erro ao renderizar rota:', renderError);
-        this.appContainer.innerHTML = `
-          <div style="padding: 40px; text-align: center; font-family: sans-serif;">
-            <h2 style="color: #EF4444;">Ocorreu um problema ao carregar a página</h2>
-            <p style="color: #64748B;">${renderError.message || renderError}</p>
-            <button onclick="window.location.reload()" style="margin-top: 16px; padding: 10px 20px; background: #183D2E; color: #fff; border: none; border-radius: 8px; cursor: pointer;">
-              Recarregar Sistema
-            </button>
-          </div>
-        `;
-      }
-    }
-
-    if (window.lucide) {
-      window.lucide.createIcons();
-    } else {
-      setTimeout(() => {
         if (window.lucide) window.lucide.createIcons();
-      }, 400);
+      } else {
+        // Reaproveita a Sidebar sem reconstruir o shell inteiro
+        existingLayout.querySelectorAll('.sidebar-menu-item').forEach(link => {
+          link.classList.toggle('active', link.getAttribute('href') === hash);
+        });
+        const existingHeader = existingLayout.querySelector('header.topbar-header');
+        if (existingHeader) {
+          existingHeader.outerHTML = renderHeader(route.title);
+          this.setupHeaderEvents();
+          const newHeader = existingLayout.querySelector('header.topbar-header');
+          if (window.lucide && newHeader) window.lucide.createIcons({ nodes: [newHeader] });
+        }
+        const existingMain = existingLayout.querySelector('#route-view-container');
+        if (existingMain) {
+          existingMain.innerHTML = renderRouteSkeleton();
+        }
+      }
+
+      const contentHtml = await route.render();
+      if (navToken !== this._navToken) return;
+
+      const viewContainer = this.appContainer.querySelector('#route-view-container');
+      if (viewContainer) {
+        viewContainer.classList.remove('page-transition-enter');
+        void viewContainer.offsetWidth;
+        viewContainer.classList.add('page-transition-enter');
+        viewContainer.innerHTML = contentHtml;
+      }
+
+      if (route.setup) await route.setup();
+      if (navToken !== this._navToken) return;
+
+      this.bindGlobalButtonEnhancements();
+      if (window.lucide) {
+        if (viewContainer) {
+          window.lucide.createIcons({ nodes: [viewContainer] });
+        } else {
+          window.lucide.createIcons();
+        }
+      } else {
+        setTimeout(() => {
+          if (window.lucide) window.lucide.createIcons();
+        }, 400);
+      }
+    } catch (renderError) {
+      if (navToken !== this._navToken) return;
+      console.error('Erro ao renderizar rota:', renderError);
+      this.appContainer.innerHTML = `
+        <div style="padding: 40px; text-align: center; font-family: sans-serif;">
+          <h2 style="color: #EF4444;">Ocorreu um problema ao carregar a página</h2>
+          <p style="color: #64748B;">${renderError.message || renderError}</p>
+          <button onclick="window.location.reload()" style="margin-top: 16px; padding: 10px 20px; background: #183D2E; color: #fff; border: none; border-radius: 8px; cursor: pointer;">
+            Recarregar Sistema
+          </button>
+        </div>
+      `;
     }
   }
 }

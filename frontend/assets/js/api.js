@@ -16,8 +16,20 @@ class ApiService {
     this._refreshPromise = null;
     this._refreshBlocked = false;
     this._getCache = new Map();
-    this._cacheableGetPaths = new Set(['/safras', '/propriedades', '/frutas', '/variedades', '/portos']);
-    this._getCacheTtlMs = 30000;
+    this._cacheableGetPaths = new Map([
+      ['/safras', 30000],
+      ['/propriedades', 30000],
+      ['/frutas', 30000],
+      ['/variedades', 30000],
+      ['/portos', 30000],
+      ['/dashboard/resumo', 15000],
+      ['/sensores', 15000],
+      ['/lotes', 15000],
+      ['/clima/previsao', 30000],
+      ['/alertas/estado', 15000],
+      ['/dados-mercado', 30000],
+      ['/previsoes/janela-colheita', 30000]
+    ]);
   }
 
   getToken() {
@@ -180,13 +192,14 @@ class ApiService {
     const { timeoutMs = 15000, skipCache = false, ...fetchOptions } = options;
     const method = (fetchOptions.method || 'GET').toUpperCase();
     const basePath = endpoint.split('?')[0];
-    const isCacheableGet = method === 'GET' && !skipCache && this._cacheableGetPaths.has(basePath);
+    const cacheTtlMs = (method === 'GET' && !skipCache) ? (this._cacheableGetPaths.get(basePath) || 0) : 0;
+    const isCacheableGet = cacheTtlMs > 0;
 
     if (method !== 'GET') {
       this._getCache.clear();
     } else if (isCacheableGet) {
       const cached = this._getCache.get(endpoint);
-      if (cached && (Date.now() - cached.ts) < this._getCacheTtlMs) {
+      if (cached && (Date.now() - cached.ts) < cacheTtlMs) {
         return typeof structuredClone === 'function'
           ? structuredClone(cached.data)
           : JSON.parse(JSON.stringify(cached.data));

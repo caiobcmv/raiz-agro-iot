@@ -330,23 +330,41 @@ export async function renderDashboard() {
 
   const isResumido = localStorage.getItem('DASHBOARD_MODE') === 'resumido';
 
-  // Busca dados reais do PostgreSQL em paralelo (sem usar cache desatualizado)
+  // Busca dados reais do PostgreSQL em paralelo (onda única, inclusive no modo detalhado)
   let resumo = null, clima = null, graficos = null, series24h = null, ultimaLeituraObj = null, lotesLista = null;
+  let extrasDetalhado = { irrigacao: null, sensores: null, mercado: null, janelas: null };
   try {
-    const results = await Promise.allSettled([
+    const reqs = [
       api.getDashboardResumo(),
       api.getClimaAtual(),
       api.getDadosGraficos(),
       api.getSeries24h(),
       api.getUltimaLeitura(1),
       api.getLotes()
-    ]);
+    ];
+    if (!isResumido) {
+      reqs.push(
+        api.getPrevisoesIrrigacao(),
+        api.getSensores(),
+        api.request('/dados-mercado'),
+        api.request('/previsoes/janela-colheita')
+      );
+    }
+    const results = await Promise.allSettled(reqs);
     resumo = results[0].status === 'fulfilled' ? results[0].value : null;
     clima = results[1].status === 'fulfilled' ? results[1].value : null;
     graficos = results[2].status === 'fulfilled' ? results[2].value : null;
     series24h = results[3].status === 'fulfilled' ? results[3].value : null;
     ultimaLeituraObj = results[4].status === 'fulfilled' ? results[4].value : null;
     lotesLista = results[5].status === 'fulfilled' ? results[5].value : null;
+    if (!isResumido) {
+      extrasDetalhado = {
+        irrigacao: results[6]?.status === 'fulfilled' ? results[6].value : null,
+        sensores: results[7]?.status === 'fulfilled' ? results[7].value : null,
+        mercado: results[8]?.status === 'fulfilled' && Array.isArray(results[8].value) ? results[8].value : [],
+        janelas: results[9]?.status === 'fulfilled' && Array.isArray(results[9].value) ? results[9].value : []
+      };
+    }
   } catch (e) {
     console.warn('Erro ao obter métricas online:', e);
   }
@@ -365,23 +383,6 @@ export async function renderDashboard() {
     if (series24h.umidade_ar_24h) dadosGraficosCache.umidade_ar_24h = series24h.umidade_ar_24h;
     if (series24h.temp_ar_24h) dadosGraficosCache.temp_ar_24h = series24h.temp_ar_24h;
     if (series24h.umidade_solo_24h) dadosGraficosCache.umidade_solo_24h = series24h.umidade_solo_24h;
-  }
-
-  // Modo detalhado: recomendação de irrigação, sensores, mercado e janela de colheita
-  let extrasDetalhado = { irrigacao: null, sensores: null, mercado: null, janelas: null };
-  if (!isResumido) {
-    const [irr, sens, merc, jan] = await Promise.allSettled([
-      api.getPrevisoesIrrigacao(),
-      api.getSensores(),
-      api.request('/dados-mercado'),
-      api.request('/previsoes/janela-colheita')
-    ]);
-    extrasDetalhado = {
-      irrigacao: irr.status === 'fulfilled' ? irr.value : null,
-      sensores: sens.status === 'fulfilled' ? sens.value : null,
-      mercado: merc.status === 'fulfilled' && Array.isArray(merc.value) ? merc.value : [],
-      janelas: jan.status === 'fulfilled' && Array.isArray(jan.value) ? jan.value : []
-    };
   }
 
   return `
