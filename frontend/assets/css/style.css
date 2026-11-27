@@ -532,3 +532,27 @@ html[data-visual-effects="off"] *::after {
   }
 }
 
+.lotes-status-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  width: 100%;
+}
+
+.lotes-status-grid > div {
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+@media (max-width: 992px) {
+  .lotes-status-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 580px) {
+  .lotes-status-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+

@@ -321,7 +321,7 @@ export async function renderLotes() {
         ` : (statusExistentes.length === 0 ? `
           <div style="padding: 16px; text-align: center; color: #64748B; font-size: 12px;">Nenhum lote cadastrado.</div>
         ` : `
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;">
+          <div class="lotes-status-grid">
             ${statusExistentes.map(st => {
               const cor = coresStatus[st.status] || '#64748B';
               return `

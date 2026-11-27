@@ -251,24 +251,68 @@ function renderGraficoCorrelacaoRealHtml() {
 
   const W = 800;
   const H = 220;
-  const padX = 36;
-  const padY = 20;
-  const plotW = W - padX * 2;
-  const plotH = H - padY * 2;
+  const padLeft = 48;
+  const padRight = 48;
+  const padTop = 18;
+  const padBottom = 18;
+  const plotW = W - padLeft - padRight;
+  const plotH = H - padTop - padBottom;
 
-  const toPolyline = (pts, minVal, maxVal) => {
-    if (pts.length === 0) return '';
-    const span = Math.max(1, maxVal - minVal);
-    return pts.map((p, idx) => {
-      const x = pts.length === 1 ? padX + plotW / 2 : padX + (idx / (pts.length - 1)) * plotW;
-      const norm = (p.v - minVal) / span;
-      const y = padY + plotH - Math.max(0, Math.min(1, norm)) * plotH;
-      return `${x.toFixed(1)},${y.toFixed(1)}`;
-    }).join(' ');
+  const calcRange = (pts, minClamp, maxClamp) => {
+    if (pts.length === 0) return { min: 0, max: 1 };
+    const vals = pts.map(p => p.v);
+    const lo = Math.min(...vals);
+    const hi = Math.max(...vals);
+    const span = hi - lo;
+    const pad = span === 0 ? 5 : Math.max(1, span * 0.12);
+    let minV = lo - pad;
+    let maxV = hi + pad;
+    if (minClamp != null) minV = Math.max(minClamp, minV);
+    if (maxClamp != null) maxV = Math.min(maxClamp, maxV);
+    if (maxV <= minV) maxV = minV + 1;
+    return { min: minV, max: maxV };
   };
 
-  const soloPointsStr = toPolyline(ptsSolo, 0, 100);
-  const arPointsStr = toPolyline(ptsAr, 0, 50);
+  const rangeSolo = calcRange(ptsSolo, 0, 100);
+  const rangeAr = calcRange(ptsAr, null, null);
+
+  const mapPoints = (pts, range) => {
+    if (pts.length === 0) return [];
+    const span = Math.max(0.001, range.max - range.min);
+    return pts.map((p, idx) => {
+      const x = pts.length === 1 ? padLeft + plotW / 2 : padLeft + (idx / (pts.length - 1)) * plotW;
+      const norm = (p.v - range.min) / span;
+      const y = padTop + plotH - Math.max(0, Math.min(1, norm)) * plotH;
+      return { ...p, x, y };
+    });
+  };
+
+  const soloCoords = mapPoints(ptsSolo, rangeSolo);
+  const arCoords = mapPoints(ptsAr, rangeAr);
+  const soloPointsStr = soloCoords.map(c => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(' ');
+  const arPointsStr = arCoords.map(c => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(' ');
+
+  const ticks = [0, 1 / 3, 2 / 3, 1];
+  const gridAndAxesHtml = ticks.map(frac => {
+    const y = padTop + plotH * (1 - frac);
+    const soloVal = rangeSolo.min + (rangeSolo.max - rangeSolo.min) * frac;
+    const arVal = rangeAr.min + (rangeAr.max - rangeAr.min) * frac;
+    const soloLabel = ptsSolo.length > 0 ? `${soloVal.toFixed((rangeSolo.max - rangeSolo.min) < 5 ? 1 : 0)}%` : '';
+    const arLabel = ptsAr.length > 0 ? `${arVal.toFixed((rangeAr.max - rangeAr.min) < 5 ? 1 : 0)}°C` : '';
+    return `
+      <line x1="${padLeft}" y1="${y.toFixed(1)}" x2="${W - padRight}" y2="${y.toFixed(1)}" stroke="#E2E8F0" stroke-dasharray="3,3" stroke-width="1"/>
+      ${soloLabel ? `<text x="${padLeft - 6}" y="${(y + 3).toFixed(1)}" fill="#047857" font-size="10" font-weight="600" text-anchor="end">${soloLabel}</text>` : ''}
+      ${arLabel ? `<text x="${W - padRight + 6}" y="${(y + 3).toFixed(1)}" fill="#0284C7" font-size="10" font-weight="600" text-anchor="start">${arLabel}</text>` : ''}
+    `;
+  }).join('');
+
+  const soloDotsHtml = soloCoords.map(c => `
+    <circle class="correlacao-ponto" cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="4" fill="#10B981" stroke="#FFFFFF" stroke-width="1.5" style="cursor: pointer;" data-serie="Umidade Solo" data-valor="${c.v.toFixed(1)}%" data-hora="${formatarDataHoraBr(c.t)}" />
+  `).join('');
+
+  const arDotsHtml = arCoords.map(c => `
+    <circle class="correlacao-ponto" cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="4" fill="#0284C7" stroke="#FFFFFF" stroke-width="1.5" style="cursor: pointer;" data-serie="Temp. Ar" data-valor="${c.v.toFixed(1)}°C" data-hora="${formatarDataHoraBr(c.t)}" />
+  `).join('');
 
   const labelsSource = ptsAr.length >= ptsSolo.length ? ptsAr : ptsSolo;
   const horaInicio = labelsSource.length > 0 ? formatarHoraBr(labelsSource[0].t) : '';
@@ -276,17 +320,18 @@ function renderGraficoCorrelacaoRealHtml() {
   const horaFim = labelsSource.length > 1 ? formatarHoraBr(labelsSource[labelsSource.length - 1].t) : '';
 
   return `
-    <div style="position: relative; width: 100%; height: 220px; background: #FAFDFB; border: 1px solid #E2E8F0; border-radius: 12px; overflow: hidden; padding: 8px 12px;">
+    <div id="correlacao-chart-wrap" style="position: relative; width: 100%; height: 220px; background: #FAFDFB; border: 1px solid #E2E8F0; border-radius: 12px; overflow: hidden; padding: 8px 12px;">
       <svg viewBox="0 0 ${W} ${H}" style="width: 100%; height: 100%; display: block;" preserveAspectRatio="none">
-        <line x1="${padX}" y1="${padY}" x2="${W - padX}" y2="${padY}" stroke="#E2E8F0" stroke-dasharray="3,3" stroke-width="1"/>
-        <line x1="${padX}" y1="${padY + plotH / 2}" x2="${W - padX}" y2="${padY + plotH / 2}" stroke="#E2E8F0" stroke-dasharray="3,3" stroke-width="1"/>
-        <line x1="${padX}" y1="${H - padY}" x2="${W - padX}" y2="${H - padY}" stroke="#E2E8F0" stroke-dasharray="3,3" stroke-width="1"/>
+        ${gridAndAxesHtml}
         ${soloPointsStr ? `<polyline points="${soloPointsStr}" fill="none" stroke="#10B981" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>` : ''}
         ${arPointsStr ? `<polyline points="${arPointsStr}" fill="none" stroke="#0284C7" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>` : ''}
+        ${soloDotsHtml}
+        ${arDotsHtml}
       </svg>
+      <div id="correlacao-tooltip" style="display: none; position: absolute; pointer-events: none; background: #0F172A; color: #FFFFFF; padding: 6px 10px; border-radius: 6px; font-size: 11px; line-height: 1.4; box-shadow: 0 4px 12px rgba(15,23,42,0.2); z-index: 10; white-space: nowrap;"></div>
     </div>
     ${(horaInicio || horaFim) ? `
-      <div style="display: flex; justify-content: space-between; font-size: 10px; color: #94A3B8; margin-top: 6px; padding: 0 12px;">
+      <div style="display: flex; justify-content: space-between; font-size: 10px; color: #94A3B8; margin-top: 6px; padding: 0 48px;">
         <span>${horaInicio}</span>
         <span>${horaMeio}</span>
         <span>${horaFim}</span>
@@ -617,6 +662,39 @@ export function setupSensoresAdminEvents() {
       else _paginaAtualSensores = parseInt(pag || '1', 10);
       atualizarTabelaSensores();
     });
+  }
+
+  const chartWrap = document.getElementById('correlacao-chart-wrap');
+  const tooltipEl = document.getElementById('correlacao-tooltip');
+  if (chartWrap && tooltipEl) {
+    const showTooltip = (pt, clientX, clientY) => {
+      const rect = chartWrap.getBoundingClientRect();
+      const left = Math.min(Math.max(8, clientX - rect.left + 10), Math.max(8, rect.width - 150));
+      const top = Math.max(8, clientY - rect.top - 42);
+      tooltipEl.innerHTML = `<strong>${pt.dataset.serie}: ${pt.dataset.valor}</strong><br><span style="color:#CBD5E1;">${pt.dataset.hora}</span>`;
+      tooltipEl.style.left = `${left}px`;
+      tooltipEl.style.top = `${top}px`;
+      tooltipEl.style.display = 'block';
+    };
+
+    chartWrap.addEventListener('mousemove', (e) => {
+      const pt = e.target.closest('.correlacao-ponto');
+      if (pt) showTooltip(pt, e.clientX, e.clientY);
+      else tooltipEl.style.display = 'none';
+    });
+
+    chartWrap.addEventListener('mouseleave', () => {
+      tooltipEl.style.display = 'none';
+    });
+
+    chartWrap.addEventListener('touchstart', (e) => {
+      const pt = e.target.closest('.correlacao-ponto');
+      if (pt && e.touches && e.touches[0]) {
+        showTooltip(pt, e.touches[0].clientX, e.touches[0].clientY);
+      } else {
+        tooltipEl.style.display = 'none';
+      }
+    }, { passive: true });
   }
 
   atualizarPaginacaoSensores();
