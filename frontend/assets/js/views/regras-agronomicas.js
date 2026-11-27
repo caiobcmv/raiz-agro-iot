@@ -1,4 +1,4 @@
-/**
+﻿/**
  * VIEW: REGRAS AGRONÔMICAS E LIMIARES FISIOLÓGICOS (FIGMA PIXEL PERFECT)
  * 100% IDÊNTICO À IMAGEM DE REFERÊNCIA.
  * Sub-barra técnica v4.2 com restauração, exportação e cadastro de regra,
@@ -60,95 +60,6 @@ async function loadRegrasData() {
 
 // Preload data on module load
 loadRegrasData();
-  {
-    id: 'uva',
-    categoria: 'uva',
-    titulo: 'Uva de Mesa (Vitória / Crimson Seedless) — Câmara e Maturação',
-    subtitulo: 'Variedades: R102 • Embrapa Semiárido Doc. 144',
-    badge: 'Suscetibilidade Alta',
-    badgeClass: 'alta',
-    icone: 'grape',
-    tempMin: -0.5,
-    tempMax: 1.0,
-    tempLabel: 'Faixa Segura: -0.5°C a +1.0°C',
-    pontoFrio: 'Perigo Congelo: < -1.5°C',
-    pontoQuente: 'Teto: 2.0°C',
-    pctVermelho: 15,
-    pctVerde: 45,
-    pctAmarelo: 40,
-    urFaixa: '90% a 95%',
-    urPct: 92,
-    brixFaixa: '≥ 16.0 °Bx (Exportação)',
-    brixPct: 85,
-    sensoresInfo: '14 Sensores Atrelados (Câmaras 01 a 04)'
-  },
-  {
-    id: 'manga',
-    categoria: 'manga',
-    titulo: 'Manga Tommy Atkins e Palmer — Conservação Pós-Colheita',
-    subtitulo: 'Variedades: R101 • UC Davis Postharvest Series',
-    badge: 'Chilling Injury Watch',
-    badgeClass: 'chilling',
-    icone: 'sprout',
-    tempMin: 10.0,
-    tempMax: 13.0,
-    tempLabel: 'Faixa Segura: 10.0°C a 13.0°C',
-    pontoFrio: 'Dano Frio: < 10.0°C',
-    pontoQuente: 'Pico Max 14.5°C (18h)',
-    pctVermelho: 20,
-    pctVerde: 50,
-    pctAmarelo: 30,
-    urFaixa: '85% a 90%',
-    urPct: 88,
-    brixFaixa: '< 0.2 µL/kg·h (Etileno)',
-    brixPct: 40,
-    sensoresInfo: '10 Sensores Atrelados (Galpão 03 e Túnel 02)'
-  },
-  {
-    id: 'melao',
-    categoria: 'melao',
-    titulo: 'Melão Amarelo (Cantaloupe / AF-522) — Packing e Pós-Colheita',
-    subtitulo: 'Variedades: R103 • IAC Homologado',
-    badge: 'Padrão Conab / Export',
-    badgeClass: 'padrao',
-    icone: 'circle-dot',
-    tempMin: 10.0,
-    tempMax: 12.0,
-    tempLabel: 'Faixa Segura: 10.0°C a 12.0°C',
-    pontoFrio: 'Dano Térmico: < 7.0°C',
-    pontoQuente: 'Sobreaquecimento > 14.0°C',
-    pctVermelho: 20,
-    pctVerde: 50,
-    pctAmarelo: 30,
-    urFaixa: '85% a 90%',
-    urPct: 88,
-    brixFaixa: '≥ 28 N (Firmeza Newton)',
-    brixPct: 75,
-    sensoresInfo: '8 Sensores Atrelados (Câmara de Desverdecimento)'
-  },
-  {
-    id: 'solo',
-    categoria: 'solo',
-    titulo: 'Manejo de Solo e Umidade Radicular (Sensores de Umidade do Solo)',
-    subtitulo: 'Cluster Solos: v01 • Curvas de Retenção Van Genuchten',
-    badge: 'Fertirrigação Ativa',
-    badgeClass: 'fertirrigacao',
-    icone: 'droplet',
-    tempMin: 18.0,
-    tempMax: 32.0,
-    tempLabel: 'Faixa Ótima: 18.0% a 32.0% VWC',
-    pontoFrio: 'Murcha: < 18%',
-    pontoQuente: 'Encharcamento: > 42%',
-    pctVermelho: 18,
-    pctVerde: 48,
-    pctAmarelo: 34,
-    urFaixa: '1.2 a 1.8 dS/m (CE)',
-    urPct: 60,
-    brixFaixa: '22.4°C Estável (30cm)',
-    brixPct: 50,
-    sensoresInfo: '32 Sondas Telemétricas (Setores Sul e Leste)'
-  }
-];
 
 let _filtroCatRegras = 'todos';
 let _termoBuscaRegras = '';
