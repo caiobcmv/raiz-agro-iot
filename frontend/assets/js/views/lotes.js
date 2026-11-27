@@ -181,11 +181,30 @@ export async function renderLotes() {
     atual.ton += loteParaToneladas(l);
     porStatusMap.set(st, atual);
   }
-  const statusExistentes = Array.from(porStatusMap.entries()).map(([status, info]) => ({
-    status,
-    count: info.count,
-    ton: info.ton
-  }));
+  const ordemCiclo = [
+    'Em produção',
+    'Pronto para colheita',
+    'Colhido',
+    'Armazenado',
+    'Em transporte',
+    'Finalizado'
+  ];
+  const statusExistentes = Array.from(porStatusMap.entries())
+    .map(([status, info]) => ({
+      status,
+      count: info.count,
+      ton: info.ton
+    }))
+    .sort((a, b) => {
+      if (a.status === 'Sem status') return 1;
+      if (b.status === 'Sem status') return -1;
+      const idxA = ordemCiclo.indexOf(a.status);
+      const idxB = ordemCiclo.indexOf(b.status);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return a.status.localeCompare(b.status, 'pt-BR');
+    });
 
   const coresStatus = {
     'Em produção': '#10B981',
@@ -325,12 +344,12 @@ export async function renderLotes() {
             ${statusExistentes.map(st => {
               const cor = coresStatus[st.status] || '#64748B';
               return `
-                <div class="card-estagio-esteira" data-estagio="${st.status}" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px; border-top: 3px solid ${cor}; cursor: pointer; transition: all 0.2s;">
-                  <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span style="font-size: 11px; font-weight: 700; color: #0F172A;">${st.status}</span>
-                    <span style="width: 6px; height: 6px; border-radius: 50%; background: ${cor};"></span>
+                <div class="card-estagio-esteira" data-estagio="${st.status}" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px; border-top: 3px solid ${cor}; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04); display: flex; flex-direction: column; justify-content: space-between; height: 100%; cursor: pointer; transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;">
+                  <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 6px;">
+                    <span style="font-size: 11px; font-weight: 700; color: #0F172A; line-height: 1.3;">${st.status}</span>
+                    <span style="width: 7px; height: 7px; border-radius: 50%; background: ${cor}; flex-shrink: 0; margin-top: 3px;"></span>
                   </div>
-                  <div style="font-size: 20px; font-weight: 800; color: #0F172A; margin: 8px 0 4px 0;">${st.count}</div>
+                  <div style="font-size: 22px; font-weight: 800; color: #0F172A; margin: 10px 0 6px 0; line-height: 1;">${st.count}</div>
                   <div style="font-size: 10px; color: #64748B;">${formatarToneladas(st.ton)} ton</div>
                 </div>
               `;
