@@ -47,10 +47,10 @@ export function renderSidebar(currentPath) {
           <span>Lotes e safra</span>
         </a>
 
-        <a href="#/sensores" class="sidebar-menu-item ${currentPath === '#/sensores' ? 'active' : ''}">
+        <!-- <a href="#/sensores" class="sidebar-menu-item ${currentPath === '#/sensores' ? 'active' : ''}">
           <i data-lucide="radio"></i>
           <span>Sensores</span>
-        </a>
+        </a> -->
 
         <a href="#/calibracao" class="sidebar-menu-item ${currentPath === '#/calibracao' ? 'active' : ''}">
           <i data-lucide="sliders"></i>
