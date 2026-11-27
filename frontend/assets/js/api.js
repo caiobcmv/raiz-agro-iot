@@ -150,9 +150,10 @@ class ApiService {
   }
 
   async request(endpoint, options = {}, _retried = false) {
+    const { timeoutMs = 15000, ...fetchOptions } = options;
     const headers = {
-      ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
-      ...(options.headers || {})
+      ...(fetchOptions.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
+      ...(fetchOptions.headers || {})
     };
 
     const token = this.getToken();
@@ -161,13 +162,13 @@ class ApiService {
     }
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
         cache: 'no-store',
         credentials: 'include',
-        ...options,
+        ...fetchOptions,
         headers,
         signal: controller.signal
       });
@@ -420,12 +421,15 @@ class ApiService {
   async gerarParecer({ id_lote, tipo = 'agronomico', dias = 30, forcar = false }) {
     return await this.request('/pareceres/gerar', {
       method: 'POST',
-      body: JSON.stringify({ id_lote, tipo, dias, forcar })
+      body: JSON.stringify({ id_lote, tipo, dias, forcar }),
+      timeoutMs: 60000
     });
   }
 
   async getParecerIA(idLote) {
-    return await this.request(`/ia/parecer?id_lote=${encodeURIComponent(idLote)}`);
+    return await this.request(`/ia/parecer?id_lote=${encodeURIComponent(idLote)}`, {
+      timeoutMs: 60000
+    });
   }
 
   async assinarParecer(idParecer, dadosAssinatura) {
@@ -471,7 +475,17 @@ class ApiService {
   // CLIMA / PREVISÃO
   // ==========================================
   async getClimaAtual() {
-    return await this.request('/clima/previsao');
+    // FIX: retorna null em erros de servidor (502/503) em vez de relançar;
+    // a UI do dashboard já trata clima=null exibindo '—' nos widgets de clima.
+    try {
+      return await this.request('/clima/previsao');
+    } catch (err) {
+      if (err.status >= 500 || err.isNetworkError) {
+        console.warn('Clima indisponível (', err.status || 'rede', ') — widgets exibirão "—".');
+        return null;
+      }
+      throw err;
+    }
   }
 
   // ==========================================

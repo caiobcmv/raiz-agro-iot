@@ -2515,7 +2515,8 @@ export async function setupDashboardEvents() {
           resultadoParecer.replaceChildren(wrap);
         } catch (err) {
           console.error('Erro ao obter parecer do lote:', err);
-          resultadoParecer.textContent = 'Não foi possível obter o parecer. Tente novamente.';
+          const detalhe = err?.message ? ` (${err.message})` : '';
+          resultadoParecer.textContent = `Não foi possível obter o parecer${detalhe}. Tente novamente.`;
         } finally {
           carregandoParecer = false;
           btnParecer.disabled = false;
