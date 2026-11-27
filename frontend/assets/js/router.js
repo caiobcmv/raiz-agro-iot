@@ -33,7 +33,7 @@ import { renderCalibracao, setupCalibracaoEvents } from './views/calibracao.js?v
 import { renderUsuarios, setupUsuariosEvents } from './views/usuarios.js?v=20261128-b';
 import { renderRegrasAgronomicas, setupRegrasAgronomicasEvents } from './views/regras-agronomicas.js?v=20261120-live33';
 import { renderAuditoria, setupAuditoriaEvents } from './views/auditoria.js?v=20261120-live33';
-import { renderSensoresAdmin, setupSensoresAdminEvents } from './views/sensores-admin.js?v=20261120-live33';
+import { renderSensoresAdmin, setupSensoresAdminEvents } from './views/sensores-admin.js?v=20261128-b';
 
 const routes = {
   '#/login': {
