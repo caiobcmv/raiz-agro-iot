@@ -92,12 +92,29 @@ class AuthState {
     return palette;
   }
 
+  _decodeJwtPayload(token) {
+    if (!token || !token.includes('.')) return null;
+    try {
+      let b64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+      while (b64.length % 4 !== 0) b64 += '=';
+      const bin = atob(b64);
+      const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
+      const jsonStr = typeof TextDecoder !== 'undefined'
+        ? new TextDecoder('utf-8').decode(bytes)
+        : bin;
+      return JSON.parse(jsonStr);
+    } catch (_) {
+      return null;
+    }
+  }
+
   loadUser() {
     try {
       const data = localStorage.getItem('user_data');
       if (data && data !== 'undefined' && data !== 'null') {
-        const parsed = JSON.parse(data);
-        if (parsed && typeof parsed === 'object' && (parsed.email || parsed.id_usuario)) {
+        const raw = JSON.parse(data);
+        const parsed = (raw && typeof raw === 'object' && raw.usuario && typeof raw.usuario === 'object') ? raw.usuario : raw;
+        if (parsed && typeof parsed === 'object' && (parsed.email || parsed.id_usuario || parsed.id || parsed.sub || parsed.perfil || parsed.nome)) {
           return parsed;
         }
       }
@@ -105,25 +122,21 @@ class AuthState {
       console.warn('Erro ao carregar usuário da sessão:', e);
     }
 
-    // Fallback de resiliência: se houver token válido, restaura a sessão pelo payload do JWT
-    try {
-      const token = api.getToken() || localStorage.getItem('access_token');
-      if (token && token.includes('.')) {
-        const payloadBase64 = token.split('.')[1];
-        const payloadJson = atob(payloadBase64.replace(/-/g, '+').replace(/_/g, '/'));
-        const payload = JSON.parse(payloadJson);
-        if (payload && (payload.sub || payload.id_usuario)) {
-          const fallbackUser = {
-            id_usuario: Number(payload.sub || payload.id_usuario),
-            perfil: payload.perfil || 'Produtor/Exportador',
-            nome: payload.nome || 'Usuário',
-            email: payload.email || ''
-          };
-          localStorage.setItem('user_data', JSON.stringify(fallbackUser));
-          return fallbackUser;
-        }
-      }
-    } catch (_) {}
+    // Fallback de resiliência: se houver token JWT, restaura a sessão pelo payload
+    const token = api.getToken() || localStorage.getItem('access_token');
+    const payload = this._decodeJwtPayload(token);
+    if (payload && (payload.sub || payload.id_usuario || payload.perfil)) {
+      const fallbackUser = {
+        id_usuario: Number(payload.sub || payload.id_usuario) || null,
+        perfil: payload.perfil || localStorage.getItem('ACTIVE_PROFILE') || 'Produtor/Exportador',
+        nome: payload.nome || 'Usuário',
+        email: payload.email || ''
+      };
+      try {
+        localStorage.setItem('user_data', JSON.stringify(fallbackUser));
+      } catch (_) {}
+      return fallbackUser;
+    }
 
     return null;
   }

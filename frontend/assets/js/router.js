@@ -425,6 +425,12 @@ export class Router {
       return;
     }
 
+    // Guarda inversa: se já está autenticado e caiu em #/login, redireciona direto para #/dashboard
+    if (hash === '#/login' && auth.isAuthenticated()) {
+      window.location.hash = '#/dashboard';
+      return;
+    }
+
     // Guarda de perfil: apenas administradores acessam as áreas administrativas
     const ROTAS_ADMIN = ['#/usuarios', '#/auditoria', '#/lotes', '#/regras-agronomicas', '#/relatorios'];
     const ROTAS_ANALISTA = ['#/rede-esp32'];
