@@ -53,9 +53,31 @@ export async function renderUsuarios() {
   const totalProdutores = usuarios.filter(u => String(u?.perfil || '').toLowerCase().includes('produtor')).length;
   const totalAnalistas = usuarios.filter(u => String(u?.perfil || '').toLowerCase().includes('analista')).length;
   const totalAdmins = usuarios.filter(u => String(u?.perfil || '').toLowerCase().includes('admin')).length;
-  const pctProdutores = totalUsuarios > 0 ? Math.round((totalProdutores / totalUsuarios) * 100) : 0;
-  const pctAnalistas = totalUsuarios > 0 ? Math.round((totalAnalistas / totalUsuarios) * 100) : 0;
-  const pctAdmins = totalUsuarios > 0 ? Math.max(0, 100 - pctProdutores - pctAnalistas) : 0;
+
+  const perfilCountsMap = new Map();
+  usuarios.forEach(u => {
+    const p = String(u?.perfil || 'Sem perfil').trim();
+    const key = p.toLowerCase();
+    const existing = perfilCountsMap.get(key);
+    if (existing) {
+      existing.count += 1;
+    } else {
+      perfilCountsMap.set(key, { label: p, count: 1 });
+    }
+  });
+  const perfisDistrib = Array.from(perfilCountsMap.values()).map((item, idx) => {
+    const pct = totalUsuarios > 0 ? Math.round((item.count / totalUsuarios) * 100) : 0;
+    const lower = item.label.toLowerCase();
+    let color = '#64748B';
+    if (lower.includes('produtor')) color = '#10B981';
+    else if (lower.includes('analista')) color = '#0284C7';
+    else if (lower.includes('admin')) color = '#0F172A';
+    else {
+      const palette = ['#8B5CF6', '#F59E0B', '#EC4899', '#14B8A6'];
+      color = palette[idx % palette.length];
+    }
+    return { ...item, pct, color };
+  });
 
   return `
     <div class="dashboard-canvas apple-animate-in">
@@ -65,14 +87,10 @@ export async function renderUsuarios() {
         <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between;">
           <div style="display: flex; justify-content: space-between; align-items: center;">
             <span style="font-size: 11px; font-weight: 700; color: #64748B;">TOTAL DE MEMBROS</span>
-            <div style="width: 24px; height: 24px; border-radius: 50%; background: #ECFDF5; color: #10B981; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800;">100%</div>
           </div>
           <div style="margin: 12px 0;">
             <div style="font-size: 26px; font-weight: 800; color: #0F172A; line-height: 1;">${totalUsuarios}</div>
             <div style="font-size: 11px; color: #64748B; margin-top: 4px;">usuários cadastrados</div>
-          </div>
-          <div style="font-size: 11px; color: #059669; font-weight: 600; display: flex; align-items: center; gap: 4px;">
-            <span style="width: 6px; height: 6px; border-radius: 50%; background: #10B981;"></span> 100% integridade cadastral
           </div>
         </div>
 
@@ -84,23 +102,14 @@ export async function renderUsuarios() {
           </div>
           <div style="margin: 10px 0;">
             <div style="width: 100%; height: 6px; background: #E2E8F0; border-radius: 3px; display: flex; overflow: hidden; margin-bottom: 8px;">
-              <div style="width: ${pctProdutores}%; background: #10B981;"></div>
-              <div style="width: ${pctAnalistas}%; background: #0284C7;"></div>
-              <div style="width: ${pctAdmins}%; background: #0F172A;"></div>
+              ${perfisDistrib.map(p => `<div style="width: ${p.pct}%; background: ${p.color};"></div>`).join('')}
             </div>
             <div style="font-size: 10px; color: #475569; display: flex; flex-direction: column; gap: 2px;">
+              ${perfisDistrib.length === 0 ? '<span>Sem dados</span>' : perfisDistrib.map(p => `
               <div style="display: flex; justify-content: space-between;">
-                <span>• Produtor / Exp.</span>
-                <strong>${totalProdutores} (${pctProdutores}%)</strong>
-              </div>
-              <div style="display: flex; justify-content: space-between;">
-                <span>• Analista IoT</span>
-                <strong>${totalAnalistas} (${pctAnalistas}%)</strong>
-              </div>
-              <div style="display: flex; justify-content: space-between;">
-                <span>• Administrador</span>
-                <strong>${totalAdmins} (${pctAdmins}%)</strong>
-              </div>
+                <span>• ${p.label}</span>
+                <strong>${p.count} (${p.pct}%)</strong>
+              </div>`).join('')}
             </div>
           </div>
         </div>
@@ -120,10 +129,6 @@ export async function renderUsuarios() {
               <div style="font-size: 16px; font-weight: 700; color: #64748B;">/ ${totalInativos}</div>
               <div style="font-size: 10px; color: #94A3B8;">Inativas</div>
             </div>
-          </div>
-          <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 6px;">
-            <span style="color: #047857; font-weight: 600;">• 100% Operacional</span>
-            <span style="color: #64748B;">Soft Delete via fn_bloquear_delete</span>
           </div>
         </div>
       </div>
