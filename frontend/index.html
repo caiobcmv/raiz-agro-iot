@@ -23,7 +23,7 @@
       // Se não for file://, normaliza rotas que foram digitadas sem hash
       if (window.location.protocol !== 'file:') {
         var p = window.location.pathname;
-        if (p && p !== '/' && !p.includes('.')) {
+        if (p && p !== '/' && p.indexOf('/frontend') !== 0 && !p.includes('.')) {
           var clean = p.replace(/^\/+/, '');
           if (clean) {
             window.location.replace('/#/' + clean + (window.location.search || ''));
