@@ -199,7 +199,7 @@ export class Router {
       }
       try {
         if (window.history && window.history.replaceState) {
-          window.history.replaceState(null, '', '/' + (window.location.hash || '#/dashboard'));
+          window.history.replaceState(null, '', '/' + (window.location.hash || ''));
         }
       } catch (errState) {
         // Ignora erro de segurança em contextos restritos
@@ -211,12 +211,21 @@ export class Router {
       sessionStorage.setItem('dashboard_mode_init', '1');
     }
 
-    if (!window.location.hash || window.location.hash === '#/' || window.location.hash === '') {
-      window.location.hash = auth.isAuthenticated() ? '#/dashboard' : '#/login';
+    const currentHash = window.location.hash;
+    const targetHash = auth.isAuthenticated() ? '#/dashboard' : '#/login';
+    let routeHandledByHashChange = false;
+
+    if (!currentHash || currentHash === '#/' || currentHash === '#') {
+      if (window.location.hash !== targetHash) {
+        routeHandledByHashChange = true;
+        window.location.hash = targetHash;
+      }
     }
 
     this.startRealtimeEngine();
-    await this.handleRoute();
+    if (!routeHandledByHashChange) {
+      await this.handleRoute();
+    }
   }
 
   startRealtimeEngine() {
@@ -351,14 +360,20 @@ export class Router {
 
     if (!routes[hash]) {
       hash = '#/dashboard';
-      window.location.hash = hash;
+      if (window.location.hash !== hash) {
+        window.location.hash = hash;
+        return;
+      }
     }
 
     const route = routes[hash] || routes['#/dashboard'];
 
     // Guarda de rota: se exigir login e não estiver autenticado, renderiza login imediatamente
     if (route.authRequired && !auth.isAuthenticated()) {
-      window.location.hash = '#/login';
+      if (window.location.hash !== '#/login') {
+        window.location.hash = '#/login';
+        return;
+      }
       const loginRoute = routes['#/login'];
       document.title = `${loginRoute.title} | Raiz Agro`;
       this.appContainer.innerHTML = `<div class="page-transition-enter">${loginRoute.render()}</div>`;
@@ -372,12 +387,18 @@ export class Router {
     const ROTAS_ANALISTA = ['#/rede-esp32'];
     const activeProfile = auth.getActiveProfile();
     if (ROTAS_ADMIN.includes(hash) && activeProfile !== 'admin') {
+      if (window.location.hash !== '#/dashboard') {
+        window.location.hash = '#/dashboard';
+        return;
+      }
       hash = '#/dashboard';
-      window.location.hash = hash;
       toast.info('Acesso Restrito', 'Esta área é exclusiva da Administradora.');
     } else if (ROTAS_ANALISTA.includes(hash) && activeProfile !== 'analista' && activeProfile !== 'admin') {
+      if (window.location.hash !== '#/dashboard') {
+        window.location.hash = '#/dashboard';
+        return;
+      }
       hash = '#/dashboard';
-      window.location.hash = hash;
       toast.info('Acesso Restrito', 'Esta área é exclusiva do Analista.');
     }
 
