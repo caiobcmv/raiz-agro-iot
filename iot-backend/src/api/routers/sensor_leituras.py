@@ -45,6 +45,7 @@ def series_24h(conn=Depends(get_conn), user=Depends(get_current_user)):
             JOIN sensor s ON s.id_sensor = l.fk_sensor_id_sensor
             WHERE s.ambiente = 'ar'
               AND lower(l.origem) = 'thingspeak'
+              AND l.data_hora >= now() - interval '24 hours'
               AND (%(dono)s::int IS NULL OR s.fk_usuario_id_usuario = %(dono)s)
             ORDER BY l.data_hora DESC
             LIMIT 24
@@ -59,6 +60,7 @@ def series_24h(conn=Depends(get_conn), user=Depends(get_current_user)):
             JOIN sensor s ON s.id_sensor = l.fk_sensor_id_sensor
             WHERE s.ambiente = 'solo'
               AND lower(l.origem) = 'thingspeak'
+              AND l.data_hora >= now() - interval '24 hours'
               AND (%(dono)s::int IS NULL OR s.fk_usuario_id_usuario = %(dono)s)
             ORDER BY l.data_hora DESC
             LIMIT 24
