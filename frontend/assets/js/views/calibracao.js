@@ -18,40 +18,65 @@ let _calibracaoCache = null;
 
 export async function renderCalibracao() {
   let dados = null;
-  try {
-    dados = await api.getCalibracaoResumo();
+  let safras = [];
+  let propriedades = [];
+  let ultimaLeituraApi = null;
+  const [resCalib, resSafras, resProps, resUltima] = await Promise.allSettled([
+    api.getCalibracaoResumo(),
+    api.getCatalogoSafras(),
+    api.getCatalogoPropriedades(),
+    api.getUltimaLeitura()
+  ]);
+
+  if (resCalib.status === 'fulfilled' && resCalib.value) {
+    dados = resCalib.value;
     _calibracaoCache = dados;
-  } catch (err) {
-    console.warn('Usando fallback estruturado de calibração:', err);
+  } else {
+    console.warn('Falha ao carregar resumo de calibração:', resCalib.reason);
     dados = _calibracaoCache || {};
   }
 
-  const limiares = Array.isArray(dados?.limiares) && dados.limiares.length > 0
-    ? dados.limiares
-    : [
-        { id_config: 1, fruta: 'Manga Tommy / Kent', etapa: 'armazenamento', temp_min: 10.0, temp_max: 13.0, umidade_min: 90, umidade_max: 95 },
-        { id_config: 2, fruta: 'Uva de Mesa (Vitória / Crimson)', etapa: 'armazenamento', temp_min: -0.5, temp_max: 2.0, umidade_min: 90, umidade_max: 95 },
-        { id_config: 3, fruta: 'Melão Amarelo', etapa: 'armazenamento', temp_min: 10.0, temp_max: 12.0, umidade_min: 85, umidade_max: 95 }
-      ];
+  if (resSafras.status === 'fulfilled' && Array.isArray(resSafras.value)) {
+    safras = resSafras.value;
+  }
+  if (resProps.status === 'fulfilled' && Array.isArray(resProps.value)) {
+    propriedades = resProps.value;
+  }
+  if (resUltima.status === 'fulfilled' && resUltima.value) {
+    ultimaLeituraApi = resUltima.value;
+  }
 
-  const cortes = Array.isArray(dados?.cortes) && dados.cortes.length > 0
-    ? dados.cortes
-    : [
-        { nivel: 'BAIXO', limiar_min: 0.00, limiar_max: 0.45, acao_recomendada: 'Monitoramento contínuo sem intervenção' },
-        { nivel: 'MEDIO', limiar_min: 0.45, limiar_max: 0.75, acao_recomendada: 'Alerta preventivo e vistoria em 4h' },
-        { nivel: 'CRITICO', limiar_min: 0.75, limiar_max: 1.00, acao_recomendada: 'Disparo imediato para equipe e automação de contingência' }
-      ];
+  const safraVigente = safras.find(s => s && s.ativa === true) || safras[0] || null;
+  const areaTotalHa = propriedades
+    .map(p => Number(p?.area_ha))
+    .filter(v => !isNaN(v) && v > 0)
+    .reduce((acc, v) => acc + v, 0);
+  const safraLabel = safraVigente?.nome ? `Safra ${safraVigente.nome} Ativa` : 'Safra vigente indisponível';
+  const areaLabel = areaTotalHa > 0
+    ? `${propriedades.length} propriedades (${areaTotalHa.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} ha)`
+    : '';
+  const pillSafraTexto = areaLabel ? `${safraLabel} • ${areaLabel}` : safraLabel;
 
-  const sensores = Array.isArray(dados?.sensores) && dados.sensores.length > 0
-    ? dados.sensores
-    : [
-        { id_sensor: 1, nome: 'DHT11 ESP32-C3', tipo_sensor: 'DHT11', localizacao: 'Bancada', channel_id: 3500765, ambiente: 'ar', status: 'ativo', lote_codigo: 'Lote #1', variedade: 'Uva Vitória' },
-        { id_sensor: 3, nome: 'Solo ESP32', tipo_sensor: 'umidade do solo', localizacao: 'Bancada', channel_id: 3500765, field_number: 3, ambiente: 'solo', status: 'ativo', lote_codigo: 'Lote #1', variedade: 'Uva Vitória' }
-      ];
+  const limiares = Array.isArray(dados?.limiares) ? dados.limiares : [];
+  const cortes = Array.isArray(dados?.cortes) ? dados.cortes : [];
+  const sensores = Array.isArray(dados?.sensores) ? dados.sensores : [];
 
   const rejeitadas24h = dados?.rejeitadas_24h ?? 0;
-  const channelId = dados?.broker?.channel_id || '3500765';
-  const ultimaLeitura = dados?.ultima_leitura || null;
+  const channelId = dados?.broker?.channel_id || '—';
+  const pollSegundos = dados?.broker?.poll_interval_seconds ?? 20;
+  const ultimaLeitura = ultimaLeituraApi || dados?.ultima_leitura || null;
+  const rawUltDt = ultimaLeitura?.data_hora ? String(ultimaLeitura.data_hora).trim() : '';
+  const isoUltUtc = rawUltDt
+    ? (/[zZ]$|[+-]\d{2}:?\d{2}$/.test(rawUltDt) ? rawUltDt : `${rawUltDt.replace(' ', 'T')}Z`)
+    : '';
+  const ultimaLeituraStr = isoUltUtc
+    ? new Intl.DateTimeFormat('pt-BR', {
+        timeZone: 'America/Recife',
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+      }).format(new Date(isoUltUtc))
+    : 'Sem leitura registrada';
+  const entryIdTag = ultimaLeitura?.entry_id_thingspeak ? ` (Entry #${ultimaLeitura.entry_id_thingspeak})` : '';
 
   return `
   <div class="dashboard-canvas apple-animate-in" style="padding: 20px 32px 48px; overflow-y: auto; background: #F8FAFC;">
@@ -61,7 +86,7 @@ export async function renderCalibracao() {
       <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
         <span style="background: #ECFDF5; border: 1px solid #A7F3D0; color: #065F46; font-size: 11px; font-weight: 600; padding: 5px 12px; border-radius: 9999px; display: inline-flex; align-items: center; gap: 6px;">
           <span style="width: 7px; height: 7px; border-radius: 50%; background: #10B981;"></span>
-          Safra 2025/2026 Ativa • Petrolina (45.0 ha)
+          ${pillSafraTexto}
         </span>
         <span id="calib-broker-pill" style="background: #FFFFFF; border: 1px solid #E2E8F0; color: #475569; font-size: 11px; font-weight: 500; padding: 5px 12px; border-radius: 9999px; display: inline-flex; align-items: center; gap: 6px;">
           <i data-lucide="radio" style="width: 12px; height: 12px; color: #059669;"></i>
@@ -189,19 +214,27 @@ export async function renderCalibracao() {
       </div>
 
       <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;">
-        ${cortes.map(c => {
-          const isCrit = String(c.nivel || '').toUpperCase() === 'CRITICO';
-          const isMed = String(c.nivel || '').toUpperCase() === 'MEDIO';
+        ${cortes.length === 0 ? `
+          <div style="grid-column: 1 / -1; padding: 18px; text-align: center; color: #64748B; font-size: 12px; background: #F8FAFC; border: 1px dashed #CBD5E1; border-radius: 10px;">
+            Nenhum corte preditivo cadastrado em <code>cortes_alerta_preditivo</code>.
+          </div>
+        ` : cortes.map(c => {
+          const nivelStr = String(c.nivel || 'N/D').toUpperCase();
+          const isCrit = nivelStr === 'CRITICO';
+          const isMed = nivelStr === 'MEDIO';
           const bgPill = isCrit ? '#FEE2E2' : (isMed ? '#FEF3C7' : '#ECFDF5');
           const colPill = isCrit ? '#B91C1C' : (isMed ? '#B45309' : '#047857');
+          const minPct = c.limiar_min != null && !isNaN(Number(c.limiar_min)) ? `${(Number(c.limiar_min) * 100).toFixed(0)}%` : '—';
+          const maxPct = c.limiar_max != null && !isNaN(Number(c.limiar_max)) ? `${(Number(c.limiar_max) * 100).toFixed(0)}%` : '—';
+          const acaoTxt = c.acao_recomendada || 'Sem ação recomendada cadastrada';
           return `
             <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between;">
               <div>
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                  <span style="font-size: 11px; font-weight: 800; color: ${colPill}; background: ${bgPill}; padding: 3px 8px; border-radius: 6px;">${String(c.nivel || '').toUpperCase()}</span>
-                  <span style="font-size: 11px; font-weight: 700; color: #1E293B;">${(parseFloat(c.limiar_min) * 100).toFixed(0)}% a ${(parseFloat(c.limiar_max) * 100).toFixed(0)}%</span>
+                  <span style="font-size: 11px; font-weight: 800; color: ${colPill}; background: ${bgPill}; padding: 3px 8px; border-radius: 6px;">${nivelStr}</span>
+                  <span style="font-size: 11px; font-weight: 700; color: #1E293B;">${minPct} a ${maxPct}</span>
                 </div>
-                <p style="font-size: 11.5px; color: #475569; margin: 0 0 10px; line-height: 1.4;">${c.acao_recomendada}</p>
+                <p style="font-size: 11.5px; color: #475569; margin: 0 0 10px; line-height: 1.4;">${acaoTxt}</p>
               </div>
               <div style="border-top: 1px solid #E2E8F0; padding-top: 8px; font-size: 10px; color: #94A3B8;">Gatilho operacional no PostgreSQL</div>
             </div>
@@ -276,8 +309,8 @@ export async function renderCalibracao() {
             </div>
             <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px;">
               <div style="font-size: 10px; color: #64748B; font-weight: 600; margin-bottom: 4px;">Taxa de Polling</div>
-              <div style="font-size: 18px; font-weight: 800; color: #0F172A; font-family: 'Space Grotesk', sans-serif;">20 segundos</div>
-              <div style="font-size: 10px; color: #64748B; margin-top: 4px;">Padrão analítico em tempo real</div>
+              <div style="font-size: 18px; font-weight: 800; color: #0F172A; font-family: 'Space Grotesk', sans-serif;">${pollSegundos} segundos</div>
+              <div style="font-size: 10px; color: #64748B; margin-top: 4px;">Intervalo configurado no servidor</div>
             </div>
           </div>
         </div>
@@ -285,7 +318,7 @@ export async function renderCalibracao() {
         <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 10px; border-top: 1px solid #F1F5F9; flex-wrap: wrap; gap: 8px;">
           <span style="font-size: 11px; color: #64748B; display: inline-flex; align-items: center; gap: 6px;">
             <span style="width: 7px; height: 7px; border-radius: 50%; background: #10B981;"></span>
-            Último pacote recebido: <strong>${ultimaLeitura?.data_hora ? new Date(ultimaLeitura.data_hora).toLocaleString('pt-BR') : 'Disponível no banco'}</strong> ${ultimaLeitura?.entry_id_thingspeak ? `(Entry #${ultimaLeitura.entry_id_thingspeak})` : ''}
+            Último pacote recebido: <strong>${ultimaLeituraStr}</strong>${entryIdTag}
           </span>
           <button id="btn-testar-broker-calib" style="padding: 7px 14px; background: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 8px; font-size: 11px; font-weight: 700; color: #047857; cursor: pointer;">Testar Conexão</button>
         </div>
@@ -612,14 +645,28 @@ export function setupCalibracaoEvents() {
     });
   });
 
-  // 7. Ping Nó
+  // 7. Verificar Última Leitura Real do Nó (sem simulação)
   document.querySelectorAll('.btn-ping-sensor').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       const id = btn.getAttribute('data-id');
-      toast.info('Ping Nó', `Enviando pacote de diagnóstico para o nó ESP32 #${id}...`);
-      setTimeout(() => {
-        toast.success('Nó Conectado', `ESP32 #${id} online e reportando telemetria.`);
-      }, 350);
+      btn.disabled = true;
+      try {
+        const ult = await api.getUltimaLeitura(id);
+        if (ult && ult.data_hora) {
+          const dtStr = new Intl.DateTimeFormat('pt-BR', {
+            timeZone: 'America/Recife',
+            day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false
+          }).format(new Date(/[zZ]$|[+-]\d{2}:?\d{2}$/.test(ult.data_hora) ? ult.data_hora : `${ult.data_hora}Z`));
+          const med = ult.temperatura != null ? `${Number(ult.temperatura).toFixed(1)}°C` : (ult.umidade_solo != null ? `${Number(ult.umidade_solo).toFixed(1)}% solo` : `${ult.umidade ?? '—'}%`);
+          toast.success(`Nó #${id} Ativo`, `Última leitura em ${dtStr} (${med}).`);
+        } else {
+          toast.info(`Nó #${id}`, 'Nenhuma leitura climática registrada ainda para este sensor.');
+        }
+      } catch (e) {
+        toast.error(`Nó #${id}`, e.message || 'Falha ao consultar última leitura do sensor.');
+      } finally {
+        btn.disabled = false;
+      }
     });
   });
 }

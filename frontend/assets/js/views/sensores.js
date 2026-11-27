@@ -445,99 +445,152 @@ function renderCorrelacaoBoxHtml() {
 }
 
 function renderSvgCorrelacao() {
-  const { leiturasAr, leiturasSolo, configParametros, lotes, loteSelecionadoId } = sensoresState;
+  const { leiturasAr, leiturasSolo, configParametros, lotes, loteSelecionadoId, periodoSelecionado } = sensoresState;
+
+  const parseTs = (t) => {
+    if (!t) return null;
+    const d = new Date(t);
+    return isNaN(d.getTime()) ? null : d.getTime();
+  };
+
+  const ptsTemp = (leiturasAr || [])
+    .filter(p => p && p.temperatura != null)
+    .map(p => ({ t: p.instante || p.data_hora, ts: parseTs(p.instante || p.data_hora), v: Number(p.temperatura), origem: p.origem }))
+    .filter(p => !isNaN(p.v) && p.ts != null)
+    .sort((a, b) => a.ts - b.ts);
+
+  const ptsUmidAr = (leiturasAr || [])
+    .filter(p => p && p.umidade != null)
+    .map(p => ({ t: p.instante || p.data_hora, ts: parseTs(p.instante || p.data_hora), v: Number(p.umidade), origem: p.origem }))
+    .filter(p => !isNaN(p.v) && p.ts != null)
+    .sort((a, b) => a.ts - b.ts);
+
+  const ptsSolo = (leiturasSolo || [])
+    .filter(p => p && (p.umidade_solo != null || p.umidade != null))
+    .map(p => ({ t: p.instante || p.data_hora, ts: parseTs(p.instante || p.data_hora), v: Number(p.umidade_solo != null ? p.umidade_solo : p.umidade), origem: p.origem }))
+    .filter(p => !isNaN(p.v) && p.ts != null)
+    .sort((a, b) => a.ts - b.ts);
+
+  if (ptsTemp.length === 0 && ptsUmidAr.length === 0 && ptsSolo.length === 0) {
+    return `
+      <div style="height: 220px; display: flex; align-items: center; justify-content: center; color: #64748B; font-size: 12px; font-weight: 600;">
+        Sem leituras registradas para este lote no período selecionado.
+      </div>
+    `;
+  }
 
   // Lote e parâmetros ideais
   const lote = lotes.find(l => String(l.id_lote || l.id) === String(loteSelecionadoId));
   const frutaNome = lote?.cultura || lote?.fruta;
   const paramIdeal = configParametros.find(p => p.fruta === frutaNome || p.id_fruta === lote?.id_fruta);
+  const temSimulado = [...ptsTemp, ...ptsUmidAr, ...ptsSolo].some(p => p.origem === 'simulado');
 
-  const temSimulado = leiturasAr.some(p => p.origem === 'simulado') || leiturasSolo.some(p => p.origem === 'simulado');
+  const W = 860, H = 220;
+  const padL = 56, padR = 56, padT = 26, padB = 18;
+  const plotW = W - padL - padR;
+  const plotH = H - padT - padB;
 
-  // Determina pico de temperatura
-  let picoTemp = -999;
-  let picoHora = '13:00';
-  leiturasAr.forEach(p => {
-    if (p.temperatura != null && Number(p.temperatura) > picoTemp) {
-      picoTemp = Number(p.temperatura);
-      picoHora = formatarHoraSimplesRecife(p.instante) || '13:00';
-    }
-  });
+  const allTs = [...ptsTemp, ...ptsUmidAr, ...ptsSolo].map(p => p.ts);
+  const minTs = Math.min(...allTs);
+  const maxTs = Math.max(...allTs);
+  const spanTs = maxTs - minTs;
 
-  if (picoTemp === -999) {
-    picoTemp = 31.2;
-    picoHora = '13:40';
-  }
+  // Escala Y esquerda: umidade (0..100%); direita: temperatura real (incluindo faixa ideal se houver)
+  const tempVals = ptsTemp.map(p => p.v);
+  if (paramIdeal?.temp_min != null) tempVals.push(Number(paramIdeal.temp_min));
+  if (paramIdeal?.temp_max != null) tempVals.push(Number(paramIdeal.temp_max));
+  const tLo = tempVals.length ? Math.min(...tempVals) : 10;
+  const tHi = tempVals.length ? Math.max(...tempVals) : 40;
+  const tPad = Math.max(2, (tHi - tLo) * 0.15);
+  const tMin = tLo - tPad;
+  const tMax = tHi + tPad;
 
-  // Banda de temperatura ideal
+  const xOf = (ts) => spanTs === 0 ? padL + plotW / 2 : padL + ((ts - minTs) / spanTs) * plotW;
+  const yPct = (v) => padT + plotH - (Math.max(0, Math.min(100, v)) / 100) * plotH;
+  const yTemp = (v) => padT + plotH - ((v - tMin) / Math.max(0.001, tMax - tMin)) * plotH;
+
+  // Banda de temperatura ideal na escala real de °C
   let bandaIdealHtml = '';
   if (paramIdeal && paramIdeal.temp_min != null && paramIdeal.temp_max != null) {
-    const yMax = Math.max(30, 200 - (Number(paramIdeal.temp_max) - 10) * (170 / 30));
-    const yMin = Math.min(200, 200 - (Number(paramIdeal.temp_min) - 10) * (170 / 30));
-    const h = Math.max(8, yMin - yMax);
+    const yTop = Math.max(padT, yTemp(Number(paramIdeal.temp_max)));
+    const yBot = Math.min(padT + plotH, yTemp(Number(paramIdeal.temp_min)));
+    const h = Math.max(6, yBot - yTop);
     bandaIdealHtml = `
-      <rect x="90" y="${yMax.toFixed(0)}" width="710" height="${h.toFixed(0)}" fill="#BAE6FD" fill-opacity="0.25" rx="4"/>
-      <text x="700" y="${(yMax - 4).toFixed(0)}" fill="#0284C7" font-size="9" font-weight="700" text-anchor="end">Faixa ideal de temperatura (${paramIdeal.temp_min}°C - ${paramIdeal.temp_max}°C)</text>
+      <rect x="${padL}" y="${yTop.toFixed(1)}" width="${plotW}" height="${h.toFixed(1)}" fill="#BAE6FD" fill-opacity="0.28" rx="4"/>
+      <text x="${(W - padR - 4).toFixed(1)}" y="${Math.max(12, yTop - 4).toFixed(1)}" fill="#0284C7" font-size="9" font-weight="700" text-anchor="end">Faixa ideal (${paramIdeal.temp_min}°C – ${paramIdeal.temp_max}°C)</text>
     `;
   }
 
-  // Estilo tracejado para dados simulados
+  const ticks = [0, 1 / 3, 2 / 3, 1];
+  const gridHtml = ticks.map(f => {
+    const y = padT + plotH * (1 - f);
+    const uVal = Math.round(f * 100);
+    const tVal = tMin + (tMax - tMin) * f;
+    return `
+      <line x1="${padL}" y1="${y.toFixed(1)}" x2="${W - padR}" y2="${y.toFixed(1)}" stroke="#E2E8F0" stroke-width="1" stroke-dasharray="3,3"/>
+      <text x="${padL - 8}" y="${(y + 3).toFixed(1)}" fill="#047857" font-size="10" font-weight="600" text-anchor="end">${uVal}%</text>
+      <text x="${W - padR + 8}" y="${(y + 3).toFixed(1)}" fill="#0284C7" font-size="10" font-weight="600" text-anchor="start">${tVal.toFixed(0)}°C</text>
+    `;
+  }).join('');
+
+  const soloCoords = ptsSolo.map(p => ({ ...p, x: xOf(p.ts), y: yPct(p.v) }));
+  const umidArCoords = ptsUmidAr.map(p => ({ ...p, x: xOf(p.ts), y: yPct(p.v) }));
+  const tempCoords = ptsTemp.map(p => ({ ...p, x: xOf(p.ts), y: yTemp(p.v) }));
+
+  const poly = (coords) => coords.map(c => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(' ');
+  const soloArea = soloCoords.length > 1
+    ? `M ${soloCoords[0].x.toFixed(1)},${(padT + plotH).toFixed(1)} L ${soloCoords.map(c => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(' L ')} L ${soloCoords[soloCoords.length - 1].x.toFixed(1)},${(padT + plotH).toFixed(1)} Z`
+    : '';
+
   const dashStyle = temSimulado ? 'stroke-dasharray="4,4"' : '';
 
+  // Marcador real do pico de temperatura (sem fallback inventado)
+  let picoHtml = '';
+  if (tempCoords.length > 0) {
+    const pico = tempCoords.reduce((best, c) => (c.v > best.v ? c : best), tempCoords[0]);
+    const picoHora = formatarHoraSimplesRecife(pico.t) || '';
+    const boxW = 136;
+    const boxX = Math.min(Math.max(padL, pico.x - boxW / 2), W - padR - boxW);
+    const boxY = Math.max(2, pico.y - 32);
+    picoHtml = `
+      <circle cx="${pico.x.toFixed(1)}" cy="${pico.y.toFixed(1)}" r="4.5" fill="#0284C7" stroke="#FFFFFF" stroke-width="2"/>
+      <g>
+        <rect x="${boxX.toFixed(1)}" y="${boxY.toFixed(1)}" width="${boxW}" height="22" rx="4" fill="#0F172A"/>
+        <text x="${(boxX + boxW / 2).toFixed(1)}" y="${(boxY + 14).toFixed(1)}" fill="#FFFFFF" font-size="10" font-weight="700" text-anchor="middle">Pico ${pico.v.toFixed(1)}°C${picoHora ? ` às ${picoHora}` : ''}</text>
+      </g>
+    `;
+  }
+
+  const fmtX = (ms) => periodoSelecionado === '30d'
+    ? new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Recife' }).format(new Date(ms))
+    : new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'America/Recife' }).format(new Date(ms));
+
   return `
-    <div style="position: relative; width: 100%; height: 260px;">
-      <svg viewBox="0 0 860 220" style="width: 100%; height: 100%; display: block;" preserveAspectRatio="xMidYMid meet">
+    <div style="position: relative; width: 100%; height: 240px;">
+      <svg viewBox="0 0 ${W} ${H}" style="width: 100%; height: 100%; display: block;" preserveAspectRatio="xMidYMid meet">
         <defs>
           <linearGradient id="grad-umidade-solo-svg" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#10B981" stop-opacity="0.25"/>
+            <stop offset="0%" stop-color="#10B981" stop-opacity="0.22"/>
             <stop offset="100%" stop-color="#10B981" stop-opacity="0.02"/>
           </linearGradient>
         </defs>
-
-        <!-- Faixa Ideal de Parâmetros -->
         ${bandaIdealHtml}
-
-        <!-- Linhas de Grade e Eixo Y -->
-        <line x1="90" y1="55" x2="800" y2="55" stroke="#E2E8F0" stroke-width="1" stroke-dasharray="3,3"/>
-        <text x="12" y="58" fill="#64748B" font-size="10" font-weight="500">75% / 35°C</text>
-
-        <line x1="90" y1="110" x2="800" y2="110" stroke="#E2E8F0" stroke-width="1" stroke-dasharray="3,3"/>
-        <text x="12" y="113" fill="#64748B" font-size="10" font-weight="500">50% / 25°C</text>
-
-        <line x1="90" y1="165" x2="800" y2="165" stroke="#E2E8F0" stroke-width="1" stroke-dasharray="3,3"/>
-        <text x="12" y="168" fill="#64748B" font-size="10" font-weight="500">25% / 15°C</text>
-
-        <!-- Curva Umidade do Solo (Verde) com Área Degradê -->
-        <path d="M 90,85 C 190,90 290,135 390,135 C 490,135 590,75 690,75 L 800,75 L 800,210 L 90,210 Z" fill="url(#grad-umidade-solo-svg)"/>
-        <path d="M 90,85 C 190,90 290,135 390,135 C 490,135 590,75 690,75 L 800,75" fill="none" stroke="#047857" stroke-width="2.5" stroke-linecap="round"/>
-
-        <!-- Curva Umidade do Ar (Teal) -->
-        <path d="M 90,120 C 180,110 320,100 440,120 C 560,140 680,105 800,110" fill="none" stroke="#0F766E" stroke-width="2" stroke-linecap="round"/>
-
-        <!-- Curva Temperatura do Ar (Azul) -->
-        <path d="M 90,170 C 200,165 330,140 450,55 C 490,25 540,65 600,130 C 660,160 730,145 800,135" fill="none" stroke="#0284C7" stroke-width="2.5" stroke-linecap="round" ${dashStyle}/>
-
-        <!-- Marcador do Pico Temperatura -->
-        <circle cx="485" cy="46" r="4" fill="#0284C7" stroke="#FFFFFF" stroke-width="2"/>
-
-        <!-- Tooltip Escuro: Pico Rotulado -->
-        <g>
-          <rect x="410" y="12" width="150" height="24" rx="4" fill="#0F172A"/>
-          <polygon points="485,36 480,41 490,41" fill="#0F172A"/>
-          <text x="485" y="27" fill="#FFFFFF" font-size="10" font-weight="700" text-anchor="middle">Pico ${picoTemp.toFixed(1)}°C às ${picoHora}</text>
-        </g>
+        ${gridHtml}
+        ${soloArea ? `<path d="${soloArea}" fill="url(#grad-umidade-solo-svg)"/>` : ''}
+        ${soloCoords.length > 0 ? `<polyline points="${poly(soloCoords)}" fill="none" stroke="#047857" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>` : ''}
+        ${umidArCoords.length > 0 ? `<polyline points="${poly(umidArCoords)}" fill="none" stroke="#0F766E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>` : ''}
+        ${tempCoords.length > 0 ? `<polyline points="${poly(tempCoords)}" fill="none" stroke="#0284C7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" ${dashStyle}/>` : ''}
+        ${soloCoords.map(c => `<circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="3" fill="#047857" stroke="#FFFFFF" stroke-width="1"/>`).join('')}
+        ${umidArCoords.map(c => `<circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="2.5" fill="#0F766E" stroke="#FFFFFF" stroke-width="1"/>`).join('')}
+        ${tempCoords.map(c => `<circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="3" fill="#0284C7" stroke="#FFFFFF" stroke-width="1"/>`).join('')}
+        ${picoHtml}
       </svg>
     </div>
 
-    <!-- Eixo X com Labels de Tempo -->
-    <div style="display: flex; justify-content: space-between; font-size: 10px; color: #94A3B8; margin-top: 6px; padding: 0 40px 0 90px;">
-      <span>00:00</span>
-      <span>04:00</span>
-      <span>08:00</span>
-      <span style="color: #0284C7; font-weight: 600;">12:00</span>
-      <span>16:00</span>
-      <span>20:00</span>
-      <span style="color: #047857; font-weight: 700;">Agora</span>
+    <div style="display: flex; justify-content: space-between; font-size: 10px; color: #94A3B8; margin-top: 6px; padding: 0 48px;">
+      <span>${fmtX(minTs)}</span>
+      <span>${spanTs > 0 ? fmtX(minTs + spanTs / 2) : ''}</span>
+      <span style="color: #047857; font-weight: 700;">${spanTs > 0 ? fmtX(maxTs) : ''}</span>
     </div>
   `;
 }

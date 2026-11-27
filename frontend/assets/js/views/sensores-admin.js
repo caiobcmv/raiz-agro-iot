@@ -11,6 +11,9 @@ import { downloadCSV, downloadPDF, openExportChoiceModal } from '../utils/export
 let _sensoresList = [];
 let _leiturasSolo = [];
 let _leiturasAr = [];
+let _sensorSoloRef = null;
+let _sensorArRef = null;
+let _periodoCorrelacao = '24h';
 let _erroSensores = false;
 let _filtroAmbienteSensor = 'todos';
 let _termoBuscaSensor = '';
@@ -92,12 +95,21 @@ export async function renderSensoresAdmin() {
     _erroSensores = true;
   }
 
-  const sensorSolo = _sensoresList.find(s => String(s?.ambiente || '').toLowerCase() === 'solo');
-  const sensorAr = _sensoresList.find(s => String(s?.ambiente || '').toLowerCase() === 'ar');
+  // Prioriza sensores com telemetria ativa (ultima_leitura preenchida) para não puxar sensor vazio
+  const sensorSolo =
+    _sensoresList.find(s => String(s?.ambiente || '').toLowerCase() === 'solo' && s?.ultima_leitura) ||
+    _sensoresList.find(s => String(s?.ambiente || '').toLowerCase() === 'solo');
+  const sensorAr =
+    _sensoresList.find(s => String(s?.ambiente || '').toLowerCase() === 'ar' && s?.ultima_leitura) ||
+    _sensoresList.find(s => String(s?.ambiente || '').toLowerCase() === 'ar');
+
+  _sensorSoloRef = sensorSolo || null;
+  _sensorArRef = sensorAr || null;
+  _periodoCorrelacao = '24h';
 
   const [resSolo, resAr] = await Promise.allSettled([
-    sensorSolo ? api.getSensorLeituras(sensorSolo.id_sensor, '24h') : Promise.resolve([]),
-    sensorAr ? api.getSensorLeituras(sensorAr.id_sensor, '24h') : Promise.resolve([])
+    sensorSolo ? api.getSensorLeituras(sensorSolo.id_sensor, _periodoCorrelacao) : Promise.resolve([]),
+    sensorAr ? api.getSensorLeituras(sensorAr.id_sensor, _periodoCorrelacao) : Promise.resolve([])
   ]);
 
   if (resSolo.status === 'fulfilled') {
@@ -115,9 +127,9 @@ export async function renderSensoresAdmin() {
   const pctAr = total > 0 ? Math.round((totalAr / total) * 100) : 0;
 
   return `
-    <div class="dashboard-canvas apple-animate-in">
+    <div class="dashboard-canvas apple-animate-in" style="padding-top: 28px;">
       <!-- Sub-barra de Ações -->
-      <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 12px 20px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+      <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 12px 20px; margin-top: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
         <div style="font-size: 13px; font-weight: 700; color: #0F172A;">
           Sensores e Telemetria
         </div>
@@ -189,24 +201,31 @@ export async function renderSensoresAdmin() {
         </div>
       </div>
 
-      <!-- Correlação Térmica e Hídrica (24h) -->
+      <!-- Correlação Térmica e Hídrica -->
       <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); width: 100%;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
           <div>
-            <h4 style="font-size: 14px; font-weight: 800; color: #0F172A; margin: 0;">Correlação Térmica e Hídrica (24h)</h4>
-            <p style="font-size: 11px; color: #64748B; margin: 2px 0 0 0;">Leituras reais registradas nas últimas 24 horas</p>
+            <h4 style="font-size: 14px; font-weight: 800; color: #0F172A; margin: 0;">Correlação Térmica e Hídrica</h4>
+            <p id="correlacao-subtitulo-periodo" style="font-size: 11px; color: #64748B; margin: 2px 0 0 0;">Leituras reais registradas nas últimas 24 horas</p>
           </div>
-          <div style="display: flex; align-items: center; gap: 14px; font-size: 11px; color: #64748B;">
+          <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap; font-size: 11px; color: #64748B;">
             <span style="display: inline-flex; align-items: center; gap: 5px;">
               <span style="width: 10px; height: 10px; border-radius: 50%; background: #10B981;"></span> Umidade Solo (%)
             </span>
             <span style="display: inline-flex; align-items: center; gap: 5px;">
               <span style="width: 10px; height: 10px; border-radius: 50%; background: #0284C7;"></span> Temp. Ar (°C)
             </span>
+            <div style="display: inline-flex; background: #F1F5F9; border-radius: 8px; padding: 2px; gap: 2px;">
+              <button type="button" class="btn-periodo-corr-admin active" data-periodo="24h" style="border:none; background:#FFFFFF; color:#0F172A; font-weight:700; font-size:11px; padding:4px 10px; border-radius:6px; cursor:pointer;">24h</button>
+              <button type="button" class="btn-periodo-corr-admin" data-periodo="7d" style="border:none; background:transparent; color:#64748B; font-weight:600; font-size:11px; padding:4px 10px; border-radius:6px; cursor:pointer;">7d</button>
+              <button type="button" class="btn-periodo-corr-admin" data-periodo="30d" style="border:none; background:transparent; color:#64748B; font-weight:600; font-size:11px; padding:4px 10px; border-radius:6px; cursor:pointer;">30d</button>
+            </div>
           </div>
         </div>
 
-        ${renderGraficoCorrelacaoRealHtml()}
+        <div id="correlacao-chart-body">
+          ${renderGraficoCorrelacaoRealHtml()}
+        </div>
 
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 14px;">
           <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px;">
@@ -230,33 +249,82 @@ export async function renderSensoresAdmin() {
   `;
 }
 
+function calcularCorrelacaoPearson(ptsSolo, ptsAr) {
+  // Pareia apenas pontos com mesmo timestamp real (agregação horária/diária da API)
+  const soloPorTs = new Map();
+  ptsSolo.forEach(p => { if (p.ts) soloPorTs.set(p.ts, p.v); });
+  const pares = [];
+  ptsAr.forEach(p => {
+    if (p.ts && soloPorTs.has(p.ts)) {
+      pares.push({ x: p.v, y: soloPorTs.get(p.ts) });
+    }
+  });
+  if (pares.length < 3) return null;
+  const n = pares.length;
+  const meanX = pares.reduce((s, p) => s + p.x, 0) / n;
+  const meanY = pares.reduce((s, p) => s + p.y, 0) / n;
+  let num = 0, denX = 0, denY = 0;
+  for (const p of pares) {
+    const dx = p.x - meanX;
+    const dy = p.y - meanY;
+    num += dx * dy;
+    denX += dx * dx;
+    denY += dy * dy;
+  }
+  const den = Math.sqrt(denX * denY);
+  if (den <= 1e-9) return null;
+  return { r: num / den, n };
+}
+
 function renderGraficoCorrelacaoRealHtml() {
+  const parseTs = (t) => {
+    if (!t) return null;
+    const d = new Date(t);
+    return isNaN(d.getTime()) ? null : d.getTime();
+  };
+
   const ptsSolo = _leiturasSolo
-    .filter(p => p && p.umidade != null)
-    .map(p => ({ t: p.data_hora || p.instante || p.created_at, v: Number(p.umidade) }))
-    .filter(p => !isNaN(p.v));
+    .filter(p => p && (p.umidade_solo != null || p.umidade != null))
+    .map(p => {
+      const t = p.instante || p.data_hora || p.created_at;
+      const v = Number(p.umidade_solo != null ? p.umidade_solo : p.umidade);
+      return { t, ts: parseTs(t), v };
+    })
+    .filter(p => !isNaN(p.v) && p.ts != null)
+    .sort((a, b) => a.ts - b.ts);
 
   const ptsAr = _leiturasAr
     .filter(p => p && p.temperatura != null)
-    .map(p => ({ t: p.data_hora || p.instante || p.created_at, v: Number(p.temperatura) }))
-    .filter(p => !isNaN(p.v));
+    .map(p => {
+      const t = p.instante || p.data_hora || p.created_at;
+      const v = Number(p.temperatura);
+      return { t, ts: parseTs(t), v };
+    })
+    .filter(p => !isNaN(p.v) && p.ts != null)
+    .sort((a, b) => a.ts - b.ts);
 
   if (ptsSolo.length === 0 && ptsAr.length === 0) {
     return `
       <div style="width: 100%; height: 220px; background: #FAFDFB; border: 1px solid #E2E8F0; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #64748B; font-size: 13px; font-weight: 600;">
-        Sem dados
+        Sem leituras registradas no período selecionado
       </div>
     `;
   }
 
   const W = 800;
   const H = 220;
-  const padLeft = 48;
-  const padRight = 48;
+  const padLeft = 52;
+  const padRight = 52;
   const padTop = 18;
-  const padBottom = 18;
+  const padBottom = 20;
   const plotW = W - padLeft - padRight;
   const plotH = H - padTop - padBottom;
+
+  // Eixo X temporal real compartilhado entre Ar e Solo
+  const allTs = [...ptsSolo.map(p => p.ts), ...ptsAr.map(p => p.ts)];
+  const minTs = Math.min(...allTs);
+  const maxTs = Math.max(...allTs);
+  const spanTs = maxTs - minTs;
 
   const calcRange = (pts, minClamp, maxClamp) => {
     if (pts.length === 0) return { min: 0, max: 1 };
@@ -264,7 +332,7 @@ function renderGraficoCorrelacaoRealHtml() {
     const lo = Math.min(...vals);
     const hi = Math.max(...vals);
     const span = hi - lo;
-    const pad = span === 0 ? 5 : Math.max(1, span * 0.12);
+    const pad = span === 0 ? 5 : Math.max(1, span * 0.15);
     let minV = lo - pad;
     let maxV = hi + pad;
     if (minClamp != null) minV = Math.max(minClamp, minV);
@@ -279,8 +347,8 @@ function renderGraficoCorrelacaoRealHtml() {
   const mapPoints = (pts, range) => {
     if (pts.length === 0) return [];
     const span = Math.max(0.001, range.max - range.min);
-    return pts.map((p, idx) => {
-      const x = pts.length === 1 ? padLeft + plotW / 2 : padLeft + (idx / (pts.length - 1)) * plotW;
+    return pts.map(p => {
+      const x = spanTs === 0 ? padLeft + plotW / 2 : padLeft + ((p.ts - minTs) / spanTs) * plotW;
       const norm = (p.v - range.min) / span;
       const y = padTop + plotH - Math.max(0, Math.min(1, norm)) * plotH;
       return { ...p, x, y };
@@ -314,14 +382,22 @@ function renderGraficoCorrelacaoRealHtml() {
     <circle class="correlacao-ponto" cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="4" fill="#0284C7" stroke="#FFFFFF" stroke-width="1.5" style="cursor: pointer;" data-serie="Temp. Ar" data-valor="${c.v.toFixed(1)}°C" data-hora="${formatarDataHoraBr(c.t)}" />
   `).join('');
 
-  const labelsSource = ptsAr.length >= ptsSolo.length ? ptsAr : ptsSolo;
-  const horaInicio = labelsSource.length > 0 ? formatarHoraBr(labelsSource[0].t) : '';
-  const horaMeio = labelsSource.length > 2 ? formatarHoraBr(labelsSource[Math.floor(labelsSource.length / 2)].t) : '';
-  const horaFim = labelsSource.length > 1 ? formatarHoraBr(labelsSource[labelsSource.length - 1].t) : '';
+  const fmtTickX = (ms) => _periodoCorrelacao === '30d'
+    ? new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Recife' }).format(new Date(ms))
+    : formatarDataHoraBr(new Date(ms).toISOString());
+
+  const horaInicio = fmtTickX(minTs);
+  const horaMeio = spanTs > 0 ? fmtTickX(minTs + spanTs / 2) : '';
+  const horaFim = spanTs > 0 ? fmtTickX(maxTs) : '';
+
+  const pearson = calcularCorrelacaoPearson(ptsSolo, ptsAr);
+  const pearsonTxt = pearson
+    ? `Correlação (Pearson r): ${pearson.r.toFixed(2)} (${pearson.n} pontos sincronizados)`
+    : `${Math.max(ptsSolo.length, ptsAr.length)} ponto(s) real(is) no período`;
 
   return `
-    <div id="correlacao-chart-wrap" style="position: relative; width: 100%; height: 220px; background: #FAFDFB; border: 1px solid #E2E8F0; border-radius: 12px; overflow: hidden; padding: 8px 12px;">
-      <svg viewBox="0 0 ${W} ${H}" style="width: 100%; height: 100%; display: block;" preserveAspectRatio="none">
+    <div id="correlacao-chart-wrap" style="position: relative; width: 100%; height: 230px; background: #FAFDFB; border: 1px solid #E2E8F0; border-radius: 12px; overflow: hidden; padding: 8px 12px;">
+      <svg viewBox="0 0 ${W} ${H}" style="width: 100%; height: 100%; display: block;" preserveAspectRatio="xMidYMid meet">
         ${gridAndAxesHtml}
         ${soloPointsStr ? `<polyline points="${soloPointsStr}" fill="none" stroke="#10B981" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>` : ''}
         ${arPointsStr ? `<polyline points="${arPointsStr}" fill="none" stroke="#0284C7" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>` : ''}
@@ -330,13 +406,12 @@ function renderGraficoCorrelacaoRealHtml() {
       </svg>
       <div id="correlacao-tooltip" style="display: none; position: absolute; pointer-events: none; background: #0F172A; color: #FFFFFF; padding: 6px 10px; border-radius: 6px; font-size: 11px; line-height: 1.4; box-shadow: 0 4px 12px rgba(15,23,42,0.2); z-index: 10; white-space: nowrap;"></div>
     </div>
-    ${(horaInicio || horaFim) ? `
-      <div style="display: flex; justify-content: space-between; font-size: 10px; color: #94A3B8; margin-top: 6px; padding: 0 48px;">
-        <span>${horaInicio}</span>
-        <span>${horaMeio}</span>
-        <span>${horaFim}</span>
-      </div>
-    ` : ''}
+    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: #94A3B8; margin-top: 6px; padding: 0 12px; flex-wrap: wrap; gap: 6px;">
+      <span>${horaInicio}</span>
+      <span>${horaMeio}</span>
+      <span>${horaFim}</span>
+    </div>
+    <div style="font-size: 10px; color: #64748B; margin-top: 4px; text-align: right;">${pearsonTxt}</div>
   `;
 }
 
@@ -664,12 +739,14 @@ export function setupSensoresAdminEvents() {
     });
   }
 
-  const chartWrap = document.getElementById('correlacao-chart-wrap');
-  const tooltipEl = document.getElementById('correlacao-tooltip');
-  if (chartWrap && tooltipEl) {
+  const vincularTooltipCorrelacao = () => {
+    const chartWrap = document.getElementById('correlacao-chart-wrap');
+    const tooltipEl = document.getElementById('correlacao-tooltip');
+    if (!chartWrap || !tooltipEl) return;
+
     const showTooltip = (pt, clientX, clientY) => {
       const rect = chartWrap.getBoundingClientRect();
-      const left = Math.min(Math.max(8, clientX - rect.left + 10), Math.max(8, rect.width - 150));
+      const left = Math.min(Math.max(8, clientX - rect.left + 10), Math.max(8, rect.width - 170));
       const top = Math.max(8, clientY - rect.top - 42);
       tooltipEl.innerHTML = `<strong>${pt.dataset.serie}: ${pt.dataset.valor}</strong><br><span style="color:#CBD5E1;">${pt.dataset.hora}</span>`;
       tooltipEl.style.left = `${left}px`;
@@ -695,7 +772,46 @@ export function setupSensoresAdminEvents() {
         tooltipEl.style.display = 'none';
       }
     }, { passive: true });
-  }
+  };
+
+  vincularTooltipCorrelacao();
+
+  document.querySelectorAll('.btn-periodo-corr-admin').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const periodo = btn.dataset.periodo || '24h';
+      if (periodo === _periodoCorrelacao) return;
+      _periodoCorrelacao = periodo;
+
+      document.querySelectorAll('.btn-periodo-corr-admin').forEach(b => {
+        const ativo = b.dataset.periodo === periodo;
+        b.classList.toggle('active', ativo);
+        b.style.background = ativo ? '#FFFFFF' : 'transparent';
+        b.style.color = ativo ? '#0F172A' : '#64748B';
+        b.style.fontWeight = ativo ? '700' : '600';
+      });
+
+      const sub = document.getElementById('correlacao-subtitulo-periodo');
+      const labels = { '24h': 'últimas 24 horas', '7d': 'últimos 7 dias', '30d': 'últimos 30 dias' };
+      if (sub) sub.textContent = `Leituras reais registradas nos ${labels[periodo] || periodo}`;
+
+      const bodyEl = document.getElementById('correlacao-chart-body');
+      if (bodyEl) {
+        bodyEl.innerHTML = `<div style="height:230px; display:flex; align-items:center; justify-content:center; color:#64748B; font-size:12px;">Carregando leituras (${periodo})...</div>`;
+      }
+
+      const [resSolo, resAr] = await Promise.allSettled([
+        _sensorSoloRef ? api.getSensorLeituras(_sensorSoloRef.id_sensor, periodo) : Promise.resolve([]),
+        _sensorArRef ? api.getSensorLeituras(_sensorArRef.id_sensor, periodo) : Promise.resolve([])
+      ]);
+      _leiturasSolo = resSolo.status === 'fulfilled' ? extrairArray(resSolo.value) : [];
+      _leiturasAr = resAr.status === 'fulfilled' ? extrairArray(resAr.value) : [];
+
+      if (bodyEl) {
+        bodyEl.innerHTML = renderGraficoCorrelacaoRealHtml();
+        vincularTooltipCorrelacao();
+      }
+    });
+  });
 
   atualizarPaginacaoSensores();
   vincularEventosSensores();

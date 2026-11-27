@@ -3273,17 +3273,18 @@ function setupAnalistaDashboardEvents() {
  * 3. DASHBOARD DO ADMINISTRADOR (FIGMA MOCKUP 1: LORENA LIRA)
  * Visão Geral do Sistema com Governança, Lotes, Sensores, Conformidade e Atividade 24h
  */
-let _adminDashState = { leiturasGrafico: null };
+let _adminDashState = { leiturasGrafico: null, pontosAr: [], pontosSolo: [] };
 
 async function renderAdminDashboard() {
-  const [resResumo, resUsuarios, resLotes, resRegras, resLogs, resPortos, resLeituras] = await Promise.allSettled([
+  const [resResumo, resUsuarios, resLotes, resRegras, resLogs, resPortos, resLeituras, resSensores] = await Promise.allSettled([
     api.getDashboardResumo(),
     api.getUsuarios(),
     api.getLotes(),
     api.getConfigParametros(),
     api.getAuditoria({ limit: 4 }),
     api.getPortos(),
-    api.getLeituras(24)
+    api.getLeituras(24),
+    api.getSensores()
   ]);
 
   const resumo = resResumo.status === 'fulfilled' && resResumo.value ? resResumo.value : {};
@@ -3293,8 +3294,33 @@ async function renderAdminDashboard() {
   const logs = resLogs.status === 'fulfilled' && Array.isArray(resLogs.value) ? resLogs.value : [];
   const portos = resPortos.status === 'fulfilled' && Array.isArray(resPortos.value) ? resPortos.value : [];
   const leituras = resLeituras.status === 'fulfilled' && Array.isArray(resLeituras.value) ? resLeituras.value : [];
+  const sensoresLista = resSensores.status === 'fulfilled'
+    ? (Array.isArray(resSensores.value) ? resSensores.value : (resSensores.value?.sensores || []))
+    : [];
+
+  // Mesma fonte agregada de 24h da tela de Sensores (priorizando sensores com telemetria ativa)
+  const sensorAr =
+    sensoresLista.find(s => String(s?.ambiente || '').toLowerCase() === 'ar' && s?.ultima_leitura) ||
+    sensoresLista.find(s => String(s?.ambiente || '').toLowerCase() === 'ar');
+  const sensorSolo =
+    sensoresLista.find(s => String(s?.ambiente || '').toLowerCase() === 'solo' && s?.ultima_leitura) ||
+    sensoresLista.find(s => String(s?.ambiente || '').toLowerCase() === 'solo');
+
+  const [resPtsAr, resPtsSolo] = await Promise.allSettled([
+    sensorAr ? api.getSensorLeituras(sensorAr.id_sensor, '24h') : Promise.resolve({ pontos: [] }),
+    sensorSolo ? api.getSensorLeituras(sensorSolo.id_sensor, '24h') : Promise.resolve({ pontos: [] })
+  ]);
+
+  const extrairPontos = (r) => {
+    if (r.status !== 'fulfilled' || !r.value) return [];
+    return Array.isArray(r.value) ? r.value : (Array.isArray(r.value.pontos) ? r.value.pontos : []);
+  };
+  const pontosAr24h = extrairPontos(resPtsAr);
+  const pontosSolo24h = extrairPontos(resPtsSolo);
 
   _adminDashState.leiturasGrafico = leituras;
+  _adminDashState.pontosAr = pontosAr24h;
+  _adminDashState.pontosSolo = pontosSolo24h;
 
   // 1. Usuários (tabela usuario + perfil)
   const totalUsers = usuarios.length;
@@ -3330,11 +3356,17 @@ async function renderAdminDashboard() {
   const sensReais = resumo?.sensores?.reais ?? 0;
   const sensSimulados = resumo?.sensores?.simulados ?? Math.max(0, sensAtivos - sensReais);
   const pctSensOnline = sensTotal > 0 ? Math.round((sensAtivos / sensTotal) * 100) : 0;
+  const parseUtcMs = (raw) => {
+    if (!raw) return NaN;
+    const s = String(raw).trim();
+    const iso = /[zZ]$|[+-]\d{2}:?\d{2}$/.test(s) ? s : `${s.replace(' ', 'T')}Z`;
+    return new Date(iso).getTime();
+  };
   const maxLeituraAdminTs = leituras.reduce((max, l) => {
-    const t = l?.data_hora ? new Date(l.data_hora).getTime() : NaN;
+    const t = parseUtcMs(l?.data_hora);
     return (!isNaN(t) && t > max) ? t : max;
   }, 0);
-  const temLeituraRecente30m = maxLeituraAdminTs > 0 && (Date.now() - maxLeituraAdminTs) < 30 * 60 * 1000;
+  const temLeituraRecente30m = maxLeituraAdminTs > 0 && Math.abs(Date.now() - maxLeituraAdminTs) < 30 * 60 * 1000;
   const badgeSensoresHtml = temLeituraRecente30m
     ? `<span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 2px 8px; border-radius: 12px;">${pctSensOnline}% ATIVOS</span>`
     : `<span style="font-size: 10px; font-weight: 700; color: #B45309; background: #FEF3C7; padding: 2px 8px; border-radius: 12px;">${sensTotal} cadastrados • sem leitura recente</span>`;
@@ -3356,30 +3388,46 @@ async function renderAdminDashboard() {
   const vpdMedio = rc.vpd_medio_kpa != null ? `${rc.vpd_medio_kpa} kPa` : '—';
   const areaProp = resumo?.propriedade?.area_ha != null ? `${resumo.propriedade.area_ha.toLocaleString('pt-BR')} ha` : 'Polo Petrolina';
 
-  // Média real de umidade_solo das leituras recentes (sem temperatura_solo)
-  const leiturasSolo = leituras.map(l => Number(l.umidade_solo)).filter(v => !isNaN(v) && v > 0);
-  const umidSoloMedia = leiturasSolo.length > 0
-    ? `${(leiturasSolo.reduce((a, b) => a + b, 0) / leiturasSolo.length).toFixed(1)}% VWC`
-    : 'Sem leitura solo 24h';
+  // Média real de umidade_solo das últimas 24h (mesma janela de /dashboard/resumo e Sensores)
+  let umidSoloMedia = 'Sem leitura solo 24h';
+  if (rc.umidade_solo_media != null && !isNaN(Number(rc.umidade_solo_media))) {
+    umidSoloMedia = `${Number(rc.umidade_solo_media).toFixed(1)}% VWC`;
+  } else {
+    const valsSolo24h = pontosSolo24h
+      .map(p => Number(p?.umidade_solo != null ? p.umidade_solo : p?.umidade))
+      .filter(v => !isNaN(v) && v >= 0);
+    if (valsSolo24h.length > 0) {
+      umidSoloMedia = `${(valsSolo24h.reduce((a, b) => a + b, 0) / valsSolo24h.length).toFixed(1)}% VWC`;
+    }
+  }
 
   // 6. Acessos recentes (tabela log_acesso)
   const acessosHtml = logs.length > 0 ? logs.map(log => {
-    const nome = String(log.usuario || `Usuário #${log.id_usuario || 'Sistema'}`);
-    const iniciais = nome.split(/\s+/).filter(Boolean).map(p => p[0]).slice(0, 2).join('').toUpperCase() || 'SY';
-    const hora = log.data_hora ? new Date(log.data_hora).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '--:--';
-    const ok = !String(log.resultado || '').toLowerCase().includes('falha') && !String(log.resultado || '').toLowerCase().includes('negado');
+    const nome = log.usuario ? String(log.usuario) : (log.id_usuario != null ? `Usuário #${log.id_usuario}` : 'Sistema');
+    const iniciais = nome === 'Sistema'
+      ? 'SY'
+      : (nome.split(/\s+/).filter(Boolean).map(p => p[0]).slice(0, 2).join('').toUpperCase() || 'SY');
+    const rawDt = log.data_hora ? String(log.data_hora).trim() : '';
+    const isoUtc = rawDt ? (/[zZ]$|[+-]\d{2}:?\d{2}$/.test(rawDt) ? rawDt : `${rawDt.replace(' ', 'T')}Z`) : '';
+    const hora = isoUtc
+      ? new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Recife', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(isoUtc))
+      : '--:--';
+    const resRaw = String(log.resultado || 'sucesso');
+    const ok = !resRaw.toLowerCase().includes('falha') && !resRaw.toLowerCase().includes('negado') && !resRaw.toLowerCase().includes('erro');
+    const statusCurto = ok ? 'sucesso' : 'falha';
+    const tituloTooltip = resRaw.replace(/"/g, '&quot;');
     return `
-      <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px; display: flex; align-items: center; justify-content: space-between;">
-        <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
+      <div title="${tituloTooltip}" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; overflow: hidden; min-width: 0;">
+        <div style="display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1;">
           <div style="width: 36px; height: 36px; border-radius: 50%; background: ${ok ? '#D1FAE5' : '#FEE2E2'}; border: 1.5px solid ${ok ? '#10B981' : '#EF4444'}; color: ${ok ? '#065F46' : '#991B1B'}; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 12px; flex-shrink: 0;">${iniciais}</div>
-          <div style="min-width: 0;">
+          <div style="min-width: 0; flex: 1;">
             <strong style="font-size: 13px; color: #0F172A; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${nome}</strong>
-            <div style="font-size: 11px; color: #64748B; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${log.acao || 'acesso'} • ${log.ip || 'IP N/D'}</div>
+            <div style="font-size: 11px; color: #64748B; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${log.acao || 'acesso'}${log.ip ? ` • ${log.ip}` : ''}</div>
           </div>
         </div>
-        <div style="text-align: right; flex-shrink: 0; margin-left: 8px;">
-          <span style="font-size: 10px; color: #64748B;">${hora}</span>
-          <div style="font-size: 10px; font-weight: 700; color: ${ok ? '#047857' : '#DC2626'};">${log.resultado || 'sucesso'}</div>
+        <div style="text-align: right; flex-shrink: 0;">
+          <span style="font-size: 10px; color: #64748B; display: block;">${hora}</span>
+          <div style="font-size: 10px; font-weight: 700; color: ${ok ? '#047857' : '#DC2626'}; white-space: nowrap;">${statusCurto}</div>
         </div>
       </div>
     `;
@@ -3687,15 +3735,50 @@ function setupAdminDashboardEvents() {
     window.location.hash = '#/regras-agronomicas';
   });
 
-  // Gráfico com leituras reais do PostgreSQL (leitura_climatica)
+  // Gráfico sincronizado com a série agregada de 24h (mesma fonte da tela de Sensores, fuso America/Recife)
   const ctx = document.getElementById('chart-admin-atividade');
   if (ctx && window.Chart) {
-    const raw = Array.isArray(_adminDashState.leiturasGrafico) ? [..._adminDashState.leiturasGrafico].reverse() : [];
-    const labels = raw.length > 0
-      ? raw.map(l => l.data_hora ? new Date(l.data_hora).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '--:--')
-      : ['Sem dados'];
-    const umidData = raw.length > 0 ? raw.map(l => l.umidade_solo != null ? Number(l.umidade_solo) : (l.umidade != null ? Number(l.umidade) : null)) : [null];
-    const tempData = raw.length > 0 ? raw.map(l => l.temperatura != null ? Number(l.temperatura) : null) : [null];
+    const ptsAr = Array.isArray(_adminDashState.pontosAr) ? _adminDashState.pontosAr : [];
+    const ptsSolo = Array.isArray(_adminDashState.pontosSolo) ? _adminDashState.pontosSolo : [];
+
+    const porInstante = new Map();
+    const parseIso = (raw) => {
+      if (!raw) return null;
+      const s = String(raw).trim();
+      const iso = /[zZ]$|[+-]\d{2}:?\d{2}$/.test(s) ? s : `${s.replace(' ', 'T')}Z`;
+      const d = new Date(iso);
+      return isNaN(d.getTime()) ? null : d;
+    };
+
+    ptsAr.forEach(p => {
+      const d = parseIso(p?.instante || p?.data_hora);
+      if (!d) return;
+      const key = d.getTime();
+      const cur = porInstante.get(key) || { ts: key, temp: null, solo: null };
+      if (p.temperatura != null) cur.temp = Number(p.temperatura);
+      porInstante.set(key, cur);
+    });
+    ptsSolo.forEach(p => {
+      const d = parseIso(p?.instante || p?.data_hora);
+      if (!d) return;
+      const key = d.getTime();
+      const cur = porInstante.get(key) || { ts: key, temp: null, solo: null };
+      const uVal = p.umidade_solo != null ? p.umidade_solo : p.umidade;
+      if (uVal != null) cur.solo = Number(uVal);
+      porInstante.set(key, cur);
+    });
+
+    const serie = Array.from(porInstante.values()).sort((a, b) => a.ts - b.ts);
+    const fmtRecife = (ms) => new Intl.DateTimeFormat('pt-BR', {
+      timeZone: 'America/Recife',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    }).format(new Date(ms));
+
+    const labels = serie.length > 0 ? serie.map(s => fmtRecife(s.ts)) : ['Sem dados'];
+    const umidData = serie.length > 0 ? serie.map(s => s.solo) : [null];
+    const tempData = serie.length > 0 ? serie.map(s => s.temp) : [null];
 
     const chart = new window.Chart(ctx, {
       type: 'line',

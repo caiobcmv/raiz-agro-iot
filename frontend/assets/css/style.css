@@ -533,15 +533,17 @@ html[data-visual-effects="off"] *::after {
 }
 
 .lotes-status-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  grid-auto-rows: 1fr;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: stretch;
   gap: 14px;
   width: 100%;
 }
 
 .lotes-status-grid > div {
-  min-width: 0;
+  flex: 0 1 calc((100% - 42px) / 4);
+  min-width: 155px;
   box-sizing: border-box;
 }
 
@@ -551,9 +553,16 @@ html[data-visual-effects="off"] *::after {
   border-color: #CBD5E1 !important;
 }
 
-@media (max-width: 580px) {
-  .lotes-status-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+@media (max-width: 768px) {
+  .lotes-status-grid > div {
+    flex: 0 1 calc((100% - 14px) / 2);
+    min-width: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .lotes-status-grid > div {
+    flex: 1 1 100%;
   }
 }
 

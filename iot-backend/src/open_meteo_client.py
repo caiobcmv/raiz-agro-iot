@@ -1,7 +1,10 @@
 # Termos: https://open-meteo.com/en/features#terms (citar a Open-Meteo na interface).
+import time
+
 import requests
 
 BASE_URL = "https://api.open-meteo.com/v1/forecast"
+_HEADERS = {"User-Agent": "RaizAgroIoT/1.0"}
 
 HOURLY = [
     "temperature_2m",
@@ -66,9 +69,26 @@ def buscar_previsao(latitude: float, longitude: float, timezone: str, dias: int 
         "timezone": timezone,
         "forecast_days": dias,
     }
-    resp = requests.get(BASE_URL, params=params, timeout=10)
-    resp.raise_for_status()
-    return resp.json()
+    ultimo_erro = None
+    for tentativa in range(2):
+        try:
+            resp = requests.get(BASE_URL, params=params, headers=_HEADERS, timeout=10)
+            if resp.status_code == 429:
+                resp.raise_for_status()
+            if resp.status_code >= 500 and tentativa == 0:
+                time.sleep(1.5)
+                continue
+            resp.raise_for_status()
+            return resp.json()
+        except (requests.Timeout, requests.ConnectionError) as e:
+            ultimo_erro = e
+            if tentativa == 0:
+                time.sleep(1.5)
+                continue
+            raise
+    if ultimo_erro:
+        raise ultimo_erro
+    raise requests.RequestException("Falha ao consultar Open-Meteo")
 
 
 def _colunas_para_linhas(bloco: dict) -> list:

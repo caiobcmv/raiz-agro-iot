@@ -12,7 +12,8 @@ let _lotesReais = [];
 let _safraVigente = null;
 let _filtroAtivoLotes = 'todos';
 let _termoBuscaLotes = '';
-let _limiteExibicaoLotes = 20;
+let _paginaAtualLotes = 1;
+const _ITENS_POR_PAGINA_LOTES = 6;
 
 function formatarDataBr(isoStr) {
   if (!isoStr) return '—';
@@ -109,7 +110,7 @@ export async function renderLotes() {
 
   _filtroAtivoLotes = 'todos';
   _termoBuscaLotes = '';
-  _limiteExibicaoLotes = 20;
+  _paginaAtualLotes = 1;
 
   _safraVigente = safras.find(s => s && s.ativa === true) || null;
 
@@ -223,9 +224,9 @@ export async function renderLotes() {
   const numKpis = 1 + (mostrarKpiMeta ? 1 : 0) + (mostrarKpiDestino ? 1 : 0);
 
   return `
-    <div class="dashboard-canvas apple-animate-in" style="max-width: 1400px; margin: 0 auto;">
+    <div class="dashboard-canvas apple-animate-in" style="max-width: 1400px; margin: 0 auto; padding-top: 28px;">
       <!-- Sub-barra: Ciclo Safra -->
-      <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 14px 20px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+      <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 14px 20px; margin-top: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
         <div>
           <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
             <span style="font-size: 10px; font-weight: 800; color: #047857; background: #D1FAE5; padding: 3px 8px; border-radius: 4px; letter-spacing: 0.5px;">CICLO SAFRA</span>
@@ -344,7 +345,7 @@ export async function renderLotes() {
             ${statusExistentes.map(st => {
               const cor = coresStatus[st.status] || '#64748B';
               return `
-                <div class="card-estagio-esteira" data-estagio="${st.status}" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px; border-top: 3px solid ${cor}; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04); display: flex; flex-direction: column; justify-content: space-between; height: 100%; cursor: pointer; transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;">
+                <div class="card-estagio-esteira" data-estagio="${st.status}" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px; border-top: 3px solid ${cor}; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04); display: flex; flex-direction: column; justify-content: space-between; cursor: pointer; transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;">
                   <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 6px;">
                     <span style="font-size: 11px; font-weight: 700; color: #0F172A; line-height: 1.3;">${st.status}</span>
                     <span style="width: 7px; height: 7px; border-radius: 50%; background: ${cor}; flex-shrink: 0; margin-top: 3px;"></span>
@@ -363,7 +364,7 @@ export async function renderLotes() {
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
           <div>
             <h3 style="font-size: 15px; font-weight: 800; color: #0F172A; margin: 0;">Lotes em Monitoramento</h3>
-            <p style="font-size: 11px; color: #64748B; margin: 2px 0 0 0;" id="subtitulo-contagem-lotes">${Math.min(_limiteExibicaoLotes, _lotesReais.length)} de ${_lotesReais.length} lotes cadastrados</p>
+            <p style="font-size: 11px; color: #64748B; margin: 2px 0 0 0;" id="subtitulo-contagem-lotes">${_lotesReais.length === 0 ? '0 lotes cadastrados' : `Exibindo 1–${Math.min(_ITENS_POR_PAGINA_LOTES, _lotesReais.length)} de ${_lotesReais.length} lotes (Página 1 de ${Math.max(1, Math.ceil(_lotesReais.length / _ITENS_POR_PAGINA_LOTES))})`}</p>
           </div>
 
           <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
@@ -386,13 +387,11 @@ export async function renderLotes() {
             <div style="grid-column: 1 / -1; padding: 30px; text-align: center; color: #64748B; font-size: 13px;">
               Não foi possível carregar os lotes.
             </div>
-          ` : renderCardsLotesHtml(_lotesReais.slice(0, _limiteExibicaoLotes))}
+          ` : renderCardsLotesHtml(_lotesReais.slice(0, _ITENS_POR_PAGINA_LOTES))}
         </div>
 
-        <div id="container-ver-mais-lotes" style="margin-top: 16px; text-align: center; display: ${_lotesReais.length > _limiteExibicaoLotes ? 'block' : 'none'};">
-          <button id="btn-ver-mais-lotes" style="padding: 8px 20px; font-size: 12px; font-weight: 700; background: #F8FAFC; color: #0F172A; border: 1px solid #CBD5E1; border-radius: 8px; cursor: pointer;">
-            Ver mais
-          </button>
+        <div id="container-paginacao-lotes" style="margin-top: 18px; padding-top: 14px; border-top: 1px solid #F1F5F9; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+          ${erroLotes ? '' : renderPaginacaoLotesHtml(_lotesReais.length)}
         </div>
       </div>
 
@@ -508,12 +507,59 @@ function getLotesFiltrados() {
   });
 }
 
+function renderPaginacaoLotesHtml(total) {
+  if (!total || total <= 0) {
+    return `<span style="font-size: 11px; color: #64748B;">Exibindo 0 lotes</span><div></div>`;
+  }
+  const totalPaginas = Math.max(1, Math.ceil(total / _ITENS_POR_PAGINA_LOTES));
+  if (_paginaAtualLotes > totalPaginas) _paginaAtualLotes = totalPaginas;
+  const ini = (_paginaAtualLotes - 1) * _ITENS_POR_PAGINA_LOTES + 1;
+  const fim = Math.min(total, _paginaAtualLotes * _ITENS_POR_PAGINA_LOTES);
+
+  const pagIni = Math.max(1, _paginaAtualLotes - 2);
+  const pagFim = Math.min(totalPaginas, pagIni + 4);
+  const botoesNum = [];
+  for (let p = pagIni; p <= pagFim; p++) {
+    const ativo = p === _paginaAtualLotes;
+    const style = ativo
+      ? 'padding: 5px 11px; font-size: 11px; font-weight: 700; background: #183D2E; color: #FFFFFF; border: 1px solid #183D2E; border-radius: 6px; cursor: pointer;'
+      : 'padding: 5px 11px; font-size: 11px; font-weight: 600; background: #FFFFFF; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;';
+    botoesNum.push(`<button type="button" class="btn-pag-lote ${ativo ? 'active' : ''}" data-pag="${p}" style="${style}">${p}</button>`);
+  }
+
+  return `
+    <span style="font-size: 11px; color: #64748B;">Exibindo ${ini}–${fim} de ${total} lotes (Página ${_paginaAtualLotes} de ${totalPaginas})</span>
+    <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+      <button type="button" class="btn-pag-lote" data-pag="prev" ${_paginaAtualLotes <= 1 ? 'disabled' : ''} style="padding: 5px 12px; font-size: 11px; font-weight: 600; background: #FFFFFF; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: ${_paginaAtualLotes <= 1 ? 'not-allowed' : 'pointer'}; opacity: ${_paginaAtualLotes <= 1 ? '0.5' : '1'};">Anterior</button>
+      ${botoesNum.join('')}
+      <button type="button" class="btn-pag-lote" data-pag="next" ${_paginaAtualLotes >= totalPaginas ? 'disabled' : ''} style="padding: 5px 12px; font-size: 11px; font-weight: 600; background: #FFFFFF; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: ${_paginaAtualLotes >= totalPaginas ? 'not-allowed' : 'pointer'}; opacity: ${_paginaAtualLotes >= totalPaginas ? '0.5' : '1'};">Próxima</button>
+    </div>
+  `;
+}
+
+function vincularEventosPaginacaoLotes() {
+  document.querySelectorAll('.btn-pag-lote').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const filtrados = getLotesFiltrados();
+      const totalPaginas = Math.max(1, Math.ceil(filtrados.length / _ITENS_POR_PAGINA_LOTES));
+      const val = btn.dataset.pag;
+      if (val === 'prev') _paginaAtualLotes = Math.max(1, _paginaAtualLotes - 1);
+      else if (val === 'next') _paginaAtualLotes = Math.min(totalPaginas, _paginaAtualLotes + 1);
+      else _paginaAtualLotes = Math.min(totalPaginas, Math.max(1, Number(val) || 1));
+      atualizarListaLotes();
+    });
+  });
+}
+
 function atualizarListaLotes() {
   const container = document.getElementById('container-cards-lotes');
   if (!container) return;
 
   const filtrados = getLotesFiltrados();
-  const visiveis = filtrados.slice(0, _limiteExibicaoLotes);
+  const totalPaginas = Math.max(1, Math.ceil(filtrados.length / _ITENS_POR_PAGINA_LOTES));
+  if (_paginaAtualLotes > totalPaginas) _paginaAtualLotes = totalPaginas;
+  const inicioIdx = (_paginaAtualLotes - 1) * _ITENS_POR_PAGINA_LOTES;
+  const visiveis = filtrados.slice(inicioIdx, inicioIdx + _ITENS_POR_PAGINA_LOTES);
 
   container.innerHTML = renderCardsLotesHtml(visiveis);
   if (window.lucide) window.lucide.createIcons();
@@ -521,12 +567,19 @@ function atualizarListaLotes() {
 
   const subtitulo = document.getElementById('subtitulo-contagem-lotes');
   if (subtitulo) {
-    subtitulo.textContent = `${visiveis.length} de ${filtrados.length} lotes cadastrados`;
+    if (filtrados.length === 0) {
+      subtitulo.textContent = '0 lotes encontrados';
+    } else {
+      const ini = inicioIdx + 1;
+      const fim = Math.min(filtrados.length, inicioIdx + visiveis.length);
+      subtitulo.textContent = `Exibindo ${ini}–${fim} de ${filtrados.length} lotes (Página ${_paginaAtualLotes} de ${totalPaginas})`;
+    }
   }
 
-  const wrapVerMais = document.getElementById('container-ver-mais-lotes');
-  if (wrapVerMais) {
-    wrapVerMais.style.display = filtrados.length > _limiteExibicaoLotes ? 'block' : 'none';
+  const wrapPag = document.getElementById('container-paginacao-lotes');
+  if (wrapPag) {
+    wrapPag.innerHTML = renderPaginacaoLotesHtml(filtrados.length);
+    vincularEventosPaginacaoLotes();
   }
 }
 
@@ -573,10 +626,7 @@ function abrirModalInspecaoLote(loteId) {
     const novoStatus = document.getElementById('modal-select-status-lote')?.value;
     if (novoStatus && novoStatus !== lote.status) {
       try {
-        await api.request(`/lotes/${encodeURIComponent(lote.id_lote)}`, {
-          method: 'PUT',
-          body: JSON.stringify({ status: novoStatus })
-        });
+        await api.updateLote(lote.id_lote, { status: novoStatus });
         lote.status = novoStatus;
         atualizarListaLotes();
         toast.success('Lote Atualizado', `Status do lote #${lote.id_lote} atualizado para "${novoStatus}".`);
@@ -608,7 +658,7 @@ export function setupLotesEvents() {
   if (inputBusca) {
     inputBusca.addEventListener('input', (e) => {
       _termoBuscaLotes = e.target.value.trim();
-      _limiteExibicaoLotes = 20;
+      _paginaAtualLotes = 1;
       atualizarListaLotes();
     });
   }
@@ -629,7 +679,7 @@ export function setupLotesEvents() {
       tab.style.fontWeight = '700';
 
       _filtroAtivoLotes = tab.dataset.filter || 'todos';
-      _limiteExibicaoLotes = 20;
+      _paginaAtualLotes = 1;
       atualizarListaLotes();
     });
   });
@@ -638,7 +688,7 @@ export function setupLotesEvents() {
     card.addEventListener('click', () => {
       const estagio = card.dataset.estagio;
       _filtroAtivoLotes = estagio;
-      _limiteExibicaoLotes = 20;
+      _paginaAtualLotes = 1;
       document.querySelectorAll('.btn-filter-lote').forEach(t => {
         const isMatch = t.dataset.filter === estagio;
         t.classList.toggle('active', isMatch);
@@ -651,10 +701,7 @@ export function setupLotesEvents() {
     });
   });
 
-  document.getElementById('btn-ver-mais-lotes')?.addEventListener('click', () => {
-    _limiteExibicaoLotes += 20;
-    atualizarListaLotes();
-  });
+  vincularEventosPaginacaoLotes();
 
   document.getElementById('btn-exportar-lotes-pdf-csv')?.addEventListener('click', () => {
     const headers = ['ID Lote', 'Fruta', 'Status', 'Data Colheita', 'Quantidade', 'Unidade', 'Destino'];
