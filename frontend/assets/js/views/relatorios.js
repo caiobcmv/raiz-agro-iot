@@ -1,7 +1,7 @@
 /**
  * VIEW: RELATÓRIOS
  * Integrada às rotas reais do backend:
- * - GET /relatorios?limite=50
+ * - GET /relatorios?limite=500
  * - POST /relatorios
  * - GET /relatorios/{id}/csv
  * - POST /relatorios/{id}/enviar-email
@@ -68,7 +68,7 @@ function dataIsoDiasAtras(dias) {
 async function carregarDadosRelatorios() {
   _erroCarregamento = false;
   const [resRel, resLotes] = await Promise.allSettled([
-    api.request('/relatorios?limite=50'),
+    api.request('/relatorios?limite=500'),
     api.getLotes()
   ]);
 
@@ -105,9 +105,19 @@ function renderTopKpisHtml() {
       <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
         <span style="font-size: 11px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">DISTRIBUIÇÃO POR TIPO</span>
         <div style="display: flex; gap: 16px; flex-wrap: wrap; margin-top: 10px; font-size: 12px; color: #334155;">
-          <span>Saídas de Faixa: <strong>${qtdSaidas}</strong></span>
-          <span>Leituras Diárias: <strong>${qtdLeituras}</strong></span>
-          <span>Alertas: <strong>${qtdAlertas}</strong></span>
+          ${(() => {
+            if (total === 0) {
+              return '<span>Sem relatórios</span>'; }
+            const counts = {};
+            _relatoriosList.forEach(r => {
+              const t = r?.tipo;
+              if (t) { counts[t] = (counts[t] || 0) + 1; }
+            });
+            return Object.entries(counts).map(([type, cnt]) => {
+              const label = LABELS_TIPO[type] || type;
+              return `<span>${label}: <strong>${cnt}</strong></span>`;
+            }).join('');
+          })()}
         </div>
       </div>
     </div>
@@ -280,7 +290,7 @@ function renderLinhasRelatoriosHtml() {
           ${dataGeracaoTxt}
         </td>
         <td style="padding: 12px 14px; text-align: right;">
-          <div style="display: inline-flex; gap: 6px; align-items: center;">
+          ${['saidas_faixa','leituras_diarias','alertas'].includes(r.tipo) ? `<div style="display: inline-flex; gap: 6px; align-items: center;">
             <button class="btn-baixar-csv-rel" data-id="${r.id_relatorio}" style="background: #183D2E; color: #FFFFFF; border: none; padding: 5px 12px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;">
               <i data-lucide="download" style="width: 12px; height: 12px;"></i>
               <span>Baixar CSV</span>
@@ -289,7 +299,7 @@ function renderLinhasRelatoriosHtml() {
               <i data-lucide="mail" style="width: 12px; height: 12px;"></i>
               <span>Enviar por e-mail</span>
             </button>
-          </div>
+          </div>` : '<span>—</span>'}
         </td>
       </tr>
     `;
@@ -419,7 +429,7 @@ export function setupRelatoriosEvents() {
           body: JSON.stringify(payload)
         });
         toast.success('Relatório Gerado', 'Relatório criado e salvo no banco com sucesso.');
-        const res = await api.request('/relatorios?limite=50');
+        const res = await api.request('/relatorios?limite=500');
         _relatoriosList = extrairLista(res, 'relatorios');
         _erroCarregamento = false;
         atualizarTelaRelatorios();

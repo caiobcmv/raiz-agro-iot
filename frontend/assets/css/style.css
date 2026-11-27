@@ -534,8 +534,9 @@ html[data-visual-effects="off"] *::after {
 
 .lotes-status-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-auto-rows: 1fr;
+  gap: 14px;
   width: 100%;
 }
 
@@ -544,10 +545,10 @@ html[data-visual-effects="off"] *::after {
   box-sizing: border-box;
 }
 
-@media (max-width: 992px) {
-  .lotes-status-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
+.lotes-status-grid > .card-estagio-esteira:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08) !important;
+  border-color: #CBD5E1 !important;
 }
 
 @media (max-width: 580px) {
