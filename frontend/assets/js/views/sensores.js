@@ -451,12 +451,6 @@ function renderCorrelacaoBoxHtml() {
           <span style="width: 10px; height: 10px; border-radius: 50%; background: #047857;"></span>
           Umidade do solo [%]
         </span>
-        ${([...(sensoresState.leiturasAr || []), ...(sensoresState.leiturasSolo || [])].some(p => String(p?.origem || '').toLowerCase() === 'simulado')) ? `
-        <span style="display: flex; align-items: center; gap: 6px;" id="legenda-dados-simulados">
-          <span style="width: 16px; border-top: 2px dashed #64748B; display: inline-block;"></span>
-          <span>Linha tracejada: dados simulados</span>
-        </span>
-        ` : ''}
       </div>
     </div>
 
@@ -570,7 +564,7 @@ function renderSvgCorrelacao() {
     ? `M ${soloCoords[0].x.toFixed(1)},${(padT + plotH).toFixed(1)} L ${soloCoords.map(c => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(' L ')} L ${soloCoords[soloCoords.length - 1].x.toFixed(1)},${(padT + plotH).toFixed(1)} Z`
     : '';
 
-  const dashStyle = temSimulado ? 'stroke-dasharray="4,4"' : '';
+  const dashStyle = '';
 
   // Marcador real do pico de temperatura (sem fallback inventado)
   let picoHtml = '';
