@@ -1279,6 +1279,10 @@ export function setupSensoresEvents() {
           `;
 
           Modal.open('Log Completo de Ingestão e Descartes', conteudo, () => {
+            if (!lista || lista.length === 0) {
+              toast.info('Sem dados', 'Nenhuma leitura rejeitada disponível para exportar.');
+              return;
+            }
             const dataTag = new Date().toISOString().slice(0, 10);
             downloadCSV(
               `log_descartes_${dataTag}.csv`,

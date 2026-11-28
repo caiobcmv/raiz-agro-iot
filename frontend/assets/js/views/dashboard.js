@@ -3029,40 +3029,52 @@ function setupAnalistaDashboardEvents() {
     });
   }
 
-  // Exportar Telemetria (CSV & PDF Reais)
+  // Exportar Telemetria (CSV & PDF a partir de GET /leituras?limit=100)
   const btnExport = document.getElementById('btn-export-telemetria');
   if (btnExport) {
-    btnExport.addEventListener('click', () => {
-      const headers = ['Timestamp', 'Sensor', 'Lote / Talhao', 'Temp Ar (C)', 'Umidade Ar (%)', 'Umidade Solo (%)', 'Status'];
-      const g = dadosGraficosCache || DEFAULT_DADOS_GRAFICOS;
-      const horas = ['00:00', '03:00', '06:00', '09:00', '12:00', '15:00', '18:00', '21:00'];
-      const rows = horas.map((h, i) => [
-        `Hoje ${h}`,
-        'DHT11 ESP32-C3 (#3500765)',
-        'Lote #1 / Talhao A1',
-        g.temp_ar_24h?.[i] ?? 27.0,
-        g.umidade_ar_24h?.[i] ?? 60,
-        g.umidade_solo_24h?.[i] ?? 56,
-        'VALIDO'
-      ]);
-      const dataTag = new Date().toISOString().slice(0, 10);
-      openExportChoiceModal(
-        Modal,
-        'Exportar Telemetria IoT — Petrolina US915',
-        () => {
-          downloadCSV(`telemetria_petrolina_us915_${dataTag}.csv`, headers, rows);
-          toast.success('Download CSV Concluído', `telemetria_petrolina_us915_${dataTag}.csv baixado com sucesso.`);
-        },
-        () => {
-          downloadPDF(`telemetria_petrolina_us915_${dataTag}.pdf`, {
-            title: 'Relatório de Telemetria IoT — Petrolina US915',
-            subtitle: 'Série 24h • Sensores de Campo',
-            headers,
-            rows
-          });
-          toast.success('Download PDF Concluído', `telemetria_petrolina_us915_${dataTag}.pdf baixado com sucesso.`);
+    btnExport.addEventListener('click', async () => {
+      const originalHtml = btnExport.innerHTML;
+      btnExport.disabled = true;
+      try {
+        const resLeituras = await api.getLeituras(100);
+        const lista = extrairArraySeguro(resLeituras);
+        if (lista.length === 0) {
+          toast.info('Sem dados', 'Nenhuma leitura real disponível para exportar.');
+          return;
         }
-      );
+        const headers = ['Data/Hora (Recife)', 'ID Sensor', 'Temp Ar (°C)', 'Umidade Ar (%)', 'Umidade Solo (%)', 'Origem'];
+        const rows = lista.map(l => [
+          formatarDataRecife(l.data_hora),
+          l.id_sensor ?? l.fk_sensor_id_sensor ?? '—',
+          l.temperatura != null ? Number(l.temperatura).toFixed(1) : '—',
+          l.umidade != null ? Number(l.umidade).toFixed(1) : '—',
+          l.umidade_solo != null ? Number(l.umidade_solo).toFixed(1) : '—',
+          l.origem || '—'
+        ]);
+        const dataTag = new Date().toISOString().slice(0, 10);
+        openExportChoiceModal(
+          Modal,
+          'Exportar Telemetria IoT (Leituras Reais)',
+          () => {
+            downloadCSV(`telemetria_iot_${dataTag}.csv`, headers, rows);
+            toast.success('Download CSV Concluído', `telemetria_iot_${dataTag}.csv baixado com ${rows.length} leitura(s).`);
+          },
+          () => {
+            downloadPDF(`telemetria_iot_${dataTag}.pdf`, {
+              title: 'Relatório de Telemetria IoT',
+              subtitle: `Últimas ${rows.length} leituras registradas via API (GET /leituras)`,
+              headers,
+              rows
+            });
+            toast.success('Download PDF Concluído', `telemetria_iot_${dataTag}.pdf baixado com ${rows.length} leitura(s).`);
+          }
+        );
+      } catch (err) {
+        toast.error('Erro na Exportação', err?.message || 'Não foi possível carregar as leituras da API.');
+      } finally {
+        btnExport.disabled = false;
+        btnExport.innerHTML = originalHtml;
+      }
     });
   }
 

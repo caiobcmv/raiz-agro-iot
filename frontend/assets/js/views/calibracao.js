@@ -425,6 +425,10 @@ export function setupCalibracaoEvents() {
   // 4. Exportar Parâmetros (CSV UTF-8 e PDF 1.4 Oficial)
   document.getElementById('btn-export-calibracao')?.addEventListener('click', () => {
     const limiares = _calibracaoCache?.limiares || [];
+    if (limiares.length === 0) {
+      toast.info('Sem dados', 'Nenhum parâmetro de calibração disponível para exportar.');
+      return;
+    }
     const headers = ['ID', 'Fruta / Cultura', 'Etapa', 'Temp Mín (°C)', 'Temp Máx (°C)', 'Umidade Mín (%)', 'Umidade Máx (%)'];
     const rows = limiares.map(c => [c.id_config, c.fruta || 'Cultura', c.etapa || 'Armazenamento', c.temp_min, c.temp_max, c.umidade_min, c.umidade_max]);
     const dataTag = new Date().toISOString().slice(0, 10);
@@ -553,6 +557,8 @@ export function setupCalibracaoEvents() {
   document.getElementById('btn-salvar-todos-limiares')?.addEventListener('click', async () => {
     const inputs = document.querySelectorAll('.calib-inline-tmin');
     let salvas = 0;
+    let invalidas = 0;
+    let falhasApi = 0;
     for (const inp of inputs) {
       const id = inp.getAttribute('data-id');
       const tmin = parseFloat(inp.value);
@@ -560,25 +566,31 @@ export function setupCalibracaoEvents() {
       const umin = parseFloat(document.querySelector(`.calib-inline-umin[data-id="${id}"]`)?.value);
       const umax = parseFloat(document.querySelector(`.calib-inline-umax[data-id="${id}"]`)?.value);
 
-      if (!isNaN(tmin) && !isNaN(tmax) && !isNaN(umin) && !isNaN(umax)) {
-        try {
-          await api.salvarLimiarCalibracao(id, {
-            temp_min: tmin,
-            temp_max: tmax,
-            umidade_min: umin,
-            umidade_max: umax
-          });
-          salvas++;
-        } catch (e) {
-          console.warn(`Erro ao salvar cultura #${id}:`, e);
-        }
+      if (isNaN(tmin) || isNaN(tmax) || isNaN(umin) || isNaN(umax) || tmin >= tmax || umin >= umax) {
+        invalidas++;
+        continue;
+      }
+      try {
+        await api.salvarLimiarCalibracao(id, {
+          temp_min: tmin,
+          temp_max: tmax,
+          umidade_min: umin,
+          umidade_max: umax
+        });
+        salvas++;
+      } catch (e) {
+        falhasApi++;
+        console.warn(`Erro ao salvar cultura #${id}:`, e);
       }
     }
-    if (salvas > 0) {
-      toast.success('Calibrações Salvas', `${salvas} culturas tiveram seus limiares atualizados no PostgreSQL!`);
+    if (salvas > 0 && invalidas === 0 && falhasApi === 0) {
+      toast.success('Calibrações Salvas', `${salvas} cultura(s) tiveram seus limiares atualizados no PostgreSQL.`);
+      window.dispatchEvent(new HashChangeEvent('hashchange'));
+    } else if (salvas > 0) {
+      toast.warning('Atualização Parcial', `${salvas} salva(s), ${invalidas} faixa(s) inválida(s), ${falhasApi} erro(s) na API.`);
       window.dispatchEvent(new HashChangeEvent('hashchange'));
     } else {
-      toast.error('Erro', 'Nenhuma calibração pôde ser gravada.');
+      toast.error('Erro ao Salvar', invalidas > 0 ? 'Verifique se os mínimos são menores que os máximos.' : 'Nenhuma calibração pôde ser gravada no servidor.');
     }
   });
 
@@ -590,10 +602,7 @@ export function setupCalibracaoEvents() {
       const statusAtual = btn.getAttribute('data-status') || 'ativo';
       const localAtual = btn.getAttribute('data-local') || '';
       const loteAtual = btn.getAttribute('data-lote') || '';
-      const lotesDisponiveis = _calibracaoCache?.lotes_disponiveis || [
-        { id_lote: 1, codigo: 'Lote #1' },
-        { id_lote: 2, codigo: 'Lote #2' }
-      ];
+      const lotesDisponiveis = Array.isArray(_calibracaoCache?.lotes_disponiveis) ? _calibracaoCache.lotes_disponiveis : [];
 
       const lotesOptions = lotesDisponiveis.map(l => `
         <option value="${l.id_lote}" ${String(l.id_lote) === String(loteAtual) ? 'selected' : ''}>${l.codigo || `Lote #${l.id_lote}`}</option>

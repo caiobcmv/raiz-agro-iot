@@ -1074,13 +1074,7 @@ function setupAnalistaAlertasEvents() {
             const res = await api.reconhecerTodosCentralAlertas();
             const qtdReconhecidos = res?.reconhecidos ?? analistaAlertasState.resumo.total;
             toast.success('Incidentes Reconhecidos', `${qtdReconhecidos} alertas reconhecidos com sucesso.`);
-            // Recarrega a tela dinamicamente
-            const novoHtml = await renderAnalistaAlertas();
-            const appEl = document.getElementById('app');
-            if (appEl) {
-              appEl.innerHTML = novoHtml;
-              setupAnalistaAlertasEvents();
-            }
+            window.dispatchEvent(new HashChangeEvent('hashchange'));
           } catch (err) {
             toast.error('Erro ao Reconhecer', err.message || 'Falha na comunicação com o backend.');
           } finally {
@@ -1146,12 +1140,7 @@ function setupAnalistaAlertasEvents() {
       try {
         await api.reconhecerAlertaCentral(origem, id);
         toast.success('Incidente Reconhecido', 'Alerta marcado como atendido pelo Analista.');
-        const novoHtml = await renderAnalistaAlertas();
-        const appEl = document.getElementById('app');
-        if (appEl) {
-          appEl.innerHTML = novoHtml;
-          setupAnalistaAlertasEvents();
-        }
+        window.dispatchEvent(new HashChangeEvent('hashchange'));
       } catch (err) {
         toast.error('Erro ao Reconhecer', err.message || 'Falha ao atualizar status do alerta.');
         btn.disabled = false;
@@ -1168,7 +1157,12 @@ function setupAnalistaAlertasEvents() {
       const loteId = btn.dataset.lote;
 
       if (id) {
-        api.reconhecerAlertaCentral(origem, id).catch(() => {});
+        try {
+          await api.reconhecerAlertaCentral(origem, id);
+        } catch (err) {
+          toast.error('Erro ao Reconhecer', err?.message || 'Não foi possível reconhecer o alerta no servidor.');
+          return;
+        }
       }
 
       toast.info('Intervenção Iniciada', 'Direcionando para a rota portuária de escoamento prioritário.');
@@ -1198,7 +1192,7 @@ function setupAnalistaAlertasEvents() {
         </div>
       `).join('') : `
         <div style="font-size: 12px; color: #64748B;">
-          Parâmetros vigentes de ${frutaAlvo}: Tmax 13.0°C | UR 90% a 95%
+          Nenhum parâmetro cadastrado em <code>config_parametro</code> para ${frutaAlvo}.
         </div>
       `;
 
