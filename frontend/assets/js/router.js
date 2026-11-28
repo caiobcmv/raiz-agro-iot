@@ -5,7 +5,7 @@
 import { api } from './api.js';
 import { auth } from './auth.js';
 import { renderSidebar } from './components/sidebar.js?v=20261120-live45';
-import { renderHeader } from './components/header.js?v=20261123-live36';
+import { renderHeader } from './components/header.js?v=20261128-live2';
 import { Modal } from './components/modal.js?v=20261120-live33';
 import { toast } from './components/toast.js?v=20261120-live33';
 import { showAccessDeniedModal } from './components/access-denied-modal.js?v=20261120-live33';
@@ -20,18 +20,18 @@ import {
   renderSenhaAlterada, setupSenhaAlteradaEvents,
   renderContaBloqueada, setupContaBloqueadaEvents
 } from './views/auth-flow.js?v=20261122-totp1';
-import { renderDashboard, setupDashboardEvents } from './views/dashboard.js?v=20261127-real6';
-import { renderSensores, setupSensoresEvents } from './views/sensores.js?v=20261122-real2';
-import { renderRedeEsp32, setupRedeEsp32Events } from './views/rede-esp32.js?v=20261122-real2';
+import { renderDashboard, setupDashboardEvents } from './views/dashboard.js?v=20261128-live2';
+import { renderSensores, setupSensoresEvents } from './views/sensores.js?v=20261128-live2';
+import { renderRedeEsp32, setupRedeEsp32Events } from './views/rede-esp32.js?v=20261128-live2';
 import { renderLeituras, setupLeiturasEvents } from './views/leituras.js?v=20261127-real6';
 import { renderLotes, setupLotesEvents } from './views/lotes.js?v=20261128-c';
-import { renderAlertas, setupAlertasEvents } from './views/alertas.js?v=20261122-real2';
+import { renderAlertas, setupAlertasEvents } from './views/alertas.js?v=20261128-live2';
 import { renderPrevisoes } from './views/previsoes.js?v=20261122-real2';
-import { renderRelatorios, setupRelatoriosEvents } from './views/relatorios.js?v=20261122-real2';
-import { renderConfiguracoes, setupConfiguracoesEvents } from './views/configuracoes.js?v=20261127-real6';
-import { renderCalibracao, setupCalibracaoEvents } from './views/calibracao.js?v=20261122-real5';
+import { renderRelatorios, setupRelatoriosEvents } from './views/relatorios.js?v=20261128-live2';
+import { renderConfiguracoes, setupConfiguracoesEvents } from './views/configuracoes.js?v=20261128-live2';
+import { renderCalibracao, setupCalibracaoEvents } from './views/calibracao.js?v=20261128-live2';
 import { renderUsuarios, setupUsuariosEvents } from './views/usuarios.js?v=20261128-b';
-import { renderRegrasAgronomicas, setupRegrasAgronomicasEvents } from './views/regras-agronomicas.js?v=20261120-live33';
+import { renderRegrasAgronomicas, setupRegrasAgronomicasEvents } from './views/regras-agronomicas.js?v=20261128-live2';
 import { renderAuditoria, setupAuditoriaEvents } from './views/auditoria.js?v=20261120-live33';
 import { renderSensoresAdmin, setupSensoresAdminEvents } from './views/sensores-admin.js?v=20261128-c';
 

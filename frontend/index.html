@@ -63,10 +63,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 
   <!-- CSS do Sistema (Caminhos Absolutos a partir da raiz do servidor) -->
-  <link rel="stylesheet" href="/assets/css/style.css?v=20261128-c">
+  <link rel="stylesheet" href="/assets/css/style.css?v=20261128-live2">
   <link rel="stylesheet" href="/assets/css/login.css?v=20261120-live33">
-  <link rel="stylesheet" href="/assets/css/dashboard.css?v=20261128-header">
-  <link rel="stylesheet" href="/assets/css/analista.css?v=20261120-live43">
+  <link rel="stylesheet" href="/assets/css/dashboard.css?v=20261128-live2">
+  <link rel="stylesheet" href="/assets/css/analista.css?v=20261128-live2">
   <link rel="stylesheet" href="/assets/css/components.css?v=20261120-live36">
   <link rel="stylesheet" href="/assets/css/theme.css?v=20261127-real6">
 
@@ -123,7 +123,7 @@
       var app = document.getElementById('app');
       if (app && app.innerHTML.includes('Carregando módulos')) {
         console.warn('Failsafe ativado: forçando montagem dos módulos...');
-        import('/assets/js/app.js?v=20261128-authfix').catch(function(e) {
+        import('/assets/js/app.js?v=20261128-live2').catch(function(e) {
           console.error('Erro no failsafe:', e);
         });
       }
@@ -131,6 +131,6 @@
   </script>
 
   <!-- Ponto de Entrada da Aplicação com Cache-Busting -->
-  <script type="module" src="/assets/js/app.js?v=20261128-authfix"></script>
+  <script type="module" src="/assets/js/app.js?v=20261128-live2"></script>
 </body>
 </html>
