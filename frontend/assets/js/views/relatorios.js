@@ -295,10 +295,6 @@ function renderLinhasRelatoriosHtml() {
               <i data-lucide="download" style="width: 12px; height: 12px;"></i>
               <span>Baixar CSV</span>
             </button>
-            <button class="btn-enviar-email-rel" data-id="${r.id_relatorio}" style="background: #FFFFFF; border: 1px solid #CBD5E1; color: #334155; padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;">
-              <i data-lucide="mail" style="width: 12px; height: 12px;"></i>
-              <span>Enviar por e-mail</span>
-            </button>
           </div>` : '<span>—</span>'}
         </td>
       </tr>
@@ -361,37 +357,7 @@ function vincularEventosTabelaRel() {
     });
   });
 
-  document.querySelectorAll('.btn-enviar-email-rel').forEach(btn => {
-    btn.addEventListener('click', async (e) => {
-      const button = e.currentTarget;
-      const id = button.dataset.id;
-      const originalHtml = button.innerHTML;
-      button.disabled = true;
-      button.innerHTML = '<span>Enviando...</span>';
-      try {
-        await api.request(`/relatorios/${encodeURIComponent(id)}/enviar-email`, {
-          method: 'POST'
-        });
-        toast.success('E-mail Enviado', 'Relatório enviado para o seu e-mail cadastrado.');
-      } catch (err) {
-        let msg = err.message || 'Falha ao enviar o relatório por e-mail.';
-        if (err.status === 400) {
-          msg = err.message || 'Sua conta não possui e-mail cadastrado para envio.';
-        } else if (err.status === 404) {
-          msg = err.message || 'Relatório não encontrado.';
-        } else if (err.status === 429) {
-          msg = err.message || 'Aguarde 1 minuto antes de enviar novamente.';
-        } else if (err.status === 502) {
-          msg = err.message || 'Falha no servidor de e-mail ao enviar o relatório.';
-        }
-        toast.error('Erro ao Enviar E-mail', msg);
-      } finally {
-        button.disabled = false;
-        button.innerHTML = originalHtml;
-        if (window.lucide) window.lucide.createIcons();
-      }
-    });
-  });
+  // Envio por e-mail desabilitado enquanto não há endpoint correspondente no back-end
 }
 
 export function setupRelatoriosEvents() {

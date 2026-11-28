@@ -24,13 +24,15 @@ export async function renderCalibracao() {
   let ultimaLeituraApi = null;
   let cortesFallback = [];
   let resumoAnalista = null;
-  const [resCalib, resSafras, resProps, resUltima, resCortes, resResumoAnalista] = await Promise.allSettled([
+  let saidasFaixa = [];
+  const [resCalib, resSafras, resProps, resUltima, resCortes, resResumoAnalista, resSaidasFaixa] = await Promise.allSettled([
     api.getCalibracaoResumo(),
     api.getCatalogoSafras(),
     api.getCatalogoPropriedades(),
     api.getUltimaLeitura(),
     api.getCortesPreditivos(),
-    api.getAnalistaSensoresResumo()
+    api.getAnalistaSensoresResumo(),
+    api.getSaidasFaixa({ agrupamento: 'semana' })
   ]);
 
   if (resCalib.status === 'fulfilled' && resCalib.value) {
@@ -56,6 +58,13 @@ export async function renderCalibracao() {
   if (resResumoAnalista.status === 'fulfilled' && resResumoAnalista.value) {
     resumoAnalista = resResumoAnalista.value;
   }
+  if (resSaidasFaixa.status === 'fulfilled' && Array.isArray(resSaidasFaixa.value)) {
+    saidasFaixa = resSaidasFaixa.value;
+  }
+  const ultimaSaida = saidasFaixa.length > 0 ? saidasFaixa[saidasFaixa.length - 1] : null;
+  const resumoSaidasTexto = ultimaSaida && ultimaSaida.total_leituras > 0
+    ? `${ultimaSaida.saidas_faixa} de ${ultimaSaida.total_leituras} leituras fora da faixa (${ultimaSaida.pct_fora != null ? `${ultimaSaida.pct_fora}%` : '—'}) na última semana`
+    : 'Sem dados de desvios de faixa registrados no período.';
 
   const safraVigente = safras.find(s => s && s.ativa === true) || safras[0] || null;
   const areaTotalHa = propriedades
@@ -106,10 +115,6 @@ export async function renderCalibracao() {
       </div>
 
       <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-        <button id="btn-sync-thingspeak-calib" style="padding: 8px 16px; background: #FFFFFF; border: 1px solid #CBD5E1; border-radius: 8px; font-size: 12px; font-weight: 600; color: #334155; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; transition: background 0.15s;">
-          <i data-lucide="refresh-cw" style="width: 13px; height: 13px; color: #059669;"></i>
-          <span>Sincronizar ThingSpeak</span>
-        </button>
         <button id="btn-recalcular-modelos" style="padding: 8px 16px; background: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 8px; font-size: 12px; font-weight: 600; color: #065F46; cursor: pointer; display: inline-flex; align-items: center; gap: 7px;">
           <i data-lucide="sparkles" style="width: 13px; height: 13px; color: #10B981;"></i>
           <span>Re-executar Modelos IA</span>
@@ -285,7 +290,7 @@ export async function renderCalibracao() {
             <span style="font-size: 10px; color: #047857; font-weight: 700;">DHT11 + Umidade de Solo</span>
           </div>
           <p style="margin: 0; font-size: 11px; color: #64748B; line-height: 1.4;">
-            As leituras climáticas de temperatura, umidade do ar e umidade do solo são validadas na ingestão contra a tabela <code>config_parametro</code>. Inconsistências físicas são gravadas em <code>leitura_rejeitada</code>.
+            ${resumoSaidasTexto}
           </p>
         </div>
       </div>
@@ -387,17 +392,7 @@ export function setupCalibracaoEvents() {
     window.lucide.createIcons();
   }
 
-  // 1. Sincronizar ThingSpeak
-  document.getElementById('btn-sync-thingspeak-calib')?.addEventListener('click', async () => {
-    try {
-      toast.info('Sincronizando', 'Consultando novos feeds do canal ThingSpeak...');
-      await api.sincronizarIngestao();
-      toast.success('Sincronizado', 'Dados do ThingSpeak ingeridos e validados.');
-      window.dispatchEvent(new HashChangeEvent('hashchange'));
-    } catch (e) {
-      toast.error('Erro na Ingestão', e.message || 'Falha ao sincronizar feeds.');
-    }
-  });
+  // 1. Sincronização manual indisponível no servidor (endpoint /ingestao/sincronizar não existe)
 
   // 2. Re-executar modelos de IA (Gera inferências reais contra a tabela cortes_alerta_preditivo)
   document.getElementById('btn-recalcular-modelos')?.addEventListener('click', async () => {

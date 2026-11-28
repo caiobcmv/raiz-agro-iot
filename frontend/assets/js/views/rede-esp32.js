@@ -101,21 +101,19 @@ export async function renderRedeEsp32() {
       resumoRes,
       topologiaRes,
       sensoresRes,
-      rejeitadasRes,
-      historicoRes
+      rejeitadasRes
     ] = await Promise.allSettled([
       api.getAnalistaSensoresResumo(),
       api.getSensoresTopologia(),
       api.getSensores(),
-      api.getLeiturasRejeitadas({ limit: 10 }),
-      api.getRedeHistorico('24h')
+      api.getLeiturasRejeitadas({ limit: 10 })
     ]);
 
     redeState.resumo = (resumoRes.status === 'fulfilled' && resumoRes.value && typeof resumoRes.value === 'object') ? resumoRes.value : null;
     redeState.topologia = (topologiaRes.status === 'fulfilled' && topologiaRes.value && typeof topologiaRes.value === 'object') ? topologiaRes.value : null;
     redeState.sensores = extrairArraySeguro(sensoresRes.status === 'fulfilled' ? sensoresRes.value : null);
     redeState.rejeitadas = extrairArraySeguro(rejeitadasRes.status === 'fulfilled' ? rejeitadasRes.value : null);
-    redeState.historico = (historicoRes.status === 'fulfilled' && historicoRes.value && typeof historicoRes.value === 'object') ? historicoRes.value : null;
+    redeState.historico = null;
   } catch (err) {
     console.warn('[RedeESP32] Erro ao carregar dados:', err);
   }
@@ -177,12 +175,7 @@ function renderSubBarHtml(podeSincronizar) {
   const estiloSinc = statusColeta.atrasado ? `font-weight: 700; color: ${statusColeta.cor};` : 'color: #64748B;';
   const dataHoraTexto = formatarDataHoraRecife(ultimaLeituraIso);
 
-  const btnSyncHtml = podeSincronizar ? `
-    <button class="btn-analista-sync" id="btn-sync-rede">
-      <i data-lucide="refresh-cw" style="width: 14px; height: 14px;"></i>
-      <span>Sincronizar ThingSpeak</span>
-    </button>
-  ` : '';
+  const btnSyncHtml = '';
 
   return `
     <div class="analista-subbar-info">
@@ -698,80 +691,28 @@ export function setupRedeEsp32Events() {
     window.lucide.createIcons();
   }
 
-  // 1. Botão Sincronizar ThingSpeak
-  const btnSync = document.getElementById('btn-sync-rede');
-  if (btnSync) {
-    btnSync.addEventListener('click', async () => {
-      const icon = btnSync.querySelector('i');
-      if (icon) icon.classList.add('animate-spin');
-      btnSync.disabled = true;
-      btnSync.style.opacity = '0.7';
+  // 1. Sincronização manual indisponível no servidor (endpoint /ingestao/sincronizar não existe)
 
-      try {
-        const res = await api.sincronizarIngestao();
-        const resultado = res?.resultado || res?.status || 'concluido';
-
-        if (resultado === 'gravada') {
-          toast.success('Sincronização Concluída', 'Novas leituras gravadas com sucesso.');
-        } else if (resultado === 'duplicada') {
-          toast.info('Sincronização', 'As leituras do canal já estavam sincronizadas.');
-        } else if (resultado === 'rejeitada') {
-          toast.warning('Atenção', 'Leituras recebidas foram rejeitadas pelo pipeline de validação.');
-        } else if (resultado === 'sem_leitura_nova') {
-          toast.info('Sincronização', 'Nenhuma nova leitura encontrada no canal ThingSpeak.');
-        } else {
-          toast.success('Sincronização Concluída', 'Canal ThingSpeak sincronizado com sucesso.');
-        }
-
-        // Recarrega dados e atualiza a view
-        await recarregarDadosRede();
-      } catch (err) {
-        console.warn('[Sync ThingSpeak] Tentativa concluída:', err);
-        toast.success('Sincronização Executada', 'Ciclo de leitura disparado no backend.');
-        await recarregarDadosRede();
-      } finally {
-        if (icon) icon.classList.remove('animate-spin');
-        btnSync.disabled = false;
-        btnSync.style.opacity = '1';
-      }
-    });
-  }
-
-  // 2. Botão Exportar CSV
+  // 2. Botão Exportar CSV (usa dados reais de sensores já carregados sem chamar /leituras/exportar.csv 404)
   const btnExport = document.getElementById('btn-export-csv');
   if (btnExport) {
-    btnExport.addEventListener('click', async () => {
-      btnExport.style.opacity = '0.7';
-      try {
-        const blob = await api.exportarLeiturasCsv();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        const dataTag = new Date().toISOString().slice(0, 10);
-        a.download = `leituras_telemetria_${dataTag}.csv`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        a.remove();
-        toast.success('Exportação Concluída', 'Arquivo CSV baixado com sucesso.');
-      } catch (err) {
-        console.warn('[Exportar CSV] Fallback local ativado:', err);
-        // Fallback local caso o endpoint novo do backend ainda retorne erro
-        const headers = ['ID Sensor', 'Código', 'Nome', 'Ambiente', 'Canal', 'Status'];
-        const rows = redeState.sensores.map(s => [
-          s.id_sensor,
-          s.codigo || `SNS-${s.id_sensor}`,
-          s.nome,
-          s.ambiente,
-          s.channel_id || '—',
-          s.status
-        ]);
-        const dataTag = new Date().toISOString().slice(0, 10);
-        downloadCSV(`leituras_telemetria_${dataTag}.csv`, headers, rows);
-        toast.success('Download Concluído', 'CSV exportado com sucesso.');
-      } finally {
-        btnExport.style.opacity = '1';
+    btnExport.addEventListener('click', () => {
+      if (!Array.isArray(redeState.sensores) || redeState.sensores.length === 0) {
+        toast.info('Sem dados', 'Nenhum sensor disponível para exportar.');
+        return;
       }
+      const headers = ['ID Sensor', 'Código', 'Nome', 'Ambiente', 'Canal', 'Status'];
+      const rows = redeState.sensores.map(s => [
+        s.id_sensor,
+        s.codigo || `SNS-${s.id_sensor}`,
+        s.nome,
+        s.ambiente,
+        s.channel_id || '—',
+        s.status
+      ]);
+      const dataTag = new Date().toISOString().slice(0, 10);
+      downloadCSV(`rede_sensores_${dataTag}.csv`, headers, rows);
+      toast.success('Download Concluído', 'CSV exportado com sucesso.');
     });
   }
 

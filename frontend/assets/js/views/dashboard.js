@@ -524,10 +524,15 @@ async function renderAnalistaDashboard() {
   const tempArMedia = condicoes.temperatura_ar_media != null ? Number(condicoes.temperatura_ar_media) : null;
   const umidArMedia = condicoes.umidade_ar_media != null ? Number(condicoes.umidade_ar_media) : null;
 
-  const sensoresSolo = sensoresTopoList.filter(s => s.ambiente === 'solo' && s.umidade != null && !isNaN(Number(s.umidade)));
+  const sensoresSolo = sensoresTopoList
+    .map(s => (s.ambiente === 'solo' ? (s.umidade_solo ?? s.umidade) : null))
+    .filter(v => v != null && !isNaN(Number(v)))
+    .map(Number);
   let mediaSoloStr = '—';
-  if (sensoresSolo.length > 0) {
-    const sumUmidSolo = sensoresSolo.reduce((acc, s) => acc + Number(s.umidade), 0);
+  if (condicoes.umidade_solo_media != null && !isNaN(Number(condicoes.umidade_solo_media))) {
+    mediaSoloStr = `${Number(condicoes.umidade_solo_media).toFixed(1)}%`;
+  } else if (sensoresSolo.length > 0) {
+    const sumUmidSolo = sensoresSolo.reduce((acc, v) => acc + v, 0);
     mediaSoloStr = `${(sumUmidSolo / sensoresSolo.length).toFixed(1)}%`;
   }
 

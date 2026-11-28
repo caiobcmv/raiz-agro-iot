@@ -155,7 +155,8 @@ export async function renderSensores() {
       centralAlertasRes,
       cortesRes,
       rejeitadasRes,
-      ultimaLeituraRes
+      ultimaLeituraRes,
+      estatisticasRes
     ] = await Promise.allSettled([
       api.getAnalistaSensoresResumo(),
       api.getSensores(),
@@ -165,7 +166,8 @@ export async function renderSensores() {
       api.getCentralAlertas({ status: 'aberto' }),
       api.getCortesPreditivos(),
       api.getLeiturasRejeitadas({ limit: 5 }),
-      api.getUltimaLeitura()
+      api.getUltimaLeitura(),
+      api.getEstatisticasLeituras()
     ]);
 
     sensoresState.resumo = (resumoRes.status === 'fulfilled' && resumoRes.value && typeof resumoRes.value === 'object') ? resumoRes.value : null;
@@ -178,6 +180,7 @@ export async function renderSensores() {
     sensoresState.cortes = extrairArraySeguro(cortesRes.status === 'fulfilled' ? cortesRes.value : null);
     sensoresState.rejeitadas = extrairArraySeguro(rejeitadasRes.status === 'fulfilled' ? rejeitadasRes.value : null);
     sensoresState.ultimaLeitura = (ultimaLeituraRes.status === 'fulfilled' && ultimaLeituraRes.value && typeof ultimaLeituraRes.value === 'object') ? ultimaLeituraRes.value : null;
+    sensoresState.estatisticas = (estatisticasRes.status === 'fulfilled' && estatisticasRes.value && typeof estatisticasRes.value === 'object') ? estatisticasRes.value : null;
   } catch (err) {
     console.warn('[Sensores] Erro ao carregar dados:', err);
   }
@@ -241,20 +244,31 @@ function renderTopKpisHtml() {
   const ativosAr = sensores.filter(s => s.ambiente === 'ar' && sensorEstaAtivoRecente(s, statusColeta, intervaloSeg)).length;
   const ativosSolo = sensores.filter(s => s.ambiente === 'solo' && sensorEstaAtivoRecente(s, statusColeta, intervaloSeg)).length;
 
-  // Card 2: Umidade (média de umidade solo e ar de GET /sensores)
-  const sensoresSoloComUmid = sensores.filter(s => s.ambiente === 'solo' && s.umidade != null);
+  // Card 2: Umidade (prioriza umidade_solo real do sensor de solo e média 24h de /dashboard/resumo)
+  const soloVals = sensores
+    .filter(s => s.ambiente === 'solo')
+    .map(s => (s.umidade_solo != null ? s.umidade_solo : s.umidade))
+    .filter(v => v != null && !isNaN(Number(v)))
+    .map(Number);
   const sensoresArComUmid = sensores.filter(s => s.ambiente === 'ar' && s.umidade != null);
 
-  const mediaSolo = sensoresSoloComUmid.length > 0
-    ? (sensoresSoloComUmid.reduce((acc, s) => acc + Number(s.umidade), 0) / sensoresSoloComUmid.length).toFixed(1)
-    : '—';
+  const soloMediaResumo = dashResumo?.resumo_condicoes?.umidade_solo_media;
+  const mediaSolo = (soloMediaResumo != null && !isNaN(Number(soloMediaResumo)))
+    ? Number(soloMediaResumo).toFixed(1)
+    : (soloVals.length > 0
+      ? (soloVals.reduce((acc, v) => acc + v, 0) / soloVals.length).toFixed(1)
+      : '—');
   const mediaAr = sensoresArComUmid.length > 0
     ? (sensoresArComUmid.reduce((acc, s) => acc + Number(s.umidade), 0) / sensoresArComUmid.length).toFixed(1)
     : '—';
 
-  // Card 3: Temperatura (ar)
-  const tempArMedia = dashResumo?.resumo_condicoes?.temperatura_ar_media;
+  // Card 3: Temperatura (ar) + mín/máx reais de GET /leituras/estatisticas
+  const tempArMedia = dashResumo?.resumo_condicoes?.temperatura_ar_media ?? sensoresState.estatisticas?.temperatura_media;
   const tempArMediaStr = tempArMedia != null ? `${Number(tempArMedia).toFixed(1)}°C` : '—';
+  const est = sensoresState.estatisticas || null;
+  const faixaTempTexto = (est && est.temperatura_min != null && est.temperatura_max != null)
+    ? `Mín ${Number(est.temperatura_min).toFixed(1)}°C • Máx ${Number(est.temperatura_max).toFixed(1)}°C`
+    : 'Microclima de campo';
 
   // Card 4: Ingestão e rejeição (alertas pela mesma função unificada)
   const taxaPct = ingestao_24h.taxa_sucesso_pct != null ? Number(ingestao_24h.taxa_sucesso_pct) : null;
@@ -338,7 +352,7 @@ function renderTopKpisHtml() {
         <div style="width: 30%; height: 100%; background: #93C5FD;"></div>
       </div>
       <div class="kpi-bottom-row">
-        <span style="color: #475569;">Microclima de campo</span>
+        <span style="color: #475569;">${faixaTempTexto}</span>
         <span style="color: ${statusColeta.ativo ? '#0284C7' : statusColeta.cor}; font-weight: 600;">${statusColeta.ativo ? 'Monitoramento ativo' : statusColeta.label}</span>
       </div>
     </div>

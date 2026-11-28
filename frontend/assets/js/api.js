@@ -300,6 +300,21 @@ class ApiService {
   // ==========================================
   // AUTENTICAÇÃO E 2FA (MFA)
   // ==========================================
+  async logout() {
+    const refreshToken = localStorage.getItem('refresh_token');
+    try {
+      await fetch(`${this.baseUrl}/auth/logout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        keepalive: true,
+        body: JSON.stringify(refreshToken ? { refresh_token: refreshToken } : {})
+      });
+    } catch (_) {
+      // Logout local continua mesmo se a rede falhar
+    }
+  }
+
   async getMe() {
     return await this.request('/auth/me');
   }
@@ -529,13 +544,6 @@ class ApiService {
   }
 
   // ==========================================
-  // LOGÍSTICA E VIAGENS REFRIGERADAS
-  // ==========================================
-  async getViagens() {
-    return await this.request('/viagens');
-  }
-
-  // ==========================================
   // ALERTAS REATIVOS E PREDITIVOS
   // ==========================================
   async getAlertas() {
@@ -688,32 +696,30 @@ class ApiService {
     });
   }
 
-  async sincronizarIngestao() {
-    return await this.request('/ingestao/sincronizar', {
-      method: 'POST'
-    });
+  async getAnalistaAlertasResumo() {
+    return await this.request('/analista/alertas/resumo');
   }
 
-  async exportarLeiturasCsv({ id_sensor, inicio, fim } = {}) {
-    const params = new URLSearchParams();
-    if (id_sensor != null) params.append('id_sensor', id_sensor);
-    if (inicio) params.append('inicio', inicio);
-    if (fim) params.append('fim', fim);
-    const qs = params.toString();
-    const token = this.getToken();
-    const res = await fetch(`${this.baseUrl}/leituras/exportar.csv${qs ? '?' + qs : ''}`, {
-      headers: {
-        'Authorization': token ? `Bearer ${token}` : ''
-      }
-    });
-    if (!res.ok) {
-      throw new Error(`Falha ao exportar CSV (${res.status})`);
-    }
-    return await res.blob();
+  async getPerdasRisco() {
+    return await this.request('/perdas-risco');
   }
 
-  async getRedeHistorico(periodo = '24h') {
-    return await this.request(`/rede/historico?periodo=${encodeURIComponent(periodo)}`);
+  async getEstatisticasLeituras(params = {}) {
+    const qs = new URLSearchParams();
+    if (params.id_sensor != null) qs.append('id_sensor', params.id_sensor);
+    if (params.inicio) qs.append('inicio', params.inicio);
+    if (params.fim) qs.append('fim', params.fim);
+    const s = qs.toString();
+    return await this.request(`/leituras/estatisticas${s ? '?' + s : ''}`);
+  }
+
+  async getSaidasFaixa(params = {}) {
+    const qs = new URLSearchParams();
+    if (params.agrupamento) qs.append('agrupamento', params.agrupamento);
+    if (params.id_lote != null) qs.append('id_lote', params.id_lote);
+    if (params.id_sensor != null) qs.append('id_sensor', params.id_sensor);
+    const s = qs.toString();
+    return await this.request(`/relatorios/saidas-faixa${s ? '?' + s : ''}`);
   }
 
   // ==========================================
@@ -778,13 +784,6 @@ class ApiService {
     });
   }
 
-  async salvarCortesPreditivos(cortes) {
-    return await this.request('/calibracao/cortes', {
-      method: 'PUT',
-      body: JSON.stringify(cortes)
-    });
-  }
-
   async recalcularCalibracao() {
     return await this.request('/calibracao/recalcular', {
       method: 'POST'
@@ -825,17 +824,13 @@ class ApiService {
     });
   }
 
-  async reenviarAtivacao(idOrEmail, emailFallback = '') {
+  async reenviarAtivacao(idOrEmail) {
     const isId = idOrEmail != null && !String(idOrEmail).includes('@') && /^\d+$/.test(String(idOrEmail));
-    if (isId) {
-      return await this.request(`/usuarios/${idOrEmail}/reenviar-ativacao`, {
-        method: 'POST'
-      });
+    if (!isId) {
+      throw new Error('Reenvio de ativação requer o ID do usuário.');
     }
-    const email = emailFallback || idOrEmail;
-    return await this.request('/auth/solicitar-ativacao', {
-      method: 'POST',
-      body: JSON.stringify({ email })
+    return await this.request(`/usuarios/${idOrEmail}/reenviar-ativacao`, {
+      method: 'POST'
     });
   }
 

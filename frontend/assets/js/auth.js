@@ -344,6 +344,10 @@ class AuthState {
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('auth-logout'));
     }
+    // Revoga o refresh token no back-end sem bloquear o logout local se a rede falhar
+    try {
+      api.logout().catch(() => {});
+    } catch (_) {}
     api.clearTokens();
     this.user = null;
     this.activeProfile = null;

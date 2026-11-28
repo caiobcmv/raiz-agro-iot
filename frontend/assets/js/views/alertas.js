@@ -149,13 +149,20 @@ function formatarDuracaoHorasMin(duracaoMin) {
  */
 async function carregarDadosAnalistaAlertas() {
   try {
-    const [resCentral, resSensores, resParams, resCortes, resPortos] = await Promise.all([
+    const [resCentral, resSensores, resParams, resCortes, resPortos, resAnalistaAlertas, resPerdasRisco, resListaSensores] = await Promise.all([
       api.getCentralAlertas({ status: 'aberto' }).catch(() => ({ resumo: null, itens: [] })),
       api.getAnalistaSensoresResumo().catch(() => null),
       api.getConfigParametros().catch(() => []),
       api.getCortesPreditivos().catch(() => []),
-      api.getPortos().catch(() => [])
+      api.getPortos().catch(() => []),
+      api.getAnalistaAlertasResumo().catch(() => null),
+      api.getPerdasRisco().catch(() => []),
+      api.getSensores().catch(() => [])
     ]);
+
+    analistaAlertasState.resumoAnalistaAlertas = resAnalistaAlertas;
+    analistaAlertasState.perdasRisco = Array.isArray(resPerdasRisco) ? resPerdasRisco : [];
+    analistaAlertasState.listaSensores = Array.isArray(resListaSensores) ? resListaSensores : [];
 
     // Normaliza resumo
     const rawResumo = resCentral?.resumo || {};
@@ -205,24 +212,20 @@ async function carregarDadosAnalistaAlertas() {
     const itemAtivoId = alertaMaisCritico ? (alertaMaisCritico.id || alertaMaisCritico.codigo || 1) : null;
     analistaAlertasState.itemSelecionadoId = itemAtivoId;
 
-    const idLoteAtivo = alertaMaisCritico?.lote?.id_lote || alertaMaisCritico?.id_lote;
+    const idLoteAtivo = alertaMaisCritico?.lote?.id_lote || alertaMaisCritico?.id_lote || null;
+    const idLoteCurva = idLoteAtivo || 145;
 
-    // Carrega curva térmica e prejuízo em paralelo
-    if (idLoteAtivo) {
-      const [resCurva, resPrejuizo] = await Promise.all([
-        api.getCentralAlertasCurva({ id_lote: idLoteAtivo, horas: 24 }).catch(() => null),
-        api.getRiscosPrejuizo(idLoteAtivo).catch(() => null)
-      ]);
-      analistaAlertasState.curva = resCurva;
-      if (Array.isArray(resPrejuizo) && resPrejuizo.length > 0) {
-        analistaAlertasState.prejuizoEstimado = resPrejuizo[0].prejuizo_estimado;
-      } else if (resPrejuizo && resPrejuizo.prejuizo_estimado != null) {
-        analistaAlertasState.prejuizoEstimado = resPrejuizo.prejuizo_estimado;
-      } else {
-        analistaAlertasState.prejuizoEstimado = null;
-      }
+    // Carrega curva térmica (do lote em alerta ou do lote 145 monitorado) e prejuízo (apenas se houver lote em alerta)
+    const [resCurva, resPrejuizo] = await Promise.all([
+      api.getCentralAlertasCurva({ id_lote: idLoteCurva, horas: 24 }).catch(() => null),
+      idLoteAtivo ? api.getRiscosPrejuizo(idLoteAtivo).catch(() => null) : Promise.resolve(null)
+    ]);
+    analistaAlertasState.curva = resCurva;
+    if (Array.isArray(resPrejuizo) && resPrejuizo.length > 0) {
+      analistaAlertasState.prejuizoEstimado = resPrejuizo[0].prejuizo_estimado;
+    } else if (resPrejuizo && resPrejuizo.prejuizo_estimado != null) {
+      analistaAlertasState.prejuizoEstimado = resPrejuizo.prejuizo_estimado;
     } else {
-      analistaAlertasState.curva = null;
       analistaAlertasState.prejuizoEstimado = null;
     }
   } catch (err) {
@@ -233,7 +236,26 @@ async function carregarDadosAnalistaAlertas() {
 async function renderAnalistaAlertas() {
   await carregarDadosAnalistaAlertas();
 
-  const { resumo, itens, resumoSensores, curva, portos, configParametros, cortesPreditivos, prejuizoEstimado } = analistaAlertasState;
+  const { resumo, itens, resumoSensores, curva, portos, configParametros, cortesPreditivos, prejuizoEstimado, resumoAnalistaAlertas, perdasRisco } = analistaAlertasState;
+
+  // Frações reais de perda da tabela perda_risco (via /analista/alertas/resumo e /perdas-risco)
+  const perdaPorNivel = { CRITICO: null, MEDIO: null, BAIXO: null };
+  if (Array.isArray(resumoAnalistaAlertas?.distribuicao)) {
+    resumoAnalistaAlertas.distribuicao.forEach(d => {
+      const niv = String(d?.nivel || '').toUpperCase();
+      if (d?.fracao_perda != null && !isNaN(Number(d.fracao_perda)) && niv in perdaPorNivel) {
+        perdaPorNivel[niv] = Math.round(Number(d.fracao_perda) * 1000) / 10;
+      }
+    });
+  }
+  if (Array.isArray(perdasRisco)) {
+    perdasRisco.forEach(p => {
+      const niv = String(p?.nivel_corte || '').toUpperCase();
+      if (perdaPorNivel[niv] == null && p?.perda_pct != null && !isNaN(Number(p.perda_pct)) && niv in perdaPorNivel) {
+        perdaPorNivel[niv] = Number(p.perda_pct);
+      }
+    });
+  }
 
   // 1. Monitoramento e Sincronização (fonte real + regra unificada de atraso/offline)
   const canalThingSpeak = resumoSensores?.coleta?.canal || curva?.sensor?.channel_id || '—';
@@ -243,8 +265,11 @@ async function renderAnalistaAlertas() {
   const statusColeta = calcularStatusColeta(ultimaLeituraIso, intervaloEnvioS);
   const dataHoraUltima = formatarDataHoraRecife(ultimaLeituraIso);
   const sincronizadoTexto = dataHoraUltima ? `${dataHoraUltima} (${statusColeta.tempoRelativo})` : 'Sem leitura';
-  const sensorNomeCurva = curva?.sensor?.nome || 'Sem sensor vinculado';
-  const origemLabel = obterLabelOrigem(curva?.atual?.origem);
+  const sensorArReal = (analistaAlertasState.listaSensores || []).find(s => s.ambiente === 'ar' && s.status === 'ativo')
+    || (analistaAlertasState.listaSensores || [])[0]
+    || null;
+  const sensorNomeCurva = curva?.sensor?.nome || sensorArReal?.nome || 'Sem sensor vinculado';
+  const origemLabel = obterLabelOrigem(curva?.atual?.origem || sensorArReal?.origem);
 
   // 2. Contagem unificada (filtra previsões vencidas e evita "Baixo 100%" com 0 alertas)
   const resumoUnificado = resumirAlertasAnalista(itens, cortesPreditivos);
@@ -265,7 +290,7 @@ async function renderAnalistaAlertas() {
   const unidadeLoteMaisCritico = itemMaisCritico?.lote?.unidade || 'kg';
   const perdaPctMaisCritica = itemMaisCritico?.perda_pct ?? (totalAlertas > 0 ? resumo.perda_total_pct : null);
 
-  const tempAtualVal = curva?.atual?.temperatura ?? itemMaisCritico?.atual?.temperatura ?? null;
+  const tempAtualVal = curva?.atual?.temperatura ?? itemMaisCritico?.atual?.temperatura ?? sensorArReal?.temperatura ?? null;
   const desvioVal = curva?.atual?.desvio ?? itemMaisCritico?.atual?.desvio ?? null;
   const tmaxVal = curva?.faixa?.temp_max ?? itemMaisCritico?.faixa?.temp_max ?? null;
 
@@ -503,15 +528,15 @@ async function renderAnalistaAlertas() {
             <div style="flex: 1; display: flex; flex-direction: column; gap: 6px; font-size: 11px;">
               <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span style="color: #B91C1C; font-weight: 600;">• Crítico: ${qtdCritico} (${pctCritico}%)</span>
-                <span style="color: #64748B;">Perda Risco: <strong>${perdaPctMaisCritica != null ? `${perdaPctMaisCritica}%` : '—'}</strong></span>
+                <span style="color: #64748B;">Perda Risco: <strong>${perdaPorNivel.CRITICO != null ? `${perdaPorNivel.CRITICO}%` : '—'}</strong></span>
               </div>
               <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span style="color: #D97706; font-weight: 600;">• Médio: ${qtdMedio} (${pctMedio}%)</span>
-                <span style="color: #64748B;">Perda Risco: <strong>${perdaPctMaisCritica != null ? `${Math.round(perdaPctMaisCritica * 0.4)}%` : '—'}</strong></span>
+                <span style="color: #64748B;">Perda Risco: <strong>${perdaPorNivel.MEDIO != null ? `${perdaPorNivel.MEDIO}%` : '—'}</strong></span>
               </div>
               <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span style="color: #059669; font-weight: 600;">• Baixo: ${qtdBaixo} (${pctBaixo}%)</span>
-                <span style="color: #64748B;">Perda Risco: <strong>${perdaPctMaisCritica != null ? `${Math.round(perdaPctMaisCritica * 0.1)}%` : '—'}</strong></span>
+                <span style="color: #64748B;">Perda Risco: <strong>${perdaPorNivel.BAIXO != null ? `${perdaPorNivel.BAIXO}%` : '—'}</strong></span>
               </div>
             </div>
           </div>
@@ -1695,8 +1720,11 @@ function renderGestoraAlertas(alertas = [], clima = {}, sensores = [], auditoria
     ? sensores.length
     : new Set(alertas.map(a => a.id_sensor).filter(Boolean)).size;
 
-  const tempClima = clima && clima.temperatura != null ? `${clima.temperatura > 0 ? '+' : ''}${clima.temperatura.toFixed(1)}°C` : 'Sem dados';
-  const umidClima = clima && clima.umidade != null ? `${clima.umidade}% UR` : 'Sem dados';
+  const climaAtualObj = clima?.agora || clima?.atual || clima || {};
+  const tClimaNum = climaAtualObj.temperature_2m != null ? Number(climaAtualObj.temperature_2m) : (climaAtualObj.temperatura != null ? Number(climaAtualObj.temperatura) : null);
+  const uClimaNum = climaAtualObj.relative_humidity_2m != null ? Number(climaAtualObj.relative_humidity_2m) : (climaAtualObj.umidade != null ? Number(climaAtualObj.umidade) : null);
+  const tempClima = (tClimaNum != null && !isNaN(tClimaNum)) ? `${tClimaNum.toFixed(1)}°C` : 'Sem dados';
+  const umidClima = (uClimaNum != null && !isNaN(uClimaNum)) ? `${Math.round(uClimaNum)}% UR` : 'Sem dados';
 
   return `
   <div class="dashboard-canvas apple-animate-in" style="padding: 24px 32px 48px; overflow-y: auto;">
@@ -1895,66 +1923,10 @@ function renderGestoraAlertas(alertas = [], clima = {}, sensores = [], auditoria
       `).join('')}
     </div>
 
-    <!-- SEÇÃO INFERIOR: LOG DE AUDITORIA E DIRETRIZES DE MANEJO AGRONÔMICO -->
-    <div style="display: grid; grid-template-columns: 1.6fr 1fr; gap: 20px; align-items: start;">
+    <!-- SEÇÃO INFERIOR: DIRETRIZES DE MANEJO AGRONÔMICO -->
+    <div style="display: grid; grid-template-columns: 1fr; gap: 20px; align-items: start;">
 
-      <!-- Card 1: Log de Auditoria Recente -->
-      ${(() => {
-        const logsAuditoria = Array.isArray(auditoria) ? auditoria.slice(0, 5) : [];
-        const hoje = new Date();
-        const dataHojeBr = `${String(hoje.getDate()).padStart(2, '0')}/${String(hoje.getMonth() + 1).padStart(2, '0')}`;
-        const escTxt = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        const fmtDataHoraAud = (ts) => {
-          if (!ts) return '—';
-          const d = new Date(ts);
-          if (isNaN(d.getTime())) return escTxt(ts);
-          return new Intl.DateTimeFormat('pt-BR', {
-            timeZone: 'America/Recife',
-            day: '2-digit',
-            month: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit'
-          }).format(d);
-        };
-        const itensHtml = logsAuditoria.length > 0
-          ? logsAuditoria.map(item => {
-            const resNorm = String(item?.resultado || '').toLowerCase();
-            const cor = resNorm.includes('erro') || resNorm.includes('falha') || resNorm.includes('negad')
-              ? '#EF4444'
-              : (resNorm.includes('sucess') || resNorm.includes('ok') ? '#10B981' : '#0284C7');
-            const acaoTxt = escTxt(item?.acao || 'Ação registrada');
-            const usuarioTxt = escTxt(item?.usuario || 'Sistema');
-            const dataTxt = fmtDataHoraAud(item?.data_hora);
-            return `
-              <div style="display: flex; gap: 10px; align-items: flex-start;">
-                <span style="width: 7px; height: 7px; border-radius: 50%; background: ${cor}; margin-top: 5px; flex-shrink: 0;"></span>
-                <div>
-                  <div style="font-size: 11px; font-weight: 600; color: #0F172A;">${acaoTxt}</div>
-                  <div style="font-size: 10px; color: #94A3B8;">${dataTxt} • ${usuarioTxt}</div>
-                </div>
-              </div>
-            `;
-          }).join('')
-          : '<div style="font-size: 12px; color: #64748B; padding: 6px 0;">Nenhum registro de auditoria disponível.</div>';
-
-        return `
-      <div class="apple-card" style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 16px; padding: 22px 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <i data-lucide="clock" style="width: 15px; height: 15px; color: #64748B;"></i>
-            <span style="font-size: 14px; font-weight: 700; color: #0F172A;">Log de Auditoria Recente</span>
-          </div>
-          ${logsAuditoria.length > 0 ? `<span style="font-size: 11px; color: #94A3B8;">${dataHojeBr}</span>` : ''}
-        </div>
-
-        <div id="audit-log-list" style="display: flex; flex-direction: column; gap: 12px;">
-          ${itensHtml}
-        </div>
-      </div>
-        `;
-      })()}
-
-      <!-- Card 2: Diretrizes Globais de Manejo -->
+      <!-- Diretrizes Globais de Manejo -->
       <div style="background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 16px; padding: 22px 24px;">
         <div style="font-size: 9px; font-weight: 800; color: #047857; letter-spacing: 0.6px; text-transform: uppercase; margin-bottom: 6px;">
           DIRETRIZ DE PROTEÇÃO FISIOLÓGICA
