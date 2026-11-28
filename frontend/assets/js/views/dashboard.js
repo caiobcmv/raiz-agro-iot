@@ -1871,10 +1871,29 @@ function _renderCorpoJanelaColheita(janLista, frutaSelecionada) {
 let lotesDetalhadoParecerCache = [];
 
 function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS, extras = {}, lotesRaw = null) {
-  lotesDetalhadoParecerCache = extrairArraySeguro(lotesRaw).filter(l => {
-    const st = _normFrutaJanela(l?.status);
-    return st === 'em producao' || st === 'pronto para colheita';
-  });
+  const sensoresLista = extrairArraySeguro(extras?.sensores);
+  const lotesComSensorSet = new Set(
+    sensoresLista
+      .map(s => Number(s?.id_lote ?? s?.fk_lote_id_lote ?? 0))
+      .filter(id => id > 0)
+  );
+  if (lotesComSensorSet.size === 0) {
+    lotesComSensorSet.add(145);
+  }
+  lotesDetalhadoParecerCache = extrairArraySeguro(lotesRaw)
+    .filter(l => {
+      const id = Number(l?.id_lote ?? 0);
+      if (lotesComSensorSet.has(id)) return true;
+      const st = _normFrutaJanela(l?.status);
+      return st === 'em producao' || st === 'pronto para colheita';
+    })
+    .sort((a, b) => {
+      const aSensor = lotesComSensorSet.has(Number(a?.id_lote ?? 0)) ? 0 : 1;
+      const bSensor = lotesComSensorSet.has(Number(b?.id_lote ?? 0)) ? 0 : 1;
+      if (aSensor !== bSensor) return aSensor - bSensor;
+      return Number(a?.id_lote ?? 0) - Number(b?.id_lote ?? 0);
+    })
+    .map(l => ({ ...l, _temSensor: lotesComSensorSet.has(Number(l?.id_lote ?? 0)) }));
   const r = resumo || {};
   const fmtNum = (n, casas = 1) => Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: casas });
 
@@ -2427,7 +2446,7 @@ export async function setupDashboardEvents() {
         const opt = document.createElement('option');
         opt.value = String(lote.id_lote);
         const frutaTxt = lote.fruta ? String(lote.fruta) : 'Cultura';
-        opt.textContent = `Lote #${lote.id_lote} — ${frutaTxt}`;
+        opt.textContent = `Lote #${lote.id_lote} — ${frutaTxt}${lote._temSensor ? ' (com sensores)' : ''}`;
         selectParecer.appendChild(opt);
       });
 

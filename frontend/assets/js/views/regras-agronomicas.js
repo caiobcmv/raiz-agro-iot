@@ -14,6 +14,7 @@ import { downloadCSV, downloadPDF, openExportChoiceModal } from '../utils/export
 
 let _regrasFisiologicas = [];
 let _sensoresRegras = [];
+let _cortesPreditivos = [];
 
 // Load dynamic data from API and compute derived values
 async function loadRegrasData() {
@@ -37,9 +38,12 @@ async function loadRegrasData() {
 
   const configParams = configRes.status === 'fulfilled' && Array.isArray(configRes.value)
     ? configRes.value : [];
+  const cortes = cortesRes.status === 'fulfilled' && Array.isArray(cortesRes.value)
+    ? cortesRes.value : [];
   const sensores = sensoresRes.status === 'fulfilled' && Array.isArray(sensoresRes.value)
     ? sensoresRes.value : [];
   _sensoresRegras = sensores;
+  _cortesPreditivos = cortes;
 
   // Transform configParams into regra objects
   _regrasFisiologicas = configParams.map(p => {
@@ -88,23 +92,50 @@ let _termoBuscaRegras = '';
 
 export async function renderRegrasAgronomicas() {
   await loadRegrasData();
+
+  const totalRegras = _regrasFisiologicas.length;
+  const culturasUnicas = new Set(_regrasFisiologicas.map(r => r.categoria).filter(Boolean)).size;
+  const etapasUnicas = [...new Set(_regrasFisiologicas.map(r => r.etapa).filter(Boolean))];
+  const qtdManga = _regrasFisiologicas.filter(r => r.categoria === 'manga').length;
+  const qtdUva = _regrasFisiologicas.filter(r => r.categoria === 'uva').length;
+  const qtdMelao = _regrasFisiologicas.filter(r => r.categoria === 'melao').length;
+  const qtdSolo = _regrasFisiologicas.filter(r => r.categoria === 'solo').length;
+  const sensoresAtivos = _sensoresRegras.filter(s => String(s.status || '').toLowerCase() === 'ativo').length;
+  const totalCortes = _cortesPreditivos.length;
+
+  const cortesHtml = totalCortes > 0
+    ? _cortesPreditivos.map(c => {
+        const niv = String(c.nivel || '').toUpperCase();
+        const cor = niv === 'CRITICO' ? '#DC2626' : (niv === 'MEDIO' ? '#D97706' : '#047857');
+        return `
+          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px;">
+            <div style="display: flex; justify-content: space-between; font-weight: 700; color: ${cor};">
+              <span>• Risco ${niv} (${c.limiar_min ?? 0}% - ${c.limiar_max ?? 100}%)</span>
+              <span style="color: #64748B;">Probabilidade</span>
+            </div>
+            <div style="color: #475569; font-size: 10px; margin-top: 4px;">Ação: ${c.acao_recomendada || 'Sem ação cadastrada.'}</div>
+          </div>
+        `;
+      }).join('')
+    : '<div style="color: #64748B; font-size: 11px; padding: 10px; background: #F8FAFC; border-radius: 8px;">Nenhum corte preditivo cadastrado no banco.</div>';
+
   return `
     <div class="dashboard-canvas apple-animate-in" style="max-width: 1400px; margin: 0 auto;">
       
-      <!-- Sub-barra Técnica Verde/Clara do Figma -->
+      <!-- Sub-barra Técnica -->
       <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 12px 20px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
         <div style="display: flex; flex-direction: column; gap: 4px;">
           <div style="display: flex; align-items: center; gap: 8px;">
             <span style="font-size: 11px; font-weight: 700; color: #047857; background: #ECFDF5; border: 1px solid #A7F3D0; padding: 3px 10px; border-radius: 20px;">
-              • v4.2 - Governança Fisiológica e Limiares de Decisão
+              • Governança Fisiológica e Limiares de Decisão
             </span>
           </div>
           <div style="display: flex; align-items: center; gap: 12px; font-size: 11px; color: #64748B; flex-wrap: wrap;">
-            <span style="display: flex; align-items: center; gap: 4px;"><i data-lucide="shield" style="width: 12px; height: 12px; color: #64748B;"></i> Ambiente de Produção</span>
+            <span style="display: flex; align-items: center; gap: 4px;"><i data-lucide="shield" style="width: 12px; height: 12px; color: #64748B;"></i> Sincronizado com PostgreSQL</span>
             <span>•</span>
-            <span>✓ Validação Cruzada: <strong>Embrapa Semiárido e UC Davis</strong></span>
+            <span>✓ <strong>${totalRegras}</strong> faixas em <code>config_parametro</code></span>
             <span>•</span>
-            <span style="color: #059669; font-weight: 500;">⟳ Sincronização em Tempo Real com Nós ESP32</span>
+            <span style="color: #059669; font-weight: 500;">✓ <strong>${sensoresAtivos}</strong> sensor(es) ESP32 ativo(s)</span>
           </div>
         </div>
 
@@ -120,86 +151,71 @@ export async function renderRegrasAgronomicas() {
         </div>
       </div>
 
-      <!-- 4 Cards Superiores (KPIs do Figma) -->
+      <!-- 4 Cards Superiores (Dados Reais da API) -->
       <div class="admin-kpi-grid-4">
-        <!-- Card 1: REGRAS ATIVAS NO CLUSTER -->
+        <!-- Card 1: REGRAS ATIVAS -->
         <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); display: flex; flex-direction: column; justify-content: space-between;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-            <span style="font-size: 10px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">REGRAS ATIVAS NO CLUSTER</span>
-            <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 2px 8px; border-radius: 12px;">18 Regras</span>
+            <span style="font-size: 10px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">REGRAS ATIVAS</span>
+            <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 2px 8px; border-radius: 12px;">${totalRegras} Regras</span>
           </div>
           <div style="display: flex; align-items: center; gap: 16px;">
             <div style="width: 56px; height: 56px; border-radius: 50%; border: 4.5px solid #10B981; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-              <span style="font-size: 14px; font-weight: 800; color: #0F172A;">100%</span>
+              <span style="font-size: 16px; font-weight: 800; color: #0F172A;">${totalRegras}</span>
             </div>
             <div>
               <div style="font-size: 13px; font-weight: 700; color: #0F172A;">Homologadas</div>
-              <div style="font-size: 11px; color: #64748B;">(5 Culturas)</div>
+              <div style="font-size: 11px; color: #64748B;">(${culturasUnicas} Cultura(s))</div>
             </div>
           </div>
           <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px; margin-top: 12px;">
-            <span>0 conflitos ativos</span>
-            <span>&lt; 80ms latência</span>
+            <span>Tabela config_parametro</span>
+            <span>API conectada</span>
           </div>
         </div>
 
-        <!-- Card 2: EFICÁCIA DE MITIGAÇÃO -->
+        <!-- Card 2: SENSORES ATIVOS -->
         <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); display: flex; flex-direction: column; justify-content: space-between;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-            <span style="font-size: 10px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">EFICÁCIA DE MITIGAÇÃO</span>
-            <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 2px 8px; border-radius: 12px;">+5.2% safra</span>
-          </div>
-          <div style="display: flex; justify-content: space-between; align-items: flex-end;">
-            <div>
-              <div style="font-size: 26px; font-weight: 800; color: #0F172A; line-height: 1;">94.6%</div>
-              <div style="font-size: 11px; color: #64748B; margin-top: 4px;">Taxa de interceptação</div>
-            </div>
-            <div style="width: 50px; height: 24px;">
-              <svg viewBox="0 0 50 24" style="width: 100%; height: 100%;">
-                <path d="M 0,20 Q 25,18 50,4" fill="none" stroke="#10B981" stroke-width="2.5" stroke-linecap="round"/>
-              </svg>
-            </div>
-          </div>
-          <div style="font-size: 11px; color: #047857; font-weight: 700; border-top: 1px solid #F1F5F9; padding-top: 8px; margin-top: 12px;">
-            R$ 184.200 <span style="font-weight: 400; color: #64748B; font-size: 10px;">em perdas evitadas</span>
-          </div>
-        </div>
-
-        <!-- Card 3: ADERÊNCIA PARAMÉTRICA -->
-        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); display: flex; flex-direction: column; justify-content: space-between;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-            <span style="font-size: 10px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">ADERÊNCIA PARAMÉTRICA</span>
-            <span style="font-size: 10px; font-weight: 600; color: #0284C7; background: #F0F9FF; padding: 2px 8px; border-radius: 12px;">Embrapa / UC Davis</span>
-          </div>
-          <div style="display: flex; align-items: center; gap: 10px; margin: 10px 0 6px;">
-            <span style="font-size: 11px; font-weight: 700; color: #047857; background: #DCFCE7; padding: 3px 7px; border-radius: 4px;">88.2%</span>
-            <div>
-              <div style="font-size: 13px; font-weight: 700; color: #0F172A;">Conformidade Alta</div>
-              <div style="font-size: 10px; color: #64748B;">Global G.A.P. e MAPA</div>
-            </div>
-          </div>
-          <div style="font-size: 10px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px; margin-top: 12px;">
-            Sem inconformidades nos últimos 90d
-          </div>
-        </div>
-
-        <!-- Card 4: DISPAROS E PROTOCOLOS -->
-        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); display: flex; flex-direction: column; justify-content: space-between;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-            <span style="font-size: 10px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">DISPAROS E PROTOCOLOS</span>
-            <span style="font-size: 10px; font-weight: 600; color: #64748B; background: #F1F5F9; padding: 2px 8px; border-radius: 12px;">30 Dias</span>
+            <span style="font-size: 10px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">SENSORES MONITORADOS</span>
+            <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 2px 8px; border-radius: 12px;">ESP32</span>
           </div>
           <div>
-            <div style="font-size: 24px; font-weight: 800; color: #0F172A; line-height: 1;">142 Eventos</div>
-            <div style="width: 100%; height: 7px; background: #E2E8F0; border-radius: 4px; display: flex; overflow: hidden; margin-top: 8px;">
-              <div style="width: 86%; background: #10B981;" title="86% Mitigados"></div>
-              <div style="width: 14%; background: #F59E0B;" title="14% Manuais"></div>
-            </div>
+            <div style="font-size: 26px; font-weight: 800; color: #0F172A; line-height: 1;">${sensoresAtivos} / ${_sensoresRegras.length}</div>
+            <div style="font-size: 11px; color: #64748B; margin-top: 4px;">Sensores ativos no campo</div>
           </div>
-          <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px; margin-top: 12px;">
-            <span style="color: #047857; font-weight: 700;">86% Mitigados</span>
-            <span style="color: #D97706; font-weight: 700;">14% Manuais</span>
-            <span>0% Falhas</span>
+          <div style="font-size: 10px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px; margin-top: 12px;">
+            Fonte: <code>GET /sensores</code>
+          </div>
+        </div>
+
+        <!-- Card 3: CORTES PREDITIVOS -->
+        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); display: flex; flex-direction: column; justify-content: space-between;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <span style="font-size: 10px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">CORTES PREDITIVOS</span>
+            <span style="font-size: 10px; font-weight: 600; color: #0284C7; background: #F0F9FF; padding: 2px 8px; border-radius: 12px;">Probabilidade</span>
+          </div>
+          <div>
+            <div style="font-size: 26px; font-weight: 800; color: #0F172A; line-height: 1;">${totalCortes} Faixas</div>
+            <div style="font-size: 11px; color: #64748B; margin-top: 4px;">cortes_alerta_preditivo</div>
+          </div>
+          <div style="font-size: 10px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px; margin-top: 12px;">
+            Baixo, Médio e Crítico
+          </div>
+        </div>
+
+        <!-- Card 4: ETAPAS COBERTAS -->
+        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); display: flex; flex-direction: column; justify-content: space-between;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <span style="font-size: 10px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">ETAPAS COBERTAS</span>
+            <span style="font-size: 10px; font-weight: 600; color: #64748B; background: #F1F5F9; padding: 2px 8px; border-radius: 12px;">Cadeia</span>
+          </div>
+          <div>
+            <div style="font-size: 26px; font-weight: 800; color: #0F172A; line-height: 1;">${etapasUnicas.length} Etapas</div>
+            <div style="font-size: 11px; color: #64748B; margin-top: 4px;">${etapasUnicas.length > 0 ? etapasUnicas.join(', ') : 'Sem etapas cadastradas'}</div>
+          </div>
+          <div style="font-size: 10px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px; margin-top: 12px;">
+            Mapeamento por fruta e etapa
           </div>
         </div>
       </div>
@@ -207,39 +223,33 @@ export async function renderRegrasAgronomicas() {
       <!-- Barra Esteira de Protocolos Agronômicos -->
       <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 14px 20px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-          <span style="font-size: 10px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">ESTEIRA DE PROTOCOLOS AGRONÔMICOS POR CULTURA E ESTÁGIO FENOLÓGICO</span>
-          <span style="font-size: 10px; color: #64748B;">5 Cadeias Monitoradas</span>
+          <span style="font-size: 10px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">ESTEIRA DE PROTOCOLOS AGRONÔMICOS POR CULTURA</span>
+          <span style="font-size: 10px; color: #64748B;">${culturasUnicas} Cultura(s) Monitorada(s)</span>
         </div>
 
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;">
           <div class="card-cadeia-protocolo" data-cat="uva" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px 12px; border-left: 3px solid #10B981; cursor: pointer;">
             <div style="font-size: 11px; font-weight: 700; color: #0F172A;">1. Uva de Mesa</div>
-            <div style="font-size: 10px; color: #64748B;">Vitória / Crimson</div>
-            <div style="font-size: 10px; color: #047857; font-weight: 600; margin-top: 4px;">4 Regras • Pós-Frio</div>
+            <div style="font-size: 10px; color: #64748B;">Campo e Armazenamento</div>
+            <div style="font-size: 10px; color: #047857; font-weight: 600; margin-top: 4px;">${qtdUva} Regra(s)</div>
           </div>
 
           <div class="card-cadeia-protocolo" data-cat="manga" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px 12px; border-left: 3px solid #0284C7; cursor: pointer;">
-            <div style="font-size: 11px; font-weight: 700; color: #0F172A;">2. Manga Tommy/Palm</div>
-            <div style="font-size: 10px; color: #64748B;">Pós-Colheita / Frio</div>
-            <div style="font-size: 10px; color: #0284C7; font-weight: 600; margin-top: 4px;">5 Regras • Chilling</div>
+            <div style="font-size: 11px; font-weight: 700; color: #0F172A;">2. Manga</div>
+            <div style="font-size: 10px; color: #64748B;">Campo e Armazenamento</div>
+            <div style="font-size: 10px; color: #0284C7; font-weight: 600; margin-top: 4px;">${qtdManga} Regra(s)</div>
           </div>
 
           <div class="card-cadeia-protocolo" data-cat="melao" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px 12px; border-left: 3px solid #F59E0B; cursor: pointer;">
-            <div style="font-size: 11px; font-weight: 700; color: #0F172A;">3. Melão Amarelo</div>
-            <div style="font-size: 10px; color: #64748B;">Packing e Maturação</div>
-            <div style="font-size: 10px; color: #D97706; font-weight: 600; margin-top: 4px;">3 Regras • Hídrico e CE</div>
-          </div>
-
-          <div class="card-cadeia-protocolo" data-cat="solo" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px 12px; border-left: 3px solid #8B5CF6; cursor: pointer;">
-            <div style="font-size: 11px; font-weight: 700; color: #0F172A;">4. Solo e Raízes</div>
-            <div style="font-size: 10px; color: #64748B;">Sensores de Umidade do Solo</div>
-            <div style="font-size: 10px; color: #7C3AED; font-weight: 600; margin-top: 4px;">4 Regras • Faixa VWC</div>
+            <div style="font-size: 11px; font-weight: 700; color: #0F172A;">3. Melão</div>
+            <div style="font-size: 10px; color: #64748B;">Campo e Armazenamento</div>
+            <div style="font-size: 10px; color: #D97706; font-weight: 600; margin-top: 4px;">${qtdMelao} Regra(s)</div>
           </div>
 
           <div class="card-cadeia-protocolo" data-cat="todos" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px 12px; border-left: 3px solid #06B6D4; cursor: pointer;">
-            <div style="font-size: 11px; font-weight: 700; color: #0F172A;">5. Microclima</div>
-            <div style="font-size: 10px; color: #64748B;">Estresse Térmico e VWC</div>
-            <div style="font-size: 10px; color: #0891B2; font-weight: 600; margin-top: 4px;">2 Regras • Molhamento</div>
+            <div style="font-size: 11px; font-weight: 700; color: #0F172A;">4. Todas as Culturas</div>
+            <div style="font-size: 10px; color: #64748B;">Visão geral completa</div>
+            <div style="font-size: 10px; color: #0891B2; font-weight: 600; margin-top: 4px;">${totalRegras} Regra(s)</div>
           </div>
         </div>
       </div>
@@ -249,34 +259,34 @@ export async function renderRegrasAgronomicas() {
         <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
           <div>
             <h3 style="font-size: 16px; font-weight: 800; color: #0F172A; margin: 0;">Limiares Biológicos de Conservação e Maturação</h3>
-            <div style="font-size: 11px; color: #64748B; margin-top: 2px;">config_parametro • Mapeamento por cultura e sensor físico</div>
+            <div style="font-size: 11px; color: #64748B; margin-top: 2px;">config_parametro • Mapeamento por cultura e etapa</div>
           </div>
-          <span style="font-size: 11px; color: #64748B; font-weight: 600;">18 Regras Compiladas</span>
+          <span style="font-size: 11px; color: #64748B; font-weight: 600;">${totalRegras} Regras Compiladas</span>
         </div>
 
         <!-- Filtros em Barra Horizontal -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
           <div style="position: relative; width: 340px;">
             <i data-lucide="search" style="position: absolute; left: 10px; top: 9px; width: 14px; height: 14px; color: #94A3B8;"></i>
-            <input type="text" id="input-busca-regras" placeholder="Filtrar por cultura, parâmetro ou tipo de sensor..." style="width: 100%; padding: 7px 12px 7px 32px; font-size: 11px; border: 1px solid #CBD5E1; border-radius: 8px; background: #FFFFFF;">
+            <input type="text" id="input-busca-regras" placeholder="Filtrar por cultura, etapa ou parâmetro..." style="width: 100%; padding: 7px 12px 7px 32px; font-size: 11px; border: 1px solid #CBD5E1; border-radius: 8px; background: #FFFFFF;">
           </div>
           <div style="display: flex; gap: 6px; overflow-x: auto;">
-            <button class="tab-flt-reg active" data-cat="todos" style="padding: 6px 12px; font-size: 11px; font-weight: 700; background: #183D2E; color: #FFFFFF; border: none; border-radius: 6px; cursor: pointer;">Todos (18)</button>
-            <button class="tab-flt-reg" data-cat="manga" style="padding: 6px 12px; font-size: 11px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Manga (5)</button>
-            <button class="tab-flt-reg" data-cat="uva" style="padding: 6px 12px; font-size: 11px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Uva (4)</button>
-            <button class="tab-flt-reg" data-cat="melao" style="padding: 6px 12px; font-size: 11px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Melão (4)</button>
-            <button class="tab-flt-reg" data-cat="solo" style="padding: 6px 12px; font-size: 11px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Solo (5)</button>
+            <button class="tab-flt-reg active" data-cat="todos" style="padding: 6px 12px; font-size: 11px; font-weight: 700; background: #183D2E; color: #FFFFFF; border: none; border-radius: 6px; cursor: pointer;">Todos (${totalRegras})</button>
+            <button class="tab-flt-reg" data-cat="manga" style="padding: 6px 12px; font-size: 11px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Manga (${qtdManga})</button>
+            <button class="tab-flt-reg" data-cat="uva" style="padding: 6px 12px; font-size: 11px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Uva (${qtdUva})</button>
+            <button class="tab-flt-reg" data-cat="melao" style="padding: 6px 12px; font-size: 11px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Melão (${qtdMelao})</button>
+            ${qtdSolo > 0 ? `<button class="tab-flt-reg" data-cat="solo" style="padding: 6px 12px; font-size: 11px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Solo (${qtdSolo})</button>` : ''}
           </div>
         </div>
 
-        <!-- Cards Fisiológicos FIEIS AO FIGMA -->
+        <!-- Cards Fisiológicos -->
         <div id="container-cards-regras" style="display: flex; flex-direction: column; gap: 16px;">
           ${renderCardsRegrasHtml()}
         </div>
 
         <!-- Rodapé de Contagem -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; font-size: 11px; color: #64748B;">
-          <span id="regras-pag-info">Exibindo ${_regrasFisiologicas.length} parâmetro(s) agronômico(s)</span>
+          <span id="regras-pag-info">Exibindo ${totalRegras} parâmetro(s) agronômico(s)</span>
         </div>
       </div>
 
@@ -287,38 +297,13 @@ export async function renderRegrasAgronomicas() {
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
             <div>
               <h4 style="font-size: 13px; font-weight: 800; color: #0F172A; margin: 0;">Cortes de Alerta Preditivo</h4>
-              <div style="font-size: 10px; color: #64748B; font-family: monospace;">cortes_alerta_preditivo • Random Forest Model</div>
+              <div style="font-size: 10px; color: #64748B; font-family: monospace;">cortes_alerta_preditivo • API Real</div>
             </div>
-            <span style="font-size: 10px; font-weight: 700; color: #0284C7; background: #F0F9FF; padding: 2px 8px; border-radius: 4px;">ML Inference</span>
+            <span style="font-size: 10px; font-weight: 700; color: #0284C7; background: #F0F9FF; padding: 2px 8px; border-radius: 4px;">${totalCortes} Faixas</span>
           </div>
 
           <div style="display: flex; flex-direction: column; gap: 8px; font-size: 11px;">
-            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px;">
-              <div style="display: flex; justify-content: space-between; font-weight: 700; color: #047857;">
-                <span>• Risco BAIXO (Score 0.30 - 0.49)</span>
-                <span style="color: #64748B;">Perda: ~2.0%</span>
-              </div>
-              <div style="color: #64748B; font-size: 10px; margin-top: 2px;">Disparo: Notificação no Dashboard e logs internos.</div>
-              <div style="color: #475569; font-size: 10px;">Ação: Observação passiva e acompanhamento de lote.</div>
-            </div>
-
-            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px;">
-              <div style="display: flex; justify-content: space-between; font-weight: 700; color: #D97706;">
-                <span>• Risco MÉDIO (Score 0.50 - 0.79)</span>
-                <span style="color: #64748B;">Perda: ~10.0%</span>
-              </div>
-              <div style="color: #64748B; font-size: 10px; margin-top: 2px;">Disparo: Push + WhatsApp para agrônomo de plantão.</div>
-              <div style="color: #475569; font-size: 10px;">Ação: Ajuste preventivo e verificação de refrigeração/fertirrigação.</div>
-            </div>
-
-            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px;">
-              <div style="display: flex; justify-content: space-between; font-weight: 700; color: #DC2626;">
-                <span>• Risco CRÍTICO (Score 0.80 - 1.00)</span>
-                <span style="color: #64748B;">Perda: ~39.0%</span>
-              </div>
-              <div style="color: #64748B; font-size: 10px; margin-top: 2px;">Disparo: Sirene + SMS urgente + Protocolo #4.</div>
-              <div style="color: #475569; font-size: 10px;">Ação: Intervenção logística e operacional imediata no lote.</div>
-            </div>
+            ${cortesHtml}
           </div>
         </div>
 
@@ -336,17 +321,17 @@ export async function renderRegrasAgronomicas() {
             <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px; display: flex; justify-content: space-between; align-items: center;">
               <div>
                 <code style="font-weight: 700; color: #0284C7;">config_parametro</code>
-                <div style="color: #64748B; font-size: 10px; margin-top: 2px;">Limiares fisiológicos de temperatura na polpa, UR, Brix e umidade radicular VWC homologados.</div>
+                <div style="color: #64748B; font-size: 10px; margin-top: 2px;">Limiares fisiológicos de temperatura e umidade por fruta e etapa.</div>
               </div>
-              <strong style="color: #0F172A; margin-left: 10px; flex-shrink: 0;">18 registros</strong>
+              <strong style="color: #0F172A; margin-left: 10px; flex-shrink: 0;">${totalRegras} registros</strong>
             </div>
 
             <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px; display: flex; justify-content: space-between; align-items: center;">
               <div>
                 <code style="font-weight: 700; color: #0284C7;">cortes_alerta_preditivo</code>
-                <div style="color: #64748B; font-size: 10px; margin-top: 2px;">Mapeamento estatístico de perda esperada (2% a 39%) com gatilhos automáticos multi-canal.</div>
+                <div style="color: #64748B; font-size: 10px; margin-top: 2px;">Faixas de probabilidade de risco e ações recomendadas.</div>
               </div>
-              <strong style="color: #0F172A; margin-left: 10px; flex-shrink: 0;">3 faixas ativas</strong>
+              <strong style="color: #0F172A; margin-left: 10px; flex-shrink: 0;">${totalCortes} faixas ativas</strong>
             </div>
           </div>
 
@@ -461,6 +446,11 @@ function atualizarCardsRegras() {
     container.innerHTML = renderCardsRegrasHtml();
     if (window.lucide) window.lucide.createIcons();
     vincularEventosRegras();
+  }
+  const info = document.getElementById('regras-pag-info');
+  if (info) {
+    const filtradas = getRegrasFiltradas();
+    info.textContent = `Exibindo ${filtradas.length} de ${_regrasFisiologicas.length} parâmetro(s) agronômico(s)`;
   }
 }
 
