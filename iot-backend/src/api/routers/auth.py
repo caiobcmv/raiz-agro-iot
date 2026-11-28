@@ -1,5 +1,6 @@
 import hmac
 import os
+import re
 import secrets
 import uuid
 
@@ -185,10 +186,13 @@ def _limpar_cookie_refresh(response: Response) -> None:
     )
 
 
+_VERCEL_ORIGIN_RE = re.compile(r"^https://[a-zA-Z0-9-]+\.vercel\.app$")
+
+
 def _checar_origem(request: Request) -> None:
     """Defesa extra contra CSRF nas rotas que usam o cookie (vale também com SameSite=None)."""
     origem = request.headers.get("origin")
-    if origem and origem not in config.CORS_ORIGINS:
+    if origem and origem not in config.CORS_ORIGINS and not _VERCEL_ORIGIN_RE.match(origem):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Origem não permitida")
 
 
@@ -210,7 +214,13 @@ def _emitir_sessao(conn, user: dict, request: Request, response: Response,
         "token_type": "bearer",
         "expires_in": ACCESS_MIN * 60,
         "deve_trocar_senha": bool(user.get("deve_trocar_senha")),
-}
+        "usuario": {
+            "id_usuario": user["id_usuario"],
+            "nome": user.get("nome"),
+            "email": user.get("email"),
+            "perfil": user["perfil"],
+        },
+    }
 
 
 def _usuario_do_token_temporario(conn, token: str) -> dict:
@@ -256,6 +266,60 @@ def _gerar_e_enviar_codigo(conn, user: dict, background: BackgroundTasks) -> str
     return "enviado"
 
 
+class Preferencia2FAIn(BaseModel):
+    email_ativo: bool
+
+
+def _tem_2fa_email_ativo(conn, id_usuario: int) -> bool:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT ativo FROM notificacao_preferencia
+             WHERE fk_usuario_id_usuario = %s AND canal = '2fa_email'
+            """,
+            (id_usuario,),
+        )
+        row = cur.fetchone()
+    return bool(row and row[0])
+
+
+@router.get("/2fa/preferencia")
+def obter_preferencia_2fa(user=Depends(get_current_user_sem_bloqueio), conn=Depends(get_conn)):
+    totp_ativo = totp_db.tem_totp_ativo(conn, user["id_usuario"])
+    email_ativo = _tem_2fa_email_ativo(conn, user["id_usuario"])
+    email_global = os.getenv("LOGIN_2FA_EMAIL", "true").lower() == "true"
+    metodo = "totp" if totp_ativo else ("email" if (email_ativo or email_global) else "nenhum")
+    return {
+        "totp_ativo": totp_ativo,
+        "email_ativo": email_ativo,
+        "email_global": email_global,
+        "metodo_ativo": metodo,
+    }
+
+
+@router.put("/2fa/preferencia")
+def salvar_preferencia_2fa(
+    body: Preferencia2FAIn,
+    request: Request,
+    user=Depends(get_current_user_sem_bloqueio),
+    conn=Depends(get_conn),
+):
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO notificacao_preferencia (fk_usuario_id_usuario, canal, ativo, nivel_minimo, data_atualizacao)
+            VALUES (%s, '2fa_email', %s, 'baixo', now() AT TIME ZONE 'UTC')
+            ON CONFLICT (fk_usuario_id_usuario, canal) DO UPDATE
+               SET ativo = EXCLUDED.ativo,
+                   data_atualizacao = now() AT TIME ZONE 'UTC'
+            """,
+            (user["id_usuario"], body.email_ativo),
+        )
+    _audit(conn, user["id_usuario"], "2fa_email_ativado" if body.email_ativo else "2fa_email_desativado", request)
+    conn.commit()
+    return obter_preferencia_2fa(user=user, conn=conn)
+
+
 # ---------- login ----------
 def _continuar_login(conn, user, request, response, background):
     # Segundo fator por aplicativo autenticador (TOTP): quem cadastrou sempre passa por ele,
@@ -270,7 +334,11 @@ def _continuar_login(conn, user, request, response, background):
             "token_temporario": criar_token_2fa(user["id_usuario"]),
         }
 
-    if os.getenv("LOGIN_2FA_EMAIL", "true").lower() != "true":
+    exige_email = (
+        os.getenv("LOGIN_2FA_EMAIL", "true").lower() == "true"
+        or _tem_2fa_email_ativo(conn, user["id_usuario"])
+    )
+    if not exige_email:
         sessao = _emitir_sessao(conn, user, request, response)
         _audit(conn, user["id_usuario"], "login_ok", request)
         conn.commit()

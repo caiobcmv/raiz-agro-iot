@@ -532,3 +532,37 @@ html[data-visual-effects="off"] *::after {
   }
 }
 
+.lotes-status-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: stretch;
+  gap: 14px;
+  width: 100%;
+}
+
+.lotes-status-grid > div {
+  flex: 0 1 calc((100% - 42px) / 4);
+  min-width: 155px;
+  box-sizing: border-box;
+}
+
+.lotes-status-grid > .card-estagio-esteira:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08) !important;
+  border-color: #CBD5E1 !important;
+}
+
+@media (max-width: 768px) {
+  .lotes-status-grid > div {
+    flex: 0 1 calc((100% - 14px) / 2);
+    min-width: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .lotes-status-grid > div {
+    flex: 1 1 100%;
+  }
+}
+

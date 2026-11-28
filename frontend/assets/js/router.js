@@ -5,7 +5,7 @@
 import { api } from './api.js';
 import { auth } from './auth.js';
 import { renderSidebar } from './components/sidebar.js?v=20261120-live45';
-import { renderHeader } from './components/header.js?v=20261123-live36';
+import { renderHeader } from './components/header.js?v=20261128-live2';
 import { Modal } from './components/modal.js?v=20261120-live33';
 import { toast } from './components/toast.js?v=20261120-live33';
 import { showAccessDeniedModal } from './components/access-denied-modal.js?v=20261120-live33';
@@ -20,20 +20,20 @@ import {
   renderSenhaAlterada, setupSenhaAlteradaEvents,
   renderContaBloqueada, setupContaBloqueadaEvents
 } from './views/auth-flow.js?v=20261122-totp1';
-import { renderDashboard, setupDashboardEvents } from './views/dashboard.js?v=20261127-real6';
-import { renderSensores, setupSensoresEvents } from './views/sensores.js?v=20261122-real2';
-import { renderRedeEsp32, setupRedeEsp32Events } from './views/rede-esp32.js?v=20261122-real2';
+import { renderDashboard, setupDashboardEvents } from './views/dashboard.js?v=20261128-live2';
+import { renderSensores, setupSensoresEvents } from './views/sensores.js?v=20261128-live2';
+import { renderRedeEsp32, setupRedeEsp32Events } from './views/rede-esp32.js?v=20261128-live2';
 import { renderLeituras, setupLeiturasEvents } from './views/leituras.js?v=20261127-real6';
-import { renderLotes, setupLotesEvents } from './views/lotes.js?v=20261122-real2';
-import { renderAlertas, setupAlertasEvents } from './views/alertas.js?v=20261122-real2';
+import { renderLotes, setupLotesEvents } from './views/lotes.js?v=20261128-c';
+import { renderAlertas, setupAlertasEvents } from './views/alertas.js?v=20261128-live2';
 import { renderPrevisoes } from './views/previsoes.js?v=20261122-real2';
-import { renderRelatorios, setupRelatoriosEvents } from './views/relatorios.js?v=20261122-real2';
-import { renderConfiguracoes, setupConfiguracoesEvents } from './views/configuracoes.js?v=20261127-real6';
-import { renderCalibracao, setupCalibracaoEvents } from './views/calibracao.js?v=20261122-real5';
-import { renderUsuarios, setupUsuariosEvents } from './views/usuarios.js?v=20261120-live33';
-import { renderRegrasAgronomicas, setupRegrasAgronomicasEvents } from './views/regras-agronomicas.js?v=20261120-live33';
+import { renderRelatorios, setupRelatoriosEvents } from './views/relatorios.js?v=20261128-live2';
+import { renderConfiguracoes, setupConfiguracoesEvents } from './views/configuracoes.js?v=20261128-live2';
+import { renderCalibracao, setupCalibracaoEvents } from './views/calibracao.js?v=20261128-live2';
+import { renderUsuarios, setupUsuariosEvents } from './views/usuarios.js?v=20261128-b';
+import { renderRegrasAgronomicas, setupRegrasAgronomicasEvents } from './views/regras-agronomicas.js?v=20261128-live2';
 import { renderAuditoria, setupAuditoriaEvents } from './views/auditoria.js?v=20261120-live33';
-import { renderSensoresAdmin, setupSensoresAdminEvents } from './views/sensores-admin.js?v=20261120-live33';
+import { renderSensoresAdmin, setupSensoresAdminEvents } from './views/sensores-admin.js?v=20261128-c';
 
 const routes = {
   '#/login': {
@@ -181,10 +181,33 @@ export class Router {
   constructor(appContainer) {
     this.appContainer = appContainer;
     this.realtimeInterval = null;
+    this._navToken = 0;
+    this._lastBellCount = null;
     window.addEventListener('hashchange', () => this.handleRoute());
   }
 
+  _isTokenExpiredOrNear(token, skewSec = 30) {
+    if (!token) return true;
+    try {
+      const parts = token.split('.');
+      if (parts.length !== 3) return false;
+      const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+      const payload = JSON.parse(atob(b64));
+      if (!payload || typeof payload.exp !== 'number') return false;
+      return (Date.now() / 1000) >= (payload.exp - skewSec);
+    } catch (_) {
+      return false;
+    }
+  }
+
   async init() {
+    // Se há usuário salvo mas o JWT expirou (ex.: F5 ou aba ociosa), renova silenciosamente antes de rotear
+    const hasSavedUser = Boolean(localStorage.getItem('user_data'));
+    const currentToken = api.getToken();
+    if (hasSavedUser && (!currentToken || this._isTokenExpiredOrNear(currentToken))) {
+      await api.refreshToken().catch(() => null);
+    }
+
     // Checagem assíncrona não bloqueante da API e carregamento das preferências do usuário no PostgreSQL
     api.checkHealth().catch(() => { });
     if (auth.isAuthenticated()) {
@@ -199,7 +222,7 @@ export class Router {
       }
       try {
         if (window.history && window.history.replaceState) {
-          window.history.replaceState(null, '', '/' + (window.location.hash || '#/dashboard'));
+          window.history.replaceState(null, '', '/' + (window.location.hash || ''));
         }
       } catch (errState) {
         // Ignora erro de segurança em contextos restritos
@@ -211,12 +234,21 @@ export class Router {
       sessionStorage.setItem('dashboard_mode_init', '1');
     }
 
-    if (!window.location.hash || window.location.hash === '#/' || window.location.hash === '') {
-      window.location.hash = auth.isAuthenticated() ? '#/dashboard' : '#/login';
+    const currentHash = window.location.hash;
+    const targetHash = auth.isAuthenticated() ? '#/dashboard' : '#/login';
+    let routeHandledByHashChange = false;
+
+    if (!currentHash || currentHash === '#/' || currentHash === '#') {
+      if (window.location.hash !== targetHash) {
+        routeHandledByHashChange = true;
+        window.location.hash = targetHash;
+      }
     }
 
     this.startRealtimeEngine();
-    await this.handleRoute();
+    if (!routeHandledByHashChange) {
+      await this.handleRoute();
+    }
   }
 
   startRealtimeEngine() {
@@ -254,6 +286,37 @@ export class Router {
     }
   }
 
+  _applyBellCount(count) {
+    this._lastBellCount = count;
+    const bell = document.getElementById('header-bell-count');
+    if (bell && count != null) {
+      bell.textContent = String(count);
+      bell.style.display = count > 0 ? 'flex' : 'none';
+    }
+  }
+
+  setupHeaderEvents() {
+    const sidebar = document.getElementById('app-sidebar');
+    const backdrop = document.getElementById('sidebar-mobile-backdrop');
+    const openBtn = document.getElementById('mobile-menu-btn');
+    if (openBtn && !openBtn.dataset.bound) {
+      openBtn.dataset.bound = 'true';
+      openBtn.addEventListener('click', () => {
+        sidebar?.classList.add('mobile-open');
+        backdrop?.classList.add('active');
+        document.body.style.overflow = 'hidden';
+      });
+    }
+    const syncPill = document.getElementById('header-live-sync-pill');
+    if (syncPill && !syncPill.dataset.bound) {
+      syncPill.dataset.bound = 'true';
+      syncPill.addEventListener('click', () => this.pulseRealtimeTelemetry(true));
+    }
+    if (this._lastBellCount != null) {
+      this._applyBellCount(this._lastBellCount);
+    }
+  }
+
   setupShellEvents() {
     // 1. Logout na Sidebar
     const logoutBtn = document.getElementById('logout-btn');
@@ -264,7 +327,6 @@ export class Router {
     // 2. Gaveta Mobile (Hamburger Menu + Backdrop + Fechar)
     const sidebar = document.getElementById('app-sidebar');
     const backdrop = document.getElementById('sidebar-mobile-backdrop');
-    const openBtn = document.getElementById('mobile-menu-btn');
     const closeBtn = document.getElementById('sidebar-mobile-close');
 
     const closeDrawer = () => {
@@ -273,13 +335,6 @@ export class Router {
       document.body.style.overflow = '';
     };
 
-    const openDrawer = () => {
-      sidebar?.classList.add('mobile-open');
-      backdrop?.classList.add('active');
-      document.body.style.overflow = 'hidden';
-    };
-
-    openBtn?.addEventListener('click', openDrawer);
     closeBtn?.addEventListener('click', closeDrawer);
     backdrop?.addEventListener('click', closeDrawer);
 
@@ -289,9 +344,8 @@ export class Router {
       });
     });
 
-    // 3. Indicador Tempo Real no Header
-    const syncPill = document.getElementById('header-live-sync-pill');
-    syncPill?.addEventListener('click', () => this.pulseRealtimeTelemetry(true));
+    // 3. Eventos do Header (Menu Mobile + Indicador Tempo Real)
+    this.setupHeaderEvents();
 
     // 4. Gateway Status Pill na Sidebar
     const gatewayPill = document.getElementById('sidebar-gateway-pill');
@@ -300,14 +354,12 @@ export class Router {
       toast.info('Telemetria IoT', `Coleta ativa via nós ESP32 e canal ${profile.gatewayPill} (${profile.gatewayStatus}).`);
     });
 
-    // 5. Sincroniza o contador do sino de alertas no header com o status real no banco
+    // 5. Sincroniza o contador do sino de alertas no header com o status real no banco (uma vez na montagem do shell)
     api.getEstadoAlertas().then(data => {
-      const bell = document.getElementById('header-bell-count');
-      if (bell && data && data.resumo) {
+      if (data && data.resumo) {
         const role = auth.getActiveProfile();
         const count = role === 'analista' ? data.resumo.analista_ativos : data.resumo.gestora_ativos;
-        bell.textContent = String(count);
-        bell.style.display = count > 0 ? 'flex' : 'none';
+        this._applyBellCount(count);
       }
     }).catch(() => {});
 
@@ -351,14 +403,20 @@ export class Router {
 
     if (!routes[hash]) {
       hash = '#/dashboard';
-      window.location.hash = hash;
+      if (window.location.hash !== hash) {
+        window.location.hash = hash;
+        return;
+      }
     }
 
     const route = routes[hash] || routes['#/dashboard'];
 
     // Guarda de rota: se exigir login e não estiver autenticado, renderiza login imediatamente
     if (route.authRequired && !auth.isAuthenticated()) {
-      window.location.hash = '#/login';
+      if (window.location.hash !== '#/login') {
+        window.location.hash = '#/login';
+        return;
+      }
       const loginRoute = routes['#/login'];
       document.title = `${loginRoute.title} | Raiz Agro`;
       this.appContainer.innerHTML = `<div class="page-transition-enter">${loginRoute.render()}</div>`;
@@ -367,17 +425,29 @@ export class Router {
       return;
     }
 
+    // Guarda inversa: se já está autenticado e caiu em #/login, redireciona direto para #/dashboard
+    if (hash === '#/login' && auth.isAuthenticated()) {
+      window.location.hash = '#/dashboard';
+      return;
+    }
+
     // Guarda de perfil: apenas administradores acessam as áreas administrativas
     const ROTAS_ADMIN = ['#/usuarios', '#/auditoria', '#/lotes', '#/regras-agronomicas', '#/relatorios'];
     const ROTAS_ANALISTA = ['#/rede-esp32'];
     const activeProfile = auth.getActiveProfile();
     if (ROTAS_ADMIN.includes(hash) && activeProfile !== 'admin') {
+      if (window.location.hash !== '#/dashboard') {
+        window.location.hash = '#/dashboard';
+        return;
+      }
       hash = '#/dashboard';
-      window.location.hash = hash;
       toast.info('Acesso Restrito', 'Esta área é exclusiva da Administradora.');
     } else if (ROTAS_ANALISTA.includes(hash) && activeProfile !== 'analista' && activeProfile !== 'admin') {
+      if (window.location.hash !== '#/dashboard') {
+        window.location.hash = '#/dashboard';
+        return;
+      }
       hash = '#/dashboard';
-      window.location.hash = hash;
       toast.info('Acesso Restrito', 'Esta área é exclusiva do Analista.');
     }
 
@@ -394,53 +464,89 @@ export class Router {
     ];
 
     if (FULLSCREEN_ROUTES.includes(hash)) {
+      this._navToken += 1;
       this.appContainer.innerHTML = `<div class="page-transition-enter">${route.render()}</div>`;
       if (route.setup) await route.setup();
-    } else {
-      try {
-        // Se já existe o shell .dashboard-layout, mostra skeleton rápido durante a transição da view
-        const existingMain = this.appContainer.querySelector('#route-view-container');
-        if (existingMain) {
-          existingMain.innerHTML = renderRouteSkeleton();
-        }
+      if (window.lucide) window.lucide.createIcons();
+      return;
+    }
 
-        const contentHtml = await route.render();
+    const navToken = ++this._navToken;
+    try {
+      const existingLayout = this.appContainer.querySelector('.dashboard-layout');
+      const canReuseShell = Boolean(existingLayout && existingLayout.dataset.profile === (activeProfile || ''));
 
+      if (!canReuseShell) {
+        // Monta o shell imediatamente com skeleton antes de aguardar as requisições da view
         this.appContainer.innerHTML = `
-          <div class="dashboard-layout">
+          <div class="dashboard-layout" data-profile="${activeProfile || ''}">
             ${renderSidebar(hash)}
             <main class="main-content">
               ${renderHeader(route.title)}
               <div id="route-view-container" class="page-transition-enter">
-                ${contentHtml}
+                ${renderRouteSkeleton()}
               </div>
             </main>
           </div>
         `;
-
         this.setupShellEvents();
-        if (route.setup) await route.setup();
-        this.bindGlobalButtonEnhancements();
-      } catch (renderError) {
-        console.error('Erro ao renderizar rota:', renderError);
-        this.appContainer.innerHTML = `
-          <div style="padding: 40px; text-align: center; font-family: sans-serif;">
-            <h2 style="color: #EF4444;">Ocorreu um problema ao carregar a página</h2>
-            <p style="color: #64748B;">${renderError.message || renderError}</p>
-            <button onclick="window.location.reload()" style="margin-top: 16px; padding: 10px 20px; background: #183D2E; color: #fff; border: none; border-radius: 8px; cursor: pointer;">
-              Recarregar Sistema
-            </button>
-          </div>
-        `;
-      }
-    }
-
-    if (window.lucide) {
-      window.lucide.createIcons();
-    } else {
-      setTimeout(() => {
         if (window.lucide) window.lucide.createIcons();
-      }, 400);
+      } else {
+        // Reaproveita a Sidebar sem reconstruir o shell inteiro
+        existingLayout.querySelectorAll('.sidebar-menu-item').forEach(link => {
+          link.classList.toggle('active', link.getAttribute('href') === hash);
+        });
+        const existingHeader = existingLayout.querySelector('header.topbar-header');
+        if (existingHeader) {
+          existingHeader.outerHTML = renderHeader(route.title);
+          this.setupHeaderEvents();
+          const newHeader = existingLayout.querySelector('header.topbar-header');
+          if (window.lucide && newHeader) window.lucide.createIcons({ nodes: [newHeader] });
+        }
+        const existingMain = existingLayout.querySelector('#route-view-container');
+        if (existingMain) {
+          existingMain.innerHTML = renderRouteSkeleton();
+        }
+      }
+
+      const contentHtml = await route.render();
+      if (navToken !== this._navToken) return;
+
+      const viewContainer = this.appContainer.querySelector('#route-view-container');
+      if (viewContainer) {
+        viewContainer.classList.remove('page-transition-enter');
+        void viewContainer.offsetWidth;
+        viewContainer.classList.add('page-transition-enter');
+        viewContainer.innerHTML = contentHtml;
+      }
+
+      if (route.setup) await route.setup();
+      if (navToken !== this._navToken) return;
+
+      this.bindGlobalButtonEnhancements();
+      if (window.lucide) {
+        if (viewContainer) {
+          window.lucide.createIcons({ nodes: [viewContainer] });
+        } else {
+          window.lucide.createIcons();
+        }
+      } else {
+        setTimeout(() => {
+          if (window.lucide) window.lucide.createIcons();
+        }, 400);
+      }
+    } catch (renderError) {
+      if (navToken !== this._navToken) return;
+      console.error('Erro ao renderizar rota:', renderError);
+      this.appContainer.innerHTML = `
+        <div style="padding: 40px; text-align: center; font-family: sans-serif;">
+          <h2 style="color: #EF4444;">Ocorreu um problema ao carregar a página</h2>
+          <p style="color: #64748B;">${renderError.message || renderError}</p>
+          <button onclick="window.location.reload()" style="margin-top: 16px; padding: 10px 20px; background: #183D2E; color: #fff; border: none; border-radius: 8px; cursor: pointer;">
+            Recarregar Sistema
+          </button>
+        </div>
+      `;
     }
   }
 }

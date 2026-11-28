@@ -1,8 +1,6 @@
 /**
- * VIEW: SENSORES E TELEMETRIA DE CAMPO - FIEL AO FIGMA ADM
- * Sub-barra técnica com Provisionamento, Ingestão ThingSpeak, 4 KPIs Superiores,
- * Filtros de Talhões e Culturas, Tabela Completa de Hardware com Ações Operacionais,
- * Paginação Interativa, e Gráfico de Correlação Térmica e Hídrica 24h.
+ * VIEW: SENSORES E TELEMETRIA DE CAMPO (ADMINISTRADOR)
+ * Dados reais carregados via api.getSensores() e api.getSensorLeituras().
  */
 
 import { api } from '../api.js';
@@ -10,425 +8,240 @@ import { Modal } from '../components/modal.js';
 import { toast } from '../components/toast.js';
 import { downloadCSV, downloadPDF, openExportChoiceModal } from '../utils/export-utils.js';
 
-let _sensoresList = [
-  {
-    id: 'SNS-SL-001',
-    nome: 'Sensor Solo Talhão A1',
-    tipo: 'Sensor de Umidade do Solo',
-    status: 'Ativo',
-    categoria: 'solo',
-    ambiente: 'solo',
-    talhao: 'Talhão A1 (Uva Vitória) • Lote #1',
-    channel_id: 3500765,
-    dono: 'Maria Clara (Produtor)',
-    fk_usuario_id_usuario: 1,
-    leitura: '48.2% VWC',
-    statusClass: 'ativo',
-    icone: 'droplet',
-    corIcone: '#10B981',
-    offset: 0.0
-  },
-  {
-    id: 'SNS-AR-002',
-    nome: 'Estação Microclima A1',
-    tipo: 'Sensor DHT11 (Temp/Umid Ar)',
-    status: 'Ativo',
-    categoria: 'microclima',
-    ambiente: 'ar',
-    talhao: 'Talhão A1 (Uva Vitória) • Torre Dossel',
-    channel_id: 3500765,
-    dono: 'Luiz Felipe (Analista)',
-    fk_usuario_id_usuario: 2,
-    leitura: '28.1°C • 59.4% UR',
-    statusClass: 'ativo',
-    icone: 'thermometer',
-    corIcone: '#0284C7',
-    offset: 0.0
-  },
-  {
-    id: 'SNS-SL-003',
-    nome: 'Sensor Solo Talhão A2',
-    tipo: 'Sensor de Umidade do Solo',
-    status: 'Ativo',
-    categoria: 'solo',
-    ambiente: 'solo',
-    talhao: 'Talhão A2 (Uva Crimson) • Lote #2',
-    channel_id: 3500765,
-    dono: 'Lorena Lira (Administrador)',
-    fk_usuario_id_usuario: 3,
-    leitura: '37.8% VWC',
-    statusClass: 'ativo',
-    icone: 'droplet',
-    corIcone: '#10B981',
-    offset: 0.0
-  },
-  {
-    id: 'SNS-SL-019',
-    nome: 'Sensor Solo Talhão C1',
-    tipo: 'Sensor de Umidade do Solo',
-    status: 'Atenção / Calibração',
-    categoria: 'atencao',
-    ambiente: 'solo',
-    talhao: 'Talhão C1 (Manga Tommy) • Lote #4',
-    channel_id: 3500765,
-    dono: 'Lorena Lira (Administrador)',
-    fk_usuario_id_usuario: 3,
-    leitura: 'Outlier Sanitizado (leitura_rejeitada)',
-    statusClass: 'atencao',
-    icone: 'alert-triangle',
-    corIcone: '#EF4444',
-    offset: -35.3
-  },
-  {
-    id: 'SNS-ESP-025',
-    nome: 'Bancada Testes Laboratório',
-    tipo: 'Sensor de Teste Homologação',
-    status: 'Homologação',
-    categoria: 'homologacao',
-    ambiente: 'ar',
-    talhao: 'Sede Petrolina • Bancada Laboratorial',
-    channel_id: null,
-    dono: 'Lorena Lira (Administrador)',
-    fk_usuario_id_usuario: 3,
-    leitura: 'Calibração 0-100% OK',
-    statusClass: 'homologacao',
-    icone: 'cpu',
-    corIcone: '#8B5CF6',
-    offset: 0.0
-  },
-  {
-    id: 'SNS-SL-004',
-    nome: 'Sensor Solo Talhão B2',
-    tipo: 'Sensor de Umidade do Solo',
-    status: 'Ativo',
-    categoria: 'solo',
-    ambiente: 'solo',
-    talhao: 'Talhão B2 (Melão Amarelo) • Lote #3',
-    channel_id: 3500765,
-    dono: 'Maria Clara (Produtor)',
-    fk_usuario_id_usuario: 1,
-    leitura: '32.4% VWC',
-    statusClass: 'ativo',
-    icone: 'droplet',
-    corIcone: '#10B981',
-    offset: 0.0
-  },
-  {
-    id: 'SNS-AR-005',
-    nome: 'Estação Microclima C2',
-    tipo: 'Sensor DHT11 (Temp/Umid Ar)',
-    status: 'Ativo',
-    categoria: 'microclima',
-    ambiente: 'ar',
-    talhao: 'Talhão C2 (Manga Palmer) • Lote #5',
-    channel_id: 3500765,
-    dono: 'Lorena Lira (Administrador)',
-    fk_usuario_id_usuario: 3,
-    leitura: '29.3°C • 54.1% UR',
-    statusClass: 'ativo',
-    icone: 'thermometer',
-    corIcone: '#0284C7',
-    offset: 0.0
-  }
-];
-
-let _filtroCategoriaSensor = 'todos';
+let _sensoresList = [];
+let _leiturasSolo = [];
+let _leiturasAr = [];
+let _sensorSoloRef = null;
+let _sensorArRef = null;
+let _periodoCorrelacao = '24h';
+let _erroSensores = false;
+let _filtroAmbienteSensor = 'todos';
 let _termoBuscaSensor = '';
 let _paginaAtualSensores = 1;
-const _itensPorPagina = 5;
+const _itensPorPagina = 10;
+
+function extrairArray(val) {
+  if (Array.isArray(val)) return val;
+  if (val && typeof val === 'object') {
+    if (Array.isArray(val.sensores)) return val.sensores;
+    if (Array.isArray(val.pontos)) return val.pontos;
+    if (Array.isArray(val.leituras)) return val.leituras;
+    if (Array.isArray(val.itens)) return val.itens;
+    if (Array.isArray(val.data)) return val.data;
+  }
+  return [];
+}
+
+function formatarDataHoraBr(iso) {
+  if (!iso) return '—';
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return String(iso);
+    return new Intl.DateTimeFormat('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'America/Recife'
+    }).format(d);
+  } catch (e) {
+    return String(iso);
+  }
+}
+
+function formatarHoraBr(iso) {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    return new Intl.DateTimeFormat('pt-BR', {
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'America/Recife'
+    }).format(d);
+  } catch (e) {
+    return '';
+  }
+}
+
+function formatarLeituraSensor(s) {
+  const amb = String(s?.ambiente || '').toLowerCase();
+  if (amb === 'solo') {
+    return s?.umidade != null ? `${Number(s.umidade).toFixed(1)}% umidade` : 'Sem leitura';
+  }
+  const temp = s?.temperatura != null ? `${Number(s.temperatura).toFixed(1)}°C` : null;
+  const umid = s?.umidade != null ? `${Number(s.umidade).toFixed(1)}% UR` : null;
+  if (temp && umid) return `${temp} • ${umid}`;
+  if (temp) return temp;
+  if (umid) return umid;
+  return 'Sem leitura';
+}
 
 export async function renderSensoresAdmin() {
+  _sensoresList = [];
+  _leiturasSolo = [];
+  _leiturasAr = [];
+  _erroSensores = false;
+  _filtroAmbienteSensor = 'todos';
+  _termoBuscaSensor = '';
+  _paginaAtualSensores = 1;
+
+  try {
+    const res = await api.getSensores();
+    _sensoresList = extrairArray(res);
+  } catch (err) {
+    console.warn('[SensoresAdmin] Falha ao buscar sensores:', err);
+    _erroSensores = true;
+  }
+
+  // Prioriza sensores com telemetria ativa (ultima_leitura preenchida) para não puxar sensor vazio
+  const sensorSolo =
+    _sensoresList.find(s => String(s?.ambiente || '').toLowerCase() === 'solo' && s?.ultima_leitura) ||
+    _sensoresList.find(s => String(s?.ambiente || '').toLowerCase() === 'solo');
+  const sensorAr =
+    _sensoresList.find(s => String(s?.ambiente || '').toLowerCase() === 'ar' && s?.ultima_leitura) ||
+    _sensoresList.find(s => String(s?.ambiente || '').toLowerCase() === 'ar');
+
+  _sensorSoloRef = sensorSolo || null;
+  _sensorArRef = sensorAr || null;
+  _periodoCorrelacao = '24h';
+
+  const [resSolo, resAr] = await Promise.allSettled([
+    sensorSolo ? api.getSensorLeituras(sensorSolo.id_sensor, _periodoCorrelacao) : Promise.resolve([]),
+    sensorAr ? api.getSensorLeituras(sensorAr.id_sensor, _periodoCorrelacao) : Promise.resolve([])
+  ]);
+
+  if (resSolo.status === 'fulfilled') {
+    _leiturasSolo = extrairArray(resSolo.value);
+  }
+  if (resAr.status === 'fulfilled') {
+    _leiturasAr = extrairArray(resAr.value);
+  }
+
+  const total = _sensoresList.length;
+  const totalSolo = _sensoresList.filter(s => String(s?.ambiente || '').toLowerCase() === 'solo').length;
+  const totalAr = _sensoresList.filter(s => String(s?.ambiente || '').toLowerCase() === 'ar').length;
+  const totalAtivos = _sensoresList.filter(s => String(s?.status || '').toLowerCase() === 'ativo').length;
+  const pctSolo = total > 0 ? Math.round((totalSolo / total) * 100) : 0;
+  const pctAr = total > 0 ? Math.round((totalAr / total) * 100) : 0;
+
   return `
-    <div class="dashboard-canvas apple-animate-in" style="max-width: 1400px; margin: 0 auto;">
-      <!-- Sub-barra Técnica do Administrador -->
-      <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 12px 20px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
-        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 11px;">
-          <span style="font-weight: 700; color: #047857; background: #ECFDF5; border: 1px solid #A7F3D0; padding: 4px 10px; border-radius: 20px;">
-            • Ambiente de Produção
-          </span>
-          <span style="color: #475569;">• Rede Wi-Fi ESP32</span>
-          <span style="color: #64748B;">• Gateway Central Petrolina</span>
-          <span style="color: #0284C7; font-weight: 600;">• Broker ThingSpeak Sincronizado</span>
+    <div class="dashboard-canvas apple-animate-in" style="padding-top: 28px;">
+      <!-- Sub-barra de Ações -->
+      <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 12px 20px; margin-top: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+        <div style="font-size: 13px; font-weight: 700; color: #0F172A;">
+          Sensores e Telemetria
         </div>
-
         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-          <button class="btn-analista-sync" id="btn-sync-esp32" style="background: #FFFFFF; border: 1px solid #CBD5E1; color: #334155; font-size: 11px; font-weight: 600; padding: 7px 14px; border-radius: 6px; display: flex; align-items: center; gap: 6px; cursor: pointer; transition: all 0.2s;">
-            <i data-lucide="refresh-cw" style="width: 13px; height: 13px;"></i>
-            <span>Sincronizar Nós (ESP32)</span>
-          </button>
-          <button class="btn-analista-sync" id="btn-export-leituras" style="background: #FFFFFF; border: 1px solid #CBD5E1; color: #334155; font-size: 11px; font-weight: 600; padding: 7px 14px; border-radius: 6px; display: flex; align-items: center; gap: 6px; cursor: pointer; transition: all 0.2s;">
+          <button class="btn-analista-sync" id="btn-export-leituras" style="background: #FFFFFF; border: 1px solid #CBD5E1; color: #334155; font-size: 11px; font-weight: 600; padding: 7px 14px; border-radius: 6px; display: flex; align-items: center; gap: 6px; cursor: pointer;">
             <i data-lucide="download" style="width: 13px; height: 13px;"></i>
-            <span>Exportar Leituras (CSV)</span>
+            <span>Exportar Sensores (CSV / PDF)</span>
           </button>
-          <button class="btn btn-primary" id="btn-provisionar-sensor" style="background: #183D2E; color: #FFFFFF; border: none; font-size: 11px; font-weight: 700; padding: 8px 16px; border-radius: 6px; display: flex; align-items: center; gap: 6px; cursor: pointer; transition: all 0.2s;">
+          <button class="btn btn-primary" id="btn-provisionar-sensor" style="background: #183D2E; color: #FFFFFF; border: none; font-size: 11px; font-weight: 700; padding: 8px 16px; border-radius: 6px; display: flex; align-items: center; gap: 6px; cursor: pointer;">
             <i data-lucide="plus" style="width: 14px; height: 14px;"></i>
-            <span>+ Provisionar Novo Sensor</span>
+            <span>Cadastrar Sensor</span>
           </button>
         </div>
       </div>
 
-      <!-- 4 KPIs Técnicos de Sensores -->
-      <div class="admin-kpi-grid-4">
-        <!-- KPI 1 -->
-        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 11px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">DISPONIBILIDADE DA REDE MESH</span>
-            <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 2px 8px; border-radius: 12px;">Mesh OK</span>
-          </div>
-          <div style="display: flex; align-items: center; gap: 16px; margin: 12px 0;">
-            <div style="width: 54px; height: 54px; border-radius: 50%; border: 4.5px solid #10B981; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; color: #0F172A;">
-              96%
-            </div>
-            <div>
-              <div style="font-size: 15px; font-weight: 800; color: #0F172A;">24 / 25 <span style="font-size: 11px; font-weight: 500; color: #64748B;">operacionais</span></div>
-              <div style="font-size: 10px; color: #047857; margin-top: 2px;">Canal ThingSpeak #3500765 Ativo</div>
-            </div>
-          </div>
-          <div style="font-size: 10px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px;">
-            1 nó em calibração preventiva
-          </div>
-        </div>
-
-        <!-- KPI 2 -->
-        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
+      <!-- Card Distribuição de Sensores (100% da largura, alinhado aos blocos abaixo) -->
+      <div style="display: grid; grid-template-columns: 1fr; gap: 16px; margin-bottom: 20px; width: 100%;">
+        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
             <span style="font-size: 11px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">DISTRIBUIÇÃO DE SENSORES</span>
-            <span style="font-size: 10px; font-weight: 700; color: #0284C7; background: #F0F9FF; padding: 2px 8px; border-radius: 12px;">24 Ativos</span>
+            <span style="font-size: 11px; font-weight: 700; color: #047857; background: #ECFDF5; padding: 3px 10px; border-radius: 12px;">${totalAtivos} de ${total} ativos</span>
           </div>
-          <div style="margin: 10px 0;">
-            <div style="display: flex; justify-content: space-between; align-items: baseline;">
-              <div>
-                <span style="font-size: 20px; font-weight: 800; color: #0F172A;">16</span>
-                <span style="font-size: 10px; color: #64748B;"> Umidade do Solo (67%)</span>
-              </div>
-              <div>
-                <span style="font-size: 20px; font-weight: 800; color: #0F172A;">8</span>
-                <span style="font-size: 10px; color: #64748B;"> Ar DHT11 (33%)</span>
-              </div>
-            </div>
-            <div style="width: 100%; height: 7px; background: #E2E8F0; border-radius: 4px; display: flex; overflow: hidden; margin-top: 8px;">
-              <div style="width: 67%; background: #10B981;" title="Umidade do Solo 67%"></div>
-              <div style="width: 33%; background: #0284C7;" title="Ar DHT11 33%"></div>
-            </div>
-          </div>
-          <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px;">
-            <span>Solo: 14 Campo</span>
-            <span>Microclima: 8 Campo</span>
-            <span>2 Bancada</span>
-          </div>
-        </div>
-
-        <!-- KPI 3 -->
-        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 11px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">INGESTÃO THINGSPEAK</span>
-            <span style="font-size: 10px; font-weight: 700; color: #0284C7; background: #F0F9FF; padding: 2px 8px; border-radius: 12px;">PostgreSQL</span>
-          </div>
-          <div style="margin: 10px 0; display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin: 14px 0 10px 0;">
             <div>
-              <div style="font-size: 26px; font-weight: 800; color: #0F172A; line-height: 1;">99.8 %</div>
-              <div style="font-size: 11px; color: #64748B; margin-top: 4px;">Taxa de ingestão sem perda</div>
+              <div style="font-size: 22px; font-weight: 800; color: #0F172A;">${total}</div>
+              <div style="font-size: 11px; color: #64748B;">Total de sensores</div>
             </div>
-            <div style="width: 34px; height: 34px; border-radius: 50%; background: #ECFDF5; color: #10B981; display: flex; align-items: center; justify-content: center;">
-              <i data-lucide="cloud" style="width: 20px; height: 20px;"></i>
-            </div>
-          </div>
-          <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px;">
-            <span>300s cadência • 200 batches/h</span>
-            <span style="color: #DC2626; font-weight: 700;">2 outliers</span>
-          </div>
-        </div>
-
-        <!-- KPI 4: Governança e Vínculos RBAC (iot_db) -->
-        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 11px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">GOVERNANÇA & VÍNCULOS (RBAC)</span>
-            <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 2px 8px; border-radius: 12px;">fk_usuario_id_usuario</span>
-          </div>
-          <div style="margin: 10px 0; display: flex; justify-content: space-between; align-items: baseline;">
             <div>
-              <div style="font-size: 20px; font-weight: 800; color: #0F172A;">100 %</div>
-              <div style="font-size: 10px; color: #047857; font-weight: 600;">Hardware com dono atribuído</div>
+              <div style="font-size: 22px; font-weight: 800; color: #059669;">${totalSolo}</div>
+              <div style="font-size: 11px; color: #64748B;">Umidade do Solo (${pctSolo}%)</div>
             </div>
-            <div style="text-align: right;">
-              <div style="font-size: 12px; font-weight: 700; color: #64748B;">uq_sensor_channel</div>
-              <div style="font-size: 10px; color: #94A3B8;">Canal único ThingSpeak</div>
+            <div>
+              <div style="font-size: 22px; font-weight: 800; color: #0284C7;">${totalAr}</div>
+              <div style="font-size: 11px; color: #64748B;">Ar / Microclima (${pctAr}%)</div>
+            </div>
+            <div>
+              <div style="font-size: 22px; font-weight: 800; color: #0F172A;">${totalAtivos}</div>
+              <div style="font-size: 11px; color: #64748B;">Ativos no sistema</div>
             </div>
           </div>
-          <div style="font-size: 10px; color: #047857; border-top: 1px solid #F1F5F9; padding-top: 8px;">
-            Conforme com schema.sql e auth.sql
+          <div style="width: 100%; height: 7px; background: #E2E8F0; border-radius: 4px; display: flex; overflow: hidden;">
+            <div style="width: ${pctSolo}%; background: #10B981;" title="Solo ${pctSolo}%"></div>
+            <div style="width: ${pctAr}%; background: #0284C7;" title="Ar ${pctAr}%"></div>
           </div>
         </div>
       </div>
 
-      <!-- Distribuição Operacional por Talhões e Culturas -->
-      <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 16px 20px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-          <span style="font-size: 11px; font-weight: 800; color: #64748B; display: flex; align-items: center; gap: 6px; letter-spacing: 0.5px;">
-            <i data-lucide="map" style="width: 14px; height: 14px; color: #10B981;"></i>
-            Distribuição Operacional por Talhões e Culturas
-          </span>
-          <span style="font-size: 10px; font-weight: 700; color: #0284C7; letter-spacing: 0.5px;">TOPOLOGIA DE CAMPO ATIVA</span>
-        </div>
-
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px;">
-          <div class="card-filtro-talhao-sensor" data-talhao="Talhão A1" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px; border-left: 3px solid #10B981; cursor: pointer;">
-            <strong style="font-size: 12px; color: #0F172A; display: block;">Talhão A1</strong>
-            <span style="font-size: 10px; color: #64748B;">Uva Vitória • 8 Nós</span>
-            <div style="font-size: 10px; color: #047857; font-weight: 600; margin-top: 2px;">Solo + Ar (100% Online)</div>
-          </div>
-
-          <div class="card-filtro-talhao-sensor" data-talhao="Talhão A2" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px; border-left: 3px solid #0284C7; cursor: pointer;">
-            <strong style="font-size: 12px; color: #0F172A; display: block;">Talhão A2</strong>
-            <span style="font-size: 10px; color: #64748B;">Uva Crimson • 6 Nós</span>
-            <div style="font-size: 10px; color: #047857; font-weight: 600; margin-top: 2px;">Sensor de Solo (100% Online)</div>
-          </div>
-
-          <div class="card-filtro-talhao-sensor" data-talhao="Talhão B2" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px; border-left: 3px solid #F59E0B; cursor: pointer;">
-            <strong style="font-size: 12px; color: #0F172A; display: block;">Talhão B2</strong>
-            <span style="font-size: 10px; color: #64748B;">Melão Amarelo • 4 Nós</span>
-            <div style="font-size: 10px; color: #047857; font-weight: 600; margin-top: 2px;">Umidade Solo VWC (100% Online)</div>
-          </div>
-
-          <div class="card-filtro-talhao-sensor" data-talhao="Talhão C1" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px; border-left: 3px solid #EF4444; cursor: pointer;">
-            <strong style="font-size: 12px; color: #0F172A; display: block;">Talhão C1 / C2</strong>
-            <span style="font-size: 10px; color: #64748B;">Manga Tommy/Palmer • 6 Nós</span>
-            <div style="font-size: 10px; color: #D97706; font-weight: 600; margin-top: 2px;">Est. Microclima (1 Atenção)</div>
-          </div>
-
-          <div class="card-filtro-talhao-sensor" data-talhao="Bancada" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px; border-left: 3px solid #8B5CF6; cursor: pointer;">
-            <strong style="font-size: 12px; color: #0F172A; display: block;">Bancada Testes</strong>
-            <span style="font-size: 10px; color: #64748B;">Reserva • 2 Nós</span>
-            <div style="font-size: 10px; color: #7C3AED; font-weight: 600; margin-top: 2px;">Calibração Lab ESP32</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Tabela Completa de Sensores Cadastrados -->
+      <!-- Lista de Sensores Cadastrados -->
       <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
-          <div style="position: relative; flex: 1; max-width: 380px;">
+          <div style="position: relative; flex: 1; min-width: 220px; max-width: 380px;">
             <i data-lucide="search" style="position: absolute; left: 10px; top: 9px; width: 14px; height: 14px; color: #94A3B8;"></i>
-            <input type="text" id="input-busca-sensor" placeholder="Filtrar por ID do sensor, talhão, cultura ou tipo..." style="width: 100%; padding: 7px 12px 7px 32px; font-size: 11px; border: 1px solid #CBD5E1; border-radius: 8px; background: #FFFFFF;">
+            <input type="text" id="input-busca-sensor" placeholder="Filtrar por nome, tipo, localização ou status..." style="width: 100%; padding: 7px 12px 7px 32px; font-size: 11px; border: 1px solid #CBD5E1; border-radius: 8px; background: #FFFFFF;">
           </div>
           <div style="display: flex; gap: 6px; overflow-x: auto;">
-            <button class="tab-sensor-admin active" data-cat="todos" style="padding: 6px 12px; font-size: 10px; font-weight: 700; background: #183D2E; color: #FFFFFF; border: none; border-radius: 6px; cursor: pointer;">Todos (26)</button>
-            <button class="tab-sensor-admin" data-cat="solo" style="padding: 6px 12px; font-size: 10px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Solo (16)</button>
-            <button class="tab-sensor-admin" data-cat="microclima" style="padding: 6px 12px; font-size: 10px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Microclima (8)</button>
-            <button class="tab-sensor-admin" data-cat="atencao" style="padding: 6px 12px; font-size: 10px; font-weight: 600; background: #F8FAFC; color: #DC2626; border: 1px solid #FCA5A5; border-radius: 6px; cursor: pointer;">Atenção (2)</button>
+            <button class="tab-sensor-admin active" data-cat="todos" style="padding: 6px 12px; font-size: 10px; font-weight: 700; background: #183D2E; color: #FFFFFF; border: none; border-radius: 6px; cursor: pointer;">Todos (${total})</button>
+            <button class="tab-sensor-admin" data-cat="solo" style="padding: 6px 12px; font-size: 10px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Solo (${totalSolo})</button>
+            <button class="tab-sensor-admin" data-cat="ar" style="padding: 6px 12px; font-size: 10px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Ar (${totalAr})</button>
           </div>
         </div>
 
-        <!-- Lista de Sensores Renderizada -->
         <div id="container-lista-sensores" style="display: flex; flex-direction: column; gap: 12px;">
           ${renderLinhasSensoresHtml()}
         </div>
 
-        <!-- Paginação -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; font-size: 11px; color: #64748B; flex-wrap: wrap; gap: 8px;">
-          <span id="texto-paginacao-sensores">Exibindo 1-5 de 26 sensores cadastrados</span>
-          <div style="display: flex; gap: 6px;" id="controles-paginacao-sensores">
-            <button class="btn-pag-sensor active" data-pag="1" style="padding: 4px 10px; border: 1px solid #183D2E; background: #183D2E; color: #FFFFFF; border-radius: 4px; font-weight: 700; cursor: pointer;">1</button>
-            <button class="btn-pag-sensor" data-pag="2" style="padding: 4px 10px; border: 1px solid #CBD5E1; background: #FFFFFF; border-radius: 4px; cursor: pointer;">2</button>
-            <button class="btn-pag-sensor" data-pag="3" style="padding: 4px 10px; border: 1px solid #CBD5E1; background: #FFFFFF; border-radius: 4px; cursor: pointer;">3</button>
-            <button class="btn-pag-sensor-prox" style="padding: 4px 10px; border: 1px solid #CBD5E1; background: #FFFFFF; border-radius: 4px; cursor: pointer;">Próximo &gt;</button>
-          </div>
+          <span id="texto-paginacao-sensores"></span>
+          <div style="display: flex; gap: 6px;" id="controles-paginacao-sensores"></div>
         </div>
       </div>
 
-      <!-- 2 Cards Inferiores: Correlação Térmica e Hídrica 24h + Filtro de Ruído e Sanitização -->
-      <div style="display: grid; grid-template-columns: 1.4fr 1fr; gap: 20px;">
-        <!-- Card 1: Correlação Térmica e Hídrica (24h) -->
-        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
-            <div>
-              <h4 style="font-size: 14px; font-weight: 800; color: #0F172A; margin: 0;">Correlação Térmica e Hídrica (24h)</h4>
-              <p style="font-size: 11px; color: #64748B; margin: 2px 0 0 0;">Dinâmica solo vs microclima em tempo real</p>
-            </div>
-            <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 3px 8px; border-radius: 4px;">Tempo Real</span>
+      <!-- Correlação Térmica e Hídrica -->
+      <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); width: 100%;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
+          <div>
+            <h4 style="font-size: 14px; font-weight: 800; color: #0F172A; margin: 0;">Correlação Térmica e Hídrica</h4>
+            <p id="correlacao-subtitulo-periodo" style="font-size: 11px; color: #64748B; margin: 2px 0 0 0;">Leituras reais registradas nas últimas 24 horas</p>
           </div>
-
-          <!-- Gráfico SVG com Proporção Perfeita -->
-          <div style="position: relative; width: 100%; height: 210px; background: #FAFDFB; border: 1px solid #E2E8F0; border-radius: 12px; overflow: hidden; padding: 10px;">
-            <svg viewBox="0 0 600 160" style="width: 100%; height: 100%; display: block;" preserveAspectRatio="none">
-              <!-- Faixa Ideal de Manejo Verde Suave -->
-              <rect x="0" y="45" width="600" height="70" fill="#ECFDF5" opacity="0.6"/>
-
-              <!-- Linhas de Grade Horizontais -->
-              <line x1="0" y1="45" x2="600" y2="45" stroke="#E2E8F0" stroke-dasharray="3,3" stroke-width="1"/>
-              <line x1="0" y1="80" x2="600" y2="80" stroke="#E2E8F0" stroke-dasharray="3,3" stroke-width="1"/>
-              <line x1="0" y1="115" x2="600" y2="115" stroke="#E2E8F0" stroke-dasharray="3,3" stroke-width="1"/>
-
-              <!-- Curva Solo (Verde Contínua) -->
-              <path d="M 0,105 C 100,115 200,65 320,75 C 440,85 520,55 600,60" fill="none" stroke="#10B981" stroke-width="2.5"/>
-
-              <!-- Curva Ar (Azul Pontilhada) -->
-              <path d="M 0,55 C 120,40 220,95 340,110 C 460,125 540,85 600,90" fill="none" stroke="#0284C7" stroke-width="2" stroke-dasharray="5,5"/>
-
-              <!-- Pontos de Amostragem -->
-              <circle cx="320" cy="75" r="4.5" fill="#10B981" stroke="#FFFFFF" stroke-width="1.5"/>
-              <circle cx="340" cy="110" r="4.5" fill="#0284C7" stroke="#FFFFFF" stroke-width="1.5"/>
-              <circle cx="600" cy="60" r="4.5" fill="#10B981" stroke="#FFFFFF" stroke-width="1.5"/>
-              <circle cx="600" cy="90" r="4.5" fill="#0284C7" stroke="#FFFFFF" stroke-width="1.5"/>
-            </svg>
-          </div>
-
-          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 14px;">
-            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px;">
-              <span style="font-size: 10px; color: #64748B;">Umidade Solo (VWC): <strong style="color: #0F172A;">Sem dados</strong></span>
-              <div style="font-size: 11px; color: #64748B; font-weight: 600; margin-top: 2px;">• Telemetria via ThingSpeak</div>
-              <div style="font-size: 10px; color: #64748B; margin-top: 4px;">Sensor de solo registra apenas umidade (schema.sql)</div>
+          <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap; font-size: 11px; color: #64748B;">
+            <span style="display: inline-flex; align-items: center; gap: 5px;">
+              <span style="width: 10px; height: 10px; border-radius: 50%; background: #10B981;"></span> Umidade Solo (%)
+            </span>
+            <span style="display: inline-flex; align-items: center; gap: 5px;">
+              <span style="width: 10px; height: 10px; border-radius: 50%; background: #0284C7;"></span> Temp. Ar (°C)
+            </span>
+            <div style="display: inline-flex; background: #F1F5F9; border-radius: 8px; padding: 2px; gap: 2px;">
+              <button type="button" class="btn-periodo-corr-admin active" data-periodo="24h" style="border:none; background:#FFFFFF; color:#0F172A; font-weight:700; font-size:11px; padding:4px 10px; border-radius:6px; cursor:pointer;">24h</button>
+              <button type="button" class="btn-periodo-corr-admin" data-periodo="7d" style="border:none; background:transparent; color:#64748B; font-weight:600; font-size:11px; padding:4px 10px; border-radius:6px; cursor:pointer;">7d</button>
+              <button type="button" class="btn-periodo-corr-admin" data-periodo="30d" style="border:none; background:transparent; color:#64748B; font-weight:600; font-size:11px; padding:4px 10px; border-radius:6px; cursor:pointer;">30d</button>
             </div>
-
-            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px;">
-              <span style="font-size: 10px; color: #64748B;">Temp. Ar: <strong style="color: #0F172A;">Sem dados</strong></span>
-              <div style="font-size: 11px; color: #0284C7; font-weight: 600; margin-top: 2px;">• Ventilação 3.2 m/s</div>
-              <div style="font-size: 10px; color: #64748B; margin-top: 4px;">Umidade Ar (UR): <strong>Sem dados</strong></div>
-            </div>
-          </div>
-
-          <div style="font-size: 11px; color: #047857; font-weight: 600; margin-top: 10px; display: flex; align-items: center; gap: 6px;">
-            <i data-lucide="check-circle" style="width: 13px; height: 13px;"></i>
-            Faixa Ideal de Manejo Agronômico
           </div>
         </div>
 
-        <!-- Card 2: Filtro de Ruído e Sanitização -->
-        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-            <div>
-              <h4 style="font-size: 14px; font-weight: 800; color: #0F172A; margin: 0;">Filtro de Ruído e Sanitização</h4>
-              <p style="font-size: 10px; color: #64748B; margin: 2px 0 0 0; font-family: monospace;">tabela: leitura_rejeitada</p>
-            </div>
-            <i data-lucide="shield-alert" style="width: 18px; height: 18px; color: #EF4444;"></i>
-          </div>
+        <div id="correlacao-chart-body">
+          ${renderGraficoCorrelacaoRealHtml()}
+        </div>
 
-          <div style="background: #FFF1F2; border: 1px solid #FECDD3; border-radius: 8px; padding: 12px; margin-bottom: 14px;">
-            <div style="font-size: 11px; font-weight: 800; color: #9F1239; letter-spacing: 0.5px;">OUTLIERS EXCLUÍDOS</div>
-            <div style="font-size: 22px; font-weight: 800; color: #BE123C; margin: 4px 0;">2 Leituras</div>
-            <div style="font-size: 10px; color: #9F1239;">Prováveis vilões na fertirrigação</div>
-            <div style="font-size: 10px; color: #475569; margin-top: 8px; border-top: 1px dashed #FECDD3; padding-top: 6px; line-height: 1.4;">
-              <strong>Nó #SNS-SL-019</strong> • Hoje 14:22:04<br>
-              Leitura térmica espúria <strong>62.4°C descartada</strong>. Média dos vizinhos: 27.1°C.
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 14px;">
+          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px;">
+            <span style="font-size: 11px; color: #64748B;">Umidade Solo:</span>
+            <strong style="font-size: 13px; color: #0F172A; margin-left: 4px;">${sensorSolo?.umidade != null ? `${Number(sensorSolo.umidade).toFixed(1)}%` : 'Sem dados'}</strong>
+            <div style="font-size: 10px; color: #64748B; margin-top: 4px;">
+              Última leitura: ${sensorSolo?.ultima_leitura ? formatarDataHoraBr(sensorSolo.ultima_leitura) : 'Sem dados'}
             </div>
           </div>
 
-          <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; margin-bottom: 14px; background: #F8FAFC; border: 1px solid #E2E8F0; padding: 8px 12px; border-radius: 6px;">
-            <span style="font-weight: 600; color: #0F172A;">Auto-calibração Sensor de Solo Ativada</span>
-            <input type="checkbox" id="check-auto-calibracao" checked style="accent-color: #10B981; width: 16px; height: 16px; cursor: pointer;">
-          </div>
-
-          <div style="border-top: 1px solid #F1F5F9; padding-top: 10px; display: flex; flex-direction: column; gap: 6px; font-size: 11px;">
-            <span style="font-weight: 800; color: #64748B; font-size: 10px; letter-spacing: 0.5px;">AÇÕES RÁPIDAS DE INFRAESTRUTURA</span>
-            <button class="btn-infra-rapida" data-action="topologia" style="background: none; border: none; text-align: left; color: #0284C7; font-weight: 600; cursor: pointer; padding: 4px 0; display: flex; justify-content: space-between;">
-              <span>Topologia Espacial ESP32</span> &rarr;
-            </button>
-            <button class="btn-infra-rapida" data-action="auditoria" style="background: none; border: none; text-align: left; color: #0284C7; font-weight: 600; cursor: pointer; padding: 4px 0; display: flex; justify-content: space-between;">
-              <span>Auditoria Geral &amp; Logs (log_acesso)</span> &rarr;
-            </button>
-            <button class="btn-infra-rapida" data-action="rejeitadas" style="background: none; border: none; text-align: left; color: #0284C7; font-weight: 600; cursor: pointer; padding: 4px 0; display: flex; justify-content: space-between;">
-              <span>Leituras Rejeitadas (leitura_rejeitada)</span> &rarr;
-            </button>
+          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px;">
+            <span style="font-size: 11px; color: #64748B;">Temp. Ar:</span>
+            <strong style="font-size: 13px; color: #0F172A; margin-left: 4px;">${sensorAr?.temperatura != null ? `${Number(sensorAr.temperatura).toFixed(1)}°C` : 'Sem dados'}</strong>
+            <div style="font-size: 10px; color: #64748B; margin-top: 4px;">
+              Umidade Ar (UR): <strong>${sensorAr?.umidade != null ? `${Number(sensorAr.umidade).toFixed(1)}%` : 'Sem dados'}</strong>
+            </div>
           </div>
         </div>
       </div>
@@ -436,84 +249,278 @@ export async function renderSensoresAdmin() {
   `;
 }
 
+function calcularCorrelacaoPearson(ptsSolo, ptsAr) {
+  // Pareia apenas pontos com mesmo timestamp real (agregação horária/diária da API)
+  const soloPorTs = new Map();
+  ptsSolo.forEach(p => { if (p.ts) soloPorTs.set(p.ts, p.v); });
+  const pares = [];
+  ptsAr.forEach(p => {
+    if (p.ts && soloPorTs.has(p.ts)) {
+      pares.push({ x: p.v, y: soloPorTs.get(p.ts) });
+    }
+  });
+  if (pares.length < 3) return null;
+  const n = pares.length;
+  const meanX = pares.reduce((s, p) => s + p.x, 0) / n;
+  const meanY = pares.reduce((s, p) => s + p.y, 0) / n;
+  let num = 0, denX = 0, denY = 0;
+  for (const p of pares) {
+    const dx = p.x - meanX;
+    const dy = p.y - meanY;
+    num += dx * dy;
+    denX += dx * dx;
+    denY += dy * dy;
+  }
+  const den = Math.sqrt(denX * denY);
+  if (den <= 1e-9) return null;
+  return { r: num / den, n };
+}
+
+function renderGraficoCorrelacaoRealHtml() {
+  const parseTs = (t) => {
+    if (!t) return null;
+    const d = new Date(t);
+    return isNaN(d.getTime()) ? null : d.getTime();
+  };
+
+  const ptsSolo = _leiturasSolo
+    .filter(p => p && (p.umidade_solo != null || p.umidade != null))
+    .map(p => {
+      const t = p.instante || p.data_hora || p.created_at;
+      const v = Number(p.umidade_solo != null ? p.umidade_solo : p.umidade);
+      return { t, ts: parseTs(t), v };
+    })
+    .filter(p => !isNaN(p.v) && p.ts != null)
+    .sort((a, b) => a.ts - b.ts);
+
+  const ptsAr = _leiturasAr
+    .filter(p => p && p.temperatura != null)
+    .map(p => {
+      const t = p.instante || p.data_hora || p.created_at;
+      const v = Number(p.temperatura);
+      return { t, ts: parseTs(t), v };
+    })
+    .filter(p => !isNaN(p.v) && p.ts != null)
+    .sort((a, b) => a.ts - b.ts);
+
+  if (ptsSolo.length === 0 && ptsAr.length === 0) {
+    return `
+      <div style="width: 100%; height: 220px; background: #FAFDFB; border: 1px solid #E2E8F0; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #64748B; font-size: 13px; font-weight: 600;">
+        Sem leituras registradas no período selecionado
+      </div>
+    `;
+  }
+
+  const W = 800;
+  const H = 220;
+  const padLeft = 52;
+  const padRight = 52;
+  const padTop = 18;
+  const padBottom = 20;
+  const plotW = W - padLeft - padRight;
+  const plotH = H - padTop - padBottom;
+
+  // Eixo X temporal real compartilhado entre Ar e Solo
+  const allTs = [...ptsSolo.map(p => p.ts), ...ptsAr.map(p => p.ts)];
+  const minTs = Math.min(...allTs);
+  const maxTs = Math.max(...allTs);
+  const spanTs = maxTs - minTs;
+
+  const calcRange = (pts, minClamp, maxClamp) => {
+    if (pts.length === 0) return { min: 0, max: 1 };
+    const vals = pts.map(p => p.v);
+    const lo = Math.min(...vals);
+    const hi = Math.max(...vals);
+    const span = hi - lo;
+    const pad = span === 0 ? 5 : Math.max(1, span * 0.15);
+    let minV = lo - pad;
+    let maxV = hi + pad;
+    if (minClamp != null) minV = Math.max(minClamp, minV);
+    if (maxClamp != null) maxV = Math.min(maxClamp, maxV);
+    if (maxV <= minV) maxV = minV + 1;
+    return { min: minV, max: maxV };
+  };
+
+  const rangeSolo = calcRange(ptsSolo, 0, 100);
+  const rangeAr = calcRange(ptsAr, null, null);
+
+  const mapPoints = (pts, range) => {
+    if (pts.length === 0) return [];
+    const span = Math.max(0.001, range.max - range.min);
+    return pts.map(p => {
+      const x = spanTs === 0 ? padLeft + plotW / 2 : padLeft + ((p.ts - minTs) / spanTs) * plotW;
+      const norm = (p.v - range.min) / span;
+      const y = padTop + plotH - Math.max(0, Math.min(1, norm)) * plotH;
+      return { ...p, x, y };
+    });
+  };
+
+  const soloCoords = mapPoints(ptsSolo, rangeSolo);
+  const arCoords = mapPoints(ptsAr, rangeAr);
+  const soloPointsStr = soloCoords.map(c => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(' ');
+  const arPointsStr = arCoords.map(c => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(' ');
+
+  const ticks = [0, 1 / 3, 2 / 3, 1];
+  const gridAndAxesHtml = ticks.map(frac => {
+    const y = padTop + plotH * (1 - frac);
+    const soloVal = rangeSolo.min + (rangeSolo.max - rangeSolo.min) * frac;
+    const arVal = rangeAr.min + (rangeAr.max - rangeAr.min) * frac;
+    const soloLabel = ptsSolo.length > 0 ? `${soloVal.toFixed((rangeSolo.max - rangeSolo.min) < 5 ? 1 : 0)}%` : '';
+    const arLabel = ptsAr.length > 0 ? `${arVal.toFixed((rangeAr.max - rangeAr.min) < 5 ? 1 : 0)}°C` : '';
+    return `
+      <line x1="${padLeft}" y1="${y.toFixed(1)}" x2="${W - padRight}" y2="${y.toFixed(1)}" stroke="#E2E8F0" stroke-dasharray="3,3" stroke-width="1"/>
+      ${soloLabel ? `<text x="${padLeft - 6}" y="${(y + 3).toFixed(1)}" fill="#047857" font-size="10" font-weight="600" text-anchor="end">${soloLabel}</text>` : ''}
+      ${arLabel ? `<text x="${W - padRight + 6}" y="${(y + 3).toFixed(1)}" fill="#0284C7" font-size="10" font-weight="600" text-anchor="start">${arLabel}</text>` : ''}
+    `;
+  }).join('');
+
+  const soloDotsHtml = soloCoords.map(c => `
+    <circle class="correlacao-ponto" cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="4" fill="#10B981" stroke="#FFFFFF" stroke-width="1.5" style="cursor: pointer;" data-serie="Umidade Solo" data-valor="${c.v.toFixed(1)}%" data-hora="${formatarDataHoraBr(c.t)}" />
+  `).join('');
+
+  const arDotsHtml = arCoords.map(c => `
+    <circle class="correlacao-ponto" cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="4" fill="#0284C7" stroke="#FFFFFF" stroke-width="1.5" style="cursor: pointer;" data-serie="Temp. Ar" data-valor="${c.v.toFixed(1)}°C" data-hora="${formatarDataHoraBr(c.t)}" />
+  `).join('');
+
+  const fmtTickX = (ms) => _periodoCorrelacao === '30d'
+    ? new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Recife' }).format(new Date(ms))
+    : formatarDataHoraBr(new Date(ms).toISOString());
+
+  const horaInicio = fmtTickX(minTs);
+  const horaMeio = spanTs > 0 ? fmtTickX(minTs + spanTs / 2) : '';
+  const horaFim = spanTs > 0 ? fmtTickX(maxTs) : '';
+
+  const pearson = calcularCorrelacaoPearson(ptsSolo, ptsAr);
+  const pearsonTxt = pearson
+    ? `Correlação (Pearson r): ${pearson.r.toFixed(2)} (${pearson.n} pontos sincronizados)`
+    : `${Math.max(ptsSolo.length, ptsAr.length)} ponto(s) real(is) no período`;
+
+  return `
+    <div id="correlacao-chart-wrap" style="position: relative; width: 100%; height: 230px; background: #FAFDFB; border: 1px solid #E2E8F0; border-radius: 12px; overflow: hidden; padding: 8px 12px;">
+      <svg viewBox="0 0 ${W} ${H}" style="width: 100%; height: 100%; display: block;" preserveAspectRatio="xMidYMid meet">
+        ${gridAndAxesHtml}
+        ${soloPointsStr ? `<polyline points="${soloPointsStr}" fill="none" stroke="#10B981" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>` : ''}
+        ${arPointsStr ? `<polyline points="${arPointsStr}" fill="none" stroke="#0284C7" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>` : ''}
+        ${soloDotsHtml}
+        ${arDotsHtml}
+      </svg>
+      <div id="correlacao-tooltip" style="display: none; position: absolute; pointer-events: none; background: #0F172A; color: #FFFFFF; padding: 6px 10px; border-radius: 6px; font-size: 11px; line-height: 1.4; box-shadow: 0 4px 12px rgba(15,23,42,0.2); z-index: 10; white-space: nowrap;"></div>
+    </div>
+    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: #94A3B8; margin-top: 6px; padding: 0 12px; flex-wrap: wrap; gap: 6px;">
+      <span>${horaInicio}</span>
+      <span>${horaMeio}</span>
+      <span>${horaFim}</span>
+    </div>
+    <div style="font-size: 10px; color: #64748B; margin-top: 4px; text-align: right;">${pearsonTxt}</div>
+  `;
+}
+
 function getSensoresFiltrados() {
   return _sensoresList.filter(s => {
-    // Busca textual
     if (_termoBuscaSensor) {
       const t = _termoBuscaSensor.toLowerCase();
-      const matchId = s.id.toLowerCase().includes(t);
-      const matchTipo = s.tipo.toLowerCase().includes(t);
-      const matchTalhao = s.talhao.toLowerCase().includes(t);
-      if (!matchId && !matchTipo && !matchTalhao) return false;
+      const texto = `${s.id_sensor || ''} ${s.nome || ''} ${s.tipo_sensor || ''} ${s.ambiente || ''} ${s.localizacao || ''} ${s.status || ''}`.toLowerCase();
+      if (!texto.includes(t)) return false;
     }
-
-    // Filtro de categoria
-    if (_filtroCategoriaSensor === 'solo') {
-      return s.categoria === 'solo';
-    } else if (_filtroCategoriaSensor === 'microclima') {
-      return s.categoria === 'microclima';
-    } else if (_filtroCategoriaSensor === 'atencao') {
-      return s.categoria === 'atencao' || s.status.includes('Atenção');
-    }
+    const amb = String(s.ambiente || '').toLowerCase();
+    if (_filtroAmbienteSensor === 'solo') return amb === 'solo';
+    if (_filtroAmbienteSensor === 'ar') return amb === 'ar';
     return true;
   });
 }
 
 function renderLinhasSensoresHtml() {
+  if (_erroSensores) {
+    return `
+      <div style="padding: 24px; text-align: center; color: #64748B; font-size: 12px; background: #F8FAFC; border-radius: 8px;">
+        Não foi possível carregar os sensores.
+      </div>
+    `;
+  }
+
   const filtrados = getSensoresFiltrados();
+  const totalPaginas = Math.max(1, Math.ceil(filtrados.length / _itensPorPagina));
+  if (_paginaAtualSensores > totalPaginas) _paginaAtualSensores = totalPaginas;
   const inicio = (_paginaAtualSensores - 1) * _itensPorPagina;
   const paginaItens = filtrados.slice(inicio, inicio + _itensPorPagina);
 
   if (paginaItens.length === 0) {
     return `
       <div style="padding: 24px; text-align: center; color: #64748B; font-size: 12px; background: #F8FAFC; border-radius: 8px;">
-        Nenhum sensor encontrado com os filtros atuais.
+        Nenhum sensor encontrado.
       </div>
     `;
   }
 
-  return paginaItens.map(s => `
-    <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; transition: all 0.2s;">
-      <div style="display: flex; align-items: center; gap: 12px;">
-        <div style="width: 38px; height: 38px; border-radius: 8px; background: #FFFFFF; border: 1px solid #E2E8F0; color: ${s.corIcone}; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-          <i data-lucide="${s.icone}" style="width: 18px; height: 18px;"></i>
-        </div>
-        <div>
-          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-            <strong style="font-size: 14px; color: #0F172A;">#${s.id}</strong>
-            <span style="font-size: 11px; color: #64748B;">${s.tipo}</span>
-            <span style="font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 4px; ${
-              s.statusClass === 'ativo' ? 'background: #DCFCE7; color: #15803D;' :
-              s.statusClass === 'atencao' ? 'background: #FEE2E2; color: #DC2626;' :
-              'background: #E0F2FE; color: #0284C7;'
-            }">
-              • ${s.status}
-            </span>
-          </div>
-          <div style="font-size: 11px; color: #64748B; margin-top: 3px;">
-            ${s.talhao}
-          </div>
-          <div style="font-size: 12px; font-weight: 700; color: #0F172A; margin-top: 4px;">
-            ${s.leitura || s.vwc} <span style="font-weight: 500; color: #64748B; font-size: 11px; margin-left: 8px;">• Ambiente: <strong>${s.ambiente === 'solo' ? 'Solo (VWC)' : 'Ar (Microclima)'}</strong> • Dono: ${s.dono || 'Lorena Lira (Administrador)'}</span>
-          </div>
-        </div>
-      </div>
+  return paginaItens.map(s => {
+    const amb = String(s.ambiente || '').toLowerCase();
+    const isSolo = amb === 'solo';
+    const icone = isSolo ? 'droplet' : 'thermometer';
+    const corIcone = isSolo ? '#10B981' : '#0284C7';
+    const statusStr = String(s.status || 'inativo').toLowerCase();
+    const isAtivo = statusStr === 'ativo';
+    const leituraTexto = formatarLeituraSensor(s);
+    const dataTexto = s.ultima_leitura ? formatarDataHoraBr(s.ultima_leitura) : '—';
 
-      <div style="display: flex; gap: 6px; align-items: center;">
-        ${s.id === 'SNS-SL-019' ? `
-          <button class="btn-sn-act" data-id="${s.id}" data-action="reset" style="background: #FEE2E2; border: 1px solid #FCA5A5; color: #DC2626; padding: 6px 12px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer;">Forçar Reset</button>
-          <button class="btn-sn-act" data-id="${s.id}" data-action="offset" style="background: #FFFFFF; border: 1px solid #CBD5E1; color: #334155; padding: 6px 12px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer;">Recalibrar Offset</button>
-        ` : (s.id === 'SNS-ESP-025' ? `
-          <button class="btn-sn-act" data-id="${s.id}" data-action="vincular" style="background: #FFFFFF; border: 1px solid #CBD5E1; color: #334155; padding: 6px 12px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer;">Vincular a Lote</button>
-          <button class="btn-sn-act" data-id="${s.id}" data-action="ativar" style="background: #183D2E; color: #FFFFFF; border: none; padding: 6px 14px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer;">Ativar em Campo</button>
-        ` : `
-          <button class="btn-sn-act" data-id="${s.id}" data-action="editar" style="background: #FFFFFF; border: 1px solid #CBD5E1; color: #334155; padding: 6px 12px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer;">Editar</button>
-          <button class="btn-sn-act" data-id="${s.id}" data-action="calibrar" style="background: #FFFFFF; border: 1px solid #CBD5E1; color: #334155; padding: 6px 12px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer;">Calibrar</button>
-          <button class="btn-sn-act" data-id="${s.id}" data-action="leituras" style="background: #183D2E; color: #FFFFFF; border: none; padding: 6px 14px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer;">Ver Leituras</button>
-        `)}
+    return `
+      <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div style="width: 38px; height: 38px; border-radius: 8px; background: #FFFFFF; border: 1px solid #E2E8F0; color: ${corIcone}; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+            <i data-lucide="${icone}" style="width: 18px; height: 18px;"></i>
+          </div>
+          <div>
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <strong style="font-size: 14px; color: #0F172A;">${s.nome || `Sensor #${s.id_sensor}`}</strong>
+              <span style="font-size: 11px; color: #64748B;">${s.tipo_sensor || (isSolo ? 'Sensor de Umidade do Solo' : 'Sensor de Ar')}</span>
+              <span style="font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 4px; ${isAtivo ? 'background: #DCFCE7; color: #15803D;' : 'background: #F1F5F9; color: #64748B;'}">
+                • ${s.status || '—'}
+              </span>
+            </div>
+            <div style="font-size: 11px; color: #64748B; margin-top: 3px;">
+              ${s.localizacao || 'Sem localização'}${s.id_lote ? ` • Lote #${s.id_lote}` : ''}
+            </div>
+            <div style="font-size: 12px; font-weight: 700; color: #0F172A; margin-top: 4px;">
+              ${leituraTexto} <span style="font-weight: 500; color: #64748B; font-size: 11px; margin-left: 8px;">• Última leitura: ${dataTexto}</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 6px; align-items: center;">
+          <button class="btn-sn-act" data-id="${s.id_sensor}" data-action="editar" style="background: #FFFFFF; border: 1px solid #CBD5E1; color: #334155; padding: 6px 12px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer;">Editar</button>
+          <button class="btn-sn-act" data-id="${s.id_sensor}" data-action="leituras" style="background: #183D2E; color: #FFFFFF; border: none; padding: 6px 14px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer;">Ver Leituras</button>
+        </div>
       </div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
+}
+
+function atualizarPaginacaoSensores() {
+  const filtrados = getSensoresFiltrados();
+  const total = filtrados.length;
+  const totalPaginas = Math.max(1, Math.ceil(total / _itensPorPagina));
+  if (_paginaAtualSensores > totalPaginas) _paginaAtualSensores = totalPaginas;
+  const inicio = (_paginaAtualSensores - 1) * _itensPorPagina;
+  const fim = Math.min(inicio + _itensPorPagina, total);
+
+  const textoPag = document.getElementById('texto-paginacao-sensores');
+  if (textoPag) {
+    textoPag.textContent = total > 0
+      ? `Mostrando ${inicio + 1}–${fim} de ${total}`
+      : 'Mostrando 0–0 de 0';
+  }
+
+  const controles = document.getElementById('controles-paginacao-sensores');
+  if (controles) {
+    const prevDisabled = _paginaAtualSensores <= 1;
+    const nextDisabled = _paginaAtualSensores >= totalPaginas;
+    let html = `<button class="btn-pag-sensor" data-pag="prev" ${prevDisabled ? 'disabled' : ''} style="padding: 4px 10px; border: 1px solid #CBD5E1; background: #FFFFFF; color: ${prevDisabled ? '#94A3B8' : '#475569'}; border-radius: 4px; cursor: ${prevDisabled ? 'not-allowed' : 'pointer'};">Anterior</button>`;
+    for (let p = 1; p <= totalPaginas; p++) {
+      const ativo = p === _paginaAtualSensores;
+      html += `<button class="btn-pag-sensor${ativo ? ' active' : ''}" data-pag="${p}" style="padding: 4px 10px; border: 1px solid ${ativo ? '#183D2E' : '#CBD5E1'}; background: ${ativo ? '#183D2E' : '#FFFFFF'}; color: ${ativo ? '#FFFFFF' : '#475569'}; border-radius: 4px; font-weight: ${ativo ? '700' : '400'}; cursor: pointer;">${p}</button>`;
+    }
+    html += `<button class="btn-pag-sensor" data-pag="next" ${nextDisabled ? 'disabled' : ''} style="padding: 4px 10px; border: 1px solid #CBD5E1; background: #FFFFFF; color: ${nextDisabled ? '#94A3B8' : '#475569'}; border-radius: 4px; cursor: ${nextDisabled ? 'not-allowed' : 'pointer'};">Próxima</button>`;
+    controles.innerHTML = html;
+  }
 }
 
 function atualizarTabelaSensores() {
@@ -523,313 +530,171 @@ function atualizarTabelaSensores() {
     if (window.lucide) window.lucide.createIcons();
     vincularEventosSensores();
   }
-
-  const textoPag = document.getElementById('texto-paginacao-sensores');
-  if (textoPag) {
-    const total = getSensoresFiltrados().length;
-    const inicio = (_paginaAtualSensores - 1) * _itensPorPagina + 1;
-    const fim = Math.min(_paginaAtualSensores * _itensPorPagina, total);
-    textoPag.textContent = `Exibindo ${total > 0 ? inicio : 0}-${fim} de ${total} sensores cadastrados`;
-  }
+  atualizarPaginacaoSensores();
 }
 
 function vincularEventosSensores() {
   document.querySelectorAll('.btn-sn-act').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    btn.addEventListener('click', async (e) => {
       const act = e.currentTarget.dataset.action;
       const id = e.currentTarget.dataset.id;
-      const sensor = _sensoresList.find(s => s.id === id);
+      const sensor = _sensoresList.find(s => String(s.id_sensor) === String(id));
+      if (!sensor) return;
 
-      if (act === 'reset') {
-        Modal.open(`Forçar Reset — Nó #${id}`, `
-          <div style="font-size: 12px; color: #475569;">
-            <p>O sistema enviará comando de reinicialização para o nó ESP32.</p>
-            <div style="background: #FFF1F2; border: 1px solid #FECDD3; padding: 10px; border-radius: 6px; margin-top: 10px;">
-              <strong>Aviso:</strong> O nó permanecerá offline por cerca de 15 segundos durante a autoverificação de memória e reconexão.
-            </div>
-          </div>
-        `, () => {
-          if (sensor) {
-            sensor.status = 'Ativo';
-            sensor.statusClass = 'ativo';
-            sensor.vwc = '42.1% VWC';
-            sensor.icone = 'droplet';
-            sensor.corIcone = '#10B981';
-          }
-          atualizarTabelaSensores();
-          toast.success('Reset Concluído', `Nó #${id} reinicializado e reingressado na rede ESP32.`);
-        }, 'Confirmar Reinicialização');
-      } else if (act === 'offset') {
-        Modal.open(`Recalibrar Offset — #${id}`, `
-          <div style="font-size: 12px; color: #475569;">
-            <label style="display: block; margin-bottom: 8px;">Offset Térmico Atual (°C):
-              <input type="number" id="input-modal-offset" value="${sensor?.offset || 0}" step="0.1" style="width: 100%; padding: 8px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
-            </label>
-            <p style="font-size: 11px; color: #64748B;">A curva de calibração polinomial será atualizada no broker ThingSpeak.</p>
-          </div>
-        `, () => {
-          const val = parseFloat(document.getElementById('input-modal-offset')?.value || '0');
-          if (sensor) {
-            sensor.offset = val;
-            sensor.vwc = '26.8°C (Calibrado)';
-            sensor.status = 'Ativo';
-            sensor.statusClass = 'ativo';
-            sensor.icone = 'droplet';
-            sensor.corIcone = '#10B981';
-          }
-          atualizarTabelaSensores();
-          toast.success('Offset Salvo', `Curva do nó #${id} ajustada para ${val}°C.`);
-        }, 'Salvar Calibração');
-      } else if (act === 'editar') {
-        Modal.open(`Editar Sensor — #${id}`, `
+      if (act === 'editar') {
+        Modal.open(`Editar Sensor — ${sensor.nome || '#' + id}`, `
           <div style="font-size: 12px; color: #475569; display: flex; flex-direction: column; gap: 10px;">
+            <label>Nome do Sensor:
+              <input type="text" id="edit-sensor-nome" value="${String(sensor.nome || '').replace(/"/g, '&quot;')}" style="width: 100%; padding: 8px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
+            </label>
             <label>Tipo do Sensor:
-              <input type="text" id="edit-sensor-tipo" value="${sensor?.tipo || ''}" style="width: 100%; padding: 8px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
+              <input type="text" id="edit-sensor-tipo" value="${String(sensor.tipo_sensor || '').replace(/"/g, '&quot;')}" style="width: 100%; padding: 8px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
             </label>
-            <label>Alocação / Talhão:
-              <input type="text" id="edit-sensor-talhao" value="${sensor?.talhao || ''}" style="width: 100%; padding: 8px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
+            <label>Localização:
+              <input type="text" id="edit-sensor-loc" value="${String(sensor.localizacao || '').replace(/"/g, '&quot;')}" style="width: 100%; padding: 8px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
             </label>
-            <label>Status Operacional:
+            <label>Status:
               <select id="edit-sensor-status" style="width: 100%; padding: 8px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
-                <option value="Ativo" ${sensor?.status === 'Ativo' ? 'selected' : ''}>Ativo</option>
-                <option value="Atenção / Calibração" ${sensor?.status?.includes('Atenção') ? 'selected' : ''}>Atenção / Calibração</option>
-                <option value="Homologação" ${sensor?.status === 'Homologação' ? 'selected' : ''}>Homologação</option>
+                <option value="ativo" ${String(sensor.status || '').toLowerCase() === 'ativo' ? 'selected' : ''}>Ativo</option>
+                <option value="inativo" ${String(sensor.status || '').toLowerCase() === 'inativo' ? 'selected' : ''}>Inativo</option>
               </select>
             </label>
           </div>
-        `, () => {
-          if (sensor) {
-            sensor.tipo = document.getElementById('edit-sensor-tipo')?.value || sensor.tipo;
-            sensor.talhao = document.getElementById('edit-sensor-talhao')?.value || sensor.talhao;
-            sensor.status = document.getElementById('edit-sensor-status')?.value || sensor.status;
-            sensor.statusClass = sensor.status === 'Ativo' ? 'ativo' : (sensor.status.includes('Atenção') ? 'atencao' : 'homologacao');
+        `, async () => {
+          const nome = document.getElementById('edit-sensor-nome')?.value?.trim() || sensor.nome;
+          const tipo_sensor = document.getElementById('edit-sensor-tipo')?.value?.trim() || sensor.tipo_sensor;
+          const localizacao = document.getElementById('edit-sensor-loc')?.value?.trim() || sensor.localizacao;
+          const status = document.getElementById('edit-sensor-status')?.value || sensor.status;
+
+          try {
+            await api.updateSensor(id, { nome, tipo_sensor, localizacao, status });
+            sensor.nome = nome;
+            sensor.tipo_sensor = tipo_sensor;
+            sensor.localizacao = localizacao;
+            sensor.status = status;
+            atualizarTabelaSensores();
+            toast.success('Sensor Atualizado', `Dados de ${nome} salvos no servidor.`);
+          } catch (err) {
+            toast.error('Erro ao Atualizar', err.message || 'Não foi possível atualizar o sensor.');
           }
-          atualizarTabelaSensores();
-          toast.success('Sensor Atualizado', `Informações do sensor #${id} sincronizadas com sucesso.`);
         }, 'Salvar Alterações');
-      } else if (act === 'calibrar') {
-        Modal.open(`Calibração Físico-Química — #${id}`, `
-          <div style="font-size: 12px; color: #475569;">
-            <p>Selecione os pontos de calibração do sensor de umidade do solo:</p>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
-              <label>Ponto Seco (0% VWC):
-                <input type="number" value="1420" style="width: 100%; padding: 6px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
-              </label>
-              <label>Ponto Saturado (100% VWC):
-                <input type="number" value="3840" style="width: 100%; padding: 6px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
-              </label>
-            </div>
-          </div>
-        `, () => {
-          toast.success('Sensor Calibrado', `Novos coeficientes gravados na EEPROM do ESP32 #${id}.`);
-        }, 'Gravar na EEPROM');
       } else if (act === 'leituras') {
-        Modal.open(`Telemetria em Tempo Real — #${id}`, `
-          <div style="font-size: 12px; color: #334155;">
-            <div style="margin-bottom: 12px;"><strong>Sensor:</strong> ${sensor?.tipo} (${sensor?.talhao})</div>
-            <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
-              <thead>
-                <tr style="background: #F1F5F9; text-align: left;">
-                  <th style="padding: 6px 10px;">Horário</th>
-                  <th style="padding: 6px 10px;">Leitura</th>
-                  <th style="padding: 6px 10px;">Bateria</th>
-                  <th style="padding: 6px 10px;">Sinal RSSI</th>
-                  <th style="padding: 6px 10px;">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr style="border-bottom: 1px solid #E2E8F0;">
-                  <td style="padding: 6px 10px;">14:35:00</td>
-                  <td style="padding: 6px 10px; font-weight: 700; color: #047857;">${sensor?.vwc}</td>
-                  <td style="padding: 6px 10px;">${sensor?.bateria || '95%'}</td>
-                  <td style="padding: 6px 10px;">${sensor?.rssi || '-78 dBm'}</td>
-                  <td style="padding: 6px 10px;"><span style="color:#047857; font-weight:700;">OK</span></td>
-                </tr>
-                <tr style="border-bottom: 1px solid #E2E8F0;">
-                  <td style="padding: 6px 10px;">14:30:00</td>
-                  <td style="padding: 6px 10px; font-weight: 700; color: #047857;">${sensor?.vwc}</td>
-                  <td style="padding: 6px 10px;">${sensor?.bateria || '95%'}</td>
-                  <td style="padding: 6px 10px;">${sensor?.rssi || '-79 dBm'}</td>
-                  <td style="padding: 6px 10px;"><span style="color:#047857; font-weight:700;">OK</span></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        `, null, 'Fechar');
-      } else if (act === 'vincular') {
-        Modal.open(`Vincular Nó #${id} a Lote`, `
-          <div style="font-size: 12px; color: #475569;">
-            <label style="display: block; margin-bottom: 10px;">Selecione o Lote de Destino:
-              <select id="select-vincular-lote" style="width: 100%; padding: 8px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
-                <option value="LT-2026-084">#LT-2026-084 (Manga Tommy • Talhão C1)</option>
-                <option value="LT-2026-079">#LT-2026-079 (Uva Vitória • Talhão A1)</option>
-                <option value="LT-2026-068">#LT-2026-068 (Melão Amarelo • Talhão B2)</option>
-              </select>
-            </label>
-          </div>
-        `, () => {
-          const lote = document.getElementById('select-vincular-lote')?.value;
-          if (sensor) {
-            sensor.talhao = `Vinculado a #${lote}`;
-          }
-          atualizarTabelaSensores();
-          toast.success('Nó Vinculado', `Sensor #${id} atrelado à rastreabilidade do lote #${lote}.`);
-        }, 'Vincular');
-      } else if (act === 'ativar') {
-        if (sensor) {
-          sensor.status = 'Ativo';
-          sensor.statusClass = 'ativo';
-          sensor.categoria = 'solo';
+        try {
+          const res = await api.getSensorLeituras(id, '24h');
+          const lista = extrairArray(res).slice(-10).reverse();
+          const linhas = lista.length === 0
+            ? '<tr><td colspan="3" style="padding: 12px; text-align: center; color: #64748B;">Sem leituras nas últimas 24h.</td></tr>'
+            : lista.map(l => `
+              <tr style="border-bottom: 1px solid #E2E8F0;">
+                <td style="padding: 6px 10px;">${formatarDataHoraBr(l.data_hora || l.instante || l.created_at)}</td>
+                <td style="padding: 6px 10px; font-weight: 700;">${l.temperatura != null ? `${Number(l.temperatura).toFixed(1)}°C` : '—'}</td>
+                <td style="padding: 6px 10px; font-weight: 700;">${l.umidade != null ? `${Number(l.umidade).toFixed(1)}%` : '—'}</td>
+              </tr>
+            `).join('');
+
+          Modal.open(`Leituras (24h) — ${sensor.nome || '#' + id}`, `
+            <div style="max-height: 280px; overflow-y: auto;">
+              <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+                <thead>
+                  <tr style="background: #F1F5F9; text-align: left;">
+                    <th style="padding: 6px 10px;">Data / Hora</th>
+                    <th style="padding: 6px 10px;">Temperatura</th>
+                    <th style="padding: 6px 10px;">Umidade</th>
+                  </tr>
+                </thead>
+                <tbody>${linhas}</tbody>
+              </table>
+            </div>
+          `, null, 'Fechar');
+        } catch (err) {
+          toast.error('Erro ao Carregar Leituras', err.message || 'Falha ao consultar leituras do sensor.');
         }
-        atualizarTabelaSensores();
-        toast.success('Sensor Ativado', `Nó #${id} promovido para ambiente produtivo de campo.`);
       }
     });
   });
 }
 
 export function setupSensoresAdminEvents() {
-  // Sincronizar ESP32
-  const btnSync = document.getElementById('btn-sync-esp32');
-  if (btnSync) {
-    btnSync.addEventListener('click', () => {
-      toast.info('Sincronizando Nós ESP32', 'Atualizando leituras do ThingSpeak e verificando canais...');
-      setTimeout(() => {
-        toast.success('ESP32 Sincronizado', 'Leituras climáticas sincronizadas com a tabela leitura_climatica.');
-      }, 800);
-    });
-  }
-
-  // Exportar Leituras (CSV & PDF Reais)
   const btnExport = document.getElementById('btn-export-leituras');
   if (btnExport) {
     btnExport.addEventListener('click', () => {
-      const headers = ['ID Sensor', 'Nome', 'Tipo', 'Ambiente', 'Talhao', 'Status', 'Leitura Atual', 'Dono / Responsavel'];
-      const rows = _sensoresList.map(s => [s.id, s.nome || s.tipo, s.tipo, s.ambiente || 'solo', s.talhao, s.status, s.leitura || s.vwc, s.dono || 'Lorena Lira']);
+      const headers = ['ID', 'Nome', 'Tipo', 'Ambiente', 'Localização', 'Status', 'Última Leitura'];
+      const rows = _sensoresList.map(s => [
+        s.id_sensor,
+        s.nome || '',
+        s.tipo_sensor || '',
+        s.ambiente || '',
+        s.localizacao || '',
+        s.status || '',
+        formatarLeituraSensor(s)
+      ]);
       const dataTag = new Date().toISOString().slice(0, 10);
       openExportChoiceModal(
         Modal,
-        'Exportar Leituras & Parque de Sensores (Admin)',
+        'Exportar Sensores',
         () => {
-          downloadCSV(`sensores_telemetria_raiz_agro_${dataTag}.csv`, headers, rows);
-          toast.success('Download CSV Concluído', `sensores_telemetria_raiz_agro_${dataTag}.csv baixado.`);
+          downloadCSV(`sensores_${dataTag}.csv`, headers, rows);
+          toast.success('Download CSV Concluído', `sensores_${dataTag}.csv baixado.`);
         },
         () => {
-          downloadPDF(`sensores_telemetria_raiz_agro_${dataTag}.pdf`, {
-            title: 'Relatório de Telemetria & Parque de Sensores',
-            subtitle: 'Auditoria Administrativa de Hardware e Leituras Climáticas (iot_db)',
+          downloadPDF(`sensores_${dataTag}.pdf`, {
+            title: 'Relatório de Sensores',
+            subtitle: 'Sensores cadastrados no sistema',
             headers,
             rows
           });
-          toast.success('Download PDF Concluído', `sensores_telemetria_raiz_agro_${dataTag}.pdf baixado.`);
+          toast.success('Download PDF Concluído', `sensores_${dataTag}.pdf baixado.`);
         }
       );
     });
   }
 
-  // Provisionar Novo Sensor
   const btnProvisionar = document.getElementById('btn-provisionar-sensor');
   if (btnProvisionar) {
     btnProvisionar.addEventListener('click', () => {
-      Modal.open('Provisionar Novo Sensor (iot_db: sensor)', `
+      Modal.open('Cadastrar Novo Sensor', `
         <div style="font-size: 12px; color: #475569; display: flex; flex-direction: column; gap: 10px;">
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-            <label>Identificador (ID):
-              <input type="text" id="novo-sensor-id" value="SNS-SL-0${_sensoresList.length + 1}" style="width: 100%; padding: 7px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
-            </label>
-            <label>Tipo do Sensor:
-              <select id="novo-sensor-tipo" style="width: 100%; padding: 7px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
-                <option value="Sensor de Umidade do Solo">Sensor de Umidade do Solo (Apenas VWC)</option>
-                <option value="Sensor DHT11 (Temp/Umid Ar)">Sensor DHT11 (Temp/Umid Ar)</option>
-              </select>
-            </label>
-          </div>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-            <label>Ambiente (ambiente IN 'ar', 'solo'):
-              <select id="novo-sensor-ambiente" style="width: 100%; padding: 7px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
-                <option value="solo">Solo (Subsolo Radicular)</option>
-                <option value="ar">Ar (Dossel Vegetativo)</option>
-              </select>
-            </label>
-            <label>Proprietário / Responsável (fk_usuario_id_usuario):
-              <select id="novo-sensor-usuario" style="width: 100%; padding: 7px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
-                <option value="1">Maria Clara (Produtor / Exportador)</option>
-                <option value="2">Luiz Felipe (Analista de Dados)</option>
-                <option value="3" selected>Lorena Lira (Administrador)</option>
-              </select>
-            </label>
-          </div>
-          <label>Talhão / Localização:
-            <select id="novo-sensor-talhao" style="width: 100%; padding: 7px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
-              <option value="Talhão A1 (Uva Vitória)">Talhão A1 (Uva Vitória)</option>
-              <option value="Talhão A2 (Uva Crimson)">Talhão A2 (Uva Crimson)</option>
-              <option value="Talhão B2 (Melão Amarelo)">Talhão B2 (Melão Amarelo)</option>
-              <option value="Talhão C1 (Manga Tommy)">Talhão C1 (Manga Tommy)</option>
-              <option value="Bancada Testes">Bancada Testes ESP32</option>
+          <label>Nome do Sensor:
+            <input type="text" id="novo-sensor-nome" placeholder="Ex: Sensor Solo Talhão A1" style="width: 100%; padding: 7px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
+          </label>
+          <label>Tipo do Sensor:
+            <select id="novo-sensor-tipo" style="width: 100%; padding: 7px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
+              <option value="Sensor de Umidade do Solo">Sensor de Umidade do Solo</option>
+              <option value="Sensor DHT11 (Temp/Umid Ar)">Sensor DHT11 (Temp/Umid Ar)</option>
             </select>
           </label>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-            <label>Canal ThingSpeak (channel_id único):
-              <input type="number" id="novo-sensor-channel" value="3500765" style="width: 100%; padding: 7px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
-            </label>
-            <label>Status Inicial:
-              <select id="novo-sensor-status" style="width: 100%; padding: 7px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
-                <option value="ativo" selected>Ativo (Operacional)</option>
-                <option value="inativo">Inativo / Reserva</option>
-              </select>
-            </label>
-          </div>
+          <label>Ambiente:
+            <select id="novo-sensor-ambiente" style="width: 100%; padding: 7px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
+              <option value="solo">Solo</option>
+              <option value="ar">Ar</option>
+            </select>
+          </label>
+          <label>Localização:
+            <input type="text" id="novo-sensor-loc" placeholder="Ex: Setor 01" style="width: 100%; padding: 7px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
+          </label>
         </div>
-      `, () => {
-        const id = document.getElementById('novo-sensor-id')?.value || `SNS-SL-0${_sensoresList.length + 1}`;
-        const tipo = document.getElementById('novo-sensor-tipo')?.value || 'Sensor de Umidade do Solo';
+      `, async () => {
+        const nome = document.getElementById('novo-sensor-nome')?.value?.trim();
+        const tipo_sensor = document.getElementById('novo-sensor-tipo')?.value || 'Sensor de Umidade do Solo';
         const ambiente = document.getElementById('novo-sensor-ambiente')?.value || 'solo';
-        const fkUsuario = document.getElementById('novo-sensor-usuario')?.value || '3';
-        const talhao = document.getElementById('novo-sensor-talhao')?.value || 'Talhão A1';
-        const channelId = parseInt(document.getElementById('novo-sensor-channel')?.value || '3500765', 10);
-        const statusVal = document.getElementById('novo-sensor-status')?.value || 'ativo';
-        const isAr = ambiente === 'ar' || tipo.includes('Ar');
-
-        const donoNome = fkUsuario === '1' ? 'Maria Clara (Produtor)' : (fkUsuario === '2' ? 'Luiz Felipe (Analista)' : 'Lorena Lira (Administrador)');
-
-        const novoSensorObj = {
-          id,
-          nome: `${tipo} - ${talhao}`,
-          tipo,
-          status: statusVal === 'ativo' ? 'Ativo' : 'Inativo',
-          ambiente: isAr ? 'ar' : 'solo',
-          channel_id: channelId,
-          fk_usuario_id_usuario: parseInt(fkUsuario, 10),
-          dono: donoNome,
-          categoria: isAr ? 'microclima' : 'solo',
-          talhao: `${talhao} • Novo nó provisionado`,
-          leitura: isAr ? '27.8°C • 58.2% UR' : '45.0% VWC',
-          statusClass: statusVal === 'ativo' ? 'ativo' : 'inativo',
-          icone: isAr ? 'thermometer' : 'droplet',
-          corIcone: isAr ? '#0284C7' : '#10B981',
-          offset: 0.0
-        };
-
+        const localizacao = document.getElementById('novo-sensor-loc')?.value?.trim() || '';
+        if (!nome) {
+          toast.warning('Atenção', 'Informe o nome do sensor.');
+          return;
+        }
         try {
-          api.criarSensor({
-            nome: novoSensorObj.nome,
-            tipo_sensor: tipo,
-            localizacao: talhao,
-            channel_id: channelId,
-            ambiente: isAr ? 'ar' : 'solo',
-            id_usuario: parseInt(fkUsuario, 10),
-            status: statusVal
-          }).catch(e => console.warn('Backend offline para criarSensor:', e));
-        } catch (e) {}
-
-        _sensoresList.unshift(novoSensorObj);
-        atualizarTabelaSensores();
-        toast.success('Sensor Provisionado', `Nó #${id} cadastrado com sucesso (Ambiente: ${isAr ? 'Ar' : 'Solo'} | Dono: ${donoNome}).`);
-      }, 'Provisionar Nó');
+          await api.criarSensor({ nome, tipo_sensor, ambiente, localizacao, status: 'ativo' });
+          toast.success('Sensor Cadastrado', `Sensor ${nome} salvo no sistema.`);
+          if (window.router && typeof window.router.handleRoute === 'function') {
+            window.router.handleRoute();
+          }
+        } catch (err) {
+          toast.error('Erro ao Cadastrar', err.message || 'Não foi possível cadastrar o sensor.');
+        }
+      }, 'Cadastrar');
     });
   }
 
-  // Campo de busca
   const inputBusca = document.getElementById('input-busca-sensor');
   if (inputBusca) {
     inputBusca.addEventListener('input', (e) => {
@@ -839,14 +704,13 @@ export function setupSensoresAdminEvents() {
     });
   }
 
-  // Abas de filtro
   document.querySelectorAll('.tab-sensor-admin').forEach(tab => {
-    tab.addEventListener('click', (e) => {
+    tab.addEventListener('click', () => {
       document.querySelectorAll('.tab-sensor-admin').forEach(t => {
         t.classList.remove('active');
         t.style.background = '#F8FAFC';
-        t.style.color = t.dataset.cat === 'atencao' ? '#DC2626' : '#475569';
-        t.style.border = t.dataset.cat === 'atencao' ? '1px solid #FCA5A5' : '1px solid #E2E8F0';
+        t.style.color = '#475569';
+        t.style.border = '1px solid #E2E8F0';
         t.style.fontWeight = '600';
       });
       tab.classList.add('active');
@@ -855,83 +719,100 @@ export function setupSensoresAdminEvents() {
       tab.style.border = 'none';
       tab.style.fontWeight = '700';
 
-      _filtroCategoriaSensor = tab.dataset.cat || 'todos';
+      _filtroAmbienteSensor = tab.dataset.cat || 'todos';
       _paginaAtualSensores = 1;
       atualizarTabelaSensores();
     });
   });
 
-  // Filtro por talhão rápido
-  document.querySelectorAll('.card-filtro-talhao-sensor').forEach(card => {
-    card.addEventListener('click', () => {
-      const talhao = card.dataset.talhao;
-      _termoBuscaSensor = talhao;
-      const input = document.getElementById('input-busca-sensor');
-      if (input) input.value = talhao;
-      _paginaAtualSensores = 1;
+  const pagControls = document.getElementById('controles-paginacao-sensores');
+  if (pagControls) {
+    pagControls.addEventListener('click', (e) => {
+      const btn = e.target.closest('.btn-pag-sensor');
+      if (!btn || btn.disabled) return;
+      const pag = btn.dataset.pag;
+      const totalPaginas = Math.max(1, Math.ceil(getSensoresFiltrados().length / _itensPorPagina));
+      if (pag === 'prev') _paginaAtualSensores = Math.max(1, _paginaAtualSensores - 1);
+      else if (pag === 'next') _paginaAtualSensores = Math.min(totalPaginas, _paginaAtualSensores + 1);
+      else _paginaAtualSensores = parseInt(pag || '1', 10);
       atualizarTabelaSensores();
-      toast.info('Filtro por Talhão', `Exibindo nós operacionais em: "${talhao}".`);
     });
-  });
+  }
 
-  // Paginação
-  document.querySelectorAll('.btn-pag-sensor').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      document.querySelectorAll('.btn-pag-sensor').forEach(b => {
-        b.style.background = '#FFFFFF';
-        b.style.color = '#0F172A';
-        b.style.border = '1px solid #CBD5E1';
-        b.style.fontWeight = '400';
+  const vincularTooltipCorrelacao = () => {
+    const chartWrap = document.getElementById('correlacao-chart-wrap');
+    const tooltipEl = document.getElementById('correlacao-tooltip');
+    if (!chartWrap || !tooltipEl) return;
+
+    const showTooltip = (pt, clientX, clientY) => {
+      const rect = chartWrap.getBoundingClientRect();
+      const left = Math.min(Math.max(8, clientX - rect.left + 10), Math.max(8, rect.width - 170));
+      const top = Math.max(8, clientY - rect.top - 42);
+      tooltipEl.innerHTML = `<strong>${pt.dataset.serie}: ${pt.dataset.valor}</strong><br><span style="color:#CBD5E1;">${pt.dataset.hora}</span>`;
+      tooltipEl.style.left = `${left}px`;
+      tooltipEl.style.top = `${top}px`;
+      tooltipEl.style.display = 'block';
+    };
+
+    chartWrap.addEventListener('mousemove', (e) => {
+      const pt = e.target.closest('.correlacao-ponto');
+      if (pt) showTooltip(pt, e.clientX, e.clientY);
+      else tooltipEl.style.display = 'none';
+    });
+
+    chartWrap.addEventListener('mouseleave', () => {
+      tooltipEl.style.display = 'none';
+    });
+
+    chartWrap.addEventListener('touchstart', (e) => {
+      const pt = e.target.closest('.correlacao-ponto');
+      if (pt && e.touches && e.touches[0]) {
+        showTooltip(pt, e.touches[0].clientX, e.touches[0].clientY);
+      } else {
+        tooltipEl.style.display = 'none';
+      }
+    }, { passive: true });
+  };
+
+  vincularTooltipCorrelacao();
+
+  document.querySelectorAll('.btn-periodo-corr-admin').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const periodo = btn.dataset.periodo || '24h';
+      if (periodo === _periodoCorrelacao) return;
+      _periodoCorrelacao = periodo;
+
+      document.querySelectorAll('.btn-periodo-corr-admin').forEach(b => {
+        const ativo = b.dataset.periodo === periodo;
+        b.classList.toggle('active', ativo);
+        b.style.background = ativo ? '#FFFFFF' : 'transparent';
+        b.style.color = ativo ? '#0F172A' : '#64748B';
+        b.style.fontWeight = ativo ? '700' : '600';
       });
-      btn.style.background = '#183D2E';
-      btn.style.color = '#FFFFFF';
-      btn.style.border = '1px solid #183D2E';
-      btn.style.fontWeight = '700';
 
-      _paginaAtualSensores = parseInt(btn.dataset.pag || '1', 10);
-      atualizarTabelaSensores();
-    });
-  });
+      const sub = document.getElementById('correlacao-subtitulo-periodo');
+      const labels = { '24h': 'últimas 24 horas', '7d': 'últimos 7 dias', '30d': 'últimos 30 dias' };
+      if (sub) sub.textContent = `Leituras reais registradas nos ${labels[periodo] || periodo}`;
 
-  const btnProx = document.querySelector('.btn-pag-sensor-prox');
-  if (btnProx) {
-    btnProx.addEventListener('click', () => {
-      const total = getSensoresFiltrados().length;
-      const maxPag = Math.ceil(total / _itensPorPagina);
-      if (_paginaAtualSensores < maxPag) {
-        _paginaAtualSensores++;
-        atualizarTabelaSensores();
+      const bodyEl = document.getElementById('correlacao-chart-body');
+      if (bodyEl) {
+        bodyEl.innerHTML = `<div style="height:230px; display:flex; align-items:center; justify-content:center; color:#64748B; font-size:12px;">Carregando leituras (${periodo})...</div>`;
       }
-    });
-  }
 
-  // Toggle Auto-calibração
-  const checkAuto = document.getElementById('check-auto-calibracao');
-  if (checkAuto) {
-    checkAuto.addEventListener('change', (e) => {
-      if (e.target.checked) {
-        toast.success('Auto-calibração', 'Filtro dinâmico de rejeição por desvio padrão (3σ) reativado.');
-      } else {
-        toast.warning('Auto-calibração', 'Filtro desativado temporariamente.');
-      }
-    });
-  }
+      const [resSolo, resAr] = await Promise.allSettled([
+        _sensorSoloRef ? api.getSensorLeituras(_sensorSoloRef.id_sensor, periodo) : Promise.resolve([]),
+        _sensorArRef ? api.getSensorLeituras(_sensorArRef.id_sensor, periodo) : Promise.resolve([])
+      ]);
+      _leiturasSolo = resSolo.status === 'fulfilled' ? extrairArray(resSolo.value) : [];
+      _leiturasAr = resAr.status === 'fulfilled' ? extrairArray(resAr.value) : [];
 
-  // Ações Rápidas de Infraestrutura
-  document.querySelectorAll('.btn-infra-rapida').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const act = e.currentTarget.dataset.action;
-      if (act === 'topologia') {
-        window.location.hash = '#/rede-esp32';
-      } else if (act === 'auditoria') {
-        window.location.hash = '#/auditoria';
-      } else if (act === 'rejeitadas') {
-        window.location.hash = '#/auditoria';
-      } else {
-        window.location.hash = '#/auditoria';
+      if (bodyEl) {
+        bodyEl.innerHTML = renderGraficoCorrelacaoRealHtml();
+        vincularTooltipCorrelacao();
       }
     });
   });
 
+  atualizarPaginacaoSensores();
   vincularEventosSensores();
 }

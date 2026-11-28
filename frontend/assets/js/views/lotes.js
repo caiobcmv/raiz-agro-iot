@@ -1,9 +1,6 @@
 /**
- * VIEW: LOTES E SAFRA (FIGMA MOCKUP 3)
- * Governança Agronômica, Ciclo Safra Vigente 25/26, 4 KPIs,
- * Esteira de Status Operacional (ENUM status_lote com 6 estágios),
- * Lotes Ativos em Monitoramento com busca, abas de filtro e inspeção completa,
- * e Régua de Qualidade e Brix Médio.
+ * VIEW: LOTES E SAFRA (PERFIL ADMINISTRADOR)
+ * Dados reais das rotas: GET /safras, GET /propriedades, GET /lotes, GET /variedades, GET /sensores.
  */
 
 import { api } from '../api.js';
@@ -11,104 +8,233 @@ import { Modal } from '../components/modal.js';
 import { toast } from '../components/toast.js';
 import { downloadCSV, downloadPDF, openExportChoiceModal } from '../utils/export-utils.js';
 
-let _lotesData = [
-  {
-    id: 'LT-2026-084',
-    codigo: '#LT-2026-084',
-    cultura: 'Manga Tommy',
-    talhao: 'Talhão C1 (14.5ha)',
-    status: 'Em Produção',
-    statusBadge: 'Em Campo',
-    statusClass: 'em-campo',
-    corBarra: '#10B981',
-    colheita: '28/09',
-    volume: '450.000 kg',
-    destino: 'Pecém (UE)',
-    rodape: '• 12 sensores ok',
-    corRodape: '#047857',
-    icone: 'sprout',
-    corIcone: '#10B981',
-    brix: 13.5,
-    temp: 11.2,
-    sensores: ['SNS-SL-019', 'SNS-AR-005', 'SNS-SL-020']
-  },
-  {
-    id: 'LT-2026-079',
-    codigo: '#LT-2026-079',
-    cultura: 'Uva Vitória',
-    talhao: 'Talhão A1 (12.4ha)',
-    status: 'Pronto Colheita',
-    statusBadge: 'Pronto',
-    statusClass: 'pronto',
-    corBarra: '#0284C7',
-    colheita: '22/09',
-    volume: '180.000 kg',
-    destino: 'Suape (UK)',
-    rodape: '• Brix 18.2°Bx (A+)',
-    corRodape: '#D97706',
-    icone: 'grape',
-    corIcone: '#3B82F6',
-    brix: 18.2,
-    temp: 0.8,
-    sensores: ['SNS-SL-001', 'SNS-AR-002']
-  },
-  {
-    id: 'LT-2026-068',
-    codigo: '#LT-2026-068',
-    cultura: 'Melão Amarelo',
-    talhao: 'Talhão B2 (8.5ha)',
-    status: 'Colhido',
-    statusBadge: 'Colhido',
-    statusClass: 'colhido',
-    corBarra: '#F59E0B',
-    colheita: '15/09',
-    volume: '120.000 kg',
-    destino: 'Ceasa SP',
-    rodape: 'No Packing House',
-    corRodape: '#64748B',
-    icone: 'circle-dot',
-    corIcone: '#F59E0B',
-    brix: 12.4,
-    temp: 10.5,
-    sensores: ['SNS-SL-008', 'SNS-AR-004']
-  },
-  {
-    id: 'LT-2026-052',
-    codigo: '#LT-2026-052',
-    cultura: 'Manga Palmer',
-    talhao: 'Talhão C2 (15.0ha)',
-    status: 'Em Transporte',
-    statusBadge: 'Trânsito',
-    statusClass: 'transito',
-    corBarra: '#3B82F6',
-    colheita: 'Frio: 12.0°C',
-    volume: '320.000 kg',
-    destino: 'Salvador Port',
-    rodape: 'GPS e Termo Ativo',
-    corRodape: '#0284C7',
-    icone: 'truck',
-    corIcone: '#8B5CF6',
-    brix: 14.1,
-    temp: 12.0,
-    sensores: ['SNS-REEFER-04', 'SNS-GPS-09']
-  }
-];
-
+let _lotesReais = [];
+let _safraVigente = null;
 let _filtroAtivoLotes = 'todos';
 let _termoBuscaLotes = '';
+let _paginaAtualLotes = 1;
+const _ITENS_POR_PAGINA_LOTES = 6;
+
+function formatarDataBr(isoStr) {
+  if (!isoStr) return '—';
+  const parteData = String(isoStr).split('T')[0];
+  const partes = parteData.split('-');
+  if (partes.length === 3) {
+    return `${partes[2]}/${partes[1]}/${partes[0]}`;
+  }
+  return parteData;
+}
+
+function loteParaToneladas(lote) {
+  const qtd = Number(lote?.quantidade || 0);
+  if (isNaN(qtd) || qtd <= 0) return 0;
+  const unidade = String(lote?.unidade || '').toLowerCase();
+  if (unidade === 'kg') return qtd / 1000;
+  if (unidade === 't') return qtd;
+  return 0;
+}
+
+function formatarToneladas(ton) {
+  return Number(ton || 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+}
+
+function formatarQuantidadeLote(lote) {
+  const qtd = Number(lote?.quantidade || 0);
+  const unidade = lote?.unidade || '';
+  return `${qtd.toLocaleString('pt-BR')} ${unidade}`.trim();
+}
+
+function loteNaSafraVigente(lote, safra) {
+  if (!safra || !lote?.data_colheita) return false;
+  const dataLote = String(lote.data_colheita).split('T')[0];
+  const inicio = safra.data_inicio ? String(safra.data_inicio).split('T')[0] : null;
+  const fim = safra.data_fim ? String(safra.data_fim).split('T')[0] : null;
+  if (inicio && dataLote < inicio) return false;
+  if (fim && dataLote > fim) return false;
+  return true;
+}
 
 export async function renderLotes() {
+  let safras = [];
+  let propriedades = [];
+  let lotes = [];
+  let variedades = [];
+  let sensores = [];
+  let erroSafras = false;
+  let erroLotes = false;
+  let erroSensores = false;
+
+  const [resSafras, resProps, resLotes, resVar, resSensores] = await Promise.allSettled([
+    api.getCatalogoSafras(),
+    api.getCatalogoPropriedades(),
+    api.getLotes(),
+    api.request('/variedades'),
+    api.getSensores()
+  ]);
+
+  if (resSafras.status === 'fulfilled' && Array.isArray(resSafras.value)) {
+    safras = resSafras.value;
+  } else {
+    erroSafras = true;
+  }
+
+  if (resProps.status === 'fulfilled' && Array.isArray(resProps.value)) {
+    propriedades = resProps.value;
+  }
+
+  if (resLotes.status === 'fulfilled') {
+    const val = resLotes.value;
+    lotes = Array.isArray(val) ? val : (Array.isArray(val?.lotes) ? val.lotes : []);
+  } else {
+    erroLotes = true;
+  }
+
+  if (resVar.status === 'fulfilled' && Array.isArray(resVar.value)) {
+    variedades = resVar.value;
+  }
+
+  if (resSensores.status === 'fulfilled') {
+    const val = resSensores.value;
+    sensores = Array.isArray(val) ? val : (Array.isArray(val?.sensores) ? val.sensores : []);
+  } else {
+    erroSensores = true;
+  }
+
+  // Ordenar lotes mais recentes primeiro (data_colheita desc, depois id_lote desc)
+  _lotesReais = [...lotes].sort((a, b) => {
+    const da = a?.data_colheita ? String(a.data_colheita).split('T')[0] : '';
+    const db = b?.data_colheita ? String(b.data_colheita).split('T')[0] : '';
+    if (db !== da) return db.localeCompare(da);
+    return Number(b?.id_lote || 0) - Number(a?.id_lote || 0);
+  });
+
+  _filtroAtivoLotes = 'todos';
+  _termoBuscaLotes = '';
+  _paginaAtualLotes = 1;
+
+  _safraVigente = safras.find(s => s && s.ativa === true) || null;
+
+  const areasValidas = propriedades.map(p => Number(p?.area_ha)).filter(v => !isNaN(v) && v > 0);
+  const areaTotalHa = areasValidas.length > 0 ? areasValidas.reduce((acc, v) => acc + v, 0) : 0;
+  const areaTexto = areaTotalHa > 0
+    ? `${areaTotalHa.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ha`
+    : '—';
+
+  // Card 1: Ciclo Safra
+  const metaTonHa = _safraVigente?.meta_ton_ha != null ? Number(_safraVigente.meta_ton_ha) : null;
+  const dataInicioTxt = _safraVigente?.data_inicio ? formatarDataBr(_safraVigente.data_inicio) : '—';
+  const dataFimTxt = _safraVigente ? (_safraVigente.data_fim ? formatarDataBr(_safraVigente.data_fim) : 'em aberto') : '—';
+
+  // KPI 1: Meta de Produtividade (só exibe se houver meta_ton_ha e areaTotalHa > 0)
+  const mostrarKpiMeta = metaTonHa != null && !isNaN(metaTonHa) && areaTotalHa > 0;
+  const metaProjetadaTon = mostrarKpiMeta ? metaTonHa * areaTotalHa : 0;
+  const lotesSafraVigente = _safraVigente ? _lotesReais.filter(l => loteNaSafraVigente(l, _safraVigente)) : [];
+  const volumeSafraTon = lotesSafraVigente.reduce((acc, l) => acc + loteParaToneladas(l), 0);
+
+  // KPI 2: Volume monitorado
+  const volumeTotalTon = _lotesReais.reduce((acc, l) => acc + loteParaToneladas(l), 0);
+  const porCulturaMap = new Map();
+  for (const l of _lotesReais) {
+    const nomeFruta = l?.fruta || 'Não informada';
+    const atual = porCulturaMap.get(nomeFruta) || { ton: 0, count: 0 };
+    atual.ton += loteParaToneladas(l);
+    atual.count += 1;
+    porCulturaMap.set(nomeFruta, atual);
+  }
+  const culturasLista = Array.from(porCulturaMap.entries()).map(([nome, info]) => ({
+    nome,
+    ton: info.ton,
+    count: info.count,
+    pct: volumeTotalTon > 0 ? Math.round((info.ton / volumeTotalTon) * 100) : Math.round((info.count / Math.max(1, _lotesReais.length)) * 100)
+  })).sort((a, b) => b.ton - a.ton || b.count - a.count);
+
+  const coresCultura = ['#10B981', '#0284C7', '#F59E0B', '#8B5CF6', '#EC4899'];
+
+  // KPI 3: Destino dos lotes (só exibe se houver destino preenchido em GET /lotes)
+  const porDestinoMap = new Map();
+  let volumeComDestinoTon = 0;
+  let lotesComDestinoCount = 0;
+  for (const l of _lotesReais) {
+    const dest = l?.destino ? String(l.destino).trim() : '';
+    if (!dest) continue;
+    const ton = loteParaToneladas(l);
+    volumeComDestinoTon += ton;
+    lotesComDestinoCount += 1;
+    const atual = porDestinoMap.get(dest) || { ton: 0, count: 0 };
+    atual.ton += ton;
+    atual.count += 1;
+    porDestinoMap.set(dest, atual);
+  }
+  const destinosLista = Array.from(porDestinoMap.entries()).map(([nome, info]) => ({
+    nome,
+    ton: info.ton,
+    count: info.count,
+    pct: volumeComDestinoTon > 0 ? Math.round((info.ton / volumeComDestinoTon) * 100) : Math.round((info.count / Math.max(1, lotesComDestinoCount)) * 100)
+  })).sort((a, b) => b.ton - a.ton || b.count - a.count);
+  const mostrarKpiDestino = destinosLista.length > 0;
+
+  // Esteira: Status dos lotes (agrupado pelos status que existem nos dados)
+  const porStatusMap = new Map();
+  for (const l of _lotesReais) {
+    const st = l?.status ? String(l.status).trim() : 'Sem status';
+    const atual = porStatusMap.get(st) || { count: 0, ton: 0 };
+    atual.count += 1;
+    atual.ton += loteParaToneladas(l);
+    porStatusMap.set(st, atual);
+  }
+  const ordemCiclo = [
+    'Em produção',
+    'Pronto para colheita',
+    'Colhido',
+    'Armazenado',
+    'Em transporte',
+    'Finalizado'
+  ];
+  const statusExistentes = Array.from(porStatusMap.entries())
+    .map(([status, info]) => ({
+      status,
+      count: info.count,
+      ton: info.ton
+    }))
+    .sort((a, b) => {
+      if (a.status === 'Sem status') return 1;
+      if (b.status === 'Sem status') return -1;
+      const idxA = ordemCiclo.indexOf(a.status);
+      const idxB = ordemCiclo.indexOf(b.status);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return a.status.localeCompare(b.status, 'pt-BR');
+    });
+
+  const coresStatus = {
+    'Em produção': '#10B981',
+    'Pronto para colheita': '#3B82F6',
+    'Colhido': '#0284C7',
+    'Em transporte': '#8B5CF6',
+    'Armazenado': '#06B6D4',
+    'Finalizado': '#64748B',
+    'Sem status': '#94A3B8'
+  };
+
+  // Padrões Mínimos de Qualidade (padrao_qualidade via GET /variedades)
+  const variedadesComPadrao = variedades.filter(v => v && (v.brix_min != null || v.calibre_min != null));
+  const mostrarPadroesQualidade = variedadesComPadrao.length > 0;
+
+  const numKpis = 1 + (mostrarKpiMeta ? 1 : 0) + (mostrarKpiDestino ? 1 : 0);
+
   return `
-    <div class="dashboard-canvas apple-animate-in" style="max-width: 1400px; margin: 0 auto;">
-      <!-- Sub-barra: Governança Agronômica e Ciclo Safra Vigente -->
-      <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 14px 20px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+    <div class="dashboard-canvas apple-animate-in" style="max-width: 1400px; margin: 0 auto; padding-top: 28px;">
+      <!-- Sub-barra: Ciclo Safra -->
+      <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 14px 20px; margin-top: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
         <div>
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <span style="font-size: 10px; font-weight: 800; color: #047857; background: #D1FAE5; padding: 3px 8px; border-radius: 4px; letter-spacing: 0.5px;">GOVERNANÇA AGRONÔMICA</span>
-            <span style="font-size: 11px; color: #64748B;">Meta Global: <strong style="color: #0F172A; font-weight: 700;">34.2 ton/ha</strong></span>
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <span style="font-size: 10px; font-weight: 800; color: #047857; background: #D1FAE5; padding: 3px 8px; border-radius: 4px; letter-spacing: 0.5px;">CICLO SAFRA</span>
+            ${metaTonHa != null ? `<span style="font-size: 11px; color: #64748B;">Meta: <strong style="color: #0F172A; font-weight: 700;">${metaTonHa.toLocaleString('pt-BR')} ton/ha</strong></span>` : ''}
           </div>
-          <h3 style="font-size: 17px; font-weight: 800; color: #0F172A; margin: 4px 0 2px 0;">Ciclo Safra Vigente 25/26</h3>
-          <div style="font-size: 11px; color: #64748B;">Polo Irrigado Petrolina / Juazeiro</div>
+          <h3 style="font-size: 17px; font-weight: 800; color: #0F172A; margin: 4px 0 2px 0;">
+            ${_safraVigente ? _safraVigente.nome : (erroSafras ? 'Não foi possível carregar a safra vigente.' : 'Nenhuma safra vigente encontrada.')}
+          </h3>
         </div>
 
         <div style="display: flex; align-items: center; gap: 18px; flex-wrap: wrap;">
@@ -118,326 +244,197 @@ export async function renderLotes() {
               <div>Vigente:</div>
             </div>
             <div style="font-weight: 700; color: #0F172A;">
-              <div>01/08/2025 -</div>
-              <div>30/07/2026</div>
+              <div>${dataInicioTxt} -</div>
+              <div>${dataFimTxt}</div>
             </div>
             <div>
               <div>Área</div>
-              <div>Produtiva:</div>
+              <div>Cadastrada:</div>
             </div>
             <div style="font-weight: 700; color: #0F172A;">
-              <div>1.250 ha</div>
-              <div>cadastrados</div>
+              <div>${areaTexto}</div>
+              <div>propriedades</div>
             </div>
           </div>
           <button class="btn" id="btn-exportar-lotes-pdf-csv" style="background: #F8FAFC; color: #334155; border: 1px solid #CBD5E1; font-size: 11px; font-weight: 700; padding: 8px 13px; border-radius: 8px; display: flex; align-items: center; gap: 6px; cursor: pointer;">
             <i data-lucide="download" style="width: 13px; height: 13px; color: #059669;"></i>
             <span>PDF / CSV</span>
           </button>
-          <button class="btn btn-primary" id="btn-abrir-nova-safra" style="background: #FFFFFF; color: #047857; border: 1.5px solid #10B981; font-size: 12px; font-weight: 700; padding: 8px 16px; border-radius: 9px; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: all 0.2s;">
-            <i data-lucide="calendar-plus" style="width: 15px; height: 15px; color: #059669;"></i>
-            <span>+ Abrir Nova Safra (2026/2027)</span>
-          </button>
         </div>
       </div>
 
-      <!-- 4 KPIs do Ciclo de Safra -->
-      <div class="admin-kpi-grid-4">
-        <!-- KPI 1: META DE PRODUTIVIDADE -->
-        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 11px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">META DE PRODUTIVIDADE</span>
-            <span style="font-size: 10px; font-weight: 600; color: #64748B;">Safra 25/26</span>
-          </div>
-          <div style="display: flex; align-items: center; gap: 16px; margin: 12px 0;">
-            <div style="position: relative; width: 56px; height: 56px; display: flex; align-items: center; justify-content: center;">
-              <svg viewBox="0 0 36 36" style="width: 100%; height: 100%; transform: rotate(-90deg);">
-                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#E2E8F0" stroke-width="3.5" />
-                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#10B981" stroke-width="3.5" stroke-dasharray="88, 100" stroke-linecap="round" />
-              </svg>
-              <span style="position: absolute; font-size: 13px; font-weight: 800; color: #0F172A;">88%</span>
+      <!-- KPIs Reais do Ciclo de Safra -->
+      <div class="${numKpis === 3 ? 'admin-kpi-grid-3' : 'admin-kpi-grid-dynamic'}" style="display: grid; grid-template-columns: repeat(${numKpis}, minmax(0, 1fr)); gap: 16px; margin-bottom: 20px; width: 100%;">
+        ${mostrarKpiMeta ? `
+          <!-- KPI: META DE PRODUTIVIDADE -->
+          <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 11px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">META DE PRODUTIVIDADE</span>
+              <span style="font-size: 10px; font-weight: 600; color: #64748B;">${_safraVigente.nome}</span>
             </div>
-            <div>
-              <div style="font-size: 17px; font-weight: 800; color: #0F172A;">1.480t</div>
-              <div style="font-size: 11px; color: #64748B;">Meta: 1.600t proj.</div>
+            <div style="margin: 12px 0;">
+              <div style="font-size: 20px; font-weight: 800; color: #0F172A;">${formatarToneladas(metaProjetadaTon)} t</div>
+              <div style="font-size: 11px; color: #64748B;">Meta projetada (${metaTonHa.toLocaleString('pt-BR')} ton/ha × ${areaTexto})</div>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 11px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px;">
+              <span>Volume registrado na safra</span>
+              <strong style="color: #0F172A;">${formatarToneladas(volumeSafraTon)} t</strong>
             </div>
           </div>
-          <div style="display: flex; justify-content: space-between; font-size: 11px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px;">
-            <span>Rendimento Médio</span>
-            <strong style="color: #0F172A;">34.2 ton/ha</strong>
-          </div>
-        </div>
+        ` : ''}
 
-        <!-- KPI 2: VOLUME MONITORADO -->
+        <!-- KPI: VOLUME MONITORADO -->
         <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
           <div style="display: flex; justify-content: space-between; align-items: center;">
             <span style="font-size: 11px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">VOLUME MONITORADO</span>
-            <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 2px 8px; border-radius: 12px;">+14 Lotes Ativos</span>
+            <span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 2px 8px; border-radius: 12px;">${_lotesReais.length} lotes</span>
           </div>
           <div style="margin: 10px 0;">
-            <div style="font-size: 20px; font-weight: 800; color: #0F172A;">1.800 toneladas</div>
-            <div style="width: 100%; height: 7px; background: #E2E8F0; border-radius: 4px; display: flex; overflow: hidden; margin: 10px 0 8px 0;">
-              <div style="width: 55%; background: #10B981;" title="Manga 55%"></div>
-              <div style="width: 30%; background: #0284C7;" title="Uva 30%"></div>
-              <div style="width: 15%; background: #F59E0B;" title="Melão 15%"></div>
-            </div>
-            <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B;">
-              <span>• Manga 55%</span>
-              <span>• Uva 30%</span>
-              <span>• Melão 15%</span>
-            </div>
-          </div>
-          <div style="display: flex; justify-content: space-between; font-size: 11px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px;">
-            <span>Capacidade Operacional</span>
-            <strong style="color: #047857;">94.2%</strong>
+            ${erroLotes ? `
+              <div style="font-size: 12px; color: #64748B;">Não foi possível carregar os lotes.</div>
+            ` : `
+              <div style="font-size: 20px; font-weight: 800; color: #0F172A;">${formatarToneladas(volumeTotalTon)} toneladas</div>
+              ${culturasLista.length > 0 ? `
+                <div style="width: 100%; height: 7px; background: #E2E8F0; border-radius: 4px; display: flex; overflow: hidden; margin: 10px 0 8px 0;">
+                  ${culturasLista.map((c, idx) => `<div style="width: ${c.pct}%; background: ${coresCultura[idx % coresCultura.length]};" title="${c.nome} ${c.pct}%"></div>`).join('')}
+                </div>
+                <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px; font-size: 10px; color: #64748B;">
+                  ${culturasLista.map((c, idx) => `<span><span style="color:${coresCultura[idx % coresCultura.length]};">•</span> ${c.nome} ${c.pct}%</span>`).join('')}
+                </div>
+              ` : '<div style="font-size: 11px; color: #64748B; margin-top: 6px;">Nenhum lote registrado.</div>'}
+            `}
           </div>
         </div>
 
-        <!-- KPI 3: DESTINAÇÃO COMERCIAL -->
-        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 11px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">DESTINAÇÃO COMERCIAL</span>
-            <span style="font-size: 10px; font-weight: 700; color: #047857;">GlobalG.A.P.</span>
-          </div>
-          <div style="display: flex; align-items: center; gap: 12px; margin: 8px 0;">
-            <div style="width: 48px; height: 48px; flex-shrink: 0;">
-              <svg viewBox="0 0 36 36" style="width: 100%; height: 100%; transform: rotate(-90deg);">
-                <circle cx="18" cy="18" r="15.9155" fill="none" stroke="#E2E8F0" stroke-width="5" />
-                <circle cx="18" cy="18" r="15.9155" fill="none" stroke="#10B981" stroke-width="5" stroke-dasharray="65 35" stroke-dashoffset="0" />
-                <circle cx="18" cy="18" r="15.9155" fill="none" stroke="#0284C7" stroke-width="5" stroke-dasharray="25 75" stroke-dashoffset="-65" />
-                <circle cx="18" cy="18" r="15.9155" fill="none" stroke="#F59E0B" stroke-width="5" stroke-dasharray="10 90" stroke-dashoffset="-90" />
-              </svg>
+        ${mostrarKpiDestino ? `
+          <!-- KPI: DESTINO DOS LOTES -->
+          <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 11px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">DESTINO DOS LOTES</span>
+              <span style="font-size: 10px; font-weight: 600; color: #64748B;">${lotesComDestinoCount} lotes</span>
             </div>
-            <div style="font-size: 11px; color: #475569; display: flex; flex-direction: column; gap: 3px; flex: 1;">
-              <div style="display: flex; justify-content: space-between;">
-                <span style="display: flex; align-items: center; gap: 5px;"><span style="width: 6px; height: 6px; border-radius: 50%; background: #10B981;"></span> Exportação</span>
-                <strong>65% <span style="font-size: 10px; color: #94A3B8;">(1.170t)</span></strong>
-              </div>
-              <div style="display: flex; justify-content: space-between;">
-                <span style="display: flex; align-items: center; gap: 5px;"><span style="width: 6px; height: 6px; border-radius: 50%; background: #0284C7;"></span> M. Interno</span>
-                <strong>25% <span style="font-size: 10px; color: #94A3B8;">(450t)</span></strong>
-              </div>
-              <div style="display: flex; justify-content: space-between;">
-                <span style="display: flex; align-items: center; gap: 5px;"><span style="width: 6px; height: 6px; border-radius: 50%; background: #F59E0B;"></span> Indústria</span>
-                <strong>10% <span style="font-size: 10px; color: #94A3B8;">(180t)</span></strong>
-              </div>
+            <div style="font-size: 11px; color: #475569; display: flex; flex-direction: column; gap: 6px; margin-top: 10px;">
+              ${destinosLista.slice(0, 4).map((d, idx) => `
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="display: flex; align-items: center; gap: 5px;"><span style="width: 6px; height: 6px; border-radius: 50%; background: ${coresCultura[idx % coresCultura.length]};"></span> ${d.nome}</span>
+                  <strong>${d.pct}% <span style="font-size: 10px; color: #94A3B8;">(${formatarToneladas(d.ton)}t)</span></strong>
+                </div>
+              `).join('')}
             </div>
           </div>
-          <div style="display: flex; justify-content: space-between; font-size: 11px; color: #64748B; border-top: 1px solid #F1F5F9; padding-top: 8px;">
-            <span>0% perdas cadastrais</span>
-            <strong style="color: #047857;">Fluxo sem gargalo</strong>
-          </div>
-        </div>
-
-        <!-- KPI 4: MONITORAMENTO DE ESTEIRA -->
-        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 11px; font-weight: 800; color: #64748B; letter-spacing: 0.5px;">MONITORAMENTO DE ESTEIRA</span>
-          </div>
-          <div style="margin: 10px 0;">
-            <div style="font-size: 18px; font-weight: 800; color: #0F172A;">14 <span style="font-size: 11px; font-weight: 500; color: #64748B;">lotes em esteira</span></div>
-            <div style="width: 100%; height: 6px; background: #E2E8F0; border-radius: 4px; overflow: hidden; margin: 8px 0;">
-              <div style="width: 85%; height: 100%; background: #10B981; border-radius: 4px;"></div>
-            </div>
-            <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B;">
-              <span>6 estágios (status_lote)</span>
-            </div>
-          </div>
-        </div>
+        ` : ''}
       </div>
 
-      <!-- Seção: Esteira de Status Operacional (ENUM status_lote com 6 estágios) -->
+      <!-- Seção: Status dos lotes -->
       <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
           <div>
             <h3 style="font-size: 14px; font-weight: 800; color: #0F172A; margin: 0; display: flex; align-items: center; gap: 8px;">
               <i data-lucide="git-commit" style="width: 16px; height: 16px; color: #10B981;"></i>
-              Esteira de Status Operacional (ENUM status_lote)
+              Status dos lotes
             </h3>
           </div>
-          <span style="font-size: 11px; font-weight: 600; color: #64748B;">6 Estágios de Ciclo Produtivo</span>
         </div>
 
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px;">
-          <!-- Estágio 1 -->
-          <div class="card-estagio-esteira" data-estagio="Em Produção" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px; border-top: 3px solid #10B981; cursor: pointer; transition: all 0.2s;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <span style="font-size: 11px; font-weight: 700; color: #0F172A;">1. Em Produção</span>
-              <span style="width: 6px; height: 6px; border-radius: 50%; background: #10B981;"></span>
-            </div>
-            <div style="font-size: 20px; font-weight: 800; color: #0F172A; margin: 8px 0 4px 0;">4</div>
-            <div style="font-size: 10px; color: #64748B;">480 ton</div>
+        ${erroLotes ? `
+          <div style="padding: 16px; text-align: center; color: #64748B; font-size: 12px;">Não foi possível carregar os lotes.</div>
+        ` : (statusExistentes.length === 0 ? `
+          <div style="padding: 16px; text-align: center; color: #64748B; font-size: 12px;">Nenhum lote cadastrado.</div>
+        ` : `
+          <div class="lotes-status-grid">
+            ${statusExistentes.map(st => {
+              const cor = coresStatus[st.status] || '#64748B';
+              return `
+                <div class="card-estagio-esteira" data-estagio="${st.status}" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px; border-top: 3px solid ${cor}; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04); display: flex; flex-direction: column; justify-content: space-between; cursor: pointer; transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;">
+                  <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 6px;">
+                    <span style="font-size: 11px; font-weight: 700; color: #0F172A; line-height: 1.3;">${st.status}</span>
+                    <span style="width: 7px; height: 7px; border-radius: 50%; background: ${cor}; flex-shrink: 0; margin-top: 3px;"></span>
+                  </div>
+                  <div style="font-size: 22px; font-weight: 800; color: #0F172A; margin: 10px 0 6px 0; line-height: 1;">${st.count}</div>
+                  <div style="font-size: 10px; color: #64748B;">${formatarToneladas(st.ton)} ton</div>
+                </div>
+              `;
+            }).join('')}
           </div>
-
-          <!-- Estágio 2 -->
-          <div class="card-estagio-esteira" data-estagio="Pronto Colheita" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px; border-top: 3px solid #3B82F6; cursor: pointer; transition: all 0.2s;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <span style="font-size: 11px; font-weight: 700; color: #0F172A;">2. Pronto Colheita</span>
-              <span style="width: 6px; height: 6px; border-radius: 50%; background: #3B82F6;"></span>
-            </div>
-            <div style="font-size: 20px; font-weight: 800; color: #0F172A; margin: 8px 0 4px 0;">2</div>
-            <div style="font-size: 10px; color: #64748B;">220 ton</div>
-          </div>
-
-          <!-- Estágio 3 -->
-          <div class="card-estagio-esteira" data-estagio="Colhido" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px; border-top: 3px solid #0284C7; cursor: pointer; transition: all 0.2s;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <span style="font-size: 11px; font-weight: 700; color: #0F172A;">3. Colhido</span>
-              <span style="width: 6px; height: 6px; border-radius: 50%; background: #0284C7;"></span>
-            </div>
-            <div style="font-size: 20px; font-weight: 800; color: #0F172A; margin: 8px 0 4px 0;">3</div>
-            <div style="font-size: 10px; color: #64748B;">350 ton</div>
-          </div>
-
-          <!-- Estágio 4 -->
-          <div class="card-estagio-esteira" data-estagio="Em Transporte" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px; border-top: 3px solid #8B5CF6; cursor: pointer; transition: all 0.2s;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <span style="font-size: 11px; font-weight: 700; color: #0F172A;">4. Em Transporte</span>
-              <span style="width: 6px; height: 6px; border-radius: 50%; background: #8B5CF6;"></span>
-            </div>
-            <div style="font-size: 20px; font-weight: 800; color: #0F172A; margin: 8px 0 4px 0;">2</div>
-            <div style="font-size: 10px; color: #64748B;">280 ton</div>
-          </div>
-
-          <!-- Estágio 5 -->
-          <div class="card-estagio-esteira" data-estagio="Armazenado" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px; border-top: 3px solid #06B6D4; cursor: pointer; transition: all 0.2s;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <span style="font-size: 11px; font-weight: 700; color: #0F172A;">5. Armazenado</span>
-              <span style="width: 6px; height: 6px; border-radius: 50%; background: #06B6D4;"></span>
-            </div>
-            <div style="font-size: 20px; font-weight: 800; color: #0F172A; margin: 8px 0 4px 0;">2</div>
-            <div style="font-size: 10px; color: #64748B;">310 ton</div>
-          </div>
-
-          <!-- Estágio 6 -->
-          <div class="card-estagio-esteira" data-estagio="Finalizado" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px; border-top: 3px solid #64748B; cursor: pointer; transition: all 0.2s;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <span style="font-size: 11px; font-weight: 700; color: #0F172A;">6. Finalizado</span>
-              <span style="width: 6px; height: 6px; border-radius: 50%; background: #64748B;"></span>
-            </div>
-            <div style="font-size: 20px; font-weight: 800; color: #0F172A; margin: 8px 0 4px 0;">1</div>
-            <div style="font-size: 10px; color: #64748B;">160 ton</div>
-          </div>
-        </div>
+        `)}
       </div>
 
-      <!-- Seção: Lotes Ativos em Monitoramento (Cards dos Lotes) -->
+      <!-- Seção: Lista de Lotes -->
       <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
           <div>
-            <h3 style="font-size: 15px; font-weight: 800; color: #0F172A; margin: 0;">Lotes Ativos em Monitoramento</h3>
-            <p style="font-size: 11px; color: #64748B; margin: 2px 0 0 0;" id="subtitulo-contagem-lotes">4 de 14 lotes com telemetria contínua</p>
+            <h3 style="font-size: 15px; font-weight: 800; color: #0F172A; margin: 0;">Lotes em Monitoramento</h3>
+            <p style="font-size: 11px; color: #64748B; margin: 2px 0 0 0;" id="subtitulo-contagem-lotes">${_lotesReais.length === 0 ? '0 lotes cadastrados' : `Exibindo 1–${Math.min(_ITENS_POR_PAGINA_LOTES, _lotesReais.length)} de ${_lotesReais.length} lotes (Página 1 de ${Math.max(1, Math.ceil(_lotesReais.length / _ITENS_POR_PAGINA_LOTES))})`}</p>
           </div>
 
           <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-            <!-- Campo de Busca de Lotes -->
             <div style="position: relative; width: 220px;">
               <i data-lucide="search" style="position: absolute; left: 10px; top: 9px; width: 14px; height: 14px; color: #94A3B8;"></i>
-              <input type="text" id="input-busca-lote" placeholder="Buscar por lote, talhão..." style="width: 100%; padding: 7px 12px 7px 32px; font-size: 11px; border: 1px solid #CBD5E1; border-radius: 8px; background: #FFFFFF;">
+              <input type="text" id="input-busca-lote" placeholder="Buscar por lote, fruta, destino..." style="width: 100%; padding: 7px 12px 7px 32px; font-size: 11px; border: 1px solid #CBD5E1; border-radius: 8px; background: #FFFFFF;">
             </div>
 
-            <!-- Abas de Filtro -->
             <div style="display: flex; gap: 6px; overflow-x: auto;">
-              <button class="btn-filter-lote active" data-filter="todos" style="padding: 6px 14px; font-size: 11px; font-weight: 700; background: #183D2E; color: #FFFFFF; border: none; border-radius: 6px; cursor: pointer;">Todos (14)</button>
-              <button class="btn-filter-lote" data-filter="producao" style="padding: 6px 14px; font-size: 11px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Produção (4)</button>
-              <button class="btn-filter-lote" data-filter="colheita" style="padding: 6px 14px; font-size: 11px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Colheita (2)</button>
-              <button class="btn-filter-lote" data-filter="transporte" style="padding: 6px 14px; font-size: 11px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">Transporte (2)</button>
-              <button id="btn-filtro-avancado-lotes" style="padding: 6px 10px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px; color: #64748B; cursor: pointer;" title="Filtro Avançado">
-                <i data-lucide="sliders-horizontal" style="width: 13px; height: 13px;"></i>
-              </button>
+              <button class="btn-filter-lote active" data-filter="todos" style="padding: 6px 14px; font-size: 11px; font-weight: 700; background: #183D2E; color: #FFFFFF; border: none; border-radius: 6px; cursor: pointer;">Todos (${_lotesReais.length})</button>
+              ${statusExistentes.map(st => `
+                <button class="btn-filter-lote" data-filter="${st.status}" style="padding: 6px 14px; font-size: 11px; font-weight: 600; background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;">${st.status} (${st.count})</button>
+              `).join('')}
             </div>
           </div>
         </div>
 
-        <!-- Grid de Cards de Lotes -->
         <div id="container-cards-lotes" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px;">
-          ${renderCardsLotesHtml(_lotesData)}
+          ${erroLotes ? `
+            <div style="grid-column: 1 / -1; padding: 30px; text-align: center; color: #64748B; font-size: 13px;">
+              Não foi possível carregar os lotes.
+            </div>
+          ` : renderCardsLotesHtml(_lotesReais.slice(0, _ITENS_POR_PAGINA_LOTES))}
+        </div>
+
+        <div id="container-paginacao-lotes" style="margin-top: 18px; padding-top: 14px; border-top: 1px solid #F1F5F9; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+          ${erroLotes ? '' : renderPaginacaoLotesHtml(_lotesReais.length)}
         </div>
       </div>
 
-      <!-- Seção: Padrões de Qualidade por Variedade (tabela padrao_qualidade) -->
-      <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 14px; padding: 20px 22px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-          <h3 style="font-size: 14px; font-weight: 800; color: #0F172A; margin: 0; display: flex; align-items: center; gap: 8px;">
-            <i data-lucide="bar-chart-2" style="width: 16px; height: 16px; color: #15803D;"></i>
-            Padrões Mínimos de Qualidade (padrao_qualidade)
-          </h3>
-          <span style="font-size: 10px; font-weight: 800; color: #047857; background: #DCFCE7; padding: 4px 10px; border-radius: 9999px;">BASELINE HOMOLOGADO</span>
-        </div>
+      ${mostrarPadroesQualidade ? `
+        <!-- Seção: Padrões Mínimos de Qualidade -->
+        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 14px; padding: 20px 22px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h3 style="font-size: 14px; font-weight: 800; color: #0F172A; margin: 0; display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="bar-chart-2" style="width: 16px; height: 16px; color: #15803D;"></i>
+              Padrões Mínimos de Qualidade
+            </h3>
+          </div>
 
-        <div style="display: flex; flex-direction: column; gap: 12px;">
-          <!-- Cultura 1: Uva Vitória -->
-          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px 16px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; margin-bottom: 8px;">
-              <strong style="color: #0F172A;">Uva Vitória (Variedade #1)</strong>
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <span style="font-size: 10px; color: #64748B; font-family: monospace;">brix_min: 16.0°Bx</span>
-                <span style="background: #DCFCE7; color: #047857; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 6px;">calibre_min: 18.0 mm</span>
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+            ${variedadesComPadrao.map(v => `
+              <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; flex-wrap: wrap; gap: 8px;">
+                  <strong style="color: #0F172A;">${v.fruta || ''} — ${v.nome || ''}</strong>
+                  <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    ${v.brix_min != null ? `<span style="font-size: 10px; color: #64748B; font-family: monospace;">Brix mínimo: ${v.brix_min} °Bx</span>` : ''}
+                    ${v.calibre_min != null ? `<span style="background: #DCFCE7; color: #047857; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 6px;">Calibre mínimo: ${v.calibre_min}</span>` : ''}
+                    ${v.classe ? `<span style="font-size: 10px; color: #334155; font-weight: 600;">Classe: ${v.classe}</span>` : ''}
+                  </div>
+                </div>
               </div>
-            </div>
-            <div style="position: relative; width: 100%; height: 9px; background: #E2E8F0; border-radius: 9999px; overflow: hidden;">
-              <div style="width: 90%; height: 100%; background: #1D4ED8; border-radius: 9999px;"></div>
-            </div>
-            <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B; margin-top: 7px;">
-              <span>Mercado: Exportação e Mercado Interno</span>
-              <span style="color: #047857; font-weight: 700;">Conforme padrao_qualidade</span>
-            </div>
+            `).join('')}
           </div>
+        </div>
+      ` : ''}
 
-          <!-- Cultura 2: Manga Palmer & Tommy -->
-          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px 16px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; margin-bottom: 8px;">
-              <strong style="color: #0F172A;">Manga Palmer (Variedade #3) &amp; Tommy (Variedade #4)</strong>
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <span style="font-size: 10px; color: #64748B; font-family: monospace;">brix_min: 12.0°Bx</span>
-                <span style="background: #DCFCE7; color: #047857; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 6px;">calibre_min: 250.0 g</span>
-              </div>
+      ${!erroSensores ? `
+        <!-- Rodapé com contagem real de sensores -->
+        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 34px; height: 34px; border-radius: 10px; background: #ECFDF5; display: flex; align-items: center; justify-content: center; color: #059669; flex-shrink: 0;">
+              <i data-lucide="radio" style="width: 17px; height: 17px;"></i>
             </div>
-            <div style="position: relative; width: 100%; height: 9px; background: #E2E8F0; border-radius: 9999px; overflow: hidden;">
-              <div style="width: 87%; height: 100%; background: #15803D; border-radius: 9999px;"></div>
-            </div>
-            <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B; margin-top: 7px;">
-              <span>Mercado: Exportação União Europeia e EUA</span>
-              <span style="color: #047857; font-weight: 700;">Conforme padrao_qualidade</span>
-            </div>
-          </div>
-
-          <!-- Cultura 3: Melão Amarelo -->
-          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px 16px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; margin-bottom: 8px;">
-              <strong style="color: #0F172A;">Melão Amarelo (Variedade #5)</strong>
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <span style="font-size: 10px; color: #64748B; font-family: monospace;">brix_min: 11.0°Bx</span>
-                <span style="background: #DCFCE7; color: #047857; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 6px;">calibre_min: 800.0 g</span>
-              </div>
-            </div>
-            <div style="position: relative; width: 100%; height: 9px; background: #E2E8F0; border-radius: 9999px; overflow: hidden;">
-              <div style="width: 82%; height: 100%; background: #F59E0B; border-radius: 9999px;"></div>
-            </div>
-            <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B; margin-top: 7px;">
-              <span>Mercado: Exportação e Distribuição Nacional</span>
-              <span style="color: #047857; font-weight: 700;">Conforme padrao_qualidade</span>
+            <div>
+              <div style="font-size: 12px; font-weight: 800; color: #0F172A;">${sensores.length} sensores cadastrados</div>
             </div>
           </div>
         </div>
-      </div>
-
-      <!-- Rodapé com status da malha de telemetria -->
-      <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
-        <div style="display: flex; align-items: center; gap: 12px;">
-          <div style="width: 34px; height: 34px; border-radius: 10px; background: #ECFDF5; display: flex; align-items: center; justify-content: center; color: #059669; flex-shrink: 0;">
-            <i data-lucide="radio" style="width: 17px; height: 17px;"></i>
-          </div>
-          <div>
-            <div style="font-size: 12px; font-weight: 800; color: #0F172A;">48 Sondas Telemétricas Ativas</div>
-            <div style="font-size: 10px; color: #64748B;">Conexão ESP32 Mesh Ativa</div>
-          </div>
-        </div>
-        <div style="text-align: right;">
-          <div style="font-size: 11px; color: #64748B;">Integridade da Malha: <strong style="color: #047857;">100% Auditável</strong></div>
-          <div style="font-size: 10px; color: #94A3B8; font-family: monospace; margin-top: 2px;">UUID Master: p-sul-77b-2026-relational</div>
-        </div>
-      </div>
+      ` : ''}
     </div>
   `;
 }
@@ -451,171 +448,191 @@ function renderCardsLotesHtml(lotes) {
     `;
   }
 
-  return lotes.map(l => `
-    <div class="card-lote-monitorado" data-id="${l.id}" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px; display: flex; flex-direction: column; justify-content: space-between; transition: all 0.2s;">
-      <div>
-        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-          <div>
-            <div style="display: flex; align-items: center; gap: 6px;">
-              <i data-lucide="${l.icone}" style="width: 14px; height: 14px; color: ${l.corIcone};"></i>
-              <strong style="font-size: 13px; color: #0F172A;">${l.codigo}</strong>
+  return lotes.map(l => {
+    const statusTxt = l?.status ? String(l.status) : 'Sem status';
+    const dataColheita = formatarDataBr(l?.data_colheita);
+    const destinoTxt = l?.destino ? String(l.destino) : '—';
+    const frutaTxt = l?.fruta ? String(l.fruta) : 'Fruta não informada';
+    const qtdTxt = formatarQuantidadeLote(l);
+
+    return `
+      <div class="card-lote-monitorado" data-id="${l.id_lote}" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px; display: flex; flex-direction: column; justify-content: space-between; transition: all 0.2s; cursor: pointer;">
+        <div>
+          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <i data-lucide="package" style="width: 14px; height: 14px; color: #059669;"></i>
+                <strong style="font-size: 13px; color: #0F172A;">#Lote ${l.id_lote}</strong>
+              </div>
+              <div style="font-size: 11px; color: #64748B; margin-top: 2px;">${frutaTxt}</div>
             </div>
-            <div style="font-size: 11px; color: #64748B; margin-top: 2px;">${l.cultura}</div>
-            <div style="font-size: 10px; color: #94A3B8;">${l.talhao}</div>
+            <span style="font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background: #E2E8F0; color: #334155;">
+              ${statusTxt}
+            </span>
           </div>
-          <span style="font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; ${
-            l.statusClass === 'em-campo' ? 'background: #DCFCE7; color: #047857;' :
-            l.statusClass === 'pronto' ? 'background: #E0F2FE; color: #0284C7;' :
-            l.statusClass === 'colhido' ? 'background: #E0F2FE; color: #0284C7;' :
-            'background: #F1F5F9; color: #64748B;'
-          }">
-            ${l.statusBadge}
-          </span>
+          <div style="display: flex; justify-content: space-between; font-size: 11px; margin-top: 12px; padding-top: 8px; border-top: 1px solid #E2E8F0;">
+            <span style="color: #64748B;">Colheita: ${dataColheita}</span>
+            <strong style="color: #0F172A;">${qtdTxt}</strong>
+          </div>
+          <div style="font-size: 10px; color: #64748B; text-align: right; margin-top: 4px;">
+            Destino: <strong>${destinoTxt}</strong>
+          </div>
         </div>
-        <div style="width: 100%; height: 5px; background: ${l.corBarra}; border-radius: 3px; margin: 12px 0 8px 0;"></div>
-        <div style="display: flex; justify-content: space-between; font-size: 11px;">
-          <span style="color: #64748B;">Colheita: ${l.colheita}</span>
-          <strong style="color: #0F172A;">${l.volume}</strong>
-        </div>
-        <div style="font-size: 10px; color: #64748B; text-align: right; margin-top: 2px;">
-          Destino: <strong>${l.destino}</strong>
+        <div style="display: flex; justify-content: flex-end; align-items: center; margin-top: 10px;">
+          <button class="btn-ver-lote" data-id="${l.id_lote}" title="Inspecionar ficha do lote" style="background: #FFFFFF; border: 1px solid #CBD5E1; border-radius: 6px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; color: #0F172A; cursor: pointer;">
+            <i data-lucide="chevron-right" style="width: 14px; height: 14px;"></i>
+          </button>
         </div>
       </div>
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding-top: 8px; border-top: 1px solid #E2E8F0; font-size: 10px; color: ${l.corRodape}; font-weight: 600;">
-        <span>${l.rodape}</span>
-        <button class="btn-ver-lote" data-id="${l.id}" title="Inspecionar ficha completa do lote" style="background: #FFFFFF; border: 1px solid #CBD5E1; border-radius: 6px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; color: #0F172A; cursor: pointer; transition: all 0.2s;">
-          <i data-lucide="chevron-right" style="width: 14px; height: 14px;"></i>
-        </button>
-      </div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 }
 
-function filtrarLotes() {
-  const container = document.getElementById('container-cards-lotes');
-  if (!container) return;
-
-  let filtrados = _lotesData.filter(l => {
-    // Filtro de busca textual
+function getLotesFiltrados() {
+  return _lotesReais.filter(l => {
     if (_termoBuscaLotes) {
       const termo = _termoBuscaLotes.toLowerCase();
-      const matchCodigo = l.codigo.toLowerCase().includes(termo);
-      const matchCultura = l.cultura.toLowerCase().includes(termo);
-      const matchTalhao = l.talhao.toLowerCase().includes(termo);
-      const matchDestino = l.destino.toLowerCase().includes(termo);
-      if (!matchCodigo && !matchCultura && !matchTalhao && !matchDestino) return false;
+      const matchId = String(l?.id_lote || '').toLowerCase().includes(termo);
+      const matchFruta = String(l?.fruta || '').toLowerCase().includes(termo);
+      const matchDestino = String(l?.destino || '').toLowerCase().includes(termo);
+      const matchStatus = String(l?.status || '').toLowerCase().includes(termo);
+      if (!matchId && !matchFruta && !matchDestino && !matchStatus) return false;
     }
 
-    // Filtro de abas
-    if (_filtroAtivoLotes === 'producao') {
-      return l.status === 'Em Produção';
-    } else if (_filtroAtivoLotes === 'colheita') {
-      return l.status === 'Pronto Colheita' || l.status === 'Colhido';
-    } else if (_filtroAtivoLotes === 'transporte') {
-      return l.status === 'Em Transporte' || l.status === 'Armazenado';
-    } else if (_filtroAtivoLotes !== 'todos') {
-      return l.status === _filtroAtivoLotes;
+    if (_filtroAtivoLotes !== 'todos') {
+      const statusAtual = l?.status ? String(l.status).trim() : 'Sem status';
+      return statusAtual === _filtroAtivoLotes;
     }
     return true;
   });
+}
 
-  container.innerHTML = renderCardsLotesHtml(filtrados);
+function renderPaginacaoLotesHtml(total) {
+  if (!total || total <= 0) {
+    return `<span style="font-size: 11px; color: #64748B;">Exibindo 0 lotes</span><div></div>`;
+  }
+  const totalPaginas = Math.max(1, Math.ceil(total / _ITENS_POR_PAGINA_LOTES));
+  if (_paginaAtualLotes > totalPaginas) _paginaAtualLotes = totalPaginas;
+  const ini = (_paginaAtualLotes - 1) * _ITENS_POR_PAGINA_LOTES + 1;
+  const fim = Math.min(total, _paginaAtualLotes * _ITENS_POR_PAGINA_LOTES);
+
+  const pagIni = Math.max(1, _paginaAtualLotes - 2);
+  const pagFim = Math.min(totalPaginas, pagIni + 4);
+  const botoesNum = [];
+  for (let p = pagIni; p <= pagFim; p++) {
+    const ativo = p === _paginaAtualLotes;
+    const style = ativo
+      ? 'padding: 5px 11px; font-size: 11px; font-weight: 700; background: #183D2E; color: #FFFFFF; border: 1px solid #183D2E; border-radius: 6px; cursor: pointer;'
+      : 'padding: 5px 11px; font-size: 11px; font-weight: 600; background: #FFFFFF; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer;';
+    botoesNum.push(`<button type="button" class="btn-pag-lote ${ativo ? 'active' : ''}" data-pag="${p}" style="${style}">${p}</button>`);
+  }
+
+  return `
+    <span style="font-size: 11px; color: #64748B;">Exibindo ${ini}–${fim} de ${total} lotes (Página ${_paginaAtualLotes} de ${totalPaginas})</span>
+    <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+      <button type="button" class="btn-pag-lote" data-pag="prev" ${_paginaAtualLotes <= 1 ? 'disabled' : ''} style="padding: 5px 12px; font-size: 11px; font-weight: 600; background: #FFFFFF; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: ${_paginaAtualLotes <= 1 ? 'not-allowed' : 'pointer'}; opacity: ${_paginaAtualLotes <= 1 ? '0.5' : '1'};">Anterior</button>
+      ${botoesNum.join('')}
+      <button type="button" class="btn-pag-lote" data-pag="next" ${_paginaAtualLotes >= totalPaginas ? 'disabled' : ''} style="padding: 5px 12px; font-size: 11px; font-weight: 600; background: #FFFFFF; color: #475569; border: 1px solid #E2E8F0; border-radius: 6px; cursor: ${_paginaAtualLotes >= totalPaginas ? 'not-allowed' : 'pointer'}; opacity: ${_paginaAtualLotes >= totalPaginas ? '0.5' : '1'};">Próxima</button>
+    </div>
+  `;
+}
+
+function vincularEventosPaginacaoLotes() {
+  document.querySelectorAll('.btn-pag-lote').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const filtrados = getLotesFiltrados();
+      const totalPaginas = Math.max(1, Math.ceil(filtrados.length / _ITENS_POR_PAGINA_LOTES));
+      const val = btn.dataset.pag;
+      if (val === 'prev') _paginaAtualLotes = Math.max(1, _paginaAtualLotes - 1);
+      else if (val === 'next') _paginaAtualLotes = Math.min(totalPaginas, _paginaAtualLotes + 1);
+      else _paginaAtualLotes = Math.min(totalPaginas, Math.max(1, Number(val) || 1));
+      atualizarListaLotes();
+    });
+  });
+}
+
+function atualizarListaLotes() {
+  const container = document.getElementById('container-cards-lotes');
+  if (!container) return;
+
+  const filtrados = getLotesFiltrados();
+  const totalPaginas = Math.max(1, Math.ceil(filtrados.length / _ITENS_POR_PAGINA_LOTES));
+  if (_paginaAtualLotes > totalPaginas) _paginaAtualLotes = totalPaginas;
+  const inicioIdx = (_paginaAtualLotes - 1) * _ITENS_POR_PAGINA_LOTES;
+  const visiveis = filtrados.slice(inicioIdx, inicioIdx + _ITENS_POR_PAGINA_LOTES);
+
+  container.innerHTML = renderCardsLotesHtml(visiveis);
   if (window.lucide) window.lucide.createIcons();
   vincularEventosCards();
 
   const subtitulo = document.getElementById('subtitulo-contagem-lotes');
   if (subtitulo) {
-    subtitulo.textContent = `${filtrados.length} de 14 lotes com telemetria contínua`;
+    if (filtrados.length === 0) {
+      subtitulo.textContent = '0 lotes encontrados';
+    } else {
+      const ini = inicioIdx + 1;
+      const fim = Math.min(filtrados.length, inicioIdx + visiveis.length);
+      subtitulo.textContent = `Exibindo ${ini}–${fim} de ${filtrados.length} lotes (Página ${_paginaAtualLotes} de ${totalPaginas})`;
+    }
+  }
+
+  const wrapPag = document.getElementById('container-paginacao-lotes');
+  if (wrapPag) {
+    wrapPag.innerHTML = renderPaginacaoLotesHtml(filtrados.length);
+    vincularEventosPaginacaoLotes();
   }
 }
 
 function abrirModalInspecaoLote(loteId) {
-  const lote = _lotesData.find(l => l.id === loteId) || _lotesData[0];
-  
-  Modal.open(`Ficha Técnica do Lote — ${lote.codigo}`, `
+  const lote = _lotesReais.find(l => String(l.id_lote) === String(loteId));
+  if (!lote) return;
+
+  Modal.open(`Ficha do Lote — #${lote.id_lote}`, `
     <div style="font-size: 12px; color: #334155;">
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px; margin-bottom: 14px;">
         <div>
-          <span style="font-size: 10px; color: #64748B;">Cultura:</span>
-          <div style="font-weight: 700; color: #0F172A; font-size: 13px;">${lote.cultura}</div>
+          <span style="font-size: 10px; color: #64748B;">Fruta:</span>
+          <div style="font-weight: 700; color: #0F172A; font-size: 13px;">${lote.fruta || '—'}</div>
         </div>
         <div>
-          <span style="font-size: 10px; color: #64748B;">Localização:</span>
-          <div style="font-weight: 700; color: #0F172A;">${lote.talhao}</div>
+          <span style="font-size: 10px; color: #64748B;">Data de Colheita:</span>
+          <div style="font-weight: 700; color: #0F172A;">${formatarDataBr(lote.data_colheita)}</div>
         </div>
         <div>
-          <span style="font-size: 10px; color: #64748B;">Volume Registrado:</span>
-          <div style="font-weight: 700; color: #0F172A;">${lote.volume}</div>
-          <span style="font-size: 9px; color: #047857;">Unidade: <strong>kg</strong> (válidas: kg, caixa, t)</span>
+          <span style="font-size: 10px; color: #64748B;">Quantidade:</span>
+          <div style="font-weight: 700; color: #0F172A;">${formatarQuantidadeLote(lote)}</div>
         </div>
         <div>
-          <span style="font-size: 10px; color: #64748B;">Destino Comercial:</span>
-          <div style="font-weight: 700; color: #047857;">${lote.destino}</div>
-          <span style="font-size: 9px; color: #64748B;">Dono (IDOR): <strong>ID 1 (Maria Clara)</strong></span>
+          <span style="font-size: 10px; color: #64748B;">Destino:</span>
+          <div style="font-weight: 700; color: #047857;">${lote.destino || '—'}</div>
         </div>
       </div>
 
-      <div style="margin-bottom: 14px;">
+      <div style="margin-bottom: 10px;">
         <label style="font-size: 11px; font-weight: 700; color: #0F172A; display: block; margin-bottom: 6px;">
-          Atualizar Estágio da Esteira (ENUM status_lote):
+          Status do lote:
         </label>
         <select id="modal-select-status-lote" style="width: 100%; padding: 8px 10px; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 12px; font-weight: 600; color: #0F172A; background: #FFFFFF;">
-          <option value="Em Produção" ${lote.status === 'Em Produção' ? 'selected' : ''}>1. Em Produção (Cultura em campo)</option>
-          <option value="Pronto Colheita" ${lote.status === 'Pronto Colheita' ? 'selected' : ''}>2. Pronto Colheita (Brix atingido)</option>
-          <option value="Colhido" ${lote.status === 'Colhido' ? 'selected' : ''}>3. Colhido (Packing house)</option>
-          <option value="Em Transporte" ${lote.status === 'Em Transporte' ? 'selected' : ''}>4. Em Transporte (Cadeia fria Reefer)</option>
-          <option value="Armazenado" ${lote.status === 'Armazenado' ? 'selected' : ''}>5. Armazenado (Porto / Ceasa)</option>
-          <option value="Finalizado" ${lote.status === 'Finalizado' ? 'selected' : ''}>6. Finalizado (Entrega confirmada)</option>
+          <option value="Em produção" ${lote.status === 'Em produção' ? 'selected' : ''}>Em produção</option>
+          <option value="Pronto para colheita" ${lote.status === 'Pronto para colheita' ? 'selected' : ''}>Pronto para colheita</option>
+          <option value="Colhido" ${lote.status === 'Colhido' ? 'selected' : ''}>Colhido</option>
+          <option value="Em transporte" ${lote.status === 'Em transporte' ? 'selected' : ''}>Em transporte</option>
+          <option value="Armazenado" ${lote.status === 'Armazenado' ? 'selected' : ''}>Armazenado</option>
+          <option value="Finalizado" ${lote.status === 'Finalizado' ? 'selected' : ''}>Finalizado</option>
         </select>
       </div>
-
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;">
-        <div style="background: #F1F5F9; padding: 10px; border-radius: 6px;">
-          <span style="font-size: 10px; color: #64748B;">Brix Atual:</span>
-          <div style="font-size: 14px; font-weight: 800; color: #047857;">${lote.brix}°Bx</div>
-          <span style="font-size: 9px; color: #64748B;">Faixa ideal exportação</span>
-        </div>
-        <div style="background: #F1F5F9; padding: 10px; border-radius: 6px;">
-          <span style="font-size: 10px; color: #64748B;">Temperatura Polpa:</span>
-          <div style="font-size: 14px; font-weight: 800; color: #0284C7;">${lote.temp}°C</div>
-          <span style="font-size: 9px; color: #64748B;">Termometria ativa</span>
-        </div>
-      </div>
-
-      <div>
-        <span style="font-size: 11px; font-weight: 700; color: #0F172A; display: block; margin-bottom: 4px;">Sensores Vinculados:</span>
-        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-          ${lote.sensores.map(s => `<span style="font-size: 10px; background: #ECFDF5; border: 1px solid #A7F3D0; color: #047857; padding: 3px 8px; border-radius: 4px; font-weight: 600;">#${s}</span>`).join('')}
-        </div>
-      </div>
     </div>
-  `, () => {
+  `, async () => {
     const novoStatus = document.getElementById('modal-select-status-lote')?.value;
-    if (novoStatus) {
-      lote.status = novoStatus;
-      if (novoStatus === 'Em Produção') {
-        lote.statusBadge = 'Em Campo';
-        lote.statusClass = 'em-campo';
-        lote.corBarra = '#10B981';
-      } else if (novoStatus === 'Pronto Colheita') {
-        lote.statusBadge = 'Pronto';
-        lote.statusClass = 'pronto';
-        lote.corBarra = '#0284C7';
-      } else if (novoStatus === 'Colhido') {
-        lote.statusBadge = 'Colhido';
-        lote.statusClass = 'colhido';
-        lote.corBarra = '#F59E0B';
-      } else if (novoStatus === 'Em Transporte') {
-        lote.statusBadge = 'Trânsito';
-        lote.statusClass = 'transito';
-        lote.corBarra = '#3B82F6';
-      } else {
-        lote.statusBadge = novoStatus;
-        lote.statusClass = 'concluido';
-        lote.corBarra = '#64748B';
+    if (novoStatus && novoStatus !== lote.status) {
+      try {
+        await api.updateLote(lote.id_lote, { status: novoStatus });
+        lote.status = novoStatus;
+        atualizarListaLotes();
+        toast.success('Lote Atualizado', `Status do lote #${lote.id_lote} atualizado para "${novoStatus}".`);
+      } catch (err) {
+        toast.error('Erro ao Atualizar', err.message || 'Não foi possível atualizar o status do lote.');
       }
-      filtrarLotes();
-      toast.success('Lote Atualizado', `Status do lote ${lote.codigo} alterado para "${novoStatus}" e persistido.`);
     }
   }, 'Salvar Alterações');
 }
@@ -624,78 +641,30 @@ function vincularEventosCards() {
   document.querySelectorAll('.btn-ver-lote').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      const loteId = e.currentTarget.dataset.id;
-      abrirModalInspecaoLote(loteId);
+      abrirModalInspecaoLote(e.currentTarget.dataset.id);
     });
   });
 
   document.querySelectorAll('.card-lote-monitorado').forEach(card => {
     card.addEventListener('click', (e) => {
       if (e.target.closest('button')) return;
-      const loteId = card.dataset.id;
-      abrirModalInspecaoLote(loteId);
+      abrirModalInspecaoLote(card.dataset.id);
     });
   });
 }
 
 export function setupLotesEvents() {
-  // Botão Abrir Nova Safra
-  const btnNovaSafra = document.getElementById('btn-abrir-nova-safra');
-  if (btnNovaSafra) {
-    btnNovaSafra.addEventListener('click', () => {
-      Modal.open('Abertura de Ciclo Safra 2026/2027', `
-        <div style="font-size: 12px; color: #475569; margin-bottom: 12px;">
-          Informe os parâmetros globais de planejamento da próxima safra:
-        </div>
-        <div style="display: flex; flex-direction: column; gap: 10px; font-size: 12px;">
-          <label>Identificação do Ciclo:
-            <input type="text" id="campo-nova-safra-ciclo" value="Safra 2026/2027 • Polo Petrolina" style="width: 100%; padding: 8px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
-          </label>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-            <label>Meta de Produtividade (ton/ha):
-              <input type="number" id="campo-nova-safra-meta" value="35.5" step="0.1" style="width: 100%; padding: 8px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
-            </label>
-            <label>Área Planejada (ha):
-              <input type="number" id="campo-nova-safra-area" value="1300" style="width: 100%; padding: 8px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
-            </label>
-          </div>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-            <label>Data Início:
-              <input type="date" id="campo-nova-safra-inicio" value="2026-08-01" style="width: 100%; padding: 8px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
-            </label>
-            <label>Data Término (data_fim >= data_inicio):
-              <input type="date" id="campo-nova-safra-fim" value="2027-07-30" style="width: 100%; padding: 8px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
-            </label>
-          </div>
-        </div>
-      `, () => {
-        const ciclo = document.getElementById('campo-nova-safra-ciclo')?.value || 'Safra 2026/2027';
-        const dInicio = document.getElementById('campo-nova-safra-inicio')?.value;
-        const dFim = document.getElementById('campo-nova-safra-fim')?.value;
-
-        // Validação de restrição de safra: data_fim >= data_inicio
-        if (dInicio && dFim && new Date(dFim) < new Date(dInicio)) {
-          toast.error('Erro de Validação', 'A data de término da safra deve ser maior ou igual à data de início (data_fim >= data_inicio).');
-          return;
-        }
-
-        toast.success('Safra Homologada', `${ciclo} cadastrada com sucesso no banco relacional (Período: ${dInicio} a ${dFim}).`);
-      }, 'Homologar Safra');
-    });
-  }
-
-  // Campo de busca em tempo real
   const inputBusca = document.getElementById('input-busca-lote');
   if (inputBusca) {
     inputBusca.addEventListener('input', (e) => {
       _termoBuscaLotes = e.target.value.trim();
-      filtrarLotes();
+      _paginaAtualLotes = 1;
+      atualizarListaLotes();
     });
   }
 
-  // Abas de filtro
   document.querySelectorAll('.btn-filter-lote').forEach(tab => {
-    tab.addEventListener('click', (e) => {
+    tab.addEventListener('click', () => {
       document.querySelectorAll('.btn-filter-lote').forEach(t => {
         t.classList.remove('active');
         t.style.background = '#F8FAFC';
@@ -710,87 +679,58 @@ export function setupLotesEvents() {
       tab.style.fontWeight = '700';
 
       _filtroAtivoLotes = tab.dataset.filter || 'todos';
-      filtrarLotes();
+      _paginaAtualLotes = 1;
+      atualizarListaLotes();
     });
   });
 
-  // Filtro avançado botão
-  const btnFiltroAvancado = document.getElementById('btn-filtro-avancado-lotes');
-  if (btnFiltroAvancado) {
-    btnFiltroAvancado.addEventListener('click', () => {
-      Modal.open('Filtros Avançados de Lotes', `
-        <div style="font-size: 12px; color: #475569; display: flex; flex-direction: column; gap: 10px;">
-          <label>Cultura:
-            <select id="filtro-modal-cultura" style="width: 100%; padding: 8px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
-              <option value="todas">Todas as Culturas</option>
-              <option value="Manga">Manga (Tommy e Palmer)</option>
-              <option value="Uva">Uva Vitória</option>
-              <option value="Melão">Melão Amarelo</option>
-            </select>
-          </label>
-          <label>Destino Comercial:
-            <select id="filtro-modal-destino" style="width: 100%; padding: 8px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
-              <option value="todos">Todos os Destinos</option>
-              <option value="Pecém">Porto do Pecém (UE)</option>
-              <option value="Suape">Porto de Suape (UK)</option>
-              <option value="Salvador">Porto de Salvador</option>
-              <option value="Ceasa">Ceasa SP</option>
-            </select>
-          </label>
-        </div>
-      `, () => {
-        const cultura = document.getElementById('filtro-modal-cultura')?.value;
-        if (cultura && cultura !== 'todas') {
-          _termoBuscaLotes = cultura;
-          const input = document.getElementById('input-busca-lote');
-          if (input) input.value = cultura;
-        } else {
-          _termoBuscaLotes = '';
-          const input = document.getElementById('input-busca-lote');
-          if (input) input.value = '';
-        }
-        filtrarLotes();
-        toast.info('Filtro Aplicado', 'Lotes filtrados pelos critérios selecionados.');
-      }, 'Aplicar Filtros');
-    });
-  }
-
-  // Cards da Esteira Operacional clicáveis
   document.querySelectorAll('.card-estagio-esteira').forEach(card => {
     card.addEventListener('click', () => {
       const estagio = card.dataset.estagio;
       _filtroAtivoLotes = estagio;
+      _paginaAtualLotes = 1;
       document.querySelectorAll('.btn-filter-lote').forEach(t => {
-        t.classList.remove('active');
-        t.style.background = '#F8FAFC';
-        t.style.color = '#475569';
-        t.style.border = '1px solid #E2E8F0';
+        const isMatch = t.dataset.filter === estagio;
+        t.classList.toggle('active', isMatch);
+        t.style.background = isMatch ? '#183D2E' : '#F8FAFC';
+        t.style.color = isMatch ? '#FFFFFF' : '#475569';
+        t.style.border = isMatch ? 'none' : '1px solid #E2E8F0';
+        t.style.fontWeight = isMatch ? '700' : '600';
       });
-      filtrarLotes();
-      toast.info('Esteira Operacional', `Filtrando lotes no estágio: "${estagio}".`);
+      atualizarListaLotes();
     });
   });
 
-  // Exportar Lotes (PDF & CSV dedicados)
+  vincularEventosPaginacaoLotes();
+
   document.getElementById('btn-exportar-lotes-pdf-csv')?.addEventListener('click', () => {
-    const headers = ['Codigo', 'Cultura', 'Talhao', 'Status', 'Colheita', 'Volume (kg/cx/t)', 'Destino', 'Padrao Brix Min', 'Temp Alvo (C)'];
-    const rows = _lotesData.map(l => [l.codigo, l.cultura, l.talhao, l.status, l.colheita, l.volume, l.destino, l.brix, l.temp]);
+    const headers = ['ID Lote', 'Fruta', 'Status', 'Data Colheita', 'Quantidade', 'Unidade', 'Destino'];
+    const rows = _lotesReais.map(l => [
+      l.id_lote,
+      l.fruta || '—',
+      l.status || 'Sem status',
+      formatarDataBr(l.data_colheita),
+      l.quantidade ?? 0,
+      l.unidade || '',
+      l.destino || '—'
+    ]);
     const dataTag = new Date().toISOString().slice(0, 10);
+    const nomeSafra = _safraVigente?.nome || 'Safra';
     openExportChoiceModal(
       Modal,
-      'Exportar Rastreabilidade de Lotes & Safra',
+      'Exportar Lotes',
       () => {
-        downloadCSV(`rastreabilidade_lotes_raiz_${dataTag}.csv`, headers, rows);
-        toast.success('CSV Exportado', `rastreabilidade_lotes_raiz_${dataTag}.csv baixado.`);
+        downloadCSV(`lotes_${dataTag}.csv`, headers, rows);
+        toast.success('CSV Exportado', `lotes_${dataTag}.csv baixado.`);
       },
       () => {
-        downloadPDF(`rastreabilidade_lotes_raiz_${dataTag}.pdf`, {
-          title: 'Relatório de Rastreabilidade de Lotes — Safra 25/26',
-          subtitle: 'Governança Agronômica • Esteira de Status, Padrão de Qualidade e Destino de Exportação',
+        downloadPDF(`lotes_${dataTag}.pdf`, {
+          title: `Relatório de Lotes — ${nomeSafra}`,
+          subtitle: 'Dados cadastrados em GET /lotes',
           headers,
           rows
         });
-        toast.success('PDF Exportado', `rastreabilidade_lotes_raiz_${dataTag}.pdf baixado.`);
+        toast.success('PDF Exportado', `lotes_${dataTag}.pdf baixado.`);
       }
     );
   });

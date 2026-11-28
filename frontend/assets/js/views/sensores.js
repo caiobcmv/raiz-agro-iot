@@ -18,6 +18,14 @@ import { Modal } from '../components/modal.js';
 import { toast } from '../components/toast.js';
 import { downloadCSV, downloadPDF, openExportChoiceModal } from '../utils/export-utils.js';
 import { liveTelemetry } from '../live-telemetry.js';
+import {
+  calcularStatusColeta,
+  contarSensoresAtivosReais,
+  sensorEstaAtivoRecente,
+  obterLabelOrigem,
+  resumirAlertasAnalista,
+  formatarDataHoraRecife
+} from '../utils/analista-metrics.js';
 
 // ==========================================
 // FUNÇÕES AUXILIARES DE FORMATAÇÃO E RESILIÊNCIA
@@ -144,18 +152,22 @@ export async function renderSensores() {
       lotesRes,
       dashResumoRes,
       configRes,
-      preditivosRes,
+      centralAlertasRes,
       cortesRes,
-      rejeitadasRes
+      rejeitadasRes,
+      ultimaLeituraRes,
+      estatisticasRes
     ] = await Promise.allSettled([
       api.getAnalistaSensoresResumo(),
       api.getSensores(),
       api.getLotes(),
       api.getDashboardResumo(),
       api.getConfigParametros(),
-      api.getAlertasPreditivos({ status: 'EM ABERTO', limit: 200 }),
+      api.getCentralAlertas({ status: 'aberto' }),
       api.getCortesPreditivos(),
-      api.getLeiturasRejeitadas({ limit: 5 })
+      api.getLeiturasRejeitadas({ limit: 5 }),
+      api.getUltimaLeitura(),
+      api.getEstatisticasLeituras()
     ]);
 
     sensoresState.resumo = (resumoRes.status === 'fulfilled' && resumoRes.value && typeof resumoRes.value === 'object') ? resumoRes.value : null;
@@ -163,17 +175,18 @@ export async function renderSensores() {
     sensoresState.lotes = extrairArraySeguro(lotesRes.status === 'fulfilled' ? lotesRes.value : null);
     sensoresState.dashResumo = (dashResumoRes.status === 'fulfilled' && dashResumoRes.value && typeof dashResumoRes.value === 'object') ? dashResumoRes.value : null;
     sensoresState.configParametros = extrairArraySeguro(configRes.status === 'fulfilled' ? configRes.value : null);
-    sensoresState.alertasPreditivos = extrairArraySeguro(preditivosRes.status === 'fulfilled' ? preditivosRes.value : null);
+    const centralVal = centralAlertasRes.status === 'fulfilled' ? centralAlertasRes.value : null;
+    sensoresState.alertasPreditivos = Array.isArray(centralVal?.itens) ? centralVal.itens : extrairArraySeguro(centralVal);
     sensoresState.cortes = extrairArraySeguro(cortesRes.status === 'fulfilled' ? cortesRes.value : null);
     sensoresState.rejeitadas = extrairArraySeguro(rejeitadasRes.status === 'fulfilled' ? rejeitadasRes.value : null);
+    sensoresState.ultimaLeitura = (ultimaLeituraRes.status === 'fulfilled' && ultimaLeituraRes.value && typeof ultimaLeituraRes.value === 'object') ? ultimaLeituraRes.value : null;
+    sensoresState.estatisticas = (estatisticasRes.status === 'fulfilled' && estatisticasRes.value && typeof estatisticasRes.value === 'object') ? estatisticasRes.value : null;
   } catch (err) {
     console.warn('[Sensores] Erro ao carregar dados:', err);
   }
 
-  // Define lote padrão se ainda não definido
-  if (!sensoresState.loteSelecionadoId && sensoresState.lotes.length > 0) {
-    sensoresState.loteSelecionadoId = sensoresState.lotes[0].id_lote || sensoresState.lotes[0].id;
-  }
+  // Lote fixo 145 (único lote com sensor vinculado)
+  sensoresState.loteSelecionadoId = 145;
 
   return `
     <div class="dashboard-canvas apple-animate-in">
@@ -218,43 +231,55 @@ export async function renderSensores() {
 // ==========================================
 
 function renderTopKpisHtml() {
-  const { resumo, sensores, dashResumo } = sensoresState;
+  const { resumo, sensores, dashResumo, alertasPreditivos, cortes } = sensoresState;
   const sensoresInfo = resumo?.sensores || {};
   const ingestao_24h = resumo?.ingestao_24h || {};
-  const alertasAbertos = resumo?.alertas_abertos || {};
+  const intervaloSeg = resumo?.coleta?.intervalo_s ?? null;
+  const statusColeta = calcularStatusColeta(ingestao_24h.ultima_leitura, intervaloSeg);
 
-  // Card 1: Sensores ativos
+  // Card 1: Sensores ativos (sensor sem leitura recente não conta como ativo)
   const total = sensoresInfo.total ?? sensores.length;
-  const ativos = sensoresInfo.ativos ?? sensores.filter(s => s.status === 'ativo').length;
-  const inativos = sensoresInfo.inativos ?? Math.max(0, total - ativos);
-  const ativosAr = sensoresInfo.ativos_ar ?? sensores.filter(s => s.ambiente === 'ar' && s.status === 'ativo').length;
-  const ativosSolo = sensoresInfo.ativos_solo ?? sensores.filter(s => s.ambiente === 'solo' && s.status === 'ativo').length;
+  const ativos = contarSensoresAtivosReais(sensores, statusColeta, intervaloSeg);
+  const inativos = Math.max(0, total - ativos);
+  const ativosAr = sensores.filter(s => s.ambiente === 'ar' && sensorEstaAtivoRecente(s, statusColeta, intervaloSeg)).length;
+  const ativosSolo = sensores.filter(s => s.ambiente === 'solo' && sensorEstaAtivoRecente(s, statusColeta, intervaloSeg)).length;
 
-  // Card 2: Umidade (média de umidade solo e ar de GET /sensores)
-  const sensoresSoloComUmid = sensores.filter(s => s.ambiente === 'solo' && s.umidade != null);
+  // Card 2: Umidade (prioriza umidade_solo real do sensor de solo e média 24h de /dashboard/resumo)
+  const soloVals = sensores
+    .filter(s => s.ambiente === 'solo')
+    .map(s => (s.umidade_solo != null ? s.umidade_solo : s.umidade))
+    .filter(v => v != null && !isNaN(Number(v)))
+    .map(Number);
   const sensoresArComUmid = sensores.filter(s => s.ambiente === 'ar' && s.umidade != null);
 
-  const mediaSolo = sensoresSoloComUmid.length > 0
-    ? (sensoresSoloComUmid.reduce((acc, s) => acc + Number(s.umidade), 0) / sensoresSoloComUmid.length).toFixed(1)
-    : '—';
+  const soloMediaResumo = dashResumo?.resumo_condicoes?.umidade_solo_media;
+  const mediaSolo = (soloMediaResumo != null && !isNaN(Number(soloMediaResumo)))
+    ? Number(soloMediaResumo).toFixed(1)
+    : (soloVals.length > 0
+      ? (soloVals.reduce((acc, v) => acc + v, 0) / soloVals.length).toFixed(1)
+      : '—');
   const mediaAr = sensoresArComUmid.length > 0
     ? (sensoresArComUmid.reduce((acc, s) => acc + Number(s.umidade), 0) / sensoresArComUmid.length).toFixed(1)
     : '—';
 
-  // Card 3: Temperatura (ar)
-  const tempArMedia = dashResumo?.resumo_condicoes?.temperatura_ar_media;
-  const tempArMediaStr = tempArMedia != null ? `+${Number(tempArMedia).toFixed(1)}°C` : '—';
+  // Card 3: Temperatura (ar) + mín/máx reais de GET /leituras/estatisticas
+  const tempArMedia = dashResumo?.resumo_condicoes?.temperatura_ar_media ?? sensoresState.estatisticas?.temperatura_media;
+  const tempArMediaStr = tempArMedia != null ? `${Number(tempArMedia).toFixed(1)}°C` : '—';
+  const est = sensoresState.estatisticas || null;
+  const faixaTempTexto = (est && est.temperatura_min != null && est.temperatura_max != null)
+    ? `Mín ${Number(est.temperatura_min).toFixed(1)}°C • Máx ${Number(est.temperatura_max).toFixed(1)}°C`
+    : 'Microclima de campo';
 
-  // Card 4: Ingestão e rejeição
+  // Card 4: Ingestão e rejeição (alertas pela mesma função unificada)
   const taxaPct = ingestao_24h.taxa_sucesso_pct != null ? Number(ingestao_24h.taxa_sucesso_pct) : null;
   const taxaStr = taxaPct != null ? `${taxaPct.toFixed(1)}%` : '—';
-  let taxaCor = '#059669';
-  if (taxaPct != null) {
+  let taxaCor = statusColeta.ativo ? '#059669' : statusColeta.cor;
+  if (statusColeta.ativo && taxaPct != null) {
     if (taxaPct < 80) taxaCor = '#DC2626';
     else if (taxaPct < 95) taxaCor = '#D97706';
   }
   const rejeitadasHoje = resumo?.rejeitadas_hoje ?? 0;
-  const alertasTotal = alertasAbertos.total ?? 0;
+  const alertasTotal = resumirAlertasAnalista(alertasPreditivos, cortes).total;
 
   return `
     <!-- KPI 1: Sensores Ativos -->
@@ -327,8 +352,8 @@ function renderTopKpisHtml() {
         <div style="width: 30%; height: 100%; background: #93C5FD;"></div>
       </div>
       <div class="kpi-bottom-row">
-        <span style="color: #475569;">Microclima de campo</span>
-        <span style="color: #0284C7; font-weight: 600;">Monitoramento ativo</span>
+        <span style="color: #475569;">${faixaTempTexto}</span>
+        <span style="color: ${statusColeta.ativo ? '#0284C7' : statusColeta.cor}; font-weight: 600;">${statusColeta.ativo ? 'Monitoramento ativo' : statusColeta.label}</span>
       </div>
     </div>
 
@@ -345,8 +370,8 @@ function renderTopKpisHtml() {
         <span class="kpi-sub-num">taxa de sucesso</span>
       </div>
       <div style="background: #F0F9FF; border: 1px solid #BAE6FD; border-radius: 6px; padding: 5px 8px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; margin: 8px 0;">
-        <span style="color: #059669; font-weight: 700;">Telemetria contínua</span>
-        <span style="color: #64748B; font-size: 10px;">Pipeline de integridade</span>
+        <span style="color: ${statusColeta.cor}; font-weight: 700;">${statusColeta.ativo ? 'Telemetria contínua' : statusColeta.label}</span>
+        <span style="color: #64748B; font-size: 10px;">${statusColeta.tempoRelativo}</span>
       </div>
       <div class="kpi-bottom-row">
         <span style="color: #475569;">Rejeitadas: <strong style="color: #0F172A;">${rejeitadasHoje} hoje</strong></span>
@@ -359,10 +384,11 @@ function renderTopKpisHtml() {
 function renderCorrelacaoBoxHtml() {
   const { lotes, loteSelecionadoId, periodoSelecionado, sensores } = sensoresState;
 
-  // Acha lote selecionado
-  const loteAtual = lotes.find(l => String(l.id_lote || l.id) === String(loteSelecionadoId)) || lotes[0] || {};
-  const frutaAtual = loteAtual.cultura || loteAtual.fruta || 'Fruta';
-  const idLoteAtual = loteAtual.id_lote || loteAtual.id || 1;
+  // Lote fixo 145 (único com sensor vinculado)
+  const loteAtual = lotes.find(l => String(l.id_lote || l.id) === '145') || {};
+  const frutaAtual = loteAtual.cultura || loteAtual.fruta || '';
+  const idLoteAtual = 145;
+  const labelLoteFixo = frutaAtual ? `Lote 145 • ${frutaAtual}` : 'Lote 145';
 
   // Sensores deste lote
   const sensorAr = sensores.find(s => String(s.id_lote) === String(idLoteAtual) && s.ambiente === 'ar');
@@ -397,9 +423,9 @@ function renderCorrelacaoBoxHtml() {
       </div>
 
       <div style="display: flex; align-items: center; gap: 10px;">
-        <select id="select-correlacao-lote" style="background: #F8FAFC; border: 1px solid #CBD5E1; border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 600; color: #1E293B; cursor: pointer;">
-          ${optionsLotes}
-        </select>
+        <span style="background: #F8FAFC; border: 1px solid #CBD5E1; border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 700; color: #1E293B;">
+          ${labelLoteFixo}
+        </span>
         <div style="display: flex; background: #F1F5F9; border-radius: 8px; padding: 2px; gap: 2px;">
           <button class="btn-periodo-correlacao ${periodoSelecionado === '24h' ? 'active' : ''}" data-periodo="24h" style="border:none; background:${periodoSelecionado === '24h' ? '#FFFFFF' : 'transparent'}; color:${periodoSelecionado === '24h' ? '#0F172A' : '#64748B'}; font-weight:700; font-size:11px; padding:5px 10px; border-radius:6px; cursor:pointer;">24h</button>
           <button class="btn-periodo-correlacao ${periodoSelecionado === '7d' ? 'active' : ''}" data-periodo="7d" style="border:none; background:${periodoSelecionado === '7d' ? '#FFFFFF' : 'transparent'}; color:${periodoSelecionado === '7d' ? '#0F172A' : '#64748B'}; font-weight:700; font-size:11px; padding:5px 10px; border-radius:6px; cursor:pointer;">7d</button>
@@ -425,10 +451,6 @@ function renderCorrelacaoBoxHtml() {
           <span style="width: 10px; height: 10px; border-radius: 50%; background: #047857;"></span>
           Umidade do solo [%]
         </span>
-        <span style="display: flex; align-items: center; gap: 6px;" id="legenda-dados-simulados">
-          <span style="width: 16px; border-top: 2px dashed #64748B; display: inline-block;"></span>
-          <span>Linha tracejada: dados simulados</span>
-        </span>
       </div>
     </div>
 
@@ -445,99 +467,152 @@ function renderCorrelacaoBoxHtml() {
 }
 
 function renderSvgCorrelacao() {
-  const { leiturasAr, leiturasSolo, configParametros, lotes, loteSelecionadoId } = sensoresState;
+  const { leiturasAr, leiturasSolo, configParametros, lotes, loteSelecionadoId, periodoSelecionado } = sensoresState;
+
+  const parseTs = (t) => {
+    if (!t) return null;
+    const d = new Date(t);
+    return isNaN(d.getTime()) ? null : d.getTime();
+  };
+
+  const ptsTemp = (leiturasAr || [])
+    .filter(p => p && p.temperatura != null)
+    .map(p => ({ t: p.instante || p.data_hora, ts: parseTs(p.instante || p.data_hora), v: Number(p.temperatura), origem: p.origem }))
+    .filter(p => !isNaN(p.v) && p.ts != null)
+    .sort((a, b) => a.ts - b.ts);
+
+  const ptsUmidAr = (leiturasAr || [])
+    .filter(p => p && p.umidade != null)
+    .map(p => ({ t: p.instante || p.data_hora, ts: parseTs(p.instante || p.data_hora), v: Number(p.umidade), origem: p.origem }))
+    .filter(p => !isNaN(p.v) && p.ts != null)
+    .sort((a, b) => a.ts - b.ts);
+
+  const ptsSolo = (leiturasSolo || [])
+    .filter(p => p && (p.umidade_solo != null || p.umidade != null))
+    .map(p => ({ t: p.instante || p.data_hora, ts: parseTs(p.instante || p.data_hora), v: Number(p.umidade_solo != null ? p.umidade_solo : p.umidade), origem: p.origem }))
+    .filter(p => !isNaN(p.v) && p.ts != null)
+    .sort((a, b) => a.ts - b.ts);
+
+  if (ptsTemp.length === 0 && ptsUmidAr.length === 0 && ptsSolo.length === 0) {
+    return `
+      <div style="height: 220px; display: flex; align-items: center; justify-content: center; color: #64748B; font-size: 12px; font-weight: 600;">
+        Sem leituras registradas para este lote no período selecionado.
+      </div>
+    `;
+  }
 
   // Lote e parâmetros ideais
   const lote = lotes.find(l => String(l.id_lote || l.id) === String(loteSelecionadoId));
   const frutaNome = lote?.cultura || lote?.fruta;
   const paramIdeal = configParametros.find(p => p.fruta === frutaNome || p.id_fruta === lote?.id_fruta);
+  const temSimulado = [...ptsTemp, ...ptsUmidAr, ...ptsSolo].some(p => p.origem === 'simulado');
 
-  const temSimulado = leiturasAr.some(p => p.origem === 'simulado') || leiturasSolo.some(p => p.origem === 'simulado');
+  const W = 860, H = 220;
+  const padL = 56, padR = 56, padT = 26, padB = 18;
+  const plotW = W - padL - padR;
+  const plotH = H - padT - padB;
 
-  // Determina pico de temperatura
-  let picoTemp = -999;
-  let picoHora = '13:00';
-  leiturasAr.forEach(p => {
-    if (p.temperatura != null && Number(p.temperatura) > picoTemp) {
-      picoTemp = Number(p.temperatura);
-      picoHora = formatarHoraSimplesRecife(p.instante) || '13:00';
-    }
-  });
+  const allTs = [...ptsTemp, ...ptsUmidAr, ...ptsSolo].map(p => p.ts);
+  const minTs = Math.min(...allTs);
+  const maxTs = Math.max(...allTs);
+  const spanTs = maxTs - minTs;
 
-  if (picoTemp === -999) {
-    picoTemp = 31.2;
-    picoHora = '13:40';
-  }
+  // Escala Y esquerda: umidade (0..100%); direita: temperatura real (incluindo faixa ideal se houver)
+  const tempVals = ptsTemp.map(p => p.v);
+  if (paramIdeal?.temp_min != null) tempVals.push(Number(paramIdeal.temp_min));
+  if (paramIdeal?.temp_max != null) tempVals.push(Number(paramIdeal.temp_max));
+  const tLo = tempVals.length ? Math.min(...tempVals) : 10;
+  const tHi = tempVals.length ? Math.max(...tempVals) : 40;
+  const tPad = Math.max(2, (tHi - tLo) * 0.15);
+  const tMin = tLo - tPad;
+  const tMax = tHi + tPad;
 
-  // Banda de temperatura ideal
+  const xOf = (ts) => spanTs === 0 ? padL + plotW / 2 : padL + ((ts - minTs) / spanTs) * plotW;
+  const yPct = (v) => padT + plotH - (Math.max(0, Math.min(100, v)) / 100) * plotH;
+  const yTemp = (v) => padT + plotH - ((v - tMin) / Math.max(0.001, tMax - tMin)) * plotH;
+
+  // Banda de temperatura ideal na escala real de °C
   let bandaIdealHtml = '';
   if (paramIdeal && paramIdeal.temp_min != null && paramIdeal.temp_max != null) {
-    const yMax = Math.max(30, 200 - (Number(paramIdeal.temp_max) - 10) * (170 / 30));
-    const yMin = Math.min(200, 200 - (Number(paramIdeal.temp_min) - 10) * (170 / 30));
-    const h = Math.max(8, yMin - yMax);
+    const yTop = Math.max(padT, yTemp(Number(paramIdeal.temp_max)));
+    const yBot = Math.min(padT + plotH, yTemp(Number(paramIdeal.temp_min)));
+    const h = Math.max(6, yBot - yTop);
     bandaIdealHtml = `
-      <rect x="90" y="${yMax.toFixed(0)}" width="710" height="${h.toFixed(0)}" fill="#BAE6FD" fill-opacity="0.25" rx="4"/>
-      <text x="700" y="${(yMax - 4).toFixed(0)}" fill="#0284C7" font-size="9" font-weight="700" text-anchor="end">Faixa ideal de temperatura (${paramIdeal.temp_min}°C - ${paramIdeal.temp_max}°C)</text>
+      <rect x="${padL}" y="${yTop.toFixed(1)}" width="${plotW}" height="${h.toFixed(1)}" fill="#BAE6FD" fill-opacity="0.28" rx="4"/>
+      <text x="${(W - padR - 4).toFixed(1)}" y="${Math.max(12, yTop - 4).toFixed(1)}" fill="#0284C7" font-size="9" font-weight="700" text-anchor="end">Faixa ideal (${paramIdeal.temp_min}°C – ${paramIdeal.temp_max}°C)</text>
     `;
   }
 
-  // Estilo tracejado para dados simulados
-  const dashStyle = temSimulado ? 'stroke-dasharray="4,4"' : '';
+  const ticks = [0, 1 / 3, 2 / 3, 1];
+  const gridHtml = ticks.map(f => {
+    const y = padT + plotH * (1 - f);
+    const uVal = Math.round(f * 100);
+    const tVal = tMin + (tMax - tMin) * f;
+    return `
+      <line x1="${padL}" y1="${y.toFixed(1)}" x2="${W - padR}" y2="${y.toFixed(1)}" stroke="#E2E8F0" stroke-width="1" stroke-dasharray="3,3"/>
+      <text x="${padL - 8}" y="${(y + 3).toFixed(1)}" fill="#047857" font-size="10" font-weight="600" text-anchor="end">${uVal}%</text>
+      <text x="${W - padR + 8}" y="${(y + 3).toFixed(1)}" fill="#0284C7" font-size="10" font-weight="600" text-anchor="start">${tVal.toFixed(0)}°C</text>
+    `;
+  }).join('');
+
+  const soloCoords = ptsSolo.map(p => ({ ...p, x: xOf(p.ts), y: yPct(p.v) }));
+  const umidArCoords = ptsUmidAr.map(p => ({ ...p, x: xOf(p.ts), y: yPct(p.v) }));
+  const tempCoords = ptsTemp.map(p => ({ ...p, x: xOf(p.ts), y: yTemp(p.v) }));
+
+  const poly = (coords) => coords.map(c => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(' ');
+  const soloArea = soloCoords.length > 1
+    ? `M ${soloCoords[0].x.toFixed(1)},${(padT + plotH).toFixed(1)} L ${soloCoords.map(c => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(' L ')} L ${soloCoords[soloCoords.length - 1].x.toFixed(1)},${(padT + plotH).toFixed(1)} Z`
+    : '';
+
+  const dashStyle = '';
+
+  // Marcador real do pico de temperatura (sem fallback inventado)
+  let picoHtml = '';
+  if (tempCoords.length > 0) {
+    const pico = tempCoords.reduce((best, c) => (c.v > best.v ? c : best), tempCoords[0]);
+    const picoHora = formatarHoraSimplesRecife(pico.t) || '';
+    const boxW = 136;
+    const boxX = Math.min(Math.max(padL, pico.x - boxW / 2), W - padR - boxW);
+    const boxY = Math.max(2, pico.y - 32);
+    picoHtml = `
+      <circle cx="${pico.x.toFixed(1)}" cy="${pico.y.toFixed(1)}" r="4.5" fill="#0284C7" stroke="#FFFFFF" stroke-width="2"/>
+      <g>
+        <rect x="${boxX.toFixed(1)}" y="${boxY.toFixed(1)}" width="${boxW}" height="22" rx="4" fill="#0F172A"/>
+        <text x="${(boxX + boxW / 2).toFixed(1)}" y="${(boxY + 14).toFixed(1)}" fill="#FFFFFF" font-size="10" font-weight="700" text-anchor="middle">Pico ${pico.v.toFixed(1)}°C${picoHora ? ` às ${picoHora}` : ''}</text>
+      </g>
+    `;
+  }
+
+  const fmtX = (ms) => periodoSelecionado === '30d'
+    ? new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Recife' }).format(new Date(ms))
+    : new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'America/Recife' }).format(new Date(ms));
 
   return `
-    <div style="position: relative; width: 100%; height: 260px;">
-      <svg viewBox="0 0 860 220" style="width: 100%; height: 100%; display: block;" preserveAspectRatio="xMidYMid meet">
+    <div style="position: relative; width: 100%; height: 240px;">
+      <svg viewBox="0 0 ${W} ${H}" style="width: 100%; height: 100%; display: block;" preserveAspectRatio="xMidYMid meet">
         <defs>
           <linearGradient id="grad-umidade-solo-svg" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#10B981" stop-opacity="0.25"/>
+            <stop offset="0%" stop-color="#10B981" stop-opacity="0.22"/>
             <stop offset="100%" stop-color="#10B981" stop-opacity="0.02"/>
           </linearGradient>
         </defs>
-
-        <!-- Faixa Ideal de Parâmetros -->
         ${bandaIdealHtml}
-
-        <!-- Linhas de Grade e Eixo Y -->
-        <line x1="90" y1="55" x2="800" y2="55" stroke="#E2E8F0" stroke-width="1" stroke-dasharray="3,3"/>
-        <text x="12" y="58" fill="#64748B" font-size="10" font-weight="500">75% / 35°C</text>
-
-        <line x1="90" y1="110" x2="800" y2="110" stroke="#E2E8F0" stroke-width="1" stroke-dasharray="3,3"/>
-        <text x="12" y="113" fill="#64748B" font-size="10" font-weight="500">50% / 25°C</text>
-
-        <line x1="90" y1="165" x2="800" y2="165" stroke="#E2E8F0" stroke-width="1" stroke-dasharray="3,3"/>
-        <text x="12" y="168" fill="#64748B" font-size="10" font-weight="500">25% / 15°C</text>
-
-        <!-- Curva Umidade do Solo (Verde) com Área Degradê -->
-        <path d="M 90,85 C 190,90 290,135 390,135 C 490,135 590,75 690,75 L 800,75 L 800,210 L 90,210 Z" fill="url(#grad-umidade-solo-svg)"/>
-        <path d="M 90,85 C 190,90 290,135 390,135 C 490,135 590,75 690,75 L 800,75" fill="none" stroke="#047857" stroke-width="2.5" stroke-linecap="round"/>
-
-        <!-- Curva Umidade do Ar (Teal) -->
-        <path d="M 90,120 C 180,110 320,100 440,120 C 560,140 680,105 800,110" fill="none" stroke="#0F766E" stroke-width="2" stroke-linecap="round"/>
-
-        <!-- Curva Temperatura do Ar (Azul) -->
-        <path d="M 90,170 C 200,165 330,140 450,55 C 490,25 540,65 600,130 C 660,160 730,145 800,135" fill="none" stroke="#0284C7" stroke-width="2.5" stroke-linecap="round" ${dashStyle}/>
-
-        <!-- Marcador do Pico Temperatura -->
-        <circle cx="485" cy="46" r="4" fill="#0284C7" stroke="#FFFFFF" stroke-width="2"/>
-
-        <!-- Tooltip Escuro: Pico Rotulado -->
-        <g>
-          <rect x="410" y="12" width="150" height="24" rx="4" fill="#0F172A"/>
-          <polygon points="485,36 480,41 490,41" fill="#0F172A"/>
-          <text x="485" y="27" fill="#FFFFFF" font-size="10" font-weight="700" text-anchor="middle">Pico ${picoTemp.toFixed(1)}°C às ${picoHora}</text>
-        </g>
+        ${gridHtml}
+        ${soloArea ? `<path d="${soloArea}" fill="url(#grad-umidade-solo-svg)"/>` : ''}
+        ${soloCoords.length > 0 ? `<polyline points="${poly(soloCoords)}" fill="none" stroke="#047857" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>` : ''}
+        ${umidArCoords.length > 0 ? `<polyline points="${poly(umidArCoords)}" fill="none" stroke="#0F766E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>` : ''}
+        ${tempCoords.length > 0 ? `<polyline points="${poly(tempCoords)}" fill="none" stroke="#0284C7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" ${dashStyle}/>` : ''}
+        ${soloCoords.map(c => `<circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="3" fill="#047857" stroke="#FFFFFF" stroke-width="1"/>`).join('')}
+        ${umidArCoords.map(c => `<circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="2.5" fill="#0F766E" stroke="#FFFFFF" stroke-width="1"/>`).join('')}
+        ${tempCoords.map(c => `<circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="3" fill="#0284C7" stroke="#FFFFFF" stroke-width="1"/>`).join('')}
+        ${picoHtml}
       </svg>
     </div>
 
-    <!-- Eixo X com Labels de Tempo -->
-    <div style="display: flex; justify-content: space-between; font-size: 10px; color: #94A3B8; margin-top: 6px; padding: 0 40px 0 90px;">
-      <span>00:00</span>
-      <span>04:00</span>
-      <span>08:00</span>
-      <span style="color: #0284C7; font-weight: 600;">12:00</span>
-      <span>16:00</span>
-      <span>20:00</span>
-      <span style="color: #047857; font-weight: 700;">Agora</span>
+    <div style="display: flex; justify-content: space-between; font-size: 10px; color: #94A3B8; margin-top: 6px; padding: 0 48px;">
+      <span>${fmtX(minTs)}</span>
+      <span>${spanTs > 0 ? fmtX(minTs + spanTs / 2) : ''}</span>
+      <span style="color: #047857; font-weight: 700;">${spanTs > 0 ? fmtX(maxTs) : ''}</span>
     </div>
   `;
 }
@@ -552,10 +627,9 @@ function renderCorrelacaoMiniCards() {
   const umidArAtual = sensorAr?.umidade != null ? `${Number(sensorAr.umidade).toFixed(1)}%` : '—';
   const umidSoloAtual = sensorSolo?.umidade != null ? `${Number(sensorSolo.umidade).toFixed(1)}%` : '—';
 
-  const entryId = ultimaLeitura?.entry_id_thingspeak ?? ultimaLeitura?.entry_id ?? 14892;
-  const dataHoraUltima = ultimaLeitura?.data_hora
-    ? formatarDataRelativaRecife(ultimaLeitura.data_hora)
-    : 'Hoje recente';
+  const entryId = ultimaLeitura?.entry_id_thingspeak ?? ultimaLeitura?.entry_id ?? null;
+  const entryLabel = entryId != null ? `entry_id #${entryId}` : 'Sem leitura';
+  const dataHoraUltima = formatarDataHoraRecife(ultimaLeitura?.data_hora) || 'Sem leitura';
 
   return `
     <div style="background: #F0F9FF; border: 1px solid #BAE6FD; border-radius: 10px; padding: 10px 14px; display: flex; align-items: center; gap: 10px;">
@@ -583,7 +657,7 @@ function renderCorrelacaoMiniCards() {
         <i data-lucide="cloud-check" style="width: 16px; height: 16px;"></i>
       </div>
       <div>
-        <div style="font-size: 14px; font-weight: 700; color: #0F172A;">entry_id #${entryId}</div>
+        <div style="font-size: 14px; font-weight: 700; color: #0F172A;">${entryLabel}</div>
         <div style="font-size: 10px; color: #64748B;">Sincronizado: ${dataHoraUltima}</div>
       </div>
     </div>
@@ -635,13 +709,19 @@ function renderInventarioBoxHtml() {
 
       const tempStr = s.temperatura != null ? `${Number(s.temperatura).toFixed(1)}°C` : '—';
       const umidStr = s.umidade != null ? `${Number(s.umidade).toFixed(1)}%` : '—';
-      const origemSelo = s.origem === 'real'
+      const labelOrig = obterLabelOrigem(s.origem);
+      const origemSelo = labelOrig === 'Real'
         ? `<span style="background: #ECFDF5; color: #065F46; padding: 1px 6px; border-radius: 4px; font-weight: 700; font-size: 9px; margin-left: 4px;">Real</span>`
-        : `<span style="background: #F1F5F9; color: #475569; padding: 1px 6px; border-radius: 4px; font-weight: 700; font-size: 9px; margin-left: 4px;">Simulado</span>`;
+        : (labelOrig === 'Simulado'
+          ? `<span style="background: #F1F5F9; color: #475569; padding: 1px 6px; border-radius: 4px; font-weight: 700; font-size: 9px; margin-left: 4px;">Simulado</span>`
+          : '');
 
+      const stSensor = calcularStatusColeta(s.ultima_leitura || sensoresState.resumo?.ingestao_24h?.ultima_leitura, sensoresState.resumo?.coleta?.intervalo_s);
       let statusHtml = '';
-      if (s.status === 'ativo') {
-        statusHtml = `<span style="background: #ECFDF5; color: #047857; padding: 3px 10px; border-radius: 9999px; font-weight: 700; font-size: 11px;">ativo</span>`;
+      if (s.status === 'ativo' && stSensor.ativo) {
+        statusHtml = `<span style="background: #ECFDF5; color: #047857; padding: 3px 10px; border-radius: 9999px; font-weight: 700; font-size: 11px;">Ativo</span>`;
+      } else if (s.status === 'ativo') {
+        statusHtml = `<span style="background: ${stSensor.estado === 'offline' ? '#FEF2F2' : '#FFFBEB'}; color: ${stSensor.cor}; padding: 3px 10px; border-radius: 9999px; font-weight: 700; font-size: 11px;">${stSensor.label} · ${stSensor.tempoRelativo}</span>`;
       } else {
         const horasInativo = calcularHorasDesde(s.ultima_leitura);
         const tempoInatTexto = horasInativo != null ? `há ${horasInativo} h` : 'sem leitura recente';
@@ -741,59 +821,57 @@ function renderInventarioBoxHtml() {
 function renderPreditivosDonutBoxHtml() {
   const { sensores, alertasPreditivos, cortes } = sensoresState;
 
-  // Mapeia maior nível de alerta aberto por sensor
-  const ordemSeveridade = { CRITICO: 3, MEDIO: 2, BAIXO: 1 };
-  const maiorAlertaPorSensor = {};
-
-  alertasPreditivos.forEach(a => {
-    if (a.id_sensor == null) return;
-    const nivel = a.nivel_severidade || 'BAIXO';
-    const pesoAtual = ordemSeveridade[nivel] || 1;
-    const pesoAnterior = ordemSeveridade[maiorAlertaPorSensor[a.id_sensor]] || 0;
-    if (pesoAtual > pesoAnterior) {
-      maiorAlertaPorSensor[a.id_sensor] = nivel;
-    }
-  });
+  // Fonte única: filtra previsões vencidas e classifica pelos cortes reais de cortes_alerta_preditivo
+  const resumoAlertas = resumirAlertasAnalista(alertasPreditivos, cortes);
+  const preditivosAtivos = resumoAlertas.ativos.filter(a => a._eh_preditivo);
 
   let countAlta = 0;
   let countModerada = 0;
   let countBaixa = 0;
-
-  sensores.forEach(s => {
-    const nivel = maiorAlertaPorSensor[s.id_sensor];
-    if (nivel === 'CRITICO') countAlta++;
-    else if (nivel === 'MEDIO') countModerada++;
+  preditivosAtivos.forEach(a => {
+    if (a._nivel_padrao === 'CRITICO') countAlta++;
+    else if (a._nivel_padrao === 'MEDIO') countModerada++;
     else countBaixa++;
   });
 
-  const total = sensores.length || 1;
-  const pctBaixa = Math.round((countBaixa / total) * 100);
-  const pctMod = Math.round((countModerada / total) * 100);
-  const pctAlta = Math.max(0, 100 - pctBaixa - pctMod);
+  const totalAtivos = preditivosAtivos.length;
+  const pctAlta = totalAtivos > 0 ? Math.round((countAlta / totalAtivos) * 100) : 0;
+  const pctMod = totalAtivos > 0 ? Math.round((countModerada / totalAtivos) * 100) : 0;
+  const pctBaixa = totalAtivos > 0 ? Math.max(0, 100 - pctAlta - pctMod) : 0;
 
-  // Faixas dos cortes
-  const corteBaixo = cortes.find(c => c.nivel === 'BAIXO') || { limiar_max: 0.45 };
-  const corteMedio = cortes.find(c => c.nivel === 'MEDIO') || { limiar_min: 0.45, limiar_max: 0.75 };
-  const corteCritico = cortes.find(c => c.nivel === 'CRITICO') || { limiar_min: 0.75 };
+  // Faixas reais vindas de cortes_alerta_preditivo (sem números fixos)
+  const corteBaixo = cortes.find(c => String(c.nivel || '').toUpperCase() === 'BAIXO');
+  const corteMedio = cortes.find(c => String(c.nivel || '').toUpperCase() === 'MEDIO');
+  const corteCritico = cortes.find(c => String(c.nivel || '').toUpperCase() === 'CRITICO');
 
-  const limiarBaixoMax = Math.round((Number(corteBaixo.limiar_max || 0.45)) * 100);
-  const limiarMedioMin = Math.round((Number(corteMedio.limiar_min || 0.45)) * 100);
-  const limiarMedioMax = Math.round((Number(corteMedio.limiar_max || 0.75)) * 100);
-  const limiarCriticoMin = Math.round((Number(corteCritico.limiar_min || 0.75)) * 100);
+  const faixaBaixaTxt = corteBaixo && corteBaixo.limiar_min != null && corteBaixo.limiar_max != null
+    ? `${Math.round(Number(corteBaixo.limiar_min) * 100)}% - ${Math.round(Number(corteBaixo.limiar_max) * 100)}%`
+    : '—';
+  const faixaMediaTxt = corteMedio && corteMedio.limiar_min != null && corteMedio.limiar_max != null
+    ? `${Math.round(Number(corteMedio.limiar_min) * 100)}% - ${Math.round(Number(corteMedio.limiar_max) * 100)}%`
+    : '—';
+  const faixaAltaTxt = corteCritico && corteCritico.limiar_min != null && corteCritico.limiar_max != null
+    ? `${Math.round(Number(corteCritico.limiar_min) * 100)}% - ${Math.round(Number(corteCritico.limiar_max) * 100)}%`
+    : '—';
 
-  // Alerta mais recente (maior data_geracao)
-  const alertaMaisRecente = alertasPreditivos.length > 0
-    ? [...alertasPreditivos].sort((a, b) => new Date(b.data_geracao || 0) - new Date(a.data_geracao || 0))[0]
+  // Alerta mais recente (somente não vencido)
+  const alertaMaisRecente = totalAtivos > 0
+    ? [...preditivosAtivos].sort((a, b) => new Date(b.data_hora || b.data_geracao || 0) - new Date(a.data_hora || a.data_geracao || 0))[0]
     : null;
 
   let corteAtivoHtml = '';
   if (alertaMaisRecente) {
-    const sensorAlerta = sensores.find(s => s.id_sensor === alertaMaisRecente.id_sensor);
-    const sensorLabel = sensorAlerta ? sensorAlerta.nome : `Sensor #${alertaMaisRecente.id_sensor}`;
-    const probPct = alertaMaisRecente.probabilidade_risco != null ? Math.round(Number(alertaMaisRecente.probabilidade_risco) * 100) : 0;
-    const severidadeNome = alertaMaisRecente.nivel_severidade === 'CRITICO' ? 'Alta' : (alertaMaisRecente.nivel_severidade === 'MEDIO' ? 'Moderada' : 'Baixa');
+    const sensorId = alertaMaisRecente.id_sensor ?? alertaMaisRecente.sensor?.id_sensor ?? null;
+    const sensorAlerta = sensorId != null ? sensores.find(s => s.id_sensor === sensorId) : null;
+    const sensorLabel = sensorAlerta
+      ? sensorAlerta.nome
+      : (alertaMaisRecente.sensor_nome || alertaMaisRecente.sensor?.nome || (sensorId != null ? `Sensor #${sensorId}` : 'Sem sensor vinculado'));
+    const probRaw = alertaMaisRecente.probabilidade_risco != null ? Number(alertaMaisRecente.probabilidade_risco) : (alertaMaisRecente.probabilidade != null ? Number(alertaMaisRecente.probabilidade) : null);
+    const probPct = probRaw != null && !isNaN(probRaw) ? `${Math.round(probRaw > 1 ? probRaw : probRaw * 100)}%` : '—';
+    const severidadeNome = alertaMaisRecente._nivel_label || 'Baixa';
     const badgeBg = severidadeNome === 'Alta' ? '#FEE2E2' : (severidadeNome === 'Moderada' ? '#DBEAFE' : '#ECFDF5');
     const badgeColor = severidadeNome === 'Alta' ? '#DC2626' : (severidadeNome === 'Moderada' ? '#1D4ED8' : '#059669');
+    const loteId = alertaMaisRecente.id_lote ?? alertaMaisRecente.lote?.id_lote ?? null;
 
     corteAtivoHtml = `
       <div style="background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 8px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; font-size: 11px;">
@@ -802,7 +880,7 @@ function renderPreditivosDonutBoxHtml() {
             <i data-lucide="triangle-alert" style="width: 14px; height: 14px; color: #0284C7;"></i>
             Corte Predição Ativo
           </span>
-          <div style="color: #475569; font-size: 10px; margin-top: 2px;">${sensorLabel} • Probabilidade: ${probPct}% • Lote #${alertaMaisRecente.id_lote || '—'}</div>
+          <div style="color: #475569; font-size: 10px; margin-top: 2px;">${sensorLabel} • Probabilidade: ${probPct}${loteId != null ? ` • Lote #${loteId}` : ''}</div>
         </div>
         <span style="background: ${badgeBg}; color: ${badgeColor}; font-weight: 700; padding: 2px 8px; border-radius: 4px;">${severidadeNome}</span>
       </div>
@@ -810,7 +888,7 @@ function renderPreditivosDonutBoxHtml() {
   } else {
     corteAtivoHtml = `
       <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px 14px; text-align: center; color: #64748B; font-size: 11px;">
-        Nenhum alerta preditivo em aberto.
+        Nenhum alerta preditivo ativo no momento.
       </div>
     `;
   }
@@ -826,8 +904,8 @@ function renderPreditivosDonutBoxHtml() {
           Distribuição de risco probabilístico configurada por cortes preditivos
         </p>
       </div>
-      <span style="font-size: 10px; background: #ECFDF5; color: #047857; font-weight: 600; padding: 2px 8px; border-radius: 4px; white-space: nowrap; flex-shrink: 0; margin-left: auto;">
-        Classificação Ativa
+      <span style="font-size: 10px; background: ${totalAtivos > 0 ? '#ECFDF5' : '#F1F5F9'}; color: ${totalAtivos > 0 ? '#047857' : '#64748B'}; font-weight: 600; padding: 2px 8px; border-radius: 4px; white-space: nowrap; flex-shrink: 0; margin-left: auto;">
+        ${totalAtivos > 0 ? `${totalAtivos} ativo(s)` : 'Sem alertas'}
       </span>
     </div>
 
@@ -836,16 +914,18 @@ function renderPreditivosDonutBoxHtml() {
       <div style="position: relative; width: 120px; height: 120px; flex-shrink: 0;">
         <svg viewBox="0 0 36 36" style="width: 100%; height: 100%; transform: rotate(-90deg);">
           <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#F1F5F9" stroke-width="3.8"/>
+          ${totalAtivos > 0 ? `
           <!-- Verde: Baixa -->
           <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#10B981" stroke-width="3.8" stroke-dasharray="${pctBaixa}, 100" stroke-dashoffset="0"/>
           <!-- Azul: Moderada -->
           <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#0284C7" stroke-width="3.8" stroke-dasharray="${pctMod}, 100" stroke-dashoffset="-${pctBaixa}"/>
           <!-- Vermelho: Alta -->
           <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#EF4444" stroke-width="3.8" stroke-dasharray="${pctAlta}, 100" stroke-dashoffset="-${pctBaixa + pctMod}"/>
+          ` : ''}
         </svg>
         <div class="donut-center-wrap" style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; pointer-events: none;">
-          <div class="donut-center-val" style="font-size: 22px; font-weight: 800; color: #0F172A; line-height: 1; font-family: 'Space Grotesk', sans-serif;">${pctBaixa}%</div>
-          <div class="donut-center-sub" style="font-size: 9px; font-weight: 700; color: #059669; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px;">BAIXA</div>
+          <div class="donut-center-val" style="font-size: 22px; font-weight: 800; color: #0F172A; line-height: 1; font-family: 'Space Grotesk', sans-serif;">${totalAtivos}</div>
+          <div class="donut-center-sub" style="font-size: 9px; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px;">${totalAtivos === 1 ? 'ALERTA' : 'ALERTAS'}</div>
         </div>
       </div>
 
@@ -854,25 +934,25 @@ function renderPreditivosDonutBoxHtml() {
         <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; background: #F8FAFC; padding: 6px 10px; border-radius: 6px;">
           <span style="display: flex; align-items: center; gap: 6px;">
             <span style="width: 8px; height: 8px; border-radius: 50%; background: #10B981;"></span>
-            Baixa (&lt; ${limiarBaixoMax}%)
+            Baixa (${faixaBaixaTxt})
           </span>
-          <strong>${countBaixa} sensores</strong>
+          <strong>${countBaixa} (${pctBaixa}%)</strong>
         </div>
 
         <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; background: #F8FAFC; padding: 6px 10px; border-radius: 6px;">
           <span style="display: flex; align-items: center; gap: 6px;">
             <span style="width: 8px; height: 8px; border-radius: 50%; background: #0284C7;"></span>
-            Moderada (${limiarMedioMin}% - ${limiarMedioMax}%)
+            Moderada (${faixaMediaTxt})
           </span>
-          <strong>${countModerada} sensores</strong>
+          <strong>${countModerada} (${pctMod}%)</strong>
         </div>
 
         <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; background: #F8FAFC; padding: 6px 10px; border-radius: 6px;">
           <span style="display: flex; align-items: center; gap: 6px;">
             <span style="width: 8px; height: 8px; border-radius: 50%; background: #EF4444;"></span>
-            Alta (&gt; ${limiarCriticoMin}%)
+            Alta (${faixaAltaTxt})
           </span>
-          <strong>${countAlta} sensores</strong>
+          <strong>${countAlta} (${pctAlta}%)</strong>
         </div>
       </div>
     </div>

@@ -13,6 +13,23 @@ class ApiService {
     this.baseUrl = API_BASE_URL;
     this.isBackendOnline = null;
     this.currentLoginEmail = null;
+    this._refreshPromise = null;
+    this._refreshBlocked = false;
+    this._getCache = new Map();
+    this._cacheableGetPaths = new Map([
+      ['/safras', 30000],
+      ['/propriedades', 30000],
+      ['/frutas', 30000],
+      ['/variedades', 30000],
+      ['/portos', 30000],
+      ['/dashboard/resumo', 15000],
+      ['/sensores', 15000],
+      ['/lotes', 15000],
+      ['/clima/previsao', 30000],
+      ['/alertas/estado', 15000],
+      ['/dados-mercado', 30000],
+      ['/previsoes/janela-colheita', 30000]
+    ]);
   }
 
   getToken() {
@@ -22,6 +39,7 @@ class ApiService {
   setTokens(access_token, refresh_token) {
     if (access_token) localStorage.setItem('access_token', access_token);
     if (refresh_token) localStorage.setItem('refresh_token', refresh_token);
+    this._refreshBlocked = false;
   }
 
   clearTokens() {
@@ -30,40 +48,61 @@ class ApiService {
     localStorage.removeItem('user_data');
     localStorage.removeItem('pending_login_email');
     this.currentLoginEmail = null;
+    this._refreshPromise = null;
+    this._refreshBlocked = false;
+    this._getCache.clear();
   }
 
   async refreshToken() {
-    const refreshToken = localStorage.getItem('refresh_token');
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-    try {
-      const res = await fetch(`${this.baseUrl}/auth/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(refreshToken ? { refresh_token: refreshToken } : {}),
-        signal: controller.signal
-      });
-      clearTimeout(timeoutId);
-
-      if (!res.ok) {
-        const err = new Error(`Falha ao renovar token (${res.status})`);
-        err.status = res.status;
-        throw err;
-      }
-
-      const data = await res.json();
-      if (data && data.access_token) {
-        this.setTokens(data.access_token, data.refresh_token || refreshToken);
-        return data.access_token;
-      }
-      throw new Error('Resposta de refresh inválida');
-    } catch (error) {
-      clearTimeout(timeoutId);
-      throw error;
+    if (this._refreshBlocked) {
+      const err = new Error('Renovação de sessão indisponível. Faça login novamente.');
+      err.status = 403;
+      throw err;
     }
+    if (this._refreshPromise) {
+      return await this._refreshPromise;
+    }
+
+    this._refreshPromise = (async () => {
+      const refreshToken = localStorage.getItem('refresh_token');
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+      try {
+        const res = await fetch(`${this.baseUrl}/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify(refreshToken ? { refresh_token: refreshToken } : {}),
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        if (!res.ok) {
+          if (res.status === 401 || res.status === 403) {
+            this._refreshBlocked = true;
+          }
+          const err = new Error(`Falha ao renovar token (${res.status})`);
+          err.status = res.status;
+          throw err;
+        }
+
+        const data = await res.json();
+        if (data && data.access_token) {
+          this.setTokens(data.access_token, data.refresh_token || refreshToken);
+          return data.access_token;
+        }
+        throw new Error('Resposta de refresh inválida');
+      } catch (error) {
+        clearTimeout(timeoutId);
+        throw error;
+      } finally {
+        this._refreshPromise = null;
+      }
+    })();
+
+    return await this._refreshPromise;
   }
 
   async getDashboardStreamTicket() {
@@ -150,9 +189,26 @@ class ApiService {
   }
 
   async request(endpoint, options = {}, _retried = false) {
+    const { timeoutMs = 15000, skipCache = false, ...fetchOptions } = options;
+    const method = (fetchOptions.method || 'GET').toUpperCase();
+    const basePath = endpoint.split('?')[0];
+    const cacheTtlMs = (method === 'GET' && !skipCache) ? (this._cacheableGetPaths.get(basePath) || 0) : 0;
+    const isCacheableGet = cacheTtlMs > 0;
+
+    if (method !== 'GET') {
+      this._getCache.clear();
+    } else if (isCacheableGet) {
+      const cached = this._getCache.get(endpoint);
+      if (cached && (Date.now() - cached.ts) < cacheTtlMs) {
+        return typeof structuredClone === 'function'
+          ? structuredClone(cached.data)
+          : JSON.parse(JSON.stringify(cached.data));
+      }
+    }
+
     const headers = {
-      ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
-      ...(options.headers || {})
+      ...(fetchOptions.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
+      ...(fetchOptions.headers || {})
     };
 
     const token = this.getToken();
@@ -161,13 +217,13 @@ class ApiService {
     }
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
         cache: 'no-store',
         credentials: 'include',
-        ...options,
+        ...fetchOptions,
         headers,
         signal: controller.signal
       });
@@ -177,7 +233,7 @@ class ApiService {
       if (response.status === 401) {
         // Se não é rota de login/2FA e ainda não tentou refresh, tenta renovar o token silenciosamente
         const isPublicAuth = endpoint.startsWith('/auth/login') || endpoint.startsWith('/auth/2fa') || endpoint.startsWith('/auth/refresh');
-        if (!isPublicAuth && !_retried) {
+        if (!isPublicAuth && !_retried && !this._refreshBlocked) {
           try {
             await this.refreshToken();
             return await this.request(endpoint, options, true);
@@ -218,7 +274,16 @@ class ApiService {
 
       const contentType = response.headers.get('content-type') || '';
       if (contentType.includes('application/json')) {
-        return await response.json();
+        const jsonData = await response.json();
+        if (isCacheableGet) {
+          this._getCache.set(endpoint, {
+            ts: Date.now(),
+            data: typeof structuredClone === 'function'
+              ? structuredClone(jsonData)
+              : JSON.parse(JSON.stringify(jsonData))
+          });
+        }
+        return jsonData;
       }
       return await response.text();
     } catch (error) {
@@ -235,6 +300,21 @@ class ApiService {
   // ==========================================
   // AUTENTICAÇÃO E 2FA (MFA)
   // ==========================================
+  async logout() {
+    const refreshToken = localStorage.getItem('refresh_token');
+    try {
+      await fetch(`${this.baseUrl}/auth/logout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        keepalive: true,
+        body: JSON.stringify(refreshToken ? { refresh_token: refreshToken } : {})
+      });
+    } catch (_) {
+      // Logout local continua mesmo se a rede falhar
+    }
+  }
+
   async getMe() {
     return await this.request('/auth/me');
   }
@@ -324,6 +404,17 @@ class ApiService {
     });
   }
 
+  async get2FAPreferencia() {
+    return await this.request('/auth/2fa/preferencia');
+  }
+
+  async salvar2FAPreferencia(emailAtivo) {
+    return await this.request('/auth/2fa/preferencia', {
+      method: 'PUT',
+      body: JSON.stringify({ email_ativo: Boolean(emailAtivo) })
+    });
+  }
+
   // ==========================================
   // DASHBOARD RESUMO
   // ==========================================
@@ -374,6 +465,20 @@ class ApiService {
     return Array.isArray(res) ? res : (res?.propriedades || (res ? [res] : []));
   }
 
+  async atualizarPropriedade(idPropriedade, dados) {
+    return await this.request(`/propriedades/${encodeURIComponent(idPropriedade)}`, {
+      method: 'PUT',
+      body: JSON.stringify(dados)
+    });
+  }
+
+  async atualizarPadraoVariedade(idVariedade, dados) {
+    return await this.request(`/variedades/${encodeURIComponent(idVariedade)}/padrao`, {
+      method: 'PUT',
+      body: JSON.stringify(dados)
+    });
+  }
+
   async getClassificacaoResumo(idLote = null) {
     const qs = idLote != null ? `?id_lote=${encodeURIComponent(idLote)}` : '';
     return await this.request(`/classificacao/resumo${qs}`);
@@ -396,7 +501,7 @@ class ApiService {
   // LOTES DE PRODUÇÃO
   // ==========================================
   async getLotes() {
-    return await this.request('/lotes');
+    return await this.request('/lotes?limit=1000');
   }
 
   async createLote(data) {
@@ -420,12 +525,15 @@ class ApiService {
   async gerarParecer({ id_lote, tipo = 'agronomico', dias = 30, forcar = false }) {
     return await this.request('/pareceres/gerar', {
       method: 'POST',
-      body: JSON.stringify({ id_lote, tipo, dias, forcar })
+      body: JSON.stringify({ id_lote, tipo, dias, forcar }),
+      timeoutMs: 60000
     });
   }
 
   async getParecerIA(idLote) {
-    return await this.request(`/ia/parecer?id_lote=${encodeURIComponent(idLote)}`);
+    return await this.request(`/ia/parecer?id_lote=${encodeURIComponent(idLote)}`, {
+      timeoutMs: 60000
+    });
   }
 
   async assinarParecer(idParecer, dadosAssinatura) {
@@ -433,13 +541,6 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify(dadosAssinatura)
     });
-  }
-
-  // ==========================================
-  // LOGÍSTICA E VIAGENS REFRIGERADAS
-  // ==========================================
-  async getViagens() {
-    return await this.request('/viagens');
   }
 
   // ==========================================
@@ -471,7 +572,17 @@ class ApiService {
   // CLIMA / PREVISÃO
   // ==========================================
   async getClimaAtual() {
-    return await this.request('/clima/previsao');
+    // FIX: retorna null em erros de servidor (502/503) em vez de relançar;
+    // a UI do dashboard já trata clima=null exibindo '—' nos widgets de clima.
+    try {
+      return await this.request('/clima/previsao');
+    } catch (err) {
+      if (err.status >= 500 || err.isNetworkError) {
+        console.warn('Clima indisponível (', err.status || 'rede', ') — widgets exibirão "—".');
+        return null;
+      }
+      throw err;
+    }
   }
 
   // ==========================================
@@ -585,32 +696,30 @@ class ApiService {
     });
   }
 
-  async sincronizarIngestao() {
-    return await this.request('/ingestao/sincronizar', {
-      method: 'POST'
-    });
+  async getAnalistaAlertasResumo() {
+    return await this.request('/analista/alertas/resumo');
   }
 
-  async exportarLeiturasCsv({ id_sensor, inicio, fim } = {}) {
-    const params = new URLSearchParams();
-    if (id_sensor != null) params.append('id_sensor', id_sensor);
-    if (inicio) params.append('inicio', inicio);
-    if (fim) params.append('fim', fim);
-    const qs = params.toString();
-    const token = this.getToken();
-    const res = await fetch(`${this.baseUrl}/leituras/exportar.csv${qs ? '?' + qs : ''}`, {
-      headers: {
-        'Authorization': token ? `Bearer ${token}` : ''
-      }
-    });
-    if (!res.ok) {
-      throw new Error(`Falha ao exportar CSV (${res.status})`);
-    }
-    return await res.blob();
+  async getPerdasRisco() {
+    return await this.request('/perdas-risco');
   }
 
-  async getRedeHistorico(periodo = '24h') {
-    return await this.request(`/rede/historico?periodo=${encodeURIComponent(periodo)}`);
+  async getEstatisticasLeituras(params = {}) {
+    const qs = new URLSearchParams();
+    if (params.id_sensor != null) qs.append('id_sensor', params.id_sensor);
+    if (params.inicio) qs.append('inicio', params.inicio);
+    if (params.fim) qs.append('fim', params.fim);
+    const s = qs.toString();
+    return await this.request(`/leituras/estatisticas${s ? '?' + s : ''}`);
+  }
+
+  async getSaidasFaixa(params = {}) {
+    const qs = new URLSearchParams();
+    if (params.agrupamento) qs.append('agrupamento', params.agrupamento);
+    if (params.id_lote != null) qs.append('id_lote', params.id_lote);
+    if (params.id_sensor != null) qs.append('id_sensor', params.id_sensor);
+    const s = qs.toString();
+    return await this.request(`/relatorios/saidas-faixa${s ? '?' + s : ''}`);
   }
 
   // ==========================================
@@ -675,13 +784,6 @@ class ApiService {
     });
   }
 
-  async salvarCortesPreditivos(cortes) {
-    return await this.request('/calibracao/cortes', {
-      method: 'PUT',
-      body: JSON.stringify(cortes)
-    });
-  }
-
   async recalcularCalibracao() {
     return await this.request('/calibracao/recalcular', {
       method: 'POST'
@@ -722,17 +824,13 @@ class ApiService {
     });
   }
 
-  async reenviarAtivacao(idOrEmail, emailFallback = '') {
+  async reenviarAtivacao(idOrEmail) {
     const isId = idOrEmail != null && !String(idOrEmail).includes('@') && /^\d+$/.test(String(idOrEmail));
-    if (isId) {
-      return await this.request(`/usuarios/${idOrEmail}/reenviar-ativacao`, {
-        method: 'POST'
-      });
+    if (!isId) {
+      throw new Error('Reenvio de ativação requer o ID do usuário.');
     }
-    const email = emailFallback || idOrEmail;
-    return await this.request('/auth/solicitar-ativacao', {
-      method: 'POST',
-      body: JSON.stringify({ email })
+    return await this.request(`/usuarios/${idOrEmail}/reenviar-ativacao`, {
+      method: 'POST'
     });
   }
 

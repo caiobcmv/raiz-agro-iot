@@ -14,13 +14,11 @@ import { downloadCSV, downloadPDF, openExportChoiceModal } from '../utils/export
 
 
 let CULTURAS_LIST = ['Uva de Mesa', 'Morango', 'Manga'];
+let _propAtual = null;
+let _moedaAtual = 'BRL';
 
 let VARIEDADES_LIST = [
-  { dot: '#059669', name: 'Uva Vitória (Seedless)', market: 'Mercado alvo: União Europeia / UK', brix: '≥18,0° Brix', calibre: 'Calibre: ≥22mm' },
-  { dot: '#DC2626', name: 'Uva Crimson', market: 'Mercado alvo: América do Norte (USDA)', brix: '≥17,5° Brix', calibre: 'Calibre: 19mm' },
-  { dot: '#F59E0B', name: 'Uva Thompson', market: 'Mercado alvo: Ásia (China / Coreia do Sul)', brix: '≥17,0° Brix', calibre: 'Calibre: ≥18mm' },
-  { dot: '#A78BFA', name: 'Manga Palmer', market: 'Mercado alvo: Spot Europa (Roterdã)', brix: '≥13,0° Brix', calibre: 'Calibre: ≥350g' },
-  { dot: '#A78BFA', name: 'Manga Tommy', market: 'Mercado alvo: Mercado Nacional', brix: '≥12,5° Brix', calibre: 'Calibre: ≥400g' },
+  { id_variedade: null, dot: '#059669', name: 'Uva Vitória (Seedless)', market: 'Mercado alvo: União Europeia / UK', brix: '≥18,0° Brix', brix_min: 18.0, calibre: 'Calibre: ≥22mm', calibre_min: '22 mm', classe: 'Extra' },
 ];
 
 export async function renderConfiguracoes() {
@@ -28,18 +26,30 @@ export async function renderConfiguracoes() {
   const isAdmin = profileRole === 'admin';
   const isAnalista = profileRole === 'analista';
 
-  const [safrasRes, propRes, lotesRes, frutasRes, varRes] = await Promise.allSettled([
+  const [safrasRes, propRes, lotesRes, frutasRes, varRes, notifRes] = await Promise.allSettled([
     api.getCatalogoSafras(),
     api.getCatalogoPropriedades(),
     api.getLotes(),
     api.request('/frutas'),
-    api.request('/variedades')
+    api.request('/variedades'),
+    api.getPreferenciasUsuario()
   ]);
   const safrasReais = safrasRes.status === 'fulfilled' && Array.isArray(safrasRes.value) ? safrasRes.value : [];
   const propReal = (propRes.status === 'fulfilled' && Array.isArray(propRes.value) && propRes.value[0]) ? propRes.value[0] : {};
   const lotesReais = lotesRes.status === 'fulfilled' && Array.isArray(lotesRes.value) ? lotesRes.value : [];
   const frutasReais = frutasRes.status === 'fulfilled' && Array.isArray(frutasRes.value) ? frutasRes.value : [];
   const varReais = varRes.status === 'fulfilled' && Array.isArray(varRes.value) ? varRes.value : [];
+  const notifPrefs = notifRes.status === 'fulfilled' && Array.isArray(notifRes.value) ? notifRes.value : [];
+
+  _propAtual = propReal;
+  const moedaBanco = String(propReal?.moeda_exibicao || '').trim().toUpperCase();
+  _moedaAtual = (moedaBanco === 'USD' || moedaBanco === 'BRL')
+    ? moedaBanco
+    : (localStorage.getItem('raiz_moeda') === 'USD' ? 'USD' : 'BRL');
+
+  const prefEmail = notifPrefs.find(p => p && p.canal === 'email') || { ativo: true, nivel_minimo: 'baixo' };
+  const notifP1Ativo = Boolean(prefEmail.ativo);
+  const notifP2Ativo = Boolean(prefEmail.ativo && String(prefEmail.nivel_minimo || '').toLowerCase() !== 'alto');
 
   if (frutasReais.length > 0) {
     CULTURAS_LIST = frutasReais.map(f => f.nome || f.fruta).filter(Boolean);
@@ -47,11 +57,15 @@ export async function renderConfiguracoes() {
   if (varReais.length > 0) {
     const cores = ['#059669', '#DC2626', '#F59E0B', '#A78BFA', '#0284C7'];
     VARIEDADES_LIST = varReais.map((v, idx) => ({
+      id_variedade: v.id_variedade ?? null,
       dot: cores[idx % cores.length],
       name: `${v.fruta ? v.fruta + ' ' : ''}${v.nome || 'Variedade'}`,
       market: v.classe ? `Classe: ${v.classe}` : 'Padrão Homologado',
       brix: v.brix_min != null ? `≥${Number(v.brix_min).toFixed(1).replace('.', ',')}° Brix` : '— Brix',
-      calibre: v.calibre_min ? `Calibre: ${v.calibre_min}` : ''
+      brix_min: v.brix_min != null ? Number(v.brix_min) : null,
+      calibre: v.calibre_min ? `Calibre: ${v.calibre_min}` : '',
+      calibre_min: v.calibre_min || '',
+      classe: v.classe || ''
     }));
   }
   const profile = auth.getProfileData();
@@ -59,13 +73,13 @@ export async function renderConfiguracoes() {
   const cargoExibicao = profile.cargo;
   const iniciais = profile.iniciais;
   const emailUsuario = profile.email;
-  const userId = isAdmin ? '3' : (isAnalista ? '2' : '1');
-  const telefone = isAdmin ? '(87) 99888-0011' : (isAnalista ? '(87) 99812-4420' : '(87) 99842-1104');
-  const bio = isAdmin
+  const userId = profile.id_usuario ?? profile.id ?? '—';
+  const telefone = profile.telefone || 'Não informado';
+  const bio = profile.bio || (isAdmin
     ? 'Administração global de infraestrutura IoT, governança de usuários, parâmetros agronômicos e controle de acessos.'
     : (isAnalista
       ? 'Supervisão técnica de nós ESP32 (DHT11 e umidade do solo) e calibração de sensores IoT.'
-      : 'Gestão operacional de colheita, irrigação de precisão e manejo integrado de campo.');
+      : 'Gestão operacional de colheita, irrigação de precisão e manejo integrado de campo.'));
 
   const readOnlyAttr = isAdmin ? '' : 'readonly';
   const inputBg = isAdmin ? '#FFFFFF' : '#F8FAFC';
@@ -336,10 +350,10 @@ export async function renderConfiguracoes() {
     </div>
 
     <!-- 2-COL: INFORMAÇÕES DA PROPRIEDADE + PADRÕES DE QUALIDADE -->
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:24px;">
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:24px; align-items:stretch;">
 
       <!-- Informações e Cadastro da Propriedade -->
-      <div class="apple-card" style="padding:24px 26px; align-self: start; height: auto;">
+      <div class="apple-card" style="padding:24px 26px; display:flex; flex-direction:column;">
         <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:18px;">
           <div style="display:flex; align-items:center; gap:10px;">
             <div style="width:36px;height:36px; background:#F0FDF4; border-radius:10px; display:flex;align-items:center;justify-content:center;">
@@ -415,7 +429,7 @@ export async function renderConfiguracoes() {
       </div>
 
       <!-- Padrões de Qualidade e Brix de Embarque -->
-      <div class="apple-card" style="padding:24px 26px;">
+      <div class="apple-card" style="padding:24px 26px; display:flex; flex-direction:column;">
         <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:18px;">
           <div style="display:flex; align-items:center; gap:10px;">
             <div style="width:36px;height:36px; background:#FFF7ED; border-radius:10px; display:flex;align-items:center;justify-content:center;">
@@ -431,7 +445,7 @@ export async function renderConfiguracoes() {
 
         <div style="margin-bottom:10px; font-size:11px; font-weight:600; color:#475569;">Variedades Registradas e Padrão de Colheita:</div>
 
-        <div id="variedades-list-container" style="display:flex; flex-direction:column; gap:8px;">
+        <div id="variedades-list-container" style="display:flex; flex-direction:column; gap:8px; max-height:330px; overflow-y:auto; padding-right:4px;">
           ${VARIEDADES_LIST.map((v, i) => `
             <div class="variedade-item" data-index="${i}" style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:9px;">
               <div style="display:flex; align-items:center; gap:10px;">
@@ -508,12 +522,12 @@ export async function renderConfiguracoes() {
         <div style="background:#FEF2F2; border:1px solid #FEE2E2; border-radius:10px; padding:14px 16px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
             <div style="font-size:12px; font-weight:800; color:#DC2626;">Alerta Crítico (P1)</div>
-            <div style="font-size:10px; color:#94A3B8;">Murcha &lt;40% | Temp &gt;35°C</div>
+            <div style="font-size:10px; color:#94A3B8;">Nível alto • tabela notificacao_preferencia</div>
           </div>
           <div style="display:flex; gap:20px; flex-wrap:wrap;">
-            <label class="custom-checkbox-label" style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:600; color:#0F172A;">
-              <input type="checkbox" id="notif-p1-email" checked style="accent-color:#DC2626; width:15px; height:15px;">
-              E-mail Imediato de Alerta
+            <label class="custom-checkbox-label" style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:600; color:#0F172A; cursor:pointer;">
+              <input type="checkbox" id="notif-p1-email" ${notifP1Ativo ? 'checked' : ''} style="accent-color:#DC2626; width:15px; height:15px;">
+              Receber alertas críticos por e-mail
             </label>
           </div>
         </div>
@@ -521,49 +535,28 @@ export async function renderConfiguracoes() {
         <!-- Alerta Moderado P2 -->
         <div style="background:#FFFBEB; border:1px solid #FEF3C7; border-radius:10px; padding:14px 16px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-            <div style="font-size:12px; font-weight:800; color:#F59E0B;">Alerta Moderado (P2)</div>
-            <div style="font-size:10px; color:#94A3B8;">Umidade ar &lt;30% | Vento &gt;35km/h</div>
+            <div style="font-size:12px; font-weight:800; color:#F59E0B;">Alertas Moderados e Informativos (P2)</div>
+            <div style="font-size:10px; color:#94A3B8;">Nível médio/baixo • canal e-mail</div>
           </div>
           <div style="display:flex; gap:20px; flex-wrap:wrap;">
-            <label class="custom-checkbox-label" style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:600; color:#0F172A;">
-              <input type="checkbox" id="notif-p2-email" checked style="accent-color:#F59E0B; width:15px; height:15px;">
-              E-mail Diário / Resumo
+            <label class="custom-checkbox-label" style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:600; color:#0F172A; cursor:pointer;">
+              <input type="checkbox" id="notif-p2-email" ${notifP2Ativo ? 'checked' : ''} style="accent-color:#F59E0B; width:15px; height:15px;">
+              Incluir alertas moderados por e-mail
             </label>
           </div>
         </div>
       </div>
 
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
-        <!-- Relatório Matinal -->
-        <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:14px 16px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-            <div style="font-size:12px; font-weight:700; color:#0F172A;">Relatório Matinal Executivo</div>
-            <div style="font-size:10px; font-weight:600; color:#94A3B8;">PDF · CSV</div>
-          </div>
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-            <div>
-              <label style="display:block; font-size:10px; font-weight:600; color:#94A3B8; margin-bottom:4px; text-transform:uppercase; letter-spacing:.5px;">Horário do Envio</label>
-              <input id="cfg-horario-matinal" value="06:30 AM" ${readOnlyAttr} style="width:100%; padding:8px 10px; border:1px solid #E2E8F0; border-radius:8px; font-size:13px; font-weight:700; color:#0F172A; outline:none; background:${inputBg}; box-sizing:border-box; cursor:${inputCursor};">
-            </div>
-            <div>
-              <label style="display:block; font-size:10px; font-weight:600; color:#94A3B8; margin-bottom:4px; text-transform:uppercase; letter-spacing:.5px;">E-mails CC</label>
-              <input id="cfg-email-cc" value="gerencia@raizagro.agr.br, agronomo@raiz..." ${readOnlyAttr} style="width:100%; padding:8px 10px; border:1px solid #E2E8F0; border-radius:8px; font-size:11px; color:#475569; outline:none; background:${inputBg}; box-sizing:border-box; cursor:${inputCursor};">
-            </div>
-          </div>
+      <!-- Preferências de Moeda (persistido em propriedade.moeda_exibicao) -->
+      <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:14px 16px;">
+        <div style="display:flex; align-items:center; gap:7px; margin-bottom:10px;">
+          <i data-lucide="dollar-sign" style="width:14px;height:14px;color:#64748B;"></i>
+          <div style="font-size:12px; font-weight:700; color:#0F172A;">Preferências de Moeda</div>
         </div>
-
-        <!-- Preferências de Moeda -->
-        <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:14px 16px;">
-          <div style="display:flex; align-items:center; gap:7px; margin-bottom:10px;">
-            <i data-lucide="dollar-sign" style="width:14px;height:14px;color:#64748B;"></i>
-            <div style="font-size:12px; font-weight:700; color:#0F172A;">Preferências de Moeda</div>
-          </div>
-          <div style="font-size:10px; color:#94A3B8; margin-bottom:8px;">Moeda utilizada nos valores financeiros do sistema.</div>
-          <div id="currency-selector-btns" style="display:flex; gap:8px;">
-            <button class="currency-btn active" data-cur="BRL" style="padding:7px 16px; background:#183D2E; color:#fff; border:none; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer;">Real brasileiro (R$)</button>
-            <button class="currency-btn" data-cur="USD" style="padding:7px 14px; background:#F8FAFC; color:#475569; border:1px solid #E2E8F0; border-radius:8px; font-size:12px; cursor:pointer;">USD ($)</button>
-            <button class="currency-btn" data-cur="EUR" style="padding:7px 14px; background:#F8FAFC; color:#475569; border:1px solid #E2E8F0; border-radius:8px; font-size:12px; cursor:pointer;">EUR (€)</button>
-          </div>
+        <div style="font-size:10px; color:#94A3B8; margin-bottom:8px;">Moeda de exibição registrada na propriedade (sem conversão cambial externa).</div>
+        <div id="currency-selector-btns" style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button type="button" class="currency-btn ${_moedaAtual === 'BRL' ? 'active' : ''}" data-cur="BRL" style="padding:7px 16px; background:${_moedaAtual === 'BRL' ? '#183D2E' : '#FFFFFF'}; color:${_moedaAtual === 'BRL' ? '#fff' : '#475569'}; border:${_moedaAtual === 'BRL' ? 'none' : '1px solid #E2E8F0'}; border-radius:8px; font-size:12px; font-weight:${_moedaAtual === 'BRL' ? '700' : '500'}; cursor:pointer;">Real brasileiro (R$)</button>
+          <button type="button" class="currency-btn ${_moedaAtual === 'USD' ? 'active' : ''}" data-cur="USD" style="padding:7px 16px; background:${_moedaAtual === 'USD' ? '#183D2E' : '#FFFFFF'}; color:${_moedaAtual === 'USD' ? '#fff' : '#475569'}; border:${_moedaAtual === 'USD' ? 'none' : '1px solid #E2E8F0'}; border-radius:8px; font-size:12px; font-weight:${_moedaAtual === 'USD' ? '700' : '500'}; cursor:pointer;">Dólar americano (US$)</button>
         </div>
       </div>
     </div>
@@ -709,29 +702,56 @@ export async function setupConfiguracoesEvents() {
     });
   });
 
-  // D) Recarregar Histórico de Safra
+  // D) Recarregar Histórico de Safra (recarrega dados reais da API)
   document.getElementById('btn-recarregar-safra')?.addEventListener('click', () => {
-    const icon = document.querySelector('#btn-recarregar-safra i, #btn-recarregar-safra svg');
-    if (icon) icon.style.transform = 'rotate(360deg)';
-    toast.success('Histórico Atualizado', 'Dados de safra sincronizados com sucesso.');
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+    toast.success('Histórico Atualizado', 'Dados de safra recarregados do servidor.');
   });
 
-  // E) Preferências de Moeda
+  // D1) Salvar Preferências Reais de Notificação por E-mail (PUT /notificacoes/preferencias/email)
+  const salvarNotifEmail = async () => {
+    const p1 = Boolean(document.getElementById('notif-p1-email')?.checked);
+    const p2 = Boolean(document.getElementById('notif-p2-email')?.checked);
+    const ativo = p1 || p2;
+    const nivelMinimo = p2 ? 'baixo' : 'alto';
+    try {
+      await api.salvarPreferenciasUsuario(null, { canal: 'email', ativo, nivel_minimo: nivelMinimo });
+      toast.success('Notificações Salvas', ativo
+        ? `Alertas por e-mail ativos (nível mínimo: ${nivelMinimo}).`
+        : 'Alertas por e-mail desativados para sua conta.');
+    } catch (err) {
+      toast.error('Erro ao Salvar', err.message || 'Não foi possível salvar preferência de e-mail.');
+    }
+  };
+  document.getElementById('notif-p1-email')?.addEventListener('change', salvarNotifEmail);
+  document.getElementById('notif-p2-email')?.addEventListener('change', salvarNotifEmail);
+
+  // E) Preferências de Moeda (BRL / USD — persiste em propriedade.moeda_exibicao para Admin + localStorage)
   document.querySelectorAll('.currency-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
+      const cur = btn.dataset.cur === 'USD' ? 'USD' : 'BRL';
+      _moedaAtual = cur;
+      localStorage.setItem('raiz_moeda', cur);
+
       document.querySelectorAll('.currency-btn').forEach(b => {
-        b.classList.remove('active');
-        b.style.background = '#F8FAFC';
-        b.style.color = '#475569';
-        b.style.border = '1px solid #E2E8F0';
-        b.style.fontWeight = 'normal';
+        const ativo = b.dataset.cur === cur;
+        b.classList.toggle('active', ativo);
+        b.style.background = ativo ? '#183D2E' : '#FFFFFF';
+        b.style.color = ativo ? '#fff' : '#475569';
+        b.style.border = ativo ? 'none' : '1px solid #E2E8F0';
+        b.style.fontWeight = ativo ? '700' : '500';
       });
-      btn.classList.add('active');
-      btn.style.background = '#183D2E';
-      btn.style.color = '#fff';
-      btn.style.border = 'none';
-      btn.style.fontWeight = '700';
-      toast.info('Moeda Selecionada', `Exibição monetária convertida para ${btn.textContent.trim()}.`);
+
+      if (isAdmin && _propAtual?.id_propriedade) {
+        try {
+          await api.atualizarPropriedade(_propAtual.id_propriedade, { moeda_exibicao: cur });
+          toast.success('Moeda Salva', `Moeda de exibição atualizada para ${cur} no banco de dados.`);
+        } catch (err) {
+          toast.error('Erro ao Salvar Moeda', err.message || 'Falha ao atualizar moeda da propriedade.');
+        }
+      } else {
+        toast.info('Moeda Selecionada', `Preferência de exibição definida para ${cur}.`);
+      }
     });
   });
 
@@ -766,24 +786,41 @@ export async function setupConfiguracoesEvents() {
 
       Modal.open(`Calibrar Padrão — ${item.name}`, `
         <div style="display:flex; flex-direction:column; gap:12px; font-size:13px;">
-          <p style="margin:0; font-size:12px; color:#64748B;">Ajuste os parâmetros fisiológicos e de embarque para esta cultura:</p>
+          <p style="margin:0; font-size:12px; color:#64748B;">Ajuste os parâmetros fisiológicos e de embarque no PostgreSQL (<code>padrao_qualidade</code>):</p>
           <div>
-            <label style="font-weight:700; color:#1E293B; display:block; margin-bottom:5px;">Grau Brix Mínimo</label>
-            <input id="modal-edit-brix" value="${item.brix}" style="width:100%; padding:9px 12px; border:1px solid #CBD5E1; border-radius:8px; box-sizing:border-box; font-size:13px;">
+            <label style="font-weight:700; color:#1E293B; display:block; margin-bottom:5px;">Grau Brix Mínimo (°Bx)</label>
+            <input type="number" step="0.1" min="0" id="modal-edit-brix" value="${item.brix_min != null ? item.brix_min : ''}" style="width:100%; padding:9px 12px; border:1px solid #CBD5E1; border-radius:8px; box-sizing:border-box; font-size:13px;">
           </div>
           <div>
-            <label style="font-weight:700; color:#1E293B; display:block; margin-bottom:5px;">Calibre Padrão de Colheita</label>
-            <input id="modal-edit-calibre" value="${item.calibre}" style="width:100%; padding:9px 12px; border:1px solid #CBD5E1; border-radius:8px; box-sizing:border-box; font-size:13px;">
+            <label style="font-weight:700; color:#1E293B; display:block; margin-bottom:5px;">Calibre Mínimo de Colheita</label>
+            <input type="text" id="modal-edit-calibre" value="${item.calibre_min || ''}" placeholder="Ex: 350 g, 18 mm, 1,2 kg" style="width:100%; padding:9px 12px; border:1px solid #CBD5E1; border-radius:8px; box-sizing:border-box; font-size:13px;">
           </div>
         </div>
-      `, () => {
-        const novoBrix = document.getElementById('modal-edit-brix')?.value.trim();
-        const novoCalibre = document.getElementById('modal-edit-calibre')?.value.trim();
-        if (novoBrix) item.brix = novoBrix;
-        if (novoCalibre) item.calibre = novoCalibre;
-        toast.success('Padrão Atualizado', `Limiares de ${item.name} foram calibrados com sucesso.`);
-        window.dispatchEvent(new HashChangeEvent('hashchange'));
-      }, 'Gravar Calibração');
+      `, async () => {
+        const brixRaw = document.getElementById('modal-edit-brix')?.value?.trim();
+        const novoCalibre = document.getElementById('modal-edit-calibre')?.value?.trim();
+        const brixNum = brixRaw !== '' ? Number(brixRaw) : null;
+        if (brixNum !== null && (isNaN(brixNum) || brixNum < 0)) {
+          toast.error('Valor Inválido', 'Informe um Brix mínimo numérico válido (>= 0).');
+          return false;
+        }
+        if (!item.id_variedade) {
+          toast.error('Variedade sem ID', 'Não foi possível identificar a variedade no banco.');
+          return false;
+        }
+        try {
+          const payload = {};
+          if (brixNum !== null) payload.brix_min = brixNum;
+          if (novoCalibre) payload.calibre_min = novoCalibre;
+          await api.atualizarPadraoVariedade(item.id_variedade, payload);
+          toast.success('Padrão Salvo no Banco', `Padrões de ${item.name} atualizados em padrao_qualidade.`);
+          window.dispatchEvent(new HashChangeEvent('hashchange'));
+          return true;
+        } catch (err) {
+          toast.error('Erro ao Salvar', err.message || 'Falha ao gravar padrão de qualidade.');
+          return false;
+        }
+      }, 'Gravar no Banco');
     });
   });
 
@@ -879,37 +916,46 @@ export async function setupConfiguracoesEvents() {
     });
   });
 
-  // J) Salvar Configurações do Sistema (Apenas Perfil Administrador)
-  document.getElementById('btn-salvar-configuracoes-admin')?.addEventListener('click', () => {
-    const farmName = document.getElementById('cfg-farm-name')?.value || 'Fazenda Vale das Uvas';
-    const farmCoords = document.getElementById('cfg-farm-coords')?.value || '-21.177502, -47.616331';
-    const farmArea = document.getElementById('cfg-farm-area')?.value || '1.250';
-    const tipoSolo = document.getElementById('cfg-tipo-solo')?.value || '';
-    const bio = document.getElementById('cfg-profile-bio')?.value || '';
-    const phone = document.getElementById('cfg-profile-phone')?.value || '';
-    const matinal = document.getElementById('cfg-horario-matinal')?.value || '06:30 AM';
-    const emailCc = document.getElementById('cfg-email-cc')?.value || '';
+  // J) Salvar Configurações do Sistema no PostgreSQL (Apenas Perfil Administrador)
+  document.getElementById('btn-salvar-configuracoes-admin')?.addEventListener('click', async () => {
+    const btn = document.getElementById('btn-salvar-configuracoes-admin');
+    const farmName = document.getElementById('cfg-farm-name')?.value?.trim();
+    const farmCoords = document.getElementById('cfg-farm-coords')?.value?.trim() || '';
+    const farmAreaRaw = document.getElementById('cfg-farm-area')?.value?.trim().replace(',', '.') || '';
+    const tipoSolo = document.getElementById('cfg-tipo-solo')?.value?.trim() || '';
 
-    const currentPrefs = auth.getPreferences();
-    const updated = {
-      ...currentPrefs,
-      propriedade_json: {
-        ...(currentPrefs.propriedade_json || {}),
-        farmName,
-        farmCoords,
-        farmArea,
-        tipoSolo,
-        culturas: CULTURAS_LIST,
-        variedades: VARIEDADES_LIST
-      },
-      notificacoes_json: {
-        ...(currentPrefs.notificacoes_json || {}),
-        horarioMatinal: matinal,
-        emailCc
+    const payload = { moeda_exibicao: _moedaAtual };
+    if (farmName) payload.nome = farmName;
+    if (tipoSolo) payload.tipo_solo = tipoSolo;
+    const areaNum = parseFloat(farmAreaRaw);
+    if (!isNaN(areaNum) && areaNum >= 0) payload.area_ha = areaNum;
+
+    if (farmCoords.includes(',')) {
+      const [latStr, lngStr] = farmCoords.split(',').map(s => s.trim());
+      const lat = parseFloat(latStr);
+      const lng = parseFloat(lngStr);
+      if (!isNaN(lat) && !isNaN(lng)) {
+        payload.latitude = lat;
+        payload.longitude = lng;
       }
-    };
-    auth.savePreferences(updated);
-    toast.success('Configurações Salvas', 'Todos os parâmetros da propriedade e do sistema foram gravados com sucesso.');
+    }
+
+    if (!_propAtual?.id_propriedade) {
+      toast.error('Propriedade não encontrada', 'Não foi possível identificar a propriedade para salvar.');
+      return;
+    }
+
+    if (btn) btn.disabled = true;
+    try {
+      await api.atualizarPropriedade(_propAtual.id_propriedade, payload);
+      await salvarNotifEmail();
+      toast.success('Configurações Salvas', 'Dados da propriedade e moeda gravados no PostgreSQL.');
+      window.dispatchEvent(new HashChangeEvent('hashchange'));
+    } catch (err) {
+      toast.error('Erro ao Salvar', err.message || 'Falha ao gravar configurações no banco.');
+    } finally {
+      if (btn) btn.disabled = false;
+    }
   });
 
   // H) Exportar Perfil & Padrões de Qualidade (PDF & CSV)
@@ -927,7 +973,7 @@ export async function setupConfiguracoesEvents() {
       () => {
         downloadPDF(`perfil_padroes_qualidade_${dataTag}.pdf`, {
           title: 'Ficha Cadastral da Propriedade & Padrões de Embarque',
-          subtitle: 'Fazenda RaizTech - Polo Sul • Petrolina - Setor 04 (1.250 ha)',
+          subtitle: `${_propAtual?.nome || 'Propriedade'} • ${_propAtual?.cidade || ''}${_propAtual?.uf ? '/' + _propAtual.uf : ''} (${_propAtual?.area_ha ?? '—'} ha)`,
           headers,
           rows,
           notes: [
@@ -941,7 +987,7 @@ export async function setupConfiguracoesEvents() {
   });
 
   // =========================================================================
-  // 2. SEGURANÇA E TOTP (Autenticação em Dois Fatores por App)
+  // 2. SEGURANÇA E 2FA (App Autenticador TOTP + Código por E-mail — Todos os Usuários)
   // =========================================================================
   async function carregarStatusTotp() {
     const contentArea = document.getElementById('totp-content-area');
@@ -949,15 +995,52 @@ export async function setupConfiguracoesEvents() {
     if (!contentArea) return;
 
     try {
-      const status = await api.getTotpStatus();
+      const [statusRes, prefRes] = await Promise.allSettled([
+        api.getTotpStatus(),
+        api.get2FAPreferencia()
+      ]);
+      const status = statusRes.status === 'fulfilled' ? statusRes.value : {};
+      const pref2fa = prefRes.status === 'fulfilled' ? prefRes.value : {};
       const ativo = status?.ativo === true;
+      const email2faAtivo = Boolean(pref2fa?.email_ativo);
+      const email2faGlobal = Boolean(pref2fa?.email_global);
       const codigosRestantes = status?.codigos_recuperacao_restantes ?? '—';
 
       if (statusBadge) {
-        statusBadge.textContent = ativo ? '✓ Autenticador Ativo' : 'Desativado';
-        statusBadge.style.background = ativo ? '#D1FAE5' : '#FEF2F2';
-        statusBadge.style.color = ativo ? '#065F46' : '#991B1B';
+        if (ativo) {
+          statusBadge.textContent = '✓ 2FA via Autenticador';
+          statusBadge.style.background = '#D1FAE5';
+          statusBadge.style.color = '#065F46';
+        } else if (email2faAtivo || email2faGlobal) {
+          statusBadge.textContent = '✓ 2FA via E-mail';
+          statusBadge.style.background = '#E0F2FE';
+          statusBadge.style.color = '#0369A1';
+        } else {
+          statusBadge.textContent = 'Desativado';
+          statusBadge.style.background = '#FEF2F2';
+          statusBadge.style.color = '#991B1B';
+        }
       }
+
+      const blocoEmail2faHtml = `
+        <div style="margin-top: 14px; padding: 14px 16px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+          <div>
+            <div style="font-size: 13px; font-weight: 700; color: #0F172A;">2FA por Código no E-mail</div>
+            <div style="font-size: 11px; color: #64748B; margin-top: 2px;">
+              ${ativo
+                ? 'O Aplicativo Autenticador (TOTP) tem prioridade no login enquanto estiver ativo.'
+                : (email2faGlobal
+                  ? 'Exigido globalmente no servidor ao fazer login.'
+                  : (email2faAtivo
+                    ? 'Ativo para sua conta: um código de 6 dígitos será enviado ao seu e-mail no login.'
+                    : 'Receba um código temporário no seu e-mail ao entrar na plataforma.'))}
+            </div>
+          </div>
+          <button type="button" id="btn-toggle-2fa-email" data-ativo="${email2faAtivo ? 'true' : 'false'}" ${email2faGlobal ? 'disabled' : ''} style="padding: 8px 16px; background: ${email2faAtivo ? '#FFFFFF' : '#183D2E'}; color: ${email2faAtivo ? '#DC2626' : '#FFFFFF'}; border: ${email2faAtivo ? '1.5px solid #DC2626' : 'none'}; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: ${email2faGlobal ? 'not-allowed' : 'pointer'}; opacity: ${email2faGlobal ? '0.6' : '1'};">
+            ${email2faAtivo ? 'Desativar 2FA por E-mail' : 'Ativar 2FA por E-mail'}
+          </button>
+        </div>
+      `;
 
       if (ativo) {
         contentArea.innerHTML = `
@@ -983,6 +1066,7 @@ export async function setupConfiguracoesEvents() {
                 Desativar Autenticador
               </button>
             </div>
+            ${blocoEmail2faHtml}
           </div>
         `;
         setupTotpAtivoEvents();
@@ -994,18 +1078,33 @@ export async function setupConfiguracoesEvents() {
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/>
               </svg>
               <div>
-                <div style="font-size: 13px; font-weight: 700; color: #92400E;">Autenticador não configurado</div>
-                <div style="font-size: 11px; color: #B45309;">Adicione uma camada extra de segurança à sua conta com um aplicativo autenticador.</div>
+                <div style="font-size: 13px; font-weight: 700; color: #92400E;">Aplicativo Autenticador não configurado</div>
+                <div style="font-size: 11px; color: #B45309;">Escolha ativar o Aplicativo Autenticador (Google Authenticator / Authy) ou o Código por E-mail abaixo.</div>
               </div>
             </div>
             <button type="button" id="btn-ativar-totp" style="padding: 10px 20px; background: #0284C7; color: #FFFFFF; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; align-self: flex-start; box-shadow: 0 2px 6px rgba(2,132,199,0.25);">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg>
               Ativar Aplicativo Autenticador
             </button>
+            ${blocoEmail2faHtml}
           </div>
         `;
         setupTotpInativoEvents();
       }
+
+      document.getElementById('btn-toggle-2fa-email')?.addEventListener('click', async (e) => {
+        const btn = e.currentTarget;
+        const atual = btn.dataset.ativo === 'true';
+        btn.disabled = true;
+        try {
+          await api.salvar2FAPreferencia(!atual);
+          toast.success('2FA por E-mail', !atual ? 'Verificação por código no e-mail ativada para sua conta.' : 'Verificação por e-mail desativada.');
+          await carregarStatusTotp();
+        } catch (err) {
+          toast.error('Erro no 2FA', err.message || 'Falha ao atualizar preferência de 2FA por e-mail.');
+          btn.disabled = false;
+        }
+      });
     } catch (err) {
       if (statusBadge) {
         statusBadge.textContent = 'Indisponível';

@@ -8,6 +8,13 @@ import { auth } from '../auth.js';
 import { toast } from '../components/toast.js';
 import { Modal } from '../components/modal.js';
 import { liveTelemetry } from '../live-telemetry.js';
+import {
+  calcularStatusColeta,
+  formatarIntervaloColeta,
+  obterLabelOrigem,
+  resumirAlertasAnalista,
+  formatarDataHoraRecife
+} from '../utils/analista-metrics.js';
 import { downloadCSV, downloadPDF, openExportChoiceModal } from '../utils/export-utils.js';
 
 // Cache em memória dos detalhes já carregados
@@ -142,13 +149,20 @@ function formatarDuracaoHorasMin(duracaoMin) {
  */
 async function carregarDadosAnalistaAlertas() {
   try {
-    const [resCentral, resSensores, resParams, resCortes, resPortos] = await Promise.all([
+    const [resCentral, resSensores, resParams, resCortes, resPortos, resAnalistaAlertas, resPerdasRisco, resListaSensores] = await Promise.all([
       api.getCentralAlertas({ status: 'aberto' }).catch(() => ({ resumo: null, itens: [] })),
       api.getAnalistaSensoresResumo().catch(() => null),
       api.getConfigParametros().catch(() => []),
       api.getCortesPreditivos().catch(() => []),
-      api.getPortos().catch(() => [])
+      api.getPortos().catch(() => []),
+      api.getAnalistaAlertasResumo().catch(() => null),
+      api.getPerdasRisco().catch(() => []),
+      api.getSensores().catch(() => [])
     ]);
+
+    analistaAlertasState.resumoAnalistaAlertas = resAnalistaAlertas;
+    analistaAlertasState.perdasRisco = Array.isArray(resPerdasRisco) ? resPerdasRisco : [];
+    analistaAlertasState.listaSensores = Array.isArray(resListaSensores) ? resListaSensores : [];
 
     // Normaliza resumo
     const rawResumo = resCentral?.resumo || {};
@@ -198,24 +212,20 @@ async function carregarDadosAnalistaAlertas() {
     const itemAtivoId = alertaMaisCritico ? (alertaMaisCritico.id || alertaMaisCritico.codigo || 1) : null;
     analistaAlertasState.itemSelecionadoId = itemAtivoId;
 
-    const idLoteAtivo = alertaMaisCritico?.lote?.id_lote || alertaMaisCritico?.id_lote;
+    const idLoteAtivo = alertaMaisCritico?.lote?.id_lote || alertaMaisCritico?.id_lote || null;
+    const idLoteCurva = idLoteAtivo || 145;
 
-    // Carrega curva térmica e prejuízo em paralelo
-    if (idLoteAtivo) {
-      const [resCurva, resPrejuizo] = await Promise.all([
-        api.getCentralAlertasCurva({ id_lote: idLoteAtivo, horas: 24 }).catch(() => null),
-        api.getRiscosPrejuizo(idLoteAtivo).catch(() => null)
-      ]);
-      analistaAlertasState.curva = resCurva;
-      if (Array.isArray(resPrejuizo) && resPrejuizo.length > 0) {
-        analistaAlertasState.prejuizoEstimado = resPrejuizo[0].prejuizo_estimado;
-      } else if (resPrejuizo && resPrejuizo.prejuizo_estimado != null) {
-        analistaAlertasState.prejuizoEstimado = resPrejuizo.prejuizo_estimado;
-      } else {
-        analistaAlertasState.prejuizoEstimado = null;
-      }
+    // Carrega curva térmica (do lote em alerta ou do lote 145 monitorado) e prejuízo (apenas se houver lote em alerta)
+    const [resCurva, resPrejuizo] = await Promise.all([
+      api.getCentralAlertasCurva({ id_lote: idLoteCurva, horas: 24 }).catch(() => null),
+      idLoteAtivo ? api.getRiscosPrejuizo(idLoteAtivo).catch(() => null) : Promise.resolve(null)
+    ]);
+    analistaAlertasState.curva = resCurva;
+    if (Array.isArray(resPrejuizo) && resPrejuizo.length > 0) {
+      analistaAlertasState.prejuizoEstimado = resPrejuizo[0].prejuizo_estimado;
+    } else if (resPrejuizo && resPrejuizo.prejuizo_estimado != null) {
+      analistaAlertasState.prejuizoEstimado = resPrejuizo.prejuizo_estimado;
     } else {
-      analistaAlertasState.curva = null;
       analistaAlertasState.prejuizoEstimado = null;
     }
   } catch (err) {
@@ -226,62 +236,76 @@ async function carregarDadosAnalistaAlertas() {
 async function renderAnalistaAlertas() {
   await carregarDadosAnalistaAlertas();
 
-  const { resumo, itens, resumoSensores, curva, portos, configParametros, cortesPreditivos, prejuizoEstimado } = analistaAlertasState;
+  const { resumo, itens, resumoSensores, curva, portos, configParametros, cortesPreditivos, prejuizoEstimado, resumoAnalistaAlertas, perdasRisco } = analistaAlertasState;
 
-  // 1. Monitoramento e Sincronização
-  const canalThingSpeak = resumoSensores?.coleta?.canal || curva?.sensor?.channel_id || '3500765';
-  const intervaloEnvioS = curva?.sensor?.intervalo_envio_s || resumoSensores?.coleta?.intervalo_s || 300;
-  const ultimaLeituraIso = resumoSensores?.ingestao_24h?.ultima_leitura || curva?.sensor?.ultima_leitura;
-
-  let minutosSinc = 0;
-  let sincronizadoTexto = '—';
-  let isAtrasado = false;
-
-  if (ultimaLeituraIso) {
-    const diffMs = Date.now() - new Date(ultimaLeituraIso).getTime();
-    const diffSeg = Math.max(0, Math.round(diffMs / 1000));
-    minutosSinc = Math.round(diffSeg / 60);
-    const horaRecife = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Recife' }).format(new Date(ultimaLeituraIso));
-    sincronizadoTexto = minutosSinc < 1 ? `${horaRecife} • agora` : `${horaRecife} • há ${minutosSinc} min`;
-    const limiteSeg = intervaloEnvioS * 2.5;
-    if (diffSeg > limiteSeg) {
-      isAtrasado = true;
-    }
+  // Frações reais de perda da tabela perda_risco (via /analista/alertas/resumo e /perdas-risco)
+  const perdaPorNivel = { CRITICO: null, MEDIO: null, BAIXO: null };
+  if (Array.isArray(resumoAnalistaAlertas?.distribuicao)) {
+    resumoAnalistaAlertas.distribuicao.forEach(d => {
+      const niv = String(d?.nivel || '').toUpperCase();
+      if (d?.fracao_perda != null && !isNaN(Number(d.fracao_perda)) && niv in perdaPorNivel) {
+        perdaPorNivel[niv] = Math.round(Number(d.fracao_perda) * 1000) / 10;
+      }
+    });
+  }
+  if (Array.isArray(perdasRisco)) {
+    perdasRisco.forEach(p => {
+      const niv = String(p?.nivel_corte || '').toUpperCase();
+      if (perdaPorNivel[niv] == null && p?.perda_pct != null && !isNaN(Number(p.perda_pct)) && niv in perdaPorNivel) {
+        perdaPorNivel[niv] = Number(p.perda_pct);
+      }
+    });
   }
 
-  const sensorNomeCurva = curva?.sensor?.nome || 'DHT11 ESP32-C3';
+  // 1. Monitoramento e Sincronização (fonte real + regra unificada de atraso/offline)
+  const canalThingSpeak = resumoSensores?.coleta?.canal || curva?.sensor?.channel_id || '—';
+  const intervaloEnvioS = curva?.sensor?.intervalo_envio_s ?? resumoSensores?.coleta?.intervalo_s ?? null;
+  const intervaloFormatado = formatarIntervaloColeta(intervaloEnvioS);
+  const ultimaLeituraIso = resumoSensores?.ingestao_24h?.ultima_leitura || curva?.sensor?.ultima_leitura || null;
+  const statusColeta = calcularStatusColeta(ultimaLeituraIso, intervaloEnvioS);
+  const dataHoraUltima = formatarDataHoraRecife(ultimaLeituraIso);
+  const sincronizadoTexto = dataHoraUltima ? `${dataHoraUltima} (${statusColeta.tempoRelativo})` : 'Sem leitura';
+  const sensorArReal = (analistaAlertasState.listaSensores || []).find(s => s.ambiente === 'ar' && s.status === 'ativo')
+    || (analistaAlertasState.listaSensores || [])[0]
+    || null;
+  const sensorNomeCurva = curva?.sensor?.nome || sensorArReal?.nome || 'Sem sensor vinculado';
+  const origemLabel = obterLabelOrigem(curva?.atual?.origem || sensorArReal?.origem);
 
-  // 2. Item mais crítico para os KPIs
-  const itemMaisCritico = itens.find(it => String(it.nivel).toLowerCase() === 'critico') || itens[0] || null;
-  const frutaMaisCritica = itemMaisCritico?.lote?.fruta || 'Manga';
-  const destinoMaisCritico = itemMaisCritico?.lote?.destino || 'Exportação';
-  const qtdLoteMaisCritico = itemMaisCritico?.lote?.quantidade;
+  // 2. Contagem unificada (filtra previsões vencidas e evita "Baixo 100%" com 0 alertas)
+  const resumoUnificado = resumirAlertasAnalista(itens, cortesPreditivos);
+  const itensAtivos = resumoUnificado.ativos;
+  const totalAlertas = resumoUnificado.total;
+  const qtdCritico = resumoUnificado.critico;
+  const qtdMedio = resumoUnificado.medio;
+  const qtdBaixo = resumoUnificado.baixo;
+  const pctCritico = resumoUnificado.pctCritico;
+  const pctMedio = resumoUnificado.pctMedio;
+  const pctBaixo = resumoUnificado.pctBaixo;
+
+  // 3. Item mais crítico real (sem fallbacks inventados como 14.8°C / Manga)
+  const itemMaisCritico = itensAtivos.find(it => it._nivel_padrao === 'CRITICO') || itensAtivos[0] || null;
+  const frutaMaisCritica = itemMaisCritico?.lote?.fruta || null;
+  const destinoMaisCritico = itemMaisCritico?.lote?.destino || null;
+  const qtdLoteMaisCritico = itemMaisCritico?.lote?.quantidade ?? null;
   const unidadeLoteMaisCritico = itemMaisCritico?.lote?.unidade || 'kg';
-  const perdaPctMaisCritica = itemMaisCritico?.perda_pct ?? resumo.perda_total_pct ?? 0;
+  const perdaPctMaisCritica = itemMaisCritico?.perda_pct ?? (totalAlertas > 0 ? resumo.perda_total_pct : null);
 
-  const tempAtualVal = curva?.atual?.temperatura ?? itemMaisCritico?.atual?.temperatura ?? 14.8;
-  const desvioVal = curva?.atual?.desvio ?? itemMaisCritico?.atual?.desvio ?? 1.8;
-  const tmaxVal = curva?.faixa?.temp_max ?? itemMaisCritico?.faixa?.temp_max ?? 13.0;
+  const tempAtualVal = curva?.atual?.temperatura ?? itemMaisCritico?.atual?.temperatura ?? sensorArReal?.temperatura ?? null;
+  const desvioVal = curva?.atual?.desvio ?? itemMaisCritico?.atual?.desvio ?? null;
+  const tmaxVal = curva?.faixa?.temp_max ?? itemMaisCritico?.faixa?.temp_max ?? null;
 
-  // Donut Alertas Ativos Hoje
-  const totalAlertas = resumo.total || itens.length || 0;
-  const qtdCritico = resumo.por_nivel?.critico || 0;
-  const qtdMedio = resumo.por_nivel?.medio || 0;
-  const qtdBaixo = resumo.por_nivel?.baixo || 0;
-  const totalNorm = totalAlertas > 0 ? totalAlertas : 1;
-  const pctCritico = Math.round((qtdCritico / totalNorm) * 100);
-  const pctMedio = Math.round((qtdMedio / totalNorm) * 100);
-  const pctBaixo = Math.max(0, 100 - pctCritico - pctMedio);
+  const riscoBadgeClass = !itemMaisCritico ? 'green' : (itemMaisCritico._nivel_padrao === 'CRITICO' ? 'red' : (itemMaisCritico._nivel_padrao === 'MEDIO' ? 'yellow' : 'green'));
+  const riscoBadgeTexto = !itemMaisCritico ? 'Sem risco ativo' : `Risco ${itemMaisCritico._nivel_curto}`;
 
   return `
     <div class="dashboard-canvas apple-animate-in">
       <!-- Sub-barra Técnica do Analista -->
       <div class="analista-subbar">
         <div class="analista-subbar-info" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-          ${isAtrasado ? `
-            <span class="card-status-pill" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-size: 11px; color: #D97706; background: #FFFBEB; border: 1px solid #FDE68A;">
-              <span style="width: 7px; height: 7px; border-radius: 50%; background: #F59E0B;"></span>
-              Atrasado
+          ${!statusColeta.ativo ? `
+            <span class="card-status-pill" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-size: 11px; color: ${statusColeta.cor}; background: ${statusColeta.estado === 'offline' ? '#FEF2F2' : '#FFFBEB'}; border: 1px solid ${statusColeta.estado === 'offline' ? '#FECACA' : '#FDE68A'};">
+              <span style="width: 7px; height: 7px; border-radius: 50%; background: ${statusColeta.cor};"></span>
+              ${statusColeta.label}
             </span>
           ` : `
             <span class="card-status-pill pill-green" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-size: 11px;">
@@ -290,9 +314,9 @@ async function renderAnalistaAlertas() {
             </span>
           `}
           <span style="font-size: 12px; font-weight: 600; color: #1E293B;">
-            Sensor ${sensorNomeCurva} • Canal #${canalThingSpeak}
+            ${sensorNomeCurva} • Canal #${canalThingSpeak}
           </span>
-          <span style="color: ${minutosSinc > 10 ? '#D97706' : '#64748B'}; font-size: 11px; font-weight: 500;">
+          <span style="color: ${statusColeta.atrasado ? statusColeta.cor : '#64748B'}; font-size: 11px; font-weight: 500;">
             ${sincronizadoTexto}
           </span>
         </div>
@@ -315,17 +339,19 @@ async function renderAnalistaAlertas() {
         <div class="kpi-analista-card">
           <div class="kpi-top-row">
             <span class="kpi-label">ALERTAS ATIVOS HOJE</span>
-            <span class="kpi-badge ${qtdCritico > 0 ? 'red' : 'yellow'}">
-              ${qtdCritico > 0 ? 'Intervenção Imediata' : 'Atenção Operacional'}
+            <span class="kpi-badge ${qtdCritico > 0 ? 'red' : (totalAlertas > 0 ? 'yellow' : 'green')}">
+              ${qtdCritico > 0 ? 'Intervenção Imediata' : (totalAlertas > 0 ? 'Atenção Operacional' : 'Sem alertas')}
             </span>
           </div>
           <div style="display: flex; align-items: center; gap: 14px; margin: 6px 0;">
             <div style="position: relative; width: 52px; height: 52px; flex-shrink: 0;">
               <svg viewBox="0 0 36 36" style="width: 100%; height: 100%; transform: rotate(-90deg);">
                 <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#F1F5F9" stroke-width="4"/>
+                ${totalAlertas > 0 ? `
                 <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#EF4444" stroke-width="4" stroke-dasharray="${pctCritico}, 100" stroke-dashoffset="0"/>
                 <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#F59E0B" stroke-width="4" stroke-dasharray="${pctMedio}, 100" stroke-dashoffset="-${pctCritico}"/>
                 <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#10B981" stroke-width="4" stroke-dasharray="${pctBaixo}, 100" stroke-dashoffset="-${pctCritico + pctMedio}"/>
+                ` : ''}
               </svg>
               <div class="donut-center-wrap" style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; pointer-events: none;">
                 <span style="font-size: 16px; font-weight: 800; color: #0F172A; line-height: 1;" id="kpi-total-alertas">${totalAlertas}</span>
@@ -337,7 +363,7 @@ async function renderAnalistaAlertas() {
             </div>
           </div>
           <div class="kpi-bottom-row" style="font-size: 11px; color: #64748B;">
-            <span>Reativos: <strong style="color: #0F172A;">${resumo.por_origem?.reativo || 0}</strong> • Preditivos: <strong style="color: #0F172A;">${resumo.por_origem?.preditivo || 0}</strong></span>
+            <span>Reativos: <strong style="color: #0F172A;">${resumoUnificado.reativos}</strong> • Preditivos: <strong style="color: #0F172A;">${resumoUnificado.preditivos}</strong></span>
           </div>
         </div>
 
@@ -345,7 +371,7 @@ async function renderAnalistaAlertas() {
         <div class="kpi-analista-card">
           <div class="kpi-top-row">
             <span class="kpi-label">HARDWARE DE CAMPO</span>
-            <span class="kpi-badge green">Ativo — Bancada</span>
+            <span class="kpi-badge ${statusColeta.badgeClass}">${statusColeta.label}</span>
           </div>
           <div class="kpi-value-row">
             <span class="kpi-big-num" style="font-size: 20px; color: #0F172A;">${sensorNomeCurva}</span>
@@ -355,10 +381,12 @@ async function renderAnalistaAlertas() {
           </div>
           <div class="kpi-bottom-row">
             <span style="font-family: monospace; color: #0284C7; font-weight: 600;">#${canalThingSpeak}</span>
-            <span style="color: #64748B;">${intervaloEnvioS === 3600 ? '1 leitura/h' : `Coleta a cada ${intervaloEnvioS} s`}</span>
-            <span class="card-status-pill ${curva?.atual?.origem === 'real' ? 'pill-green' : 'pill-blue'}" style="font-size: 10px; padding: 1px 7px;">
-              ${curva?.atual?.origem === 'real' ? 'Real' : 'Simulado'}
+            ${intervaloFormatado ? `<span style="color: #64748B;">Coleta a cada ${intervaloFormatado}</span>` : ''}
+            ${origemLabel ? `
+            <span class="card-status-pill ${origemLabel === 'Real' ? 'pill-green' : 'pill-blue'}" style="font-size: 10px; padding: 1px 7px;">
+              ${origemLabel}
             </span>
+            ` : ''}
           </div>
         </div>
 
@@ -366,19 +394,19 @@ async function renderAnalistaAlertas() {
         <div class="kpi-analista-card">
           <div class="kpi-top-row">
             <span class="kpi-label">DESVIO DE CONSERVAÇÃO</span>
-            <span class="kpi-badge red">${frutaMaisCritica} — ${destinoMaisCritico}</span>
+            <span class="kpi-badge ${frutaMaisCritica ? 'red' : 'green'}">${frutaMaisCritica ? `${frutaMaisCritica}${destinoMaisCritico ? ` — ${destinoMaisCritico}` : ''}` : 'Sem alerta'}</span>
           </div>
           <div class="kpi-value-row">
-            <span class="kpi-big-num" style="color: ${desvioVal >= 0 ? '#EF4444' : '#0284C7'};">
-              ${desvioVal > 0 ? '+' : ''}${desvioVal.toLocaleString('pt-BR')}°C ${desvioVal >= 0 ? 'Acima' : 'Abaixo'}
+            <span class="kpi-big-num" style="color: ${desvioVal == null ? '#64748B' : (desvioVal >= 0 ? '#EF4444' : '#0284C7')};">
+              ${desvioVal != null ? `${desvioVal > 0 ? '+' : ''}${Number(desvioVal).toLocaleString('pt-BR')}°C ${desvioVal >= 0 ? 'Acima' : 'Abaixo'}` : 'Sem dados'}
             </span>
           </div>
           <div style="font-size: 11px; color: #64748B; margin-top: 2px;">
-            Tmax ${tmaxVal != null ? tmaxVal.toLocaleString('pt-BR') : '—'}°C
+            Tmax ${tmaxVal != null ? Number(tmaxVal).toLocaleString('pt-BR') : '—'}°C
           </div>
           <div class="kpi-bottom-row">
-            <span>Tmax ${tmaxVal != null ? tmaxVal.toLocaleString('pt-BR') : '—'}°C</span>
-            <span style="color: #B91C1C; font-weight: 700;">Atual: ${tempAtualVal != null ? tempAtualVal.toLocaleString('pt-BR') : '—'}°C</span>
+            <span>Tmax ${tmaxVal != null ? Number(tmaxVal).toLocaleString('pt-BR') : '—'}°C</span>
+            <span style="color: ${tempAtualVal != null ? '#B91C1C' : '#64748B'}; font-weight: 700;">Atual: ${tempAtualVal != null ? `${Number(tempAtualVal).toLocaleString('pt-BR')}°C` : '—'}</span>
           </div>
         </div>
 
@@ -386,19 +414,21 @@ async function renderAnalistaAlertas() {
         <div class="kpi-analista-card">
           <div class="kpi-top-row">
             <span class="kpi-label">${prejuizoEstimado != null ? 'VALOR EM RISCO' : 'PERDA PREVISTA'}</span>
-            <span class="kpi-badge red">Risco Crítico</span>
+            <span class="kpi-badge ${riscoBadgeClass}">${riscoBadgeTexto}</span>
           </div>
           <div class="kpi-value-row">
-            <span class="kpi-big-num" style="color: #B91C1C;">
-              ${prejuizoEstimado != null ? `R$ ${prejuizoEstimado.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `${perdaPctMaisCritica}% Perda Prevista`}
+            <span class="kpi-big-num" style="color: ${totalAlertas > 0 ? '#B91C1C' : '#64748B'};">
+              ${prejuizoEstimado != null
+                ? `R$ ${Number(prejuizoEstimado).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                : (perdaPctMaisCritica != null ? `${perdaPctMaisCritica}% Perda Prevista` : 'Sem dados')}
             </span>
           </div>
           <div style="font-size: 11px; color: #64748B; margin-top: 2px;">
-            Lote ${qtdLoteMaisCritico != null ? qtdLoteMaisCritico.toLocaleString('pt-BR') : '—'} ${unidadeLoteMaisCritico} (${frutaMaisCritica})
+            ${qtdLoteMaisCritico != null ? `Lote ${Number(qtdLoteMaisCritico).toLocaleString('pt-BR')} ${unidadeLoteMaisCritico}${frutaMaisCritica ? ` (${frutaMaisCritica})` : ''}` : 'Sem lote em risco'}
           </div>
           <div class="kpi-bottom-row">
-            <span>Lote ${qtdLoteMaisCritico != null ? qtdLoteMaisCritico.toLocaleString('pt-BR') : '—'} ${unidadeLoteMaisCritico}</span>
-            <span style="color: #059669; font-weight: 600;">Mitigável Imediato</span>
+            <span>${qtdLoteMaisCritico != null ? `Lote ${Number(qtdLoteMaisCritico).toLocaleString('pt-BR')} ${unidadeLoteMaisCritico}` : '—'}</span>
+            <span style="color: ${totalAlertas > 0 ? '#059669' : '#64748B'}; font-weight: 600;">${totalAlertas > 0 ? 'Mitigável Imediato' : 'Operação normal'}</span>
           </div>
         </div>
       </div>
@@ -483,9 +513,11 @@ async function renderAnalistaAlertas() {
             <div style="position: relative; width: 85px; height: 85px; flex-shrink: 0;">
               <svg viewBox="0 0 36 36" style="width: 100%; height: 100%; transform: rotate(-90deg);">
                 <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#F1F5F9" stroke-width="4.5"/>
+                ${totalAlertas > 0 ? `
                 <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#EF4444" stroke-width="4.5" stroke-dasharray="${pctCritico}, 100" stroke-dashoffset="0"/>
                 <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#F59E0B" stroke-width="4.5" stroke-dasharray="${pctMedio}, 100" stroke-dashoffset="-${pctCritico}"/>
                 <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#10B981" stroke-width="4.5" stroke-dasharray="${pctBaixo}, 100" stroke-dashoffset="-${pctCritico + pctMedio}"/>
+                ` : ''}
               </svg>
               <div class="donut-center-wrap" style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; pointer-events: none;">
                 <div style="font-size: 15px; font-weight: 800; color: #0F172A; line-height: 1;">${totalAlertas}</div>
@@ -496,15 +528,15 @@ async function renderAnalistaAlertas() {
             <div style="flex: 1; display: flex; flex-direction: column; gap: 6px; font-size: 11px;">
               <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span style="color: #B91C1C; font-weight: 600;">• Crítico: ${qtdCritico} (${pctCritico}%)</span>
-                <span style="color: #64748B;">Perda Risco: <strong>${perdaPctMaisCritica}%</strong></span>
+                <span style="color: #64748B;">Perda Risco: <strong>${perdaPorNivel.CRITICO != null ? `${perdaPorNivel.CRITICO}%` : '—'}</strong></span>
               </div>
               <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span style="color: #D97706; font-weight: 600;">• Médio: ${qtdMedio} (${pctMedio}%)</span>
-                <span style="color: #64748B;">Perda Risco: <strong>${Math.round(perdaPctMaisCritica * 0.4)}%</strong></span>
+                <span style="color: #64748B;">Perda Risco: <strong>${perdaPorNivel.MEDIO != null ? `${perdaPorNivel.MEDIO}%` : '—'}</strong></span>
               </div>
               <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span style="color: #059669; font-weight: 600;">• Baixo: ${qtdBaixo} (${pctBaixo}%)</span>
-                <span style="color: #64748B;">Perda Risco: <strong>${Math.round(perdaPctMaisCritica * 0.1)}%</strong></span>
+                <span style="color: #64748B;">Perda Risco: <strong>${perdaPorNivel.BAIXO != null ? `${perdaPorNivel.BAIXO}%` : '—'}</strong></span>
               </div>
             </div>
           </div>
@@ -686,13 +718,13 @@ function renderCurvaTermicaBoxHtml(curva) {
   const tmin = curva.faixa?.temp_min ?? 10.0;
   const tmax = curva.faixa?.temp_max ?? 13.0;
 
-  const tempProj = curva.projecao?.temperatura ?? 14.8;
-  const probProjPct = curva.projecao?.probabilidade_pct ?? 84;
-  const indicePreditivo = (probProjPct / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const tempProj = curva.projecao?.temperatura ?? null;
+  const probProjPct = curva.projecao?.probabilidade_pct ?? null;
+  const indicePreditivo = probProjPct != null ? (probProjPct / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—';
 
-  const tempAtual = curva.atual?.temperatura ?? 14.8;
-  const desvioAtual = curva.atual?.desvio ?? 1.8;
-  const desvioSinal = desvioAtual > 0 ? `+${desvioAtual.toLocaleString('pt-BR')}` : desvioAtual.toLocaleString('pt-BR');
+  const tempAtual = curva.atual?.temperatura ?? null;
+  const desvioAtual = curva.atual?.desvio ?? null;
+  const desvioSinal = desvioAtual != null ? (desvioAtual > 0 ? `+${desvioAtual.toLocaleString('pt-BR')}` : desvioAtual.toLocaleString('pt-BR')) : '—';
 
   // Determina nível de corte preditivo
   let nivelCorteNome = 'Crítico';
@@ -871,32 +903,36 @@ function renderCurvaTermicaBoxHtml(curva) {
  * Renderizador da Rota Portuária
  */
 function renderRotaPortuariaBoxHtml(portos = [], itemAtivo = null) {
-  const lote = itemAtivo?.lote || {};
+  const lote = itemAtivo?.lote || null;
+  const portosReais = Array.isArray(portos) ? portos.filter(p => p && (p.nome || p.porto)) : [];
 
-  // Identifica porto mais rápido
-  let portoSelecionado = null;
-  let alternativas = [];
-
-  if (Array.isArray(portos) && portos.length > 0) {
-    const ordenados = [...portos].sort((a, b) => (a.duracao_min || 9999) - (b.duracao_min || 9999));
-    portoSelecionado = ordenados[0];
-    alternativas = ordenados.slice(1);
-  } else {
-    portoSelecionado = {
-      porto: 'Porto de Pecém',
-      uf: 'CE',
-      origem: 'Petrolina / PE',
-      distancia_km: 780,
-      duracao_min: 870
-    };
-    alternativas = [
-      { porto: 'Suape', uf: 'PE' },
-      { porto: 'Salvador', uf: 'BA' },
-      { porto: 'Natal', uf: 'RN' }
-    ];
+  if (portosReais.length === 0) {
+    return `
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
+        <div>
+          <h4 style="font-size: 13px; font-weight: 700; color: #0F172A; margin: 0;">Rota Portuária de Escoamento</h4>
+          <p style="font-size: 10px; color: #64748B; margin-top: 2px;">
+            Porto homologado para escoamento do lote sob alerta térmico
+          </p>
+        </div>
+      </div>
+      <div style="background: #F8FAFC; border: 1px dashed #CBD5E1; border-radius: 8px; padding: 16px; font-size: 11px; color: #64748B; text-align: center; margin-top: 10px;">
+        Sem dados de rota portuária cadastrados no banco.
+      </div>
+    `;
   }
 
-  const alternativasStr = alternativas.map(p => `${p.porto || p.nome}/${p.uf || ''}`).join(' • ');
+  const ordenados = [...portosReais].sort((a, b) => (a.duracao_min ?? 999999) - (b.duracao_min ?? 999999));
+  const portoSelecionado = ordenados[0];
+  const alternativas = ordenados.slice(1);
+  const alternativasStr = alternativas.map(p => `${p.nome || p.porto}${p.uf ? `/${p.uf}` : ''}`).join(' • ');
+
+  const origemStr = portoSelecionado.origem_nome || portoSelecionado.origem || '—';
+  const distStr = portoSelecionado.distancia_km != null ? `~${Number(portoSelecionado.distancia_km).toLocaleString('pt-BR')} km` : '—';
+  const tempoStr = portoSelecionado.duracao_min != null ? formatarDuracaoHorasMin(portoSelecionado.duracao_min) : '—';
+  const cargaStr = (lote && lote.quantidade != null)
+    ? `${Number(lote.quantidade).toLocaleString('pt-BR')} ${lote.unidade || 'kg'}${lote.fruta ? ` ${lote.fruta}` : ''}`
+    : 'Sem lote em risco';
 
   return `
     <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
@@ -906,21 +942,23 @@ function renderRotaPortuariaBoxHtml(portos = [], itemAtivo = null) {
           Porto homologado para escoamento do lote sob alerta térmico
         </p>
       </div>
+      ${lote?.destino ? `
       <span style="background: #EFF6FF; color: #1D4ED8; font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 4px;">
-        ${lote.destino || 'Exportação'}
+        ${lote.destino}
       </span>
+      ` : ''}
     </div>
 
     <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px; font-size: 11px; margin-top: 10px;">
       <div style="font-weight: 700; color: #047857; display: flex; align-items: center; justify-content: space-between;">
-        <span>${portoSelecionado.porto || portoSelecionado.nome} (${portoSelecionado.uf || ''})</span>
+        <span>${portoSelecionado.nome || portoSelecionado.porto}${portoSelecionado.uf ? ` (${portoSelecionado.uf})` : ''}</span>
         <span style="font-size: 9px; background: #ECFDF5; color: #047857; padding: 2px 6px; border-radius: 4px; font-weight: 700;">
           Rota Selecionada
         </span>
       </div>
       <div style="font-size: 11px; color: #475569; margin-top: 6px; line-height: 1.6;">
-        Origem: <strong>${portoSelecionado.origem || 'Petrolina / PE'}</strong> • Distância: <strong>~${portoSelecionado.distancia_km || 780} km</strong><br>
-        Carga: <strong>${lote.quantidade != null ? lote.quantidade.toLocaleString('pt-BR') : '1.000'} ${lote.unidade || 'kg'} ${lote.fruta || 'Manga'}</strong> • Tempo estimado: <strong>${formatarDuracaoHorasMin(portoSelecionado.duracao_min || 870)}</strong>
+        Origem: <strong>${origemStr}</strong> • Distância: <strong>${distStr}</strong><br>
+        Carga: <strong>${cargaStr}</strong> • Tempo estimado: <strong>${tempoStr}</strong>
       </div>
       ${alternativasStr ? `
         <div style="font-size: 10px; color: #94A3B8; margin-top: 6px;">
@@ -1682,8 +1720,11 @@ function renderGestoraAlertas(alertas = [], clima = {}, sensores = [], auditoria
     ? sensores.length
     : new Set(alertas.map(a => a.id_sensor).filter(Boolean)).size;
 
-  const tempClima = clima && clima.temperatura != null ? `${clima.temperatura > 0 ? '+' : ''}${clima.temperatura.toFixed(1)}°C` : 'Sem dados';
-  const umidClima = clima && clima.umidade != null ? `${clima.umidade}% UR` : 'Sem dados';
+  const climaAtualObj = clima?.agora || clima?.atual || clima || {};
+  const tClimaNum = climaAtualObj.temperature_2m != null ? Number(climaAtualObj.temperature_2m) : (climaAtualObj.temperatura != null ? Number(climaAtualObj.temperatura) : null);
+  const uClimaNum = climaAtualObj.relative_humidity_2m != null ? Number(climaAtualObj.relative_humidity_2m) : (climaAtualObj.umidade != null ? Number(climaAtualObj.umidade) : null);
+  const tempClima = (tClimaNum != null && !isNaN(tClimaNum)) ? `${tClimaNum.toFixed(1)}°C` : 'Sem dados';
+  const umidClima = (uClimaNum != null && !isNaN(uClimaNum)) ? `${Math.round(uClimaNum)}% UR` : 'Sem dados';
 
   return `
   <div class="dashboard-canvas apple-animate-in" style="padding: 24px 32px 48px; overflow-y: auto;">
@@ -1882,66 +1923,10 @@ function renderGestoraAlertas(alertas = [], clima = {}, sensores = [], auditoria
       `).join('')}
     </div>
 
-    <!-- SEÇÃO INFERIOR: LOG DE AUDITORIA E DIRETRIZES DE MANEJO AGRONÔMICO -->
-    <div style="display: grid; grid-template-columns: 1.6fr 1fr; gap: 20px; align-items: start;">
+    <!-- SEÇÃO INFERIOR: DIRETRIZES DE MANEJO AGRONÔMICO -->
+    <div style="display: grid; grid-template-columns: 1fr; gap: 20px; align-items: start;">
 
-      <!-- Card 1: Log de Auditoria Recente -->
-      ${(() => {
-        const logsAuditoria = Array.isArray(auditoria) ? auditoria.slice(0, 5) : [];
-        const hoje = new Date();
-        const dataHojeBr = `${String(hoje.getDate()).padStart(2, '0')}/${String(hoje.getMonth() + 1).padStart(2, '0')}`;
-        const escTxt = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        const fmtDataHoraAud = (ts) => {
-          if (!ts) return '—';
-          const d = new Date(ts);
-          if (isNaN(d.getTime())) return escTxt(ts);
-          return new Intl.DateTimeFormat('pt-BR', {
-            timeZone: 'America/Recife',
-            day: '2-digit',
-            month: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit'
-          }).format(d);
-        };
-        const itensHtml = logsAuditoria.length > 0
-          ? logsAuditoria.map(item => {
-            const resNorm = String(item?.resultado || '').toLowerCase();
-            const cor = resNorm.includes('erro') || resNorm.includes('falha') || resNorm.includes('negad')
-              ? '#EF4444'
-              : (resNorm.includes('sucess') || resNorm.includes('ok') ? '#10B981' : '#0284C7');
-            const acaoTxt = escTxt(item?.acao || 'Ação registrada');
-            const usuarioTxt = escTxt(item?.usuario || 'Sistema');
-            const dataTxt = fmtDataHoraAud(item?.data_hora);
-            return `
-              <div style="display: flex; gap: 10px; align-items: flex-start;">
-                <span style="width: 7px; height: 7px; border-radius: 50%; background: ${cor}; margin-top: 5px; flex-shrink: 0;"></span>
-                <div>
-                  <div style="font-size: 11px; font-weight: 600; color: #0F172A;">${acaoTxt}</div>
-                  <div style="font-size: 10px; color: #94A3B8;">${dataTxt} • ${usuarioTxt}</div>
-                </div>
-              </div>
-            `;
-          }).join('')
-          : '<div style="font-size: 12px; color: #64748B; padding: 6px 0;">Nenhum registro de auditoria disponível.</div>';
-
-        return `
-      <div class="apple-card" style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 16px; padding: 22px 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <i data-lucide="clock" style="width: 15px; height: 15px; color: #64748B;"></i>
-            <span style="font-size: 14px; font-weight: 700; color: #0F172A;">Log de Auditoria Recente</span>
-          </div>
-          ${logsAuditoria.length > 0 ? `<span style="font-size: 11px; color: #94A3B8;">${dataHojeBr}</span>` : ''}
-        </div>
-
-        <div id="audit-log-list" style="display: flex; flex-direction: column; gap: 12px;">
-          ${itensHtml}
-        </div>
-      </div>
-        `;
-      })()}
-
-      <!-- Card 2: Diretrizes Globais de Manejo -->
+      <!-- Diretrizes Globais de Manejo -->
       <div style="background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 16px; padding: 22px 24px;">
         <div style="font-size: 9px; font-weight: 800; color: #047857; letter-spacing: 0.6px; text-transform: uppercase; margin-bottom: 6px;">
           DIRETRIZ DE PROTEÇÃO FISIOLÓGICA

@@ -12,101 +12,82 @@ import { Modal } from '../components/modal.js';
 import { toast } from '../components/toast.js';
 import { downloadCSV, downloadPDF, openExportChoiceModal } from '../utils/export-utils.js';
 
-let _regrasFisiologicas = [
-  {
-    id: 'uva',
-    categoria: 'uva',
-    titulo: 'Uva de Mesa (Vitória / Crimson Seedless) — Câmara e Maturação',
-    subtitulo: 'Variedades: R102 • Embrapa Semiárido Doc. 144',
-    badge: 'Suscetibilidade Alta',
-    badgeClass: 'alta',
-    icone: 'grape',
-    tempMin: -0.5,
-    tempMax: 1.0,
-    tempLabel: 'Faixa Segura: -0.5°C a +1.0°C',
-    pontoFrio: 'Perigo Congelo: < -1.5°C',
-    pontoQuente: 'Teto: 2.0°C',
-    pctVermelho: 15,
-    pctVerde: 45,
-    pctAmarelo: 40,
-    urFaixa: '90% a 95%',
-    urPct: 92,
-    brixFaixa: '≥ 16.0 °Bx (Exportação)',
-    brixPct: 85,
-    sensoresInfo: '14 Sensores Atrelados (Câmaras 01 a 04)'
-  },
-  {
-    id: 'manga',
-    categoria: 'manga',
-    titulo: 'Manga Tommy Atkins e Palmer — Conservação Pós-Colheita',
-    subtitulo: 'Variedades: R101 • UC Davis Postharvest Series',
-    badge: 'Chilling Injury Watch',
-    badgeClass: 'chilling',
-    icone: 'sprout',
-    tempMin: 10.0,
-    tempMax: 13.0,
-    tempLabel: 'Faixa Segura: 10.0°C a 13.0°C',
-    pontoFrio: 'Dano Frio: < 10.0°C',
-    pontoQuente: 'Pico Max 14.5°C (18h)',
-    pctVermelho: 20,
-    pctVerde: 50,
-    pctAmarelo: 30,
-    urFaixa: '85% a 90%',
-    urPct: 88,
-    brixFaixa: '< 0.2 µL/kg·h (Etileno)',
-    brixPct: 40,
-    sensoresInfo: '10 Sensores Atrelados (Galpão 03 e Túnel 02)'
-  },
-  {
-    id: 'melao',
-    categoria: 'melao',
-    titulo: 'Melão Amarelo (Cantaloupe / AF-522) — Packing e Pós-Colheita',
-    subtitulo: 'Variedades: R103 • IAC Homologado',
-    badge: 'Padrão Conab / Export',
-    badgeClass: 'padrao',
-    icone: 'circle-dot',
-    tempMin: 10.0,
-    tempMax: 12.0,
-    tempLabel: 'Faixa Segura: 10.0°C a 12.0°C',
-    pontoFrio: 'Dano Térmico: < 7.0°C',
-    pontoQuente: 'Sobreaquecimento > 14.0°C',
-    pctVermelho: 20,
-    pctVerde: 50,
-    pctAmarelo: 30,
-    urFaixa: '85% a 90%',
-    urPct: 88,
-    brixFaixa: '≥ 28 N (Firmeza Newton)',
-    brixPct: 75,
-    sensoresInfo: '8 Sensores Atrelados (Câmara de Desverdecimento)'
-  },
-  {
-    id: 'solo',
-    categoria: 'solo',
-    titulo: 'Manejo de Solo e Umidade Radicular (Sensores de Umidade do Solo)',
-    subtitulo: 'Cluster Solos: v01 • Curvas de Retenção Van Genuchten',
-    badge: 'Fertirrigação Ativa',
-    badgeClass: 'fertirrigacao',
-    icone: 'droplet',
-    tempMin: 18.0,
-    tempMax: 32.0,
-    tempLabel: 'Faixa Ótima: 18.0% a 32.0% VWC',
-    pontoFrio: 'Murcha: < 18%',
-    pontoQuente: 'Encharcamento: > 42%',
-    pctVermelho: 18,
-    pctVerde: 48,
-    pctAmarelo: 34,
-    urFaixa: '1.2 a 1.8 dS/m (CE)',
-    urPct: 60,
-    brixFaixa: '22.4°C Estável (30cm)',
-    brixPct: 50,
-    sensoresInfo: '32 Sondas Telemétricas (Setores Sul e Leste)'
+let _regrasFisiologicas = [];
+let _sensoresRegras = [];
+
+// Load dynamic data from API and compute derived values
+async function loadRegrasData() {
+  if (!api.getToken()) return;
+  // FIX: Promise.allSettled para que falha em cortes ou sensores não bloqueie configParams
+  const [configRes, cortesRes, sensoresRes] = await Promise.allSettled([
+    api.getConfigParametros(),
+    api.getCortesPreditivos(), // FIX: era '/cortes_alerta_preditivo' (404) → endpoint correto via api.js
+    api.getSensores()
+  ]);
+
+  if (configRes.status === 'rejected') {
+    console.warn('getConfigParametros falhou:', configRes.reason);
   }
-];
+  if (cortesRes.status === 'rejected') {
+    console.warn('getCortesPreditivos falhou:', cortesRes.reason);
+  }
+  if (sensoresRes.status === 'rejected') {
+    console.warn('getSensores falhou:', sensoresRes.reason);
+  }
+
+  const configParams = configRes.status === 'fulfilled' && Array.isArray(configRes.value)
+    ? configRes.value : [];
+  const sensores = sensoresRes.status === 'fulfilled' && Array.isArray(sensoresRes.value)
+    ? sensoresRes.value : [];
+  _sensoresRegras = sensores;
+
+  // Transform configParams into regra objects
+  _regrasFisiologicas = configParams.map(p => {
+    const frutaNome = p.fruta || p.cultura || p.titulo || p.nome || `Fruta #${p.id_fruta ?? ''}`;
+    const etapaNome = p.etapa || 'armazenamento';
+    const catNorm = String(frutaNome).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const tMin = p.temp_min ?? 0;
+    const tMax = p.temp_max ?? 0;
+    const uMin = p.umidade_min ?? 0;
+    const uMax = p.umidade_max ?? 0;
+    return {
+      id: String(p.id_config ?? p.id ?? `${frutaNome}-${etapaNome}`),
+      id_config: p.id_config ?? null,
+      id_fruta: p.id_fruta ?? 1,
+      etapa: etapaNome,
+      categoria: catNorm.includes('manga') ? 'manga'
+        : (catNorm.includes('uva') ? 'uva'
+        : (catNorm.includes('melao') ? 'melao'
+        : (catNorm.includes('solo') ? 'solo' : catNorm))),
+      titulo: p.titulo || `${frutaNome} — ${etapaNome.toUpperCase()}`,
+      subtitulo: p.subtitulo || p.descricao || `Etapa: ${etapaNome} • config_parametro #${p.id_config ?? '—'}`,
+      badge: p.badge || etapaNome.toUpperCase(),
+      badgeClass: p.badgeClass || '',
+      icone: p.icone || 'leaf',
+      tempMin: tMin,
+      tempMax: tMax,
+      umidadeMin: uMin,
+      umidadeMax: uMax,
+      tempLabel: p.tempLabel || `Faixa Segura: ${tMin}°C a ${tMax}°C (${etapaNome})`,
+      pontoFrio: p.pontoFrio || `< ${tMin}°C`,
+      pontoQuente: p.pontoQuente || `> ${tMax}°C`,
+      pctVermelho: p.pctVermelho || 20,
+      pctVerde: p.pctVerde || 60,
+      pctAmarelo: p.pctAmarelo || 20,
+      urFaixa: p.urFaixa || `${uMin}% a ${uMax}%`,
+      urPct: p.urPct || Math.min(100, Math.max(0, Number(uMax) || 0)),
+      brixFaixa: p.brixFaixa || `Etapa ${etapaNome}`,
+      brixPct: p.brixPct || 100,
+      sensoresInfo: sensores.length > 0 ? `${sensores.length} sensor(es) ativo(s) no sistema` : 'Sem sensores vinculados'
+    };
+  });
+}
 
 let _filtroCatRegras = 'todos';
 let _termoBuscaRegras = '';
 
 export async function renderRegrasAgronomicas() {
+  await loadRegrasData();
   return `
     <div class="dashboard-canvas apple-animate-in" style="max-width: 1400px; margin: 0 auto;">
       
@@ -128,10 +109,6 @@ export async function renderRegrasAgronomicas() {
         </div>
 
         <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-          <button class="btn-sub-action" id="btn-restaurar-padroes" style="background: #FFFFFF; border: 1px solid #CBD5E1; color: #334155; font-size: 11px; font-weight: 600; padding: 7px 14px; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; transition: all 0.2s;">
-            <i data-lucide="rotate-ccw" style="width: 13px; height: 13px;"></i>
-            <span>Restaurar Padrões</span>
-          </button>
           <button class="btn-sub-action" id="btn-exportar-matriz" style="background: #FFFFFF; border: 1px solid #CBD5E1; color: #334155; font-size: 11px; font-weight: 600; padding: 7px 14px; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; transition: all 0.2s;">
             <i data-lucide="download" style="width: 13px; height: 13px;"></i>
             <span>Exportar Matriz</span>
@@ -297,16 +274,9 @@ export async function renderRegrasAgronomicas() {
           ${renderCardsRegrasHtml()}
         </div>
 
-        <!-- Paginação -->
+        <!-- Rodapé de Contagem -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; font-size: 11px; color: #64748B;">
-          <span id="regras-pag-info">Exibindo 1-4 de 18 parâmetros agronômicos</span>
-          <div style="display: flex; gap: 6px;">
-            <button class="btn-pag-regras" data-page="prev" style="padding: 4px 10px; border: 1px solid #CBD5E1; background: #FFFFFF; border-radius: 4px; cursor: pointer;">&lt;</button>
-            <button class="btn-pag-regras active" data-page="1" style="padding: 4px 10px; border: 1px solid #183D2E; background: #183D2E; color: #FFFFFF; border-radius: 4px; font-weight: 700; cursor: pointer;">1</button>
-            <button class="btn-pag-regras" data-page="2" style="padding: 4px 10px; border: 1px solid #CBD5E1; background: #FFFFFF; border-radius: 4px; cursor: pointer;">2</button>
-            <button class="btn-pag-regras" data-page="3" style="padding: 4px 10px; border: 1px solid #CBD5E1; background: #FFFFFF; border-radius: 4px; cursor: pointer;">3</button>
-            <button class="btn-pag-regras" data-page="next" style="padding: 4px 10px; border: 1px solid #CBD5E1; background: #FFFFFF; border-radius: 4px; cursor: pointer;">&gt;</button>
-          </div>
+          <span id="regras-pag-info">Exibindo ${_regrasFisiologicas.length} parâmetro(s) agronômico(s)</span>
         </div>
       </div>
 
@@ -350,11 +320,6 @@ export async function renderRegrasAgronomicas() {
               <div style="color: #475569; font-size: 10px;">Ação: Intervenção logística e operacional imediata no lote.</div>
             </div>
           </div>
-
-          <button id="btn-ajustar-pesos-ml" style="margin-top: 14px; width: 100%; padding: 9px; background: #F8FAFC; border: 1px solid #CBD5E1; border-radius: 8px; font-size: 11px; font-weight: 700; color: #334155; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s;">
-            <i data-lucide="sliders" style="width: 14px; height: 14px;"></i>
-            <span>Ajustar Pesos dos Modelos de ML</span>
-          </button>
         </div>
 
         <!-- Card 2: Governança de Schema -->
@@ -389,9 +354,6 @@ export async function renderRegrasAgronomicas() {
           <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 6px; font-size: 11px;">
             <a href="#/auditoria" style="color: #0284C7; text-decoration: none; font-weight: 600; display: flex; justify-content: space-between; padding: 3px 0;">
               <span>Auditoria de Alterações de Limiares</span> &rarr;
-            </a>
-            <a href="#/sensores" style="color: #0284C7; text-decoration: none; font-weight: 600; display: flex; justify-content: space-between; padding: 3px 0;">
-              <span>Reclassificar Pesos de Predição (XRF)</span> &rarr;
             </a>
             <a href="javascript:void(0)" id="btn-exportar-dicionario-pdf" style="color: #0284C7; text-decoration: none; font-weight: 600; display: flex; justify-content: space-between; padding: 3px 0;">
               <span>Exportar Dicionário de Parâmetros (PDF)</span> &rarr;
@@ -486,7 +448,6 @@ function renderCardsRegrasHtml() {
         <span>${r.sensoresInfo}</span>
         <div style="display: flex; gap: 8px;">
           <button class="btn-regra-ver-sensores" data-id="${r.id}" style="background: none; border: none; color: #0284C7; font-weight: 600; cursor: pointer; padding: 4px 6px;">Ver Sensores</button>
-          <button class="btn-regra-calibrar" data-id="${r.id}" style="background: none; border: none; color: #475569; font-weight: 600; cursor: pointer; padding: 4px 6px;">Calibrar</button>
           <button class="btn-regra-editar" data-id="${r.id}" style="background: #183D2E; color: #FFFFFF; border: none; padding: 5px 14px; border-radius: 6px; font-weight: 700; cursor: pointer; transition: all 0.2s;">Editar Faixas</button>
         </div>
       </div>
@@ -504,67 +465,65 @@ function atualizarCardsRegras() {
 }
 
 function abrirModalEditarFaixas(regraId) {
-  const r = _regrasFisiologicas.find(reg => reg.id === regraId) || _regrasFisiologicas[0];
+  const r = _regrasFisiologicas.find(reg => String(reg.id) === String(regraId)) || _regrasFisiologicas[0];
+  if (!r) return;
 
   Modal.open(`Editar Faixas Fisiológicas — ${r.titulo.split('—')[0]}`, `
     <div style="font-size: 12px; color: #334155; display: flex; flex-direction: column; gap: 12px;">
-      <p style="margin: 0; color: #64748B;">Ajuste as faixas ótimas aceitas na esteira e nos disparos automatizados de alerta:</p>
+      <p style="margin: 0; color: #64748B;">Ajuste as faixas seguras salvas em <code>config_parametro</code>:</p>
+
+      <label>Etapa da Cadeia:
+        <select id="modal-regra-etapa" style="width: 100%; padding: 8px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px; font-weight: 600;">
+          <option value="armazenamento" ${r.etapa === 'armazenamento' ? 'selected' : ''}>Armazenamento (Câmara Fria / Packing)</option>
+          <option value="campo" ${r.etapa === 'campo' ? 'selected' : ''}>Campo (Manejo Pré-Colheita)</option>
+          <option value="transporte" ${r.etapa === 'transporte' ? 'selected' : ''}>Transporte (Contêiner Reefer)</option>
+        </select>
+      </label>
 
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-        <label>Etapa da Cadeia (etapa IN 'campo','armazenamento','transporte'):
-          <select id="modal-regra-etapa" style="width: 100%; padding: 8px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px; font-weight: 600;">
-            <option value="armazenamento" selected>Armazenamento (Câmara Fria / Packing)</option>
-            <option value="campo">Campo (Manejo Pré-Colheita)</option>
-            <option value="transporte">Transporte (Contêiner Reefer)</option>
-          </select>
-        </label>
-        <label>Nível de Corte Preditivo:
-          <select id="modal-regra-corte" style="width: 100%; padding: 8px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
-            <option value="BAIXO">BAIXO (Monitoramento)</option>
-            <option value="MEDIO" selected>MEDIO (Atenção)</option>
-            <option value="CRITICO">CRITICO (Ação Imediata)</option>
-          </select>
-        </label>
-      </div>
-
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-        <label>Mínimo Seguro (${r.id === 'solo' ? '% VWC' : '°C'}):
+        <label>Temperatura Mínima (°C):
           <input type="number" id="modal-regra-min" value="${r.tempMin}" step="0.5" style="width: 100%; padding: 8px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
         </label>
-        <label>Máximo Seguro (${r.id === 'solo' ? '% VWC' : '°C'}):
+        <label>Temperatura Máxima (°C):
           <input type="number" id="modal-regra-max" value="${r.tempMax}" step="0.5" style="width: 100%; padding: 8px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
         </label>
       </div>
 
-      <label>Faixa Alvo Secundária (UR / Brix / CE):
-        <input type="text" id="modal-regra-sec" value="${r.urFaixa}" style="width: 100%; padding: 8px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
-      </label>
-
-      <label>Norma / Instituição de Referência:
-        <input type="text" value="${r.subtitulo}" style="width: 100%; padding: 8px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
-      </label>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <label>Umidade Mínima (%):
+          <input type="number" id="modal-regra-umin" value="${r.umidadeMin ?? 60}" step="1" style="width: 100%; padding: 8px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
+        </label>
+        <label>Umidade Máxima (%):
+          <input type="number" id="modal-regra-umax" value="${r.umidadeMax ?? 95}" step="1" style="width: 100%; padding: 8px; border: 1px solid #CBD5E1; border-radius: 6px; margin-top: 4px;">
+        </label>
+      </div>
     </div>
   `, async () => {
-    const etapa = document.getElementById('modal-regra-etapa')?.value || 'armazenamento';
-    const nivelCorte = document.getElementById('modal-regra-corte')?.value || 'MEDIO';
+    const etapa = document.getElementById('modal-regra-etapa')?.value || r.etapa || 'armazenamento';
     const minVal = parseFloat(document.getElementById('modal-regra-min')?.value || `${r.tempMin}`);
     const maxVal = parseFloat(document.getElementById('modal-regra-max')?.value || `${r.tempMax}`);
-    const secVal = document.getElementById('modal-regra-sec')?.value || r.urFaixa;
+    const uMinVal = parseFloat(document.getElementById('modal-regra-umin')?.value || `${r.umidadeMin ?? 60}`);
+    const uMaxVal = parseFloat(document.getElementById('modal-regra-umax')?.value || `${r.umidadeMax ?? 95}`);
 
-    r.tempMin = minVal;
-    r.tempMax = maxVal;
-    r.urFaixa = secVal;
-    r.tempLabel = `Faixa Segura: ${minVal}°C a +${maxVal}°C (${etapa})`;
-
-    try {
-      await api.updateConfigParametro(1, { etapa, temp_min: minVal, temp_max: maxVal });
-      await api.updateCortePreditivo(nivelCorte, { limiar_min: minVal, limiar_max: maxVal });
-    } catch (err) {
-      console.warn('API offline ao atualizar faixas/cortes:', err);
+    if (!r.id_config) {
+      toast.error('Erro', 'ID da configuração não encontrado.');
+      return;
     }
 
-    atualizarCardsRegras();
-    toast.success('Faixas Salvas', `Parâmetros fisiológicos (${etapa}) atualizados no config_parametro e cortes preditivos.`);
+    try {
+      await api.updateConfigParametro(r.id_config, {
+        etapa,
+        temp_min: minVal,
+        temp_max: maxVal,
+        umidade_min: uMinVal,
+        umidade_max: uMaxVal
+      });
+      await loadRegrasData();
+      atualizarCardsRegras();
+      toast.success('Faixas Salvas', `Parâmetros fisiológicos (${etapa}) atualizados no banco com sucesso.`);
+    } catch (err) {
+      toast.error('Erro ao salvar', err?.message || 'Não foi possível atualizar a faixa no servidor.');
+    }
   }, 'Salvar Faixas');
 }
 
@@ -577,48 +536,29 @@ function vincularEventosRegras() {
   });
 
   document.querySelectorAll('.btn-regra-ver-sensores').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const id = e.currentTarget.dataset.id;
-      Modal.open('Sensores Vinculados à Cadeia Fisiológica', `
+    btn.addEventListener('click', () => {
+      const listaHtml = _sensoresRegras.length > 0
+        ? _sensoresRegras.map(s => `
+            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; padding: 8px 12px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center;">
+              <strong>#${s.id_sensor} ${s.nome || s.tipo_sensor || 'Sensor'}</strong>
+              <span style="color: ${s.status === 'ativo' ? '#047857' : '#64748B'}; font-weight: 700;">${s.status || '—'} • ${s.localizacao || 'Campo'}</span>
+            </div>
+          `).join('')
+        : '<div style="color: #64748B;">Nenhum sensor cadastrado no sistema.</div>';
+
+      Modal.open('Sensores Cadastrados no Sistema', `
         <div style="font-size: 12px; color: #334155;">
-          <p>Nós IoT ESP32 (DHT11 / Umidade Solo) transmitindo sob esta parametrização:</p>
+          <p style="margin-top: 0;">Sensores reais retornados pela API (<code>GET /sensores</code>):</p>
           <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 10px;">
-            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; padding: 8px 12px; border-radius: 6px; display: flex; justify-content: space-between;">
-              <strong>#SNS-SL-001 (Sensor Umidade Solo)</strong>
-              <span style="color: #047857; font-weight: 700;">48.2% VWC • Operacional</span>
-            </div>
-            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; padding: 8px 12px; border-radius: 6px; display: flex; justify-content: space-between;">
-              <strong>#SNS-AR-002 (Sensor DHT11 Temp/Umid)</strong>
-              <span style="color: #0284C7; font-weight: 700;">28.1°C • 59.4% UR • Online</span>
-            </div>
+            ${listaHtml}
           </div>
         </div>
       `, null, 'Fechar');
     });
   });
-
-  document.querySelectorAll('.btn-regra-calibrar').forEach(btn => {
-    btn.addEventListener('click', () => {
-      toast.info('Calibração', 'Sincronizando offset físico com as diretrizes da Embrapa Semiárido.');
-    });
-  });
 }
 
 export function setupRegrasAgronomicasEvents() {
-  // Restaurar Padrões
-  const btnRestaurar = document.getElementById('btn-restaurar-padroes');
-  if (btnRestaurar) {
-    btnRestaurar.addEventListener('click', () => {
-      Modal.open('Restaurar Padrões Embrapa / UC Davis', `
-        <div style="font-size: 12px; color: #475569;">
-          Esta ação restaurará todas as faixas e limiares aos valores homologados originais da documentação científica.
-        </div>
-      `, () => {
-        toast.success('Padrões Restaurados', 'Todos os 18 limiares voltaram aos valores de referência Embrapa.');
-      }, 'Restaurar');
-    });
-  }
-
   // Exportar Matriz (CSV & PDF Reais)
   const headersMatriz = ['ID', 'Cultura', 'Subtitulo', 'Faixa Segura', 'Ponto Critico Min', 'Ponto Critico Max', 'Norma'];
   const getRowsMatriz = () => _regrasFisiologicas.map(r => [r.id, r.titulo, r.subtitulo, r.tempLabel, r.pontoFrio, r.pontoQuente, r.badge]);
@@ -717,71 +657,13 @@ export function setupRegrasAgronomicasEvents() {
             umidade_min: 80,
             umidade_max: 95
           });
-          await api.updateCortePreditivo(nivel, { limiar_min: minVal, limiar_max: maxVal });
+          await loadRegrasData();
+          atualizarCardsRegras();
+          toast.success('Regra Homologada', `${cultura} (${etapa}) cadastrada em config_parametro.`);
         } catch (err) {
-          console.warn('API offline ao criar config_parametro:', err);
+          toast.error('Erro ao cadastrar regra', err?.message || 'Verifique se já existe faixa para esta fruta e etapa.');
         }
-
-        _regrasFisiologicas.unshift({
-          id: `regra-${Date.now()}`,
-          categoria: 'manga',
-          titulo: `${cultura} — ${etapa.toUpperCase()}`,
-          subtitulo: `Instituição: ${inst}`,
-          badge: 'Homologação Ativa',
-          badgeClass: 'padrao',
-          icone: 'sprout',
-          tempMin: minVal,
-          tempMax: maxVal,
-          tempLabel: `Faixa Segura: ${minVal}°C a +${maxVal}°C (${etapa})`,
-          pontoFrio: `Dano Frio: < ${minVal}°C`,
-          pontoQuente: `Teto: > ${maxVal}°C`,
-          pctVermelho: 20,
-          pctVerde: 50,
-          pctAmarelo: 30,
-          urFaixa: '85% a 90%',
-          urPct: 88,
-          brixFaixa: 'Padrão Homologado',
-          brixPct: 80,
-          sensoresInfo: 'Sensores sendo provisionados'
-        });
-
-        atualizarCardsRegras();
-        toast.success('Regra Homologada', `${cultura} (${etapa}) cadastrada em config_parametro e cortes preditivos.`);
       }, 'Homologar Regra');
-    });
-  }
-
-  // Ajustar Pesos ML
-  const btnAjustarML = document.getElementById('btn-ajustar-pesos-ml');
-  if (btnAjustarML) {
-    btnAjustarML.addEventListener('click', () => {
-      Modal.open('Calibração de Hiperparâmetros ML (Random Forest)', `
-        <div style="font-size: 12px; color: #475569; display: flex; flex-direction: column; gap: 12px;">
-          <div>
-            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-              <span>Peso: Desvio Térmico Reefer (w1):</span>
-              <strong>0.45</strong>
-            </div>
-            <input type="range" min="0" max="1" step="0.05" value="0.45" style="width: 100%; accent-color: #10B981;">
-          </div>
-          <div>
-            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-              <span>Peso: Umidade do Solo (w2):</span>
-              <strong>0.35</strong>
-            </div>
-            <input type="range" min="0" max="1" step="0.05" value="0.35" style="width: 100%; accent-color: #10B981;">
-          </div>
-          <div>
-            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-              <span>Peso: Tempo de Trânsito Rodoviário (w3):</span>
-              <strong>0.20</strong>
-            </div>
-            <input type="range" min="0" max="1" step="0.05" value="0.20" style="width: 100%; accent-color: #10B981;">
-          </div>
-        </div>
-      `, () => {
-        toast.success('Pesos Calibrados', 'Matriz de covariância e pesos de inferência atualizados no cluster.');
-      }, 'Salvar Pesos');
     });
   }
 
@@ -812,33 +694,6 @@ export function setupRegrasAgronomicasEvents() {
 
       _filtroCatRegras = tab.dataset.cat || 'todos';
       atualizarCardsRegras();
-    });
-  });
-
-  // Paginação das Regras Agronômicas
-  let pagAtualRegras = 1;
-  document.querySelectorAll('.btn-pag-regras').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const p = btn.dataset.page;
-      if (p === 'prev') pagAtualRegras = Math.max(1, pagAtualRegras - 1);
-      else if (p === 'next') pagAtualRegras = Math.min(3, pagAtualRegras + 1);
-      else pagAtualRegras = Number(p) || 1;
-
-      document.querySelectorAll('.btn-pag-regras').forEach(b => {
-        const isActive = Number(b.dataset.page) === pagAtualRegras;
-        b.classList.toggle('active', isActive);
-        b.style.background = isActive ? '#183D2E' : '#FFFFFF';
-        b.style.color = isActive ? '#FFFFFF' : '#475569';
-        b.style.borderColor = isActive ? '#183D2E' : '#CBD5E1';
-        b.style.fontWeight = isActive ? '700' : '400';
-      });
-      const info = document.getElementById('regras-pag-info');
-      if (info) {
-        const start = (pagAtualRegras - 1) * 4 + 1;
-        const end = Math.min(18, pagAtualRegras * 4);
-        info.textContent = `Exibindo ${start}-${end} de 18 parâmetros agronômicos`;
-      }
-      toast.info('Regras Agronômicas', `Página ${pagAtualRegras} de 3 carregada.`);
     });
   });
 

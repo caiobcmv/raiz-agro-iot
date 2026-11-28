@@ -10,9 +10,24 @@ import { auth } from '../auth.js';
 import { toast } from '../components/toast.js';
 import { Modal } from '../components/modal.js';
 import { downloadCSV, downloadPDF, openExportChoiceModal } from '../utils/export-utils.js';
+import {
+  calcularStatusColeta,
+  contarSensoresAtivosReais,
+  resumirAlertasAnalista
+} from '../utils/analista-metrics.js';
 
-// Não existe sonda de solo instalada; o field3 do ThingSpeak lê um pino solto.
-const SONDA_SOLO_INSTALADA = false;
+// Sonda de solo instalada: sensor 3 (origem 'thingspeak-solo'), lida exclusivamente via GET /sensores/3/leituras
+const SONDA_SOLO_INSTALADA = true;
+const SENSOR_SOLO_ID = 3;
+
+function extrairSerieUmidadeSolo(resLeituras) {
+  const pontos = Array.isArray(resLeituras?.pontos)
+    ? resLeituras.pontos
+    : (Array.isArray(resLeituras) ? resLeituras : []);
+  return pontos
+    .filter(p => p && p.umidade_solo !== null && p.umidade_solo !== undefined && !Number.isNaN(Number(p.umidade_solo)))
+    .map(p => Number(p.umidade_solo));
+}
 const LIMITE_LEITURA_RECENTE_MIN = 30;
 const MAPA_PROPRIEDADE_LAT = -9.3300;   // editar aqui
 const MAPA_PROPRIEDADE_LNG = -40.6000;  // editar aqui
@@ -182,10 +197,11 @@ function atualizarDashboardComSSE(data) {
       elUmidBar.style.width = `${Math.min(100, Math.max(0, umidNum))}%`;
     }
   } else {
-    // Se não há leitura recente (<30min), mantém os gráficos 24h caso haja dados reais em series-24h
+    // Se não há leitura recente (<30min), mantém os gráficos 24h caso haja dados reais em cache
     const cacheAtual = dadosGraficosCache || {};
     const temUmidCache = Array.isArray(cacheAtual.umidade_ar_24h) && cacheAtual.umidade_ar_24h.length > 0;
     const temTempCache = Array.isArray(cacheAtual.temp_ar_24h) && cacheAtual.temp_ar_24h.length > 0;
+    const temSoloCache = Array.isArray(cacheAtual.umidade_solo_24h) && cacheAtual.umidade_solo_24h.length > 0;
 
     if (elPillTemp && !temTempCache) {
       elPillTemp.textContent = 'Sem dados';
@@ -197,7 +213,7 @@ function atualizarDashboardComSSE(data) {
       elPillUmid.classList.remove('pill-green');
       elPillUmid.classList.add('pill-blue');
     }
-    if (SONDA_SOLO_INSTALADA && elPillSolo) {
+    if (SONDA_SOLO_INSTALADA && elPillSolo && !temSoloCache) {
       elPillSolo.textContent = 'Sem dados';
       elPillSolo.classList.remove('pill-green');
       elPillSolo.classList.add('pill-blue');
@@ -205,8 +221,8 @@ function atualizarDashboardComSSE(data) {
     if (!temUmidCache) {
       criarMiniGraficoApple('miniChart1', [], '#10B981', 'Sem leituras no período');
     }
-    if (SONDA_SOLO_INSTALADA) {
-      criarMiniGraficoApple('miniChart2', [], '#0D9488', 'Sem leituras no período');
+    if (SONDA_SOLO_INSTALADA && !temSoloCache) {
+      criarMiniGraficoApple('miniChart2', [], '#0D9488', 'Sem dados no período');
     }
     if (!temTempCache) {
       criarMiniGraficoApple('miniChart4', [], '#16A34A', 'Sem leituras no período');
@@ -330,23 +346,43 @@ export async function renderDashboard() {
 
   const isResumido = localStorage.getItem('DASHBOARD_MODE') === 'resumido';
 
-  // Busca dados reais do PostgreSQL em paralelo (sem usar cache desatualizado)
-  let resumo = null, clima = null, graficos = null, series24h = null, ultimaLeituraObj = null, lotesLista = null;
+  // Busca dados reais do PostgreSQL em paralelo (onda única, inclusive no modo detalhado)
+  let resumo = null, clima = null, graficos = null, series24h = null, ultimaLeituraObj = null, lotesLista = null, solo24hRes = null;
+  let extrasDetalhado = { irrigacao: null, sensores: null, mercado: null, janelas: null };
   try {
-    const results = await Promise.allSettled([
+    const reqs = [
       api.getDashboardResumo(),
       api.getClimaAtual(),
       api.getDadosGraficos(),
       api.getSeries24h(),
       api.getUltimaLeitura(1),
-      api.getLotes()
-    ]);
+      api.getLotes(),
+      api.getSensorLeituras(SENSOR_SOLO_ID, '24h')
+    ];
+    if (!isResumido) {
+      reqs.push(
+        api.getPrevisoesIrrigacao(),
+        api.getSensores(),
+        api.request('/dados-mercado'),
+        api.request('/previsoes/janela-colheita')
+      );
+    }
+    const results = await Promise.allSettled(reqs);
     resumo = results[0].status === 'fulfilled' ? results[0].value : null;
     clima = results[1].status === 'fulfilled' ? results[1].value : null;
     graficos = results[2].status === 'fulfilled' ? results[2].value : null;
     series24h = results[3].status === 'fulfilled' ? results[3].value : null;
     ultimaLeituraObj = results[4].status === 'fulfilled' ? results[4].value : null;
     lotesLista = results[5].status === 'fulfilled' ? results[5].value : null;
+    solo24hRes = results[6].status === 'fulfilled' ? results[6].value : null;
+    if (!isResumido) {
+      extrasDetalhado = {
+        irrigacao: results[7]?.status === 'fulfilled' ? results[7].value : null,
+        sensores: results[8]?.status === 'fulfilled' ? results[8].value : null,
+        mercado: results[9]?.status === 'fulfilled' && Array.isArray(results[9].value) ? results[9].value : [],
+        janelas: results[10]?.status === 'fulfilled' && Array.isArray(results[10].value) ? results[10].value : []
+      };
+    }
   } catch (e) {
     console.warn('Erro ao obter métricas online:', e);
   }
@@ -359,29 +395,13 @@ export async function renderDashboard() {
   dadosGraficosCache = {
     ...DEFAULT_DADOS_GRAFICOS,
     ...(graficos || {}),
-    ...(series24h || {})
+    ...(series24h || {}),
+    // Fonte exclusiva do solo: sensor 3 via GET /sensores/3/leituras (sem fallback para series-24h)
+    umidade_solo_24h: extrairSerieUmidadeSolo(solo24hRes)
   };
   if (series24h) {
     if (series24h.umidade_ar_24h) dadosGraficosCache.umidade_ar_24h = series24h.umidade_ar_24h;
     if (series24h.temp_ar_24h) dadosGraficosCache.temp_ar_24h = series24h.temp_ar_24h;
-    if (series24h.umidade_solo_24h) dadosGraficosCache.umidade_solo_24h = series24h.umidade_solo_24h;
-  }
-
-  // Modo detalhado: recomendação de irrigação, sensores, mercado e janela de colheita
-  let extrasDetalhado = { irrigacao: null, sensores: null, mercado: null, janelas: null };
-  if (!isResumido) {
-    const [irr, sens, merc, jan] = await Promise.allSettled([
-      api.getPrevisoesIrrigacao(),
-      api.getSensores(),
-      api.request('/dados-mercado'),
-      api.request('/previsoes/janela-colheita')
-    ]);
-    extrasDetalhado = {
-      irrigacao: irr.status === 'fulfilled' ? irr.value : null,
-      sensores: sens.status === 'fulfilled' ? sens.value : null,
-      mercado: merc.status === 'fulfilled' && Array.isArray(merc.value) ? merc.value : [],
-      janelas: jan.status === 'fulfilled' && Array.isArray(jan.value) ? jan.value : []
-    };
   }
 
   return `
@@ -428,21 +448,24 @@ let analistaDashboardData = {
  */
 async function renderAnalistaDashboard() {
   try {
-    const [resumoRes, topologiaRes, dashResumoRes, rejeitadasRes, preditivosRes, cortesRes] = await Promise.allSettled([
+    const [resumoRes, topologiaRes, dashResumoRes, rejeitadasRes, centralAlertasRes, cortesRes] = await Promise.allSettled([
       api.getAnalistaSensoresResumo(),
       api.getSensoresTopologia(),
       api.getDashboardResumo(),
       api.getLeiturasRejeitadas({ limit: 5 }),
-      api.getAlertasPreditivos({ status: 'EM ABERTO', limit: 20 }),
+      api.getCentralAlertas({ status: 'aberto' }),
       api.getCortesPreditivos()
     ]);
+
+    const centralVal = centralAlertasRes.status === 'fulfilled' ? centralAlertasRes.value : null;
+    const centralItens = Array.isArray(centralVal?.itens) ? centralVal.itens : extrairArraySeguro(centralVal);
 
     analistaDashboardData = {
       resumo: (resumoRes.status === 'fulfilled' && resumoRes.value && typeof resumoRes.value === 'object') ? resumoRes.value : null,
       topologia: (topologiaRes.status === 'fulfilled' && topologiaRes.value && typeof topologiaRes.value === 'object') ? topologiaRes.value : null,
       dashResumo: (dashResumoRes.status === 'fulfilled' && dashResumoRes.value && typeof dashResumoRes.value === 'object') ? dashResumoRes.value : null,
       rejeitadas: extrairArraySeguro(rejeitadasRes.status === 'fulfilled' ? rejeitadasRes.value : null),
-      preditivos: extrairArraySeguro(preditivosRes.status === 'fulfilled' ? preditivosRes.value : null),
+      preditivos: centralItens,
       cortes: extrairArraySeguro(cortesRes.status === 'fulfilled' ? cortesRes.value : null)
     };
   } catch (err) {
@@ -456,16 +479,17 @@ async function renderAnalistaDashboard() {
   // 1. Saúde da Coleta
   const ingestao_24h = resumo?.ingestao_24h || {};
   const sensoresInfo = resumo?.sensores || {};
-  const alertasAbertos = resumo?.alertas_abertos || {};
+  const intervaloSeg = resumo?.coleta?.intervalo_s ?? null;
+  const statusColeta = calcularStatusColeta(ingestao_24h.ultima_leitura, intervaloSeg);
   const rejeitadasHoje = resumo?.rejeitadas_hoje ?? 0;
 
   const taxaPct = ingestao_24h.taxa_sucesso_pct != null ? Number(ingestao_24h.taxa_sucesso_pct) : null;
   const taxaStr = taxaPct != null ? `${taxaPct.toFixed(1)}%` : '—';
-  let taxaBadgeClass = 'yellow';
-  let taxaBadgeText = '—';
-  let taxaNumColor = '#64748B';
+  let taxaBadgeClass = statusColeta.badgeClass;
+  let taxaBadgeText = statusColeta.ativo ? '—' : statusColeta.label.toUpperCase();
+  let taxaNumColor = statusColeta.cor;
 
-  if (taxaPct != null) {
+  if (statusColeta.ativo && taxaPct != null) {
     if (taxaPct >= 95) {
       taxaBadgeClass = 'green';
       taxaBadgeText = 'EXCELENTE';
@@ -481,40 +505,44 @@ async function renderAnalistaDashboard() {
     }
   }
 
-  const totalSensores = sensoresInfo.total != null ? sensoresInfo.total : (topologia?.sensores?.length ?? 0);
-  const ativosSensores = sensoresInfo.ativos != null ? sensoresInfo.ativos : (topologia?.sensores?.filter(s => s.estado_mapa === 'ativo').length ?? 0);
+  const sensoresTopoList = Array.isArray(topologia?.sensores) ? topologia.sensores : [];
+  const totalSensores = sensoresInfo.total != null ? sensoresInfo.total : sensoresTopoList.length;
+  const ativosSensores = sensoresTopoList.length > 0
+    ? contarSensoresAtivosReais(sensoresTopoList, statusColeta, intervaloSeg)
+    : (statusColeta.ativo ? (sensoresInfo.ativos ?? 0) : 0);
 
-  let tempoRelativoColeta = 'Última leitura: —';
-  if (ingestao_24h.ultima_leitura) {
-    const tMs = new Date(ingestao_24h.ultima_leitura).getTime();
-    if (!isNaN(tMs)) {
-      const diffMin = Math.max(0, Math.floor((Date.now() - tMs) / 60000));
-      tempoRelativoColeta = diffMin === 1 ? 'Última leitura há 1 min' : (diffMin < 60 ? `Última leitura há ${diffMin} min` : `Última leitura há ${Math.floor(diffMin / 60)}h ${diffMin % 60}min`);
-    }
-  }
+  const tempoRelativoColeta = ingestao_24h.ultima_leitura
+    ? `Última leitura ${statusColeta.tempoRelativo}`
+    : 'Sem leitura';
 
   // 2. Sensores e Sondas
-  const totalSolo = sensoresInfo.total_solo != null ? sensoresInfo.total_solo : (topologia?.sensores?.filter(s => s.ambiente === 'solo').length ?? 0);
-  const totalAr = sensoresInfo.total_ar != null ? sensoresInfo.total_ar : (topologia?.sensores?.filter(s => s.ambiente === 'ar').length ?? 0);
+  const totalSolo = sensoresInfo.total_solo != null ? sensoresInfo.total_solo : (sensoresTopoList.filter(s => s.ambiente === 'solo').length);
+  const totalAr = sensoresInfo.total_ar != null ? sensoresInfo.total_ar : (sensoresTopoList.filter(s => s.ambiente === 'ar').length);
 
   // 3. Média Climática
   const condicoes = dashResumo?.resumo_condicoes || {};
   const tempArMedia = condicoes.temperatura_ar_media != null ? Number(condicoes.temperatura_ar_media) : null;
   const umidArMedia = condicoes.umidade_ar_media != null ? Number(condicoes.umidade_ar_media) : null;
 
-  const sensoresSolo = (topologia?.sensores || []).filter(s => s.ambiente === 'solo' && s.umidade != null && !isNaN(Number(s.umidade)));
+  const sensoresSolo = sensoresTopoList
+    .map(s => (s.ambiente === 'solo' ? (s.umidade_solo ?? s.umidade) : null))
+    .filter(v => v != null && !isNaN(Number(v)))
+    .map(Number);
   let mediaSoloStr = '—';
-  if (sensoresSolo.length > 0) {
-    const sumUmidSolo = sensoresSolo.reduce((acc, s) => acc + Number(s.umidade), 0);
+  if (condicoes.umidade_solo_media != null && !isNaN(Number(condicoes.umidade_solo_media))) {
+    mediaSoloStr = `${Number(condicoes.umidade_solo_media).toFixed(1)}%`;
+  } else if (sensoresSolo.length > 0) {
+    const sumUmidSolo = sensoresSolo.reduce((acc, v) => acc + v, 0);
     mediaSoloStr = `${(sumUmidSolo / sensoresSolo.length).toFixed(1)}%`;
   }
 
-  // 4. Alertas do Sistema
-  const totalAlertas = alertasAbertos.total != null ? alertasAbertos.total : (preditivos.length);
-  const reativosQtd = alertasAbertos.reativos ?? 0;
-  const preditivosQtd = alertasAbertos.preditivos ?? preditivos.length;
-  const badgeAlertas = totalAlertas === 0 ? 'green' : (totalAlertas > 3 ? 'red' : 'yellow');
-  const badgeAlertasTexto = totalAlertas === 0 ? 'NORMAL' : 'ATENÇÃO';
+  // 4. Alertas do Sistema (fonte única unificada com Central de Alertas e Sensores)
+  const resumoAlertasUnificado = resumirAlertasAnalista(preditivos, cortes);
+  const totalAlertas = resumoAlertasUnificado.total;
+  const reativosQtd = resumoAlertasUnificado.reativos;
+  const preditivosQtd = resumoAlertasUnificado.preditivos;
+  const badgeAlertas = totalAlertas === 0 ? 'green' : (resumoAlertasUnificado.critico > 0 ? 'red' : 'yellow');
+  const badgeAlertasTexto = totalAlertas === 0 ? 'NORMAL' : (resumoAlertasUnificado.critico > 0 ? 'CRÍTICO' : 'ATENÇÃO');
 
   // B) TOPOLOGIA DE SENSORES NO CAMPO
   const propriedade = topologia?.propriedade || {
@@ -667,46 +695,49 @@ async function renderAnalistaDashboard() {
 
   const horaRecifeSinc = formatarHoraSimplesRecife(ingestao_24h.ultima_leitura);
 
-  // D) MODELOS PREDITIVOS E LIMIARES DE ALERTA
-  const preditivosList = extrairArraySeguro(preditivos);
-  const alertaMaisRecente = preditivosList.length > 0
-    ? [...preditivosList].sort((a, b) => new Date(b.data_geracao || 0) - new Date(a.data_geracao || 0))[0]
+  // D) MODELOS PREDITIVOS E LIMIARES DE ALERTA (somente ativos e não vencidos)
+  const preditivosAtivos = resumoAlertasUnificado.ativos.filter(a => a._eh_preditivo);
+  const alertaMaisRecente = preditivosAtivos.length > 0
+    ? [...preditivosAtivos].sort((a, b) => new Date(b.data_hora || b.data_geracao || 0) - new Date(a.data_hora || a.data_geracao || 0))[0]
     : null;
 
   let alertaRecenteHtml = `
     <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px; margin: 10px 0; font-size: 12px; color: #64748B; text-align: center;">
-      Nenhum alerta preditivo em aberto
+      Nenhum alerta preditivo ativo
     </div>
   `;
 
   if (alertaMaisRecente) {
-    const severidade = (alertaMaisRecente.nivel_severidade || '').toUpperCase();
-    const nivelLabel = severidade === 'CRITICO' ? 'Alto' : (severidade === 'MEDIO' ? 'Médio' : 'Baixo');
+    const severidade = alertaMaisRecente._nivel_padrao || 'BAIXO';
+    const nivelLabel = alertaMaisRecente._nivel_curto || 'Baixo';
     const badgeBg = severidade === 'CRITICO' ? '#FEE2E2' : (severidade === 'MEDIO' ? '#FEF3C7' : '#E0F2FE');
     const badgeColor = severidade === 'CRITICO' ? '#991B1B' : (severidade === 'MEDIO' ? '#92400E' : '#0369A1');
     const dotBg = severidade === 'CRITICO' ? '#EF4444' : (severidade === 'MEDIO' ? '#D97706' : '#0284C7');
-    const probPct = alertaMaisRecente.probabilidade_risco != null ? `${(Number(alertaMaisRecente.probabilidade_risco) * 100).toFixed(0)}%` : '—';
-    const s = alertaMaisRecente.id_sensor ? topologiaSensorsMap[alertaMaisRecente.id_sensor] : null;
-    const sensorNome = s ? s.nome : (alertaMaisRecente.id_sensor ? `Sensor #${alertaMaisRecente.id_sensor}` : 'Sensor');
-    const loteTexto = alertaMaisRecente.id_lote ? `Lote #${alertaMaisRecente.id_lote}` : '';
+    const probRaw = alertaMaisRecente.probabilidade_risco != null ? Number(alertaMaisRecente.probabilidade_risco) : (alertaMaisRecente.probabilidade != null ? Number(alertaMaisRecente.probabilidade) : null);
+    const probPct = probRaw != null && !isNaN(probRaw) ? `${Math.round(probRaw > 1 ? probRaw : probRaw * 100)}%` : '—';
+    const sensorId = alertaMaisRecente.id_sensor ?? alertaMaisRecente.sensor?.id_sensor ?? null;
+    const s = sensorId != null ? topologiaSensorsMap[sensorId] : null;
+    const sensorNome = s ? s.nome : (alertaMaisRecente.sensor_nome || alertaMaisRecente.sensor?.nome || (sensorId != null ? `Sensor #${sensorId}` : 'Sem sensor vinculado'));
+    const loteId = alertaMaisRecente.id_lote ?? alertaMaisRecente.lote?.id_lote ?? null;
+    const loteTexto = loteId != null ? `Lote #${loteId}` : '';
 
     alertaRecenteHtml = `
       <div style="background: ${badgeBg}; border: 1px solid rgba(0,0,0,0.06); border-radius: 10px; padding: 12px; margin: 10px 0;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; flex-wrap:wrap; gap:6px;">
           <span style="font-size: 12px; font-weight: 700; color: ${badgeColor}; display: flex; align-items: center; gap: 6px;">
             <span style="width: 7px; height: 7px; border-radius: 50%; background: ${dotBg};"></span>
-            Risco climático
+            ${alertaMaisRecente.titulo || 'Risco climático'}
           </span>
           <span style="font-size: 10px; font-weight: 700; background: rgba(255,255,255,0.7); color: ${badgeColor}; padding: 2px 6px; border-radius: 4px;">
             NÍVEL: ${nivelLabel.toUpperCase()} (${probPct})
           </span>
         </div>
         <p style="font-size: 11px; color: ${badgeColor}; line-height: 1.4; margin-bottom: 6px;">
-          ${alertaMaisRecente.mensagem || 'Condição de alerta preditivo detectada pelo modelo.'}
+          ${alertaMaisRecente.descricao || alertaMaisRecente.mensagem || 'Condição de alerta preditivo detectada pelo modelo.'}
         </p>
         <div style="font-size: 10px; color: ${badgeColor}; opacity: 0.9; display: flex; justify-content: space-between; align-items: center; flex-wrap:wrap; gap:4px;">
           <span>${[sensorNome, loteTexto].filter(Boolean).join(' • ')}</span>
-          <span>Previsão: ${formatarDataRecife(alertaMaisRecente.previsao_data_hora)}</span>
+          <span>${alertaMaisRecente.previsao_data_hora ? `Previsão: ${formatarDataRecife(alertaMaisRecente.previsao_data_hora)}` : ''}</span>
         </div>
       </div>
     `;
@@ -778,8 +809,8 @@ async function renderAnalistaDashboard() {
       <!-- Sub-barra Técnica do Analista -->
       <div class="analista-subbar">
         <div class="analista-subbar-info">
-          <span class="analista-dot-pulse"></span>
-          <span>${propriedade.nome.toUpperCase()} • CONCENTRADOR ATIVO</span>
+          <span class="analista-dot-pulse" style="background: ${statusColeta.cor};"></span>
+          <span>${propriedade.nome.toUpperCase()} • ${statusColeta.ativo ? 'CONCENTRADOR ATIVO' : statusColeta.label.toUpperCase()}</span>
           <span class="analista-badge-tech">TELEMETRIA IOT</span>
         </div>
         <div class="analista-subbar-actions">
@@ -808,8 +839,8 @@ async function renderAnalistaDashboard() {
           </div>
           <div class="kpi-bottom-row">
             <span>${tempoRelativoColeta}</span>
-            <span style="color: #059669; font-weight: 600; display: flex; align-items: center; gap: 4px;">
-              <i data-lucide="check-circle-2" style="width: 13px; height: 13px;"></i> Coleta ativa
+            <span style="color: ${statusColeta.cor}; font-weight: 600; display: flex; align-items: center; gap: 4px;">
+              <i data-lucide="${statusColeta.ativo ? 'check-circle-2' : 'alert-circle'}" style="width: 13px; height: 13px;"></i> ${statusColeta.coletaLabel}
             </span>
           </div>
         </div>
@@ -937,8 +968,8 @@ async function renderAnalistaDashboard() {
         <div class="map-legend-row">
           <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
             <span style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #334155;">
-              <span style="width: 9px; height: 9px; border-radius: 50%; background: #10B981;"></span>
-              Sensores ativos (${contadores.ativos ?? 0})
+              <span style="width: 9px; height: 9px; border-radius: 50%; background: ${statusColeta.ativo ? '#10B981' : '#94A3B8'};"></span>
+              Sensores ativos (${ativosSensores})
             </span>
             <span style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #334155;">
               <span style="width: 9px; height: 9px; border-radius: 50%; background: #F59E0B;"></span>
@@ -1075,9 +1106,10 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS, ultimaLe
   const vazaoLdia = dg.vazao_ldia;
   const temUmidAr24h = Array.isArray(dg.umidade_ar_24h) && dg.umidade_ar_24h.length > 0;
   const temTempAr24h = Array.isArray(dg.temp_ar_24h) && dg.temp_ar_24h.length > 0;
-  const temLeituras24h = temUmidAr24h || temTempAr24h;
+  const temUmidSolo24h = Array.isArray(dg.umidade_solo_24h) && dg.umidade_solo_24h.length > 0;
+  const temLeituras24h = temUmidAr24h || temTempAr24h || temUmidSolo24h;
   const uArLast = temUmidAr24h ? dg.umidade_ar_24h[dg.umidade_ar_24h.length - 1] : null;
-  const uSoloLast = (temLeituras24h && dg.umidade_solo_24h && dg.umidade_solo_24h.length) ? dg.umidade_solo_24h[dg.umidade_solo_24h.length - 1] : null;
+  const uSoloLast = temUmidSolo24h ? dg.umidade_solo_24h[dg.umidade_solo_24h.length - 1] : null;
   const tArLast = temTempAr24h ? dg.temp_ar_24h[dg.temp_ar_24h.length - 1] : null;
 
   // --- Clima Open-Meteo real para o Card 3 ---
@@ -1124,7 +1156,23 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS, ultimaLe
     toast.error('Falha ao carregar previsão', 'Tente novamente');
   }
 
-  const pDia = clima?.periodos_dia || {};
+  const pDia = { ...(clima?.periodos_dia || {}) };
+  if ((pDia.manha == null || pDia.tarde == null || pDia.noite == null) && Array.isArray(clima?.horas) && clima.horas.length > 0) {
+    const hojeStr = String(climaAtual?.time || clima?.dias?.[0]?.time || clima.horas[0]?.time || '').slice(0, 10);
+    const horasHoje = clima.horas.filter(h => h && String(h.time || '').startsWith(hojeStr) && h.temperature_2m != null && !Number.isNaN(Number(h.temperature_2m)));
+    const mediaFaixa = (hIni, hFim) => {
+      const vals = horasHoje
+        .filter(h => {
+          const hr = Number(String(h.time).slice(11, 13));
+          return !Number.isNaN(hr) && hr >= hIni && hr <= hFim;
+        })
+        .map(h => Number(h.temperature_2m));
+      return vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+    };
+    if (pDia.manha == null) pDia.manha = mediaFaixa(6, 11);
+    if (pDia.tarde == null) pDia.tarde = mediaFaixa(12, 17);
+    if (pDia.noite == null) pDia.noite = mediaFaixa(18, 23);
+  }
   const climaManha = pDia.manha != null ? `${Math.round(Number(pDia.manha))}°` : '—';
   const climaTarde = pDia.tarde != null ? `${Math.round(Number(pDia.tarde))}°` : '—';
   const climaNoite = pDia.noite != null ? `${Math.round(Number(pDia.noite))}°` : '—';
@@ -1574,16 +1622,10 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS, ultimaLe
         <div class="mini-chart-card">
           <div class="mini-chart-header">
             <span class="mini-chart-title">Umidade do Solo</span>
-            ${SONDA_SOLO_INSTALADA
-      ? `<span class="mini-chart-pill ${temLeituras24h ? 'pill-green' : 'pill-blue'}" id="miniChart2-pill">${temLeituras24h && dg.umidade_solo_24h && dg.umidade_solo_24h.length ? `${Math.round(dg.umidade_solo_24h[dg.umidade_solo_24h.length - 1])}%` : 'Sem dados'}</span>`
-      : `<span class="mini-chart-pill" id="miniChart2-pill" style="background: #F1F5F9; border: 1px solid #CBD5E1; color: #64748B;">Sem sonda instalada</span>`
-    }
+            <span class="mini-chart-pill ${temUmidSolo24h ? 'pill-green' : 'pill-blue'}" id="miniChart2-pill">${temUmidSolo24h ? `${Math.round(uSoloLast)}%` : 'Sem dados'}</span>
           </div>
           <div class="chart-canvas-wrap">
-            ${SONDA_SOLO_INSTALADA
-      ? `<canvas id="miniChart2"></canvas>`
-      : `<div class="grafico-sem-dados" style="height: 100%; min-height: 48px; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #94A3B8; font-style: italic; text-align: center;">Sensor de umidade do solo ainda não instalado</div>`
-    }
+            <canvas id="miniChart2"></canvas>
           </div>
           <div class="chart-time-labels">
             <span>-24h</span><span>-18h</span><span>-12h</span><span>-6h</span><span>Agora</span>
@@ -2515,7 +2557,8 @@ export async function setupDashboardEvents() {
           resultadoParecer.replaceChildren(wrap);
         } catch (err) {
           console.error('Erro ao obter parecer do lote:', err);
-          resultadoParecer.textContent = 'Não foi possível obter o parecer. Tente novamente.';
+          const detalhe = err?.message ? ` (${err.message})` : '';
+          resultadoParecer.textContent = `Não foi possível obter o parecer${detalhe}. Tente novamente.`;
         } finally {
           carregandoParecer = false;
           btnParecer.disabled = false;
@@ -2678,14 +2721,14 @@ export async function setupDashboardEvents() {
   if (isResumidoCurrent) {
     criarMiniGraficoApple('miniChart1', ptsUar, '#10B981', 'Sem leituras no período');
     if (SONDA_SOLO_INSTALADA) {
-      criarMiniGraficoApple('miniChart2', ptsUsolo, '#0D9488', 'Sem leituras no período');
+      criarMiniGraficoApple('miniChart2', ptsUsolo, '#0D9488', 'Sem dados no período');
     }
     criarMiniGraficoApple('miniChart4', ptsTar, '#16A34A', 'Sem leituras no período');
   } else {
     // No modo Detalhado, os gráficos são em tom verde esmeralda com pontos conforme Figma
     criarMiniGraficoApple('miniChart1', ptsUar, '#10B981', 'Sem leituras no período');
     if (SONDA_SOLO_INSTALADA) {
-      criarMiniGraficoApple('miniChart2', ptsUsolo, '#10B981', 'Sem leituras no período');
+      criarMiniGraficoApple('miniChart2', ptsUsolo, '#10B981', 'Sem dados no período');
     }
     criarMiniGraficoApple('miniChart4', ptsTar, '#10B981', 'Sem leituras no período');
   }
@@ -2774,9 +2817,9 @@ export async function setupDashboardEvents() {
     });
   });
 
-  // Interatividade nos seletores de período de telemetria
+  // Interatividade nos seletores de período de telemetria (24h, 7d, 30d)
   document.querySelectorAll('.timeframe-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    btn.addEventListener('click', async (e) => {
       document.querySelectorAll('.timeframe-btn').forEach(b => {
         b.classList.remove('active');
         b.style.background = 'none';
@@ -2799,17 +2842,35 @@ export async function setupDashboardEvents() {
 
       if (temSeries24h && tf === '24h') {
         criarMiniGraficoApple('miniChart1', cur.umidade_ar_24h || [], '#10B981', 'Sem leituras no período');
-        if (SONDA_SOLO_INSTALADA) {
-          criarMiniGraficoApple('miniChart2', cur.umidade_solo_24h || [], '#0D9488', 'Sem leituras no período');
-        }
         criarMiniGraficoApple('miniChart4', cur.temp_ar_24h || [], '#16A34A', 'Sem leituras no período');
       } else {
-        // Se não houver leitura na janela escolhida (24h, 7 ou 30 dias), não desenha curva e mostra "Sem leituras no período"
         criarMiniGraficoApple('miniChart1', [], '#10B981', 'Sem leituras no período');
-        if (SONDA_SOLO_INSTALADA) {
-          criarMiniGraficoApple('miniChart2', [], '#0D9488', 'Sem leituras no período');
-        }
         criarMiniGraficoApple('miniChart4', [], '#16A34A', 'Sem leituras no período');
+      }
+
+      // Umidade do Solo: sempre busca diretamente do sensor 3 no período escolhido (24h, 7d, 30d)
+      if (SONDA_SOLO_INSTALADA) {
+        let ptsSoloTf = [];
+        try {
+          const soloRes = await api.getSensorLeituras(SENSOR_SOLO_ID, tf);
+          ptsSoloTf = extrairSerieUmidadeSolo(soloRes);
+        } catch (errSolo) {
+          console.warn('[Dashboard] Falha ao buscar leituras de solo para', tf, errSolo);
+        }
+        const isResumidoTf = localStorage.getItem('DASHBOARD_MODE') !== 'detalhado';
+        criarMiniGraficoApple('miniChart2', ptsSoloTf, isResumidoTf ? '#0D9488' : '#10B981', 'Sem dados no período');
+        const elPillSolo = document.getElementById('miniChart2-pill');
+        if (elPillSolo) {
+          if (ptsSoloTf.length > 0) {
+            elPillSolo.textContent = `${Math.round(ptsSoloTf[ptsSoloTf.length - 1])}%`;
+            elPillSolo.classList.remove('pill-blue');
+            elPillSolo.classList.add('pill-green');
+          } else {
+            elPillSolo.textContent = 'Sem dados';
+            elPillSolo.classList.remove('pill-green');
+            elPillSolo.classList.add('pill-blue');
+          }
+        }
       }
     });
   });
@@ -3272,17 +3333,18 @@ function setupAnalistaDashboardEvents() {
  * 3. DASHBOARD DO ADMINISTRADOR (FIGMA MOCKUP 1: LORENA LIRA)
  * Visão Geral do Sistema com Governança, Lotes, Sensores, Conformidade e Atividade 24h
  */
-let _adminDashState = { leiturasGrafico: null };
+let _adminDashState = { leiturasGrafico: null, pontosAr: [], pontosSolo: [] };
 
 async function renderAdminDashboard() {
-  const [resResumo, resUsuarios, resLotes, resRegras, resLogs, resPortos, resLeituras] = await Promise.allSettled([
+  const [resResumo, resUsuarios, resLotes, resRegras, resLogs, resPortos, resLeituras, resSensores] = await Promise.allSettled([
     api.getDashboardResumo(),
     api.getUsuarios(),
     api.getLotes(),
     api.getConfigParametros(),
     api.getAuditoria({ limit: 4 }),
     api.getPortos(),
-    api.getLeituras(24)
+    api.getLeituras(24),
+    api.getSensores()
   ]);
 
   const resumo = resResumo.status === 'fulfilled' && resResumo.value ? resResumo.value : {};
@@ -3292,8 +3354,33 @@ async function renderAdminDashboard() {
   const logs = resLogs.status === 'fulfilled' && Array.isArray(resLogs.value) ? resLogs.value : [];
   const portos = resPortos.status === 'fulfilled' && Array.isArray(resPortos.value) ? resPortos.value : [];
   const leituras = resLeituras.status === 'fulfilled' && Array.isArray(resLeituras.value) ? resLeituras.value : [];
+  const sensoresLista = resSensores.status === 'fulfilled'
+    ? (Array.isArray(resSensores.value) ? resSensores.value : (resSensores.value?.sensores || []))
+    : [];
+
+  // Mesma fonte agregada de 24h da tela de Sensores (priorizando sensores com telemetria ativa)
+  const sensorAr =
+    sensoresLista.find(s => String(s?.ambiente || '').toLowerCase() === 'ar' && s?.ultima_leitura) ||
+    sensoresLista.find(s => String(s?.ambiente || '').toLowerCase() === 'ar');
+  const sensorSolo =
+    sensoresLista.find(s => String(s?.ambiente || '').toLowerCase() === 'solo' && s?.ultima_leitura) ||
+    sensoresLista.find(s => String(s?.ambiente || '').toLowerCase() === 'solo');
+
+  const [resPtsAr, resPtsSolo] = await Promise.allSettled([
+    sensorAr ? api.getSensorLeituras(sensorAr.id_sensor, '24h') : Promise.resolve({ pontos: [] }),
+    sensorSolo ? api.getSensorLeituras(sensorSolo.id_sensor, '24h') : Promise.resolve({ pontos: [] })
+  ]);
+
+  const extrairPontos = (r) => {
+    if (r.status !== 'fulfilled' || !r.value) return [];
+    return Array.isArray(r.value) ? r.value : (Array.isArray(r.value.pontos) ? r.value.pontos : []);
+  };
+  const pontosAr24h = extrairPontos(resPtsAr);
+  const pontosSolo24h = extrairPontos(resPtsSolo);
 
   _adminDashState.leiturasGrafico = leituras;
+  _adminDashState.pontosAr = pontosAr24h;
+  _adminDashState.pontosSolo = pontosSolo24h;
 
   // 1. Usuários (tabela usuario + perfil)
   const totalUsers = usuarios.length;
@@ -3329,11 +3416,17 @@ async function renderAdminDashboard() {
   const sensReais = resumo?.sensores?.reais ?? 0;
   const sensSimulados = resumo?.sensores?.simulados ?? Math.max(0, sensAtivos - sensReais);
   const pctSensOnline = sensTotal > 0 ? Math.round((sensAtivos / sensTotal) * 100) : 0;
+  const parseUtcMs = (raw) => {
+    if (!raw) return NaN;
+    const s = String(raw).trim();
+    const iso = /[zZ]$|[+-]\d{2}:?\d{2}$/.test(s) ? s : `${s.replace(' ', 'T')}Z`;
+    return new Date(iso).getTime();
+  };
   const maxLeituraAdminTs = leituras.reduce((max, l) => {
-    const t = l?.data_hora ? new Date(l.data_hora).getTime() : NaN;
+    const t = parseUtcMs(l?.data_hora);
     return (!isNaN(t) && t > max) ? t : max;
   }, 0);
-  const temLeituraRecente30m = maxLeituraAdminTs > 0 && (Date.now() - maxLeituraAdminTs) < 30 * 60 * 1000;
+  const temLeituraRecente30m = maxLeituraAdminTs > 0 && Math.abs(Date.now() - maxLeituraAdminTs) < 30 * 60 * 1000;
   const badgeSensoresHtml = temLeituraRecente30m
     ? `<span style="font-size: 10px; font-weight: 700; color: #047857; background: #D1FAE5; padding: 2px 8px; border-radius: 12px;">${pctSensOnline}% ATIVOS</span>`
     : `<span style="font-size: 10px; font-weight: 700; color: #B45309; background: #FEF3C7; padding: 2px 8px; border-radius: 12px;">${sensTotal} cadastrados • sem leitura recente</span>`;
@@ -3355,30 +3448,46 @@ async function renderAdminDashboard() {
   const vpdMedio = rc.vpd_medio_kpa != null ? `${rc.vpd_medio_kpa} kPa` : '—';
   const areaProp = resumo?.propriedade?.area_ha != null ? `${resumo.propriedade.area_ha.toLocaleString('pt-BR')} ha` : 'Polo Petrolina';
 
-  // Média real de umidade_solo das leituras recentes (sem temperatura_solo)
-  const leiturasSolo = leituras.map(l => Number(l.umidade_solo)).filter(v => !isNaN(v) && v > 0);
-  const umidSoloMedia = leiturasSolo.length > 0
-    ? `${(leiturasSolo.reduce((a, b) => a + b, 0) / leiturasSolo.length).toFixed(1)}% VWC`
-    : 'Sem leitura solo 24h';
+  // Média real de umidade_solo das últimas 24h (mesma janela de /dashboard/resumo e Sensores)
+  let umidSoloMedia = 'Sem leitura solo 24h';
+  if (rc.umidade_solo_media != null && !isNaN(Number(rc.umidade_solo_media))) {
+    umidSoloMedia = `${Number(rc.umidade_solo_media).toFixed(1)}% VWC`;
+  } else {
+    const valsSolo24h = pontosSolo24h
+      .map(p => Number(p?.umidade_solo != null ? p.umidade_solo : p?.umidade))
+      .filter(v => !isNaN(v) && v >= 0);
+    if (valsSolo24h.length > 0) {
+      umidSoloMedia = `${(valsSolo24h.reduce((a, b) => a + b, 0) / valsSolo24h.length).toFixed(1)}% VWC`;
+    }
+  }
 
   // 6. Acessos recentes (tabela log_acesso)
   const acessosHtml = logs.length > 0 ? logs.map(log => {
-    const nome = String(log.usuario || `Usuário #${log.id_usuario || 'Sistema'}`);
-    const iniciais = nome.split(/\s+/).filter(Boolean).map(p => p[0]).slice(0, 2).join('').toUpperCase() || 'SY';
-    const hora = log.data_hora ? new Date(log.data_hora).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '--:--';
-    const ok = !String(log.resultado || '').toLowerCase().includes('falha') && !String(log.resultado || '').toLowerCase().includes('negado');
+    const nome = log.usuario ? String(log.usuario) : (log.id_usuario != null ? `Usuário #${log.id_usuario}` : 'Sistema');
+    const iniciais = nome === 'Sistema'
+      ? 'SY'
+      : (nome.split(/\s+/).filter(Boolean).map(p => p[0]).slice(0, 2).join('').toUpperCase() || 'SY');
+    const rawDt = log.data_hora ? String(log.data_hora).trim() : '';
+    const isoUtc = rawDt ? (/[zZ]$|[+-]\d{2}:?\d{2}$/.test(rawDt) ? rawDt : `${rawDt.replace(' ', 'T')}Z`) : '';
+    const hora = isoUtc
+      ? new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Recife', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(isoUtc))
+      : '--:--';
+    const resRaw = String(log.resultado || 'sucesso');
+    const ok = !resRaw.toLowerCase().includes('falha') && !resRaw.toLowerCase().includes('negado') && !resRaw.toLowerCase().includes('erro');
+    const statusCurto = ok ? 'sucesso' : 'falha';
+    const tituloTooltip = resRaw.replace(/"/g, '&quot;');
     return `
-      <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px; display: flex; align-items: center; justify-content: space-between;">
-        <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
+      <div title="${tituloTooltip}" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; overflow: hidden; min-width: 0;">
+        <div style="display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1;">
           <div style="width: 36px; height: 36px; border-radius: 50%; background: ${ok ? '#D1FAE5' : '#FEE2E2'}; border: 1.5px solid ${ok ? '#10B981' : '#EF4444'}; color: ${ok ? '#065F46' : '#991B1B'}; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 12px; flex-shrink: 0;">${iniciais}</div>
-          <div style="min-width: 0;">
+          <div style="min-width: 0; flex: 1;">
             <strong style="font-size: 13px; color: #0F172A; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${nome}</strong>
-            <div style="font-size: 11px; color: #64748B; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${log.acao || 'acesso'} • ${log.ip || 'IP N/D'}</div>
+            <div style="font-size: 11px; color: #64748B; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${log.acao || 'acesso'}${log.ip ? ` • ${log.ip}` : ''}</div>
           </div>
         </div>
-        <div style="text-align: right; flex-shrink: 0; margin-left: 8px;">
-          <span style="font-size: 10px; color: #64748B;">${hora}</span>
-          <div style="font-size: 10px; font-weight: 700; color: ${ok ? '#047857' : '#DC2626'};">${log.resultado || 'sucesso'}</div>
+        <div style="text-align: right; flex-shrink: 0;">
+          <span style="font-size: 10px; color: #64748B; display: block;">${hora}</span>
+          <div style="font-size: 10px; font-weight: 700; color: ${ok ? '#047857' : '#DC2626'}; white-space: nowrap;">${statusCurto}</div>
         </div>
       </div>
     `;
@@ -3686,15 +3795,50 @@ function setupAdminDashboardEvents() {
     window.location.hash = '#/regras-agronomicas';
   });
 
-  // Gráfico com leituras reais do PostgreSQL (leitura_climatica)
+  // Gráfico sincronizado com a série agregada de 24h (mesma fonte da tela de Sensores, fuso America/Recife)
   const ctx = document.getElementById('chart-admin-atividade');
   if (ctx && window.Chart) {
-    const raw = Array.isArray(_adminDashState.leiturasGrafico) ? [..._adminDashState.leiturasGrafico].reverse() : [];
-    const labels = raw.length > 0
-      ? raw.map(l => l.data_hora ? new Date(l.data_hora).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '--:--')
-      : ['Sem dados'];
-    const umidData = raw.length > 0 ? raw.map(l => l.umidade_solo != null ? Number(l.umidade_solo) : (l.umidade != null ? Number(l.umidade) : null)) : [null];
-    const tempData = raw.length > 0 ? raw.map(l => l.temperatura != null ? Number(l.temperatura) : null) : [null];
+    const ptsAr = Array.isArray(_adminDashState.pontosAr) ? _adminDashState.pontosAr : [];
+    const ptsSolo = Array.isArray(_adminDashState.pontosSolo) ? _adminDashState.pontosSolo : [];
+
+    const porInstante = new Map();
+    const parseIso = (raw) => {
+      if (!raw) return null;
+      const s = String(raw).trim();
+      const iso = /[zZ]$|[+-]\d{2}:?\d{2}$/.test(s) ? s : `${s.replace(' ', 'T')}Z`;
+      const d = new Date(iso);
+      return isNaN(d.getTime()) ? null : d;
+    };
+
+    ptsAr.forEach(p => {
+      const d = parseIso(p?.instante || p?.data_hora);
+      if (!d) return;
+      const key = d.getTime();
+      const cur = porInstante.get(key) || { ts: key, temp: null, solo: null };
+      if (p.temperatura != null) cur.temp = Number(p.temperatura);
+      porInstante.set(key, cur);
+    });
+    ptsSolo.forEach(p => {
+      const d = parseIso(p?.instante || p?.data_hora);
+      if (!d) return;
+      const key = d.getTime();
+      const cur = porInstante.get(key) || { ts: key, temp: null, solo: null };
+      const uVal = p.umidade_solo != null ? p.umidade_solo : p.umidade;
+      if (uVal != null) cur.solo = Number(uVal);
+      porInstante.set(key, cur);
+    });
+
+    const serie = Array.from(porInstante.values()).sort((a, b) => a.ts - b.ts);
+    const fmtRecife = (ms) => new Intl.DateTimeFormat('pt-BR', {
+      timeZone: 'America/Recife',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    }).format(new Date(ms));
+
+    const labels = serie.length > 0 ? serie.map(s => fmtRecife(s.ts)) : ['Sem dados'];
+    const umidData = serie.length > 0 ? serie.map(s => s.solo) : [null];
+    const tempData = serie.length > 0 ? serie.map(s => s.temp) : [null];
 
     const chart = new window.Chart(ctx, {
       type: 'line',
