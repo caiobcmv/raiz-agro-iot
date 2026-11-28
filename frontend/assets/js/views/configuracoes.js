@@ -350,10 +350,10 @@ export async function renderConfiguracoes() {
     </div>
 
     <!-- 2-COL: INFORMAÇÕES DA PROPRIEDADE + PADRÕES DE QUALIDADE -->
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:24px;">
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:24px; align-items:stretch;">
 
       <!-- Informações e Cadastro da Propriedade -->
-      <div class="apple-card" style="padding:24px 26px; align-self: start; height: auto;">
+      <div class="apple-card" style="padding:24px 26px; display:flex; flex-direction:column;">
         <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:18px;">
           <div style="display:flex; align-items:center; gap:10px;">
             <div style="width:36px;height:36px; background:#F0FDF4; border-radius:10px; display:flex;align-items:center;justify-content:center;">
@@ -429,7 +429,7 @@ export async function renderConfiguracoes() {
       </div>
 
       <!-- Padrões de Qualidade e Brix de Embarque -->
-      <div class="apple-card" style="padding:24px 26px;">
+      <div class="apple-card" style="padding:24px 26px; display:flex; flex-direction:column;">
         <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:18px;">
           <div style="display:flex; align-items:center; gap:10px;">
             <div style="width:36px;height:36px; background:#FFF7ED; border-radius:10px; display:flex;align-items:center;justify-content:center;">
@@ -445,7 +445,7 @@ export async function renderConfiguracoes() {
 
         <div style="margin-bottom:10px; font-size:11px; font-weight:600; color:#475569;">Variedades Registradas e Padrão de Colheita:</div>
 
-        <div id="variedades-list-container" style="display:flex; flex-direction:column; gap:8px;">
+        <div id="variedades-list-container" style="display:flex; flex-direction:column; gap:8px; max-height:330px; overflow-y:auto; padding-right:4px;">
           ${VARIEDADES_LIST.map((v, i) => `
             <div class="variedade-item" data-index="${i}" style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:9px;">
               <div style="display:flex; align-items:center; gap:10px;">
