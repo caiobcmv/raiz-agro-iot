@@ -768,11 +768,11 @@ function renderCurvaTermicaBoxHtml(curva) {
     const plotW = 800 - marginL - marginR;
     const plotH = 200 - marginT - marginB;
 
-    const temps = [tmin, tmax, tempProj, tempAtual, ...historico.map(p => p.temperatura).filter(v => v != null)];
+    const temps = [tmin, tmax, tempProj, tempAtual, ...historico.map(p => p.temperatura)].filter(v => v != null && !isNaN(Number(v)));
     const minY = Math.floor(Math.min(...temps) - 1.5);
     const maxY = Math.ceil(Math.max(...temps) + 1.5);
 
-    const getY = (t) => marginT + plotH - ((t - minY) / (maxY - minY)) * plotH;
+    const getY = (t) => marginT + plotH - ((t - minY) / Math.max(0.1, maxY - minY)) * plotH;
 
     const yTmax = getY(tmax);
     const yTmin = getY(tmin);
@@ -780,11 +780,11 @@ function renderCurvaTermicaBoxHtml(curva) {
 
     // Segmentos do histórico real
     const numPontos = historico.length;
-    const stepX = (plotW * 0.75) / Math.max(1, numPontos - 1);
+    const stepX = (plotW * (tempProj != null ? 0.75 : 0.95)) / Math.max(1, numPontos - 1);
 
     let pathD = '';
     let ultimoX = marginL;
-    let ultimoY = getY(tempAtual);
+    let ultimoY = tempAtual != null ? getY(tempAtual) : getY(tmin);
 
     historico.forEach((p, idx) => {
       const x = marginL + idx * stepX;
@@ -802,9 +802,10 @@ function renderCurvaTermicaBoxHtml(curva) {
       }
     });
 
-    // Ponto projetado
+    // Ponto projetado (apenas quando há projeção real)
+    const temProjecaoReal = tempProj != null && !isNaN(Number(tempProj));
     const projX = marginL + plotW;
-    const projY = getY(tempProj);
+    const projY = temProjecaoReal ? getY(tempProj) : ultimoY;
 
     svgContent = `
       <svg viewBox="0 0 800 200" style="width: 100%; height: 100%;" preserveAspectRatio="xMidYMid meet">
@@ -828,14 +829,16 @@ function renderCurvaTermicaBoxHtml(curva) {
         <!-- Curva Real Histórica (Linha Verde) -->
         <path d="${pathD}" fill="none" stroke="#10B981" stroke-width="2.8" stroke-linecap="round"/>
 
+        ${temProjecaoReal ? `
         <!-- Curva de Projeção ML (Vermelha Tracejada) -->
         <path d="M ${ultimoX.toFixed(1)},${ultimoY.toFixed(1)} L ${projX.toFixed(1)},${projY.toFixed(1)}" fill="none" stroke="#EF4444" stroke-width="2.5" stroke-dasharray="5,4"/>
 
         <!-- Ponto Projetado -->
         <circle cx="${projX.toFixed(1)}" cy="${projY.toFixed(1)}" r="4.5" fill="#EF4444" stroke="#FFFFFF" stroke-width="1.5"/>
+        ` : ''}
 
-        <!-- Ponto Atual com Alerta de Desvio -->
-        <circle cx="${ultimoX.toFixed(1)}" cy="${ultimoY.toFixed(1)}" r="6" fill="#EF4444" stroke="#FFFFFF" stroke-width="2"/>
+        <!-- Ponto Atual -->
+        <circle cx="${ultimoX.toFixed(1)}" cy="${ultimoY.toFixed(1)}" r="6" fill="${desvioAtual != null ? '#EF4444' : '#10B981'}" stroke="#FFFFFF" stroke-width="2"/>
         <rect x="${(ultimoX - 28).toFixed(1)}" y="${(ultimoY - 32).toFixed(1)}" width="56" height="20" rx="4" fill="#0F172A"/>
         <text x="${ultimoX.toFixed(1)}" y="${(ultimoY - 18).toFixed(1)}" fill="#FFFFFF" font-size="10" font-weight="800" text-anchor="middle">${desvioSinal}°C</text>
       </svg>

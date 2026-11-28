@@ -744,7 +744,7 @@ function renderInventarioBoxHtml() {
             <div style="font-size: 11px; color: #64748B;">${s.localizacao || 'Setor padrão'}</div>
           </td>
           <td style="padding: 12px 14px;">
-            <div style="font-weight: 700; color: #0284C7; font-family: monospace;">${s.channel_id ? 'Ch ' + s.channel_id : '—'}</div>
+            <div style="font-weight: 700; color: #0284C7; font-family: monospace;">${(s.channel_id || sensoresState.resumo?.coleta?.canal) ? 'Ch ' + (s.channel_id || sensoresState.resumo?.coleta?.canal) : '—'}</div>
           </td>
           <td style="padding: 12px 14px;">
             <div style="font-weight: 700; color: #0F172A;">

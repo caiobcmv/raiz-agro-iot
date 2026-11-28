@@ -13,7 +13,8 @@ import { downloadCSV, downloadPDF, openExportChoiceModal } from '../utils/export
 import {
   calcularStatusColeta,
   contarSensoresAtivosReais,
-  resumirAlertasAnalista
+  resumirAlertasAnalista,
+  formatarDataHoraRecife
 } from '../utils/analista-metrics.js';
 
 // Sonda de solo instalada: sensor 3 (origem 'thingspeak-solo'), lida exclusivamente via GET /sensores/3/leituras
@@ -3114,10 +3115,18 @@ function setupAnalistaDashboardEvents() {
       const ambLabel = s.ambiente === 'solo' ? 'Umidade do Solo' : 'Microclima / Ar';
       const estadoLabel = s.estado_mapa === 'ativo' ? 'Ativo' : (s.estado_mapa === 'atencao' ? 'Atenção' : 'Rejeição');
       const tempVal = s.temperatura != null ? `${Number(s.temperatura).toFixed(1)}°C` : '—';
-      const umidVal = s.umidade != null ? `${Number(s.umidade).toFixed(1)}%` : '—';
-      const origemBadge = s.origem_telemetria === 'real'
+      const umidRawModal = s.ambiente === 'solo' ? (s.umidade_solo ?? s.umidade) : s.umidade;
+      const umidVal = umidRawModal != null ? `${Number(umidRawModal).toFixed(1)}%` : '—';
+      const temTelemetriaReal = s.origem_telemetria === 'real'
+        || s.ultima_leitura != null
+        || s.temperatura != null
+        || umidRawModal != null;
+      const origemBadge = temTelemetriaReal
         ? '<span style="background:#ECFDF5; color:#065F46; padding:2px 8px; border-radius:6px; font-weight:700; font-size:10px;">Real</span>'
         : '<span style="background:#F1F5F9; color:#475569; padding:2px 8px; border-radius:6px; font-weight:700; font-size:10px;">Sem dados</span>';
+      const ultimaLeituraModal = s.ultima_leitura
+        ? (formatarDataHoraRecife(s.ultima_leitura, true) || formatarDataRecife(s.ultima_leitura))
+        : '—';
 
       const motivoHtml = s.motivo_rejeicao ? `
         <div style="background:#FEE2E2; border:1px solid #FCA5A5; color:#991B1B; padding:10px 12px; border-radius:8px; margin-top:12px; font-size:12px;">
@@ -3147,7 +3156,7 @@ function setupAnalistaDashboardEvents() {
           <strong>Ambiente:</strong> ${ambLabel}<br>
           <strong>Estado no Mapa:</strong> ${estadoLabel}<br>
           <strong>Lote:</strong> ${s.id_lote ? 'Lote #' + s.id_lote : '—'}<br>
-          <strong>Última Leitura:</strong> ${formatarDataRecife(s.ultima_leitura)}
+          <strong>Última Leitura:</strong> ${ultimaLeituraModal}
         </div>
         ${motivoHtml}
       `);
