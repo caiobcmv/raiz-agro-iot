@@ -16,8 +16,18 @@ import {
   resumirAlertasAnalista
 } from '../utils/analista-metrics.js';
 
-// Não existe sonda de solo instalada; o field3 do ThingSpeak lê um pino solto.
-const SONDA_SOLO_INSTALADA = false;
+// Sonda de solo instalada: sensor 3 (origem 'thingspeak-solo'), lida exclusivamente via GET /sensores/3/leituras
+const SONDA_SOLO_INSTALADA = true;
+const SENSOR_SOLO_ID = 3;
+
+function extrairSerieUmidadeSolo(resLeituras) {
+  const pontos = Array.isArray(resLeituras?.pontos)
+    ? resLeituras.pontos
+    : (Array.isArray(resLeituras) ? resLeituras : []);
+  return pontos
+    .filter(p => p && p.umidade_solo !== null && p.umidade_solo !== undefined && !Number.isNaN(Number(p.umidade_solo)))
+    .map(p => Number(p.umidade_solo));
+}
 const LIMITE_LEITURA_RECENTE_MIN = 30;
 const MAPA_PROPRIEDADE_LAT = -9.3300;   // editar aqui
 const MAPA_PROPRIEDADE_LNG = -40.6000;  // editar aqui
@@ -187,10 +197,11 @@ function atualizarDashboardComSSE(data) {
       elUmidBar.style.width = `${Math.min(100, Math.max(0, umidNum))}%`;
     }
   } else {
-    // Se não há leitura recente (<30min), mantém os gráficos 24h caso haja dados reais em series-24h
+    // Se não há leitura recente (<30min), mantém os gráficos 24h caso haja dados reais em cache
     const cacheAtual = dadosGraficosCache || {};
     const temUmidCache = Array.isArray(cacheAtual.umidade_ar_24h) && cacheAtual.umidade_ar_24h.length > 0;
     const temTempCache = Array.isArray(cacheAtual.temp_ar_24h) && cacheAtual.temp_ar_24h.length > 0;
+    const temSoloCache = Array.isArray(cacheAtual.umidade_solo_24h) && cacheAtual.umidade_solo_24h.length > 0;
 
     if (elPillTemp && !temTempCache) {
       elPillTemp.textContent = 'Sem dados';
@@ -202,7 +213,7 @@ function atualizarDashboardComSSE(data) {
       elPillUmid.classList.remove('pill-green');
       elPillUmid.classList.add('pill-blue');
     }
-    if (SONDA_SOLO_INSTALADA && elPillSolo) {
+    if (SONDA_SOLO_INSTALADA && elPillSolo && !temSoloCache) {
       elPillSolo.textContent = 'Sem dados';
       elPillSolo.classList.remove('pill-green');
       elPillSolo.classList.add('pill-blue');
@@ -210,8 +221,8 @@ function atualizarDashboardComSSE(data) {
     if (!temUmidCache) {
       criarMiniGraficoApple('miniChart1', [], '#10B981', 'Sem leituras no período');
     }
-    if (SONDA_SOLO_INSTALADA) {
-      criarMiniGraficoApple('miniChart2', [], '#0D9488', 'Sem leituras no período');
+    if (SONDA_SOLO_INSTALADA && !temSoloCache) {
+      criarMiniGraficoApple('miniChart2', [], '#0D9488', 'Sem dados no período');
     }
     if (!temTempCache) {
       criarMiniGraficoApple('miniChart4', [], '#16A34A', 'Sem leituras no período');
@@ -336,7 +347,7 @@ export async function renderDashboard() {
   const isResumido = localStorage.getItem('DASHBOARD_MODE') === 'resumido';
 
   // Busca dados reais do PostgreSQL em paralelo (onda única, inclusive no modo detalhado)
-  let resumo = null, clima = null, graficos = null, series24h = null, ultimaLeituraObj = null, lotesLista = null;
+  let resumo = null, clima = null, graficos = null, series24h = null, ultimaLeituraObj = null, lotesLista = null, solo24hRes = null;
   let extrasDetalhado = { irrigacao: null, sensores: null, mercado: null, janelas: null };
   try {
     const reqs = [
@@ -345,7 +356,8 @@ export async function renderDashboard() {
       api.getDadosGraficos(),
       api.getSeries24h(),
       api.getUltimaLeitura(1),
-      api.getLotes()
+      api.getLotes(),
+      api.getSensorLeituras(SENSOR_SOLO_ID, '24h')
     ];
     if (!isResumido) {
       reqs.push(
@@ -362,12 +374,13 @@ export async function renderDashboard() {
     series24h = results[3].status === 'fulfilled' ? results[3].value : null;
     ultimaLeituraObj = results[4].status === 'fulfilled' ? results[4].value : null;
     lotesLista = results[5].status === 'fulfilled' ? results[5].value : null;
+    solo24hRes = results[6].status === 'fulfilled' ? results[6].value : null;
     if (!isResumido) {
       extrasDetalhado = {
-        irrigacao: results[6]?.status === 'fulfilled' ? results[6].value : null,
-        sensores: results[7]?.status === 'fulfilled' ? results[7].value : null,
-        mercado: results[8]?.status === 'fulfilled' && Array.isArray(results[8].value) ? results[8].value : [],
-        janelas: results[9]?.status === 'fulfilled' && Array.isArray(results[9].value) ? results[9].value : []
+        irrigacao: results[7]?.status === 'fulfilled' ? results[7].value : null,
+        sensores: results[8]?.status === 'fulfilled' ? results[8].value : null,
+        mercado: results[9]?.status === 'fulfilled' && Array.isArray(results[9].value) ? results[9].value : [],
+        janelas: results[10]?.status === 'fulfilled' && Array.isArray(results[10].value) ? results[10].value : []
       };
     }
   } catch (e) {
@@ -382,12 +395,13 @@ export async function renderDashboard() {
   dadosGraficosCache = {
     ...DEFAULT_DADOS_GRAFICOS,
     ...(graficos || {}),
-    ...(series24h || {})
+    ...(series24h || {}),
+    // Fonte exclusiva do solo: sensor 3 via GET /sensores/3/leituras (sem fallback para series-24h)
+    umidade_solo_24h: extrairSerieUmidadeSolo(solo24hRes)
   };
   if (series24h) {
     if (series24h.umidade_ar_24h) dadosGraficosCache.umidade_ar_24h = series24h.umidade_ar_24h;
     if (series24h.temp_ar_24h) dadosGraficosCache.temp_ar_24h = series24h.temp_ar_24h;
-    if (series24h.umidade_solo_24h) dadosGraficosCache.umidade_solo_24h = series24h.umidade_solo_24h;
   }
 
   return `
@@ -1087,9 +1101,10 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS, ultimaLe
   const vazaoLdia = dg.vazao_ldia;
   const temUmidAr24h = Array.isArray(dg.umidade_ar_24h) && dg.umidade_ar_24h.length > 0;
   const temTempAr24h = Array.isArray(dg.temp_ar_24h) && dg.temp_ar_24h.length > 0;
-  const temLeituras24h = temUmidAr24h || temTempAr24h;
+  const temUmidSolo24h = Array.isArray(dg.umidade_solo_24h) && dg.umidade_solo_24h.length > 0;
+  const temLeituras24h = temUmidAr24h || temTempAr24h || temUmidSolo24h;
   const uArLast = temUmidAr24h ? dg.umidade_ar_24h[dg.umidade_ar_24h.length - 1] : null;
-  const uSoloLast = (temLeituras24h && dg.umidade_solo_24h && dg.umidade_solo_24h.length) ? dg.umidade_solo_24h[dg.umidade_solo_24h.length - 1] : null;
+  const uSoloLast = temUmidSolo24h ? dg.umidade_solo_24h[dg.umidade_solo_24h.length - 1] : null;
   const tArLast = temTempAr24h ? dg.temp_ar_24h[dg.temp_ar_24h.length - 1] : null;
 
   // --- Clima Open-Meteo real para o Card 3 ---
@@ -1136,7 +1151,23 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS, ultimaLe
     toast.error('Falha ao carregar previsão', 'Tente novamente');
   }
 
-  const pDia = clima?.periodos_dia || {};
+  const pDia = { ...(clima?.periodos_dia || {}) };
+  if ((pDia.manha == null || pDia.tarde == null || pDia.noite == null) && Array.isArray(clima?.horas) && clima.horas.length > 0) {
+    const hojeStr = String(climaAtual?.time || clima?.dias?.[0]?.time || clima.horas[0]?.time || '').slice(0, 10);
+    const horasHoje = clima.horas.filter(h => h && String(h.time || '').startsWith(hojeStr) && h.temperature_2m != null && !Number.isNaN(Number(h.temperature_2m)));
+    const mediaFaixa = (hIni, hFim) => {
+      const vals = horasHoje
+        .filter(h => {
+          const hr = Number(String(h.time).slice(11, 13));
+          return !Number.isNaN(hr) && hr >= hIni && hr <= hFim;
+        })
+        .map(h => Number(h.temperature_2m));
+      return vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+    };
+    if (pDia.manha == null) pDia.manha = mediaFaixa(6, 11);
+    if (pDia.tarde == null) pDia.tarde = mediaFaixa(12, 17);
+    if (pDia.noite == null) pDia.noite = mediaFaixa(18, 23);
+  }
   const climaManha = pDia.manha != null ? `${Math.round(Number(pDia.manha))}°` : '—';
   const climaTarde = pDia.tarde != null ? `${Math.round(Number(pDia.tarde))}°` : '—';
   const climaNoite = pDia.noite != null ? `${Math.round(Number(pDia.noite))}°` : '—';
@@ -1586,16 +1617,10 @@ function renderModoResumido(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS, ultimaLe
         <div class="mini-chart-card">
           <div class="mini-chart-header">
             <span class="mini-chart-title">Umidade do Solo</span>
-            ${SONDA_SOLO_INSTALADA
-      ? `<span class="mini-chart-pill ${temLeituras24h ? 'pill-green' : 'pill-blue'}" id="miniChart2-pill">${temLeituras24h && dg.umidade_solo_24h && dg.umidade_solo_24h.length ? `${Math.round(dg.umidade_solo_24h[dg.umidade_solo_24h.length - 1])}%` : 'Sem dados'}</span>`
-      : `<span class="mini-chart-pill" id="miniChart2-pill" style="background: #F1F5F9; border: 1px solid #CBD5E1; color: #64748B;">Sem sonda instalada</span>`
-    }
+            <span class="mini-chart-pill ${temUmidSolo24h ? 'pill-green' : 'pill-blue'}" id="miniChart2-pill">${temUmidSolo24h ? `${Math.round(uSoloLast)}%` : 'Sem dados'}</span>
           </div>
           <div class="chart-canvas-wrap">
-            ${SONDA_SOLO_INSTALADA
-      ? `<canvas id="miniChart2"></canvas>`
-      : `<div class="grafico-sem-dados" style="height: 100%; min-height: 48px; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #94A3B8; font-style: italic; text-align: center;">Sensor de umidade do solo ainda não instalado</div>`
-    }
+            <canvas id="miniChart2"></canvas>
           </div>
           <div class="chart-time-labels">
             <span>-24h</span><span>-18h</span><span>-12h</span><span>-6h</span><span>Agora</span>
@@ -2691,14 +2716,14 @@ export async function setupDashboardEvents() {
   if (isResumidoCurrent) {
     criarMiniGraficoApple('miniChart1', ptsUar, '#10B981', 'Sem leituras no período');
     if (SONDA_SOLO_INSTALADA) {
-      criarMiniGraficoApple('miniChart2', ptsUsolo, '#0D9488', 'Sem leituras no período');
+      criarMiniGraficoApple('miniChart2', ptsUsolo, '#0D9488', 'Sem dados no período');
     }
     criarMiniGraficoApple('miniChart4', ptsTar, '#16A34A', 'Sem leituras no período');
   } else {
     // No modo Detalhado, os gráficos são em tom verde esmeralda com pontos conforme Figma
     criarMiniGraficoApple('miniChart1', ptsUar, '#10B981', 'Sem leituras no período');
     if (SONDA_SOLO_INSTALADA) {
-      criarMiniGraficoApple('miniChart2', ptsUsolo, '#10B981', 'Sem leituras no período');
+      criarMiniGraficoApple('miniChart2', ptsUsolo, '#10B981', 'Sem dados no período');
     }
     criarMiniGraficoApple('miniChart4', ptsTar, '#10B981', 'Sem leituras no período');
   }
@@ -2787,9 +2812,9 @@ export async function setupDashboardEvents() {
     });
   });
 
-  // Interatividade nos seletores de período de telemetria
+  // Interatividade nos seletores de período de telemetria (24h, 7d, 30d)
   document.querySelectorAll('.timeframe-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    btn.addEventListener('click', async (e) => {
       document.querySelectorAll('.timeframe-btn').forEach(b => {
         b.classList.remove('active');
         b.style.background = 'none';
@@ -2812,17 +2837,35 @@ export async function setupDashboardEvents() {
 
       if (temSeries24h && tf === '24h') {
         criarMiniGraficoApple('miniChart1', cur.umidade_ar_24h || [], '#10B981', 'Sem leituras no período');
-        if (SONDA_SOLO_INSTALADA) {
-          criarMiniGraficoApple('miniChart2', cur.umidade_solo_24h || [], '#0D9488', 'Sem leituras no período');
-        }
         criarMiniGraficoApple('miniChart4', cur.temp_ar_24h || [], '#16A34A', 'Sem leituras no período');
       } else {
-        // Se não houver leitura na janela escolhida (24h, 7 ou 30 dias), não desenha curva e mostra "Sem leituras no período"
         criarMiniGraficoApple('miniChart1', [], '#10B981', 'Sem leituras no período');
-        if (SONDA_SOLO_INSTALADA) {
-          criarMiniGraficoApple('miniChart2', [], '#0D9488', 'Sem leituras no período');
-        }
         criarMiniGraficoApple('miniChart4', [], '#16A34A', 'Sem leituras no período');
+      }
+
+      // Umidade do Solo: sempre busca diretamente do sensor 3 no período escolhido (24h, 7d, 30d)
+      if (SONDA_SOLO_INSTALADA) {
+        let ptsSoloTf = [];
+        try {
+          const soloRes = await api.getSensorLeituras(SENSOR_SOLO_ID, tf);
+          ptsSoloTf = extrairSerieUmidadeSolo(soloRes);
+        } catch (errSolo) {
+          console.warn('[Dashboard] Falha ao buscar leituras de solo para', tf, errSolo);
+        }
+        const isResumidoTf = localStorage.getItem('DASHBOARD_MODE') !== 'detalhado';
+        criarMiniGraficoApple('miniChart2', ptsSoloTf, isResumidoTf ? '#0D9488' : '#10B981', 'Sem dados no período');
+        const elPillSolo = document.getElementById('miniChart2-pill');
+        if (elPillSolo) {
+          if (ptsSoloTf.length > 0) {
+            elPillSolo.textContent = `${Math.round(ptsSoloTf[ptsSoloTf.length - 1])}%`;
+            elPillSolo.classList.remove('pill-blue');
+            elPillSolo.classList.add('pill-green');
+          } else {
+            elPillSolo.textContent = 'Sem dados';
+            elPillSolo.classList.remove('pill-green');
+            elPillSolo.classList.add('pill-blue');
+          }
+        }
       }
     });
   });
