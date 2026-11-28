@@ -625,7 +625,8 @@ function renderCorrelacaoMiniCards() {
 
   const tempArAtual = sensorAr?.temperatura != null ? `${Number(sensorAr.temperatura).toFixed(1)}°C` : '—';
   const umidArAtual = sensorAr?.umidade != null ? `${Number(sensorAr.umidade).toFixed(1)}%` : '—';
-  const umidSoloAtual = sensorSolo?.umidade != null ? `${Number(sensorSolo.umidade).toFixed(1)}%` : '—';
+  const soloVal = sensorSolo?.umidade_solo ?? sensorSolo?.umidade;
+  const umidSoloAtual = soloVal != null ? `${Number(soloVal).toFixed(1)}%` : '—';
 
   const entryId = ultimaLeitura?.entry_id_thingspeak ?? ultimaLeitura?.entry_id ?? null;
   const entryLabel = entryId != null ? `entry_id #${entryId}` : 'Sem leitura';
@@ -708,7 +709,8 @@ function renderInventarioBoxHtml() {
           </span>`;
 
       const tempStr = s.temperatura != null ? `${Number(s.temperatura).toFixed(1)}°C` : '—';
-      const umidStr = s.umidade != null ? `${Number(s.umidade).toFixed(1)}%` : '—';
+      const umidRaw = amb === 'solo' ? (s.umidade_solo ?? s.umidade) : s.umidade;
+      const umidStr = umidRaw != null ? `${Number(umidRaw).toFixed(1)}%` : '—';
       const labelOrig = obterLabelOrigem(s.origem);
       const origemSelo = labelOrig === 'Real'
         ? `<span style="background: #ECFDF5; color: #065F46; padding: 1px 6px; border-radius: 4px; font-weight: 700; font-size: 9px; margin-left: 4px;">Real</span>`

@@ -292,6 +292,8 @@ async function renderAnalistaAlertas() {
 
   const tempAtualVal = curva?.atual?.temperatura ?? itemMaisCritico?.atual?.temperatura ?? sensorArReal?.temperatura ?? null;
   const desvioVal = curva?.atual?.desvio ?? itemMaisCritico?.atual?.desvio ?? null;
+  const statusAtualCurva = curva?.atual?.status ?? itemMaisCritico?.atual?.status ?? null;
+  const dentroDaFaixaAtual = desvioVal == null && tempAtualVal != null && (statusAtualCurva === 'ok' || statusAtualCurva === 'atencao');
   const tmaxVal = curva?.faixa?.temp_max ?? itemMaisCritico?.faixa?.temp_max ?? null;
 
   const riscoBadgeClass = !itemMaisCritico ? 'green' : (itemMaisCritico._nivel_padrao === 'CRITICO' ? 'red' : (itemMaisCritico._nivel_padrao === 'MEDIO' ? 'yellow' : 'green'));
@@ -397,8 +399,10 @@ async function renderAnalistaAlertas() {
             <span class="kpi-badge ${frutaMaisCritica ? 'red' : 'green'}">${frutaMaisCritica ? `${frutaMaisCritica}${destinoMaisCritico ? ` — ${destinoMaisCritico}` : ''}` : 'Sem alerta'}</span>
           </div>
           <div class="kpi-value-row">
-            <span class="kpi-big-num" style="color: ${desvioVal == null ? '#64748B' : (desvioVal >= 0 ? '#EF4444' : '#0284C7')};">
-              ${desvioVal != null ? `${desvioVal > 0 ? '+' : ''}${Number(desvioVal).toLocaleString('pt-BR')}°C ${desvioVal >= 0 ? 'Acima' : 'Abaixo'}` : 'Sem dados'}
+            <span class="kpi-big-num" style="color: ${desvioVal != null ? (desvioVal >= 0 ? '#EF4444' : '#0284C7') : (dentroDaFaixaAtual ? '#059669' : '#64748B')};">
+              ${desvioVal != null
+                ? `${desvioVal > 0 ? '+' : ''}${Number(desvioVal).toLocaleString('pt-BR')}°C ${desvioVal >= 0 ? 'Acima' : 'Abaixo'}`
+                : (dentroDaFaixaAtual ? 'Dentro da faixa' : 'Sem dados')}
             </span>
           </div>
           <div style="font-size: 11px; color: #64748B; margin-top: 2px;">
@@ -406,7 +410,7 @@ async function renderAnalistaAlertas() {
           </div>
           <div class="kpi-bottom-row">
             <span>Tmax ${tmaxVal != null ? Number(tmaxVal).toLocaleString('pt-BR') : '—'}°C</span>
-            <span style="color: ${tempAtualVal != null ? '#B91C1C' : '#64748B'}; font-weight: 700;">Atual: ${tempAtualVal != null ? `${Number(tempAtualVal).toLocaleString('pt-BR')}°C` : '—'}</span>
+            <span style="color: ${tempAtualVal != null ? (dentroDaFaixaAtual ? '#059669' : '#B91C1C') : '#64748B'}; font-weight: 700;">Atual: ${tempAtualVal != null ? `${Number(tempAtualVal).toLocaleString('pt-BR')}°C` : '—'}</span>
           </div>
         </div>
 
@@ -417,10 +421,12 @@ async function renderAnalistaAlertas() {
             <span class="kpi-badge ${riscoBadgeClass}">${riscoBadgeTexto}</span>
           </div>
           <div class="kpi-value-row">
-            <span class="kpi-big-num" style="color: ${totalAlertas > 0 ? '#B91C1C' : '#64748B'};">
+            <span class="kpi-big-num" style="color: ${totalAlertas > 0 ? '#B91C1C' : '#059669'};">
               ${prejuizoEstimado != null
                 ? `R$ ${Number(prejuizoEstimado).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                : (perdaPctMaisCritica != null ? `${perdaPctMaisCritica}% Perda Prevista` : 'Sem dados')}
+                : (totalAlertas === 0
+                  ? 'Sem risco ativo'
+                  : (perdaPctMaisCritica != null ? `${perdaPctMaisCritica}% Perda Prevista` : 'Sem dados'))}
             </span>
           </div>
           <div style="font-size: 11px; color: #64748B; margin-top: 2px;">
@@ -726,16 +732,21 @@ function renderCurvaTermicaBoxHtml(curva) {
   const desvioAtual = curva.atual?.desvio ?? null;
   const desvioSinal = desvioAtual != null ? (desvioAtual > 0 ? `+${desvioAtual.toLocaleString('pt-BR')}` : desvioAtual.toLocaleString('pt-BR')) : '—';
 
-  // Determina nível de corte preditivo
-  let nivelCorteNome = 'Crítico';
-  let faixaCorteStr = '0,80 — 1,00';
-  const valIndiceNum = probProjPct / 100;
-  if (valIndiceNum < 0.5) {
-    nivelCorteNome = 'Baixo';
-    faixaCorteStr = '0,30 — 0,49';
-  } else if (valIndiceNum < 0.8) {
-    nivelCorteNome = 'Médio';
-    faixaCorteStr = '0,50 — 0,79';
+  // Determina nível de corte preditivo apenas quando há probabilidade projetada real
+  let nivelCorteNome = null;
+  let faixaCorteStr = null;
+  if (probProjPct != null && !isNaN(Number(probProjPct))) {
+    const valIndiceNum = Number(probProjPct) / 100;
+    if (valIndiceNum < 0.5) {
+      nivelCorteNome = 'Baixo';
+      faixaCorteStr = '0,30 — 0,49';
+    } else if (valIndiceNum < 0.8) {
+      nivelCorteNome = 'Médio';
+      faixaCorteStr = '0,50 — 0,79';
+    } else {
+      nivelCorteNome = 'Crítico';
+      faixaCorteStr = '0,80 — 1,00';
+    }
   }
 
   // Montagem do SVG
@@ -852,9 +863,9 @@ function renderCurvaTermicaBoxHtml(curva) {
           <span style="width: 10px; height: 10px; border-radius: 50%; background: #10B981;"></span>
           Histórico Real (${sensorTipo})
         </span>
-        <span style="display: flex; align-items: center; gap: 6px; color: #EF4444; font-weight: 600;">
-          <span style="width: 16px; height: 2px; border-top: 2px dashed #EF4444; display: inline-block;"></span>
-          Projeção (${tempProj.toLocaleString('pt-BR')}°C)
+        <span style="display: flex; align-items: center; gap: 6px; color: ${tempProj != null ? '#EF4444' : '#64748B'}; font-weight: 600;">
+          <span style="width: 16px; height: 2px; border-top: 2px dashed ${tempProj != null ? '#EF4444' : '#94A3B8'}; display: inline-block;"></span>
+          ${tempProj != null ? `Projeção (${tempProj.toLocaleString('pt-BR')}°C)` : 'Sem projeção ativa'}
         </span>
       </div>
     </div>
@@ -891,8 +902,8 @@ function renderCurvaTermicaBoxHtml(curva) {
 
       <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 10px 14px;">
         <div style="font-size: 10px; color: #64748B;">Índice Preditivo</div>
-        <div style="font-size: 13px; font-weight: 700; color: #B91C1C; margin-top: 2px;">
-          ${indicePreditivo} Nível ${nivelCorteNome} (${faixaCorteStr})
+        <div style="font-size: 13px; font-weight: 700; color: ${nivelCorteNome ? '#B91C1C' : '#64748B'}; margin-top: 2px;">
+          ${nivelCorteNome ? `${indicePreditivo} Nível ${nivelCorteNome} (${faixaCorteStr})` : 'Sem projeção ativa'}
         </div>
       </div>
     </div>

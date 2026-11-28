@@ -826,12 +826,6 @@ function renderTelemetria(sensores, sensorSelecionadoId, periodo, leituras, carr
         </span>
       </div>
 
-      ${isSensorSolo ? `
-        <div style="margin-bottom: 10px; font-size: 11px; color: #B45309; background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 8px; padding: 6px 10px;">
-          Sensor de solo em calibração: valores ainda não são confiáveis.
-        </div>
-      ` : ''}
-
       <!-- CORPO DO GRÁFICO / ESTADO DE CARREGAMENTO / VAZIO -->
       ${carregandoTelemetria ? `
         <div style="height: 240px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; background: #F8FAFC; border-radius: 10px;">
