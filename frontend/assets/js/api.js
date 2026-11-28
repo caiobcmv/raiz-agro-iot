@@ -657,6 +657,10 @@ class ApiService {
     return await this.request('/analista/sensores/resumo');
   }
 
+  async getAnalistaRedeHistorico(horas = 24) {
+    return await this.request(`/analista/rede/historico?horas=${encodeURIComponent(horas)}`);
+  }
+
   async getSensoresTopologia() {
     return await this.request('/sensores/topologia');
   }

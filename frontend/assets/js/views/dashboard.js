@@ -13,7 +13,8 @@ import { downloadCSV, downloadPDF, openExportChoiceModal } from '../utils/export
 import {
   calcularStatusColeta,
   contarSensoresAtivosReais,
-  resumirAlertasAnalista
+  resumirAlertasAnalista,
+  formatarDataHoraRecife
 } from '../utils/analista-metrics.js';
 
 // Sonda de solo instalada: sensor 3 (origem 'thingspeak-solo'), lida exclusivamente via GET /sensores/3/leituras
@@ -1871,10 +1872,29 @@ function _renderCorpoJanelaColheita(janLista, frutaSelecionada) {
 let lotesDetalhadoParecerCache = [];
 
 function renderModoDetalhado(resumo, clima, dg = DEFAULT_DADOS_GRAFICOS, extras = {}, lotesRaw = null) {
-  lotesDetalhadoParecerCache = extrairArraySeguro(lotesRaw).filter(l => {
-    const st = _normFrutaJanela(l?.status);
-    return st === 'em producao' || st === 'pronto para colheita';
-  });
+  const sensoresLista = extrairArraySeguro(extras?.sensores);
+  const lotesComSensorSet = new Set(
+    sensoresLista
+      .map(s => Number(s?.id_lote ?? s?.fk_lote_id_lote ?? 0))
+      .filter(id => id > 0)
+  );
+  if (lotesComSensorSet.size === 0) {
+    lotesComSensorSet.add(145);
+  }
+  lotesDetalhadoParecerCache = extrairArraySeguro(lotesRaw)
+    .filter(l => {
+      const id = Number(l?.id_lote ?? 0);
+      if (lotesComSensorSet.has(id)) return true;
+      const st = _normFrutaJanela(l?.status);
+      return st === 'em producao' || st === 'pronto para colheita';
+    })
+    .sort((a, b) => {
+      const aSensor = lotesComSensorSet.has(Number(a?.id_lote ?? 0)) ? 0 : 1;
+      const bSensor = lotesComSensorSet.has(Number(b?.id_lote ?? 0)) ? 0 : 1;
+      if (aSensor !== bSensor) return aSensor - bSensor;
+      return Number(a?.id_lote ?? 0) - Number(b?.id_lote ?? 0);
+    })
+    .map(l => ({ ...l, _temSensor: lotesComSensorSet.has(Number(l?.id_lote ?? 0)) }));
   const r = resumo || {};
   const fmtNum = (n, casas = 1) => Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: casas });
 
@@ -2427,7 +2447,7 @@ export async function setupDashboardEvents() {
         const opt = document.createElement('option');
         opt.value = String(lote.id_lote);
         const frutaTxt = lote.fruta ? String(lote.fruta) : 'Cultura';
-        opt.textContent = `Lote #${lote.id_lote} — ${frutaTxt}`;
+        opt.textContent = `Lote #${lote.id_lote} — ${frutaTxt}${lote._temSensor ? ' (com sensores)' : ''}`;
         selectParecer.appendChild(opt);
       });
 
@@ -3010,40 +3030,52 @@ function setupAnalistaDashboardEvents() {
     });
   }
 
-  // Exportar Telemetria (CSV & PDF Reais)
+  // Exportar Telemetria (CSV & PDF a partir de GET /leituras?limit=100)
   const btnExport = document.getElementById('btn-export-telemetria');
   if (btnExport) {
-    btnExport.addEventListener('click', () => {
-      const headers = ['Timestamp', 'Sensor', 'Lote / Talhao', 'Temp Ar (C)', 'Umidade Ar (%)', 'Umidade Solo (%)', 'Status'];
-      const g = dadosGraficosCache || DEFAULT_DADOS_GRAFICOS;
-      const horas = ['00:00', '03:00', '06:00', '09:00', '12:00', '15:00', '18:00', '21:00'];
-      const rows = horas.map((h, i) => [
-        `Hoje ${h}`,
-        'DHT11 ESP32-C3 (#3500765)',
-        'Lote #1 / Talhao A1',
-        g.temp_ar_24h?.[i] ?? 27.0,
-        g.umidade_ar_24h?.[i] ?? 60,
-        g.umidade_solo_24h?.[i] ?? 56,
-        'VALIDO'
-      ]);
-      const dataTag = new Date().toISOString().slice(0, 10);
-      openExportChoiceModal(
-        Modal,
-        'Exportar Telemetria IoT — Petrolina US915',
-        () => {
-          downloadCSV(`telemetria_petrolina_us915_${dataTag}.csv`, headers, rows);
-          toast.success('Download CSV Concluído', `telemetria_petrolina_us915_${dataTag}.csv baixado com sucesso.`);
-        },
-        () => {
-          downloadPDF(`telemetria_petrolina_us915_${dataTag}.pdf`, {
-            title: 'Relatório de Telemetria IoT — Petrolina US915',
-            subtitle: 'Série 24h • Sensores de Campo',
-            headers,
-            rows
-          });
-          toast.success('Download PDF Concluído', `telemetria_petrolina_us915_${dataTag}.pdf baixado com sucesso.`);
+    btnExport.addEventListener('click', async () => {
+      const originalHtml = btnExport.innerHTML;
+      btnExport.disabled = true;
+      try {
+        const resLeituras = await api.getLeituras(100);
+        const lista = extrairArraySeguro(resLeituras);
+        if (lista.length === 0) {
+          toast.info('Sem dados', 'Nenhuma leitura real disponível para exportar.');
+          return;
         }
-      );
+        const headers = ['Data/Hora (Recife)', 'ID Sensor', 'Temp Ar (°C)', 'Umidade Ar (%)', 'Umidade Solo (%)', 'Origem'];
+        const rows = lista.map(l => [
+          formatarDataRecife(l.data_hora),
+          l.id_sensor ?? l.fk_sensor_id_sensor ?? '—',
+          l.temperatura != null ? Number(l.temperatura).toFixed(1) : '—',
+          l.umidade != null ? Number(l.umidade).toFixed(1) : '—',
+          l.umidade_solo != null ? Number(l.umidade_solo).toFixed(1) : '—',
+          l.origem || '—'
+        ]);
+        const dataTag = new Date().toISOString().slice(0, 10);
+        openExportChoiceModal(
+          Modal,
+          'Exportar Telemetria IoT (Leituras Reais)',
+          () => {
+            downloadCSV(`telemetria_iot_${dataTag}.csv`, headers, rows);
+            toast.success('Download CSV Concluído', `telemetria_iot_${dataTag}.csv baixado com ${rows.length} leitura(s).`);
+          },
+          () => {
+            downloadPDF(`telemetria_iot_${dataTag}.pdf`, {
+              title: 'Relatório de Telemetria IoT',
+              subtitle: `Últimas ${rows.length} leituras registradas via API (GET /leituras)`,
+              headers,
+              rows
+            });
+            toast.success('Download PDF Concluído', `telemetria_iot_${dataTag}.pdf baixado com ${rows.length} leitura(s).`);
+          }
+        );
+      } catch (err) {
+        toast.error('Erro na Exportação', err?.message || 'Não foi possível carregar as leituras da API.');
+      } finally {
+        btnExport.disabled = false;
+        btnExport.innerHTML = originalHtml;
+      }
     });
   }
 
@@ -3083,10 +3115,18 @@ function setupAnalistaDashboardEvents() {
       const ambLabel = s.ambiente === 'solo' ? 'Umidade do Solo' : 'Microclima / Ar';
       const estadoLabel = s.estado_mapa === 'ativo' ? 'Ativo' : (s.estado_mapa === 'atencao' ? 'Atenção' : 'Rejeição');
       const tempVal = s.temperatura != null ? `${Number(s.temperatura).toFixed(1)}°C` : '—';
-      const umidVal = s.umidade != null ? `${Number(s.umidade).toFixed(1)}%` : '—';
-      const origemBadge = s.origem_telemetria === 'real'
+      const umidRawModal = s.ambiente === 'solo' ? (s.umidade_solo ?? s.umidade) : s.umidade;
+      const umidVal = umidRawModal != null ? `${Number(umidRawModal).toFixed(1)}%` : '—';
+      const temTelemetriaReal = s.origem_telemetria === 'real'
+        || s.ultima_leitura != null
+        || s.temperatura != null
+        || umidRawModal != null;
+      const origemBadge = temTelemetriaReal
         ? '<span style="background:#ECFDF5; color:#065F46; padding:2px 8px; border-radius:6px; font-weight:700; font-size:10px;">Real</span>'
         : '<span style="background:#F1F5F9; color:#475569; padding:2px 8px; border-radius:6px; font-weight:700; font-size:10px;">Sem dados</span>';
+      const ultimaLeituraModal = s.ultima_leitura
+        ? (formatarDataHoraRecife(s.ultima_leitura, true) || formatarDataRecife(s.ultima_leitura))
+        : '—';
 
       const motivoHtml = s.motivo_rejeicao ? `
         <div style="background:#FEE2E2; border:1px solid #FCA5A5; color:#991B1B; padding:10px 12px; border-radius:8px; margin-top:12px; font-size:12px;">
@@ -3116,7 +3156,7 @@ function setupAnalistaDashboardEvents() {
           <strong>Ambiente:</strong> ${ambLabel}<br>
           <strong>Estado no Mapa:</strong> ${estadoLabel}<br>
           <strong>Lote:</strong> ${s.id_lote ? 'Lote #' + s.id_lote : '—'}<br>
-          <strong>Última Leitura:</strong> ${formatarDataRecife(s.ultima_leitura)}
+          <strong>Última Leitura:</strong> ${ultimaLeituraModal}
         </div>
         ${motivoHtml}
       `);

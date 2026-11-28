@@ -101,19 +101,21 @@ export async function renderRedeEsp32() {
       resumoRes,
       topologiaRes,
       sensoresRes,
-      rejeitadasRes
+      rejeitadasRes,
+      historicoRes
     ] = await Promise.allSettled([
       api.getAnalistaSensoresResumo(),
       api.getSensoresTopologia(),
       api.getSensores(),
-      api.getLeiturasRejeitadas({ limit: 10 })
+      api.getLeiturasRejeitadas({ limit: 10 }),
+      api.getAnalistaRedeHistorico(24)
     ]);
 
     redeState.resumo = (resumoRes.status === 'fulfilled' && resumoRes.value && typeof resumoRes.value === 'object') ? resumoRes.value : null;
     redeState.topologia = (topologiaRes.status === 'fulfilled' && topologiaRes.value && typeof topologiaRes.value === 'object') ? topologiaRes.value : null;
     redeState.sensores = extrairArraySeguro(sensoresRes.status === 'fulfilled' ? sensoresRes.value : null);
     redeState.rejeitadas = extrairArraySeguro(rejeitadasRes.status === 'fulfilled' ? rejeitadasRes.value : null);
-    redeState.historico = null;
+    redeState.historico = (historicoRes.status === 'fulfilled' && historicoRes.value && typeof historicoRes.value === 'object') ? historicoRes.value : null;
   } catch (err) {
     console.warn('[RedeESP32] Erro ao carregar dados:', err);
   }
@@ -501,7 +503,7 @@ function renderInventarioTecnicoHtml() {
         <div style="font-size: 11px; color: #334155; font-weight: 600;">${loteFrutaStr}</div>
         <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748B; margin-top: 6px; border-top: 1px solid #EDF2F7; padding-top: 4px;">
           <span>Ambiente: <strong>${ambLabel}</strong></span>
-          <span style="font-family: monospace; color: #0284C7;">channel_id: ${s.channel_id || '—'}</span>
+          <span style="font-family: monospace; color: #0284C7;">channel_id: ${s.channel_id || redeState.resumo?.coleta?.canal || '—'}</span>
         </div>
       </div>
     `;

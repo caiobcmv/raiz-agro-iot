@@ -292,6 +292,8 @@ async function renderAnalistaAlertas() {
 
   const tempAtualVal = curva?.atual?.temperatura ?? itemMaisCritico?.atual?.temperatura ?? sensorArReal?.temperatura ?? null;
   const desvioVal = curva?.atual?.desvio ?? itemMaisCritico?.atual?.desvio ?? null;
+  const statusAtualCurva = curva?.atual?.status ?? itemMaisCritico?.atual?.status ?? null;
+  const dentroDaFaixaAtual = desvioVal == null && tempAtualVal != null && (statusAtualCurva === 'ok' || statusAtualCurva === 'atencao');
   const tmaxVal = curva?.faixa?.temp_max ?? itemMaisCritico?.faixa?.temp_max ?? null;
 
   const riscoBadgeClass = !itemMaisCritico ? 'green' : (itemMaisCritico._nivel_padrao === 'CRITICO' ? 'red' : (itemMaisCritico._nivel_padrao === 'MEDIO' ? 'yellow' : 'green'));
@@ -397,8 +399,10 @@ async function renderAnalistaAlertas() {
             <span class="kpi-badge ${frutaMaisCritica ? 'red' : 'green'}">${frutaMaisCritica ? `${frutaMaisCritica}${destinoMaisCritico ? ` — ${destinoMaisCritico}` : ''}` : 'Sem alerta'}</span>
           </div>
           <div class="kpi-value-row">
-            <span class="kpi-big-num" style="color: ${desvioVal == null ? '#64748B' : (desvioVal >= 0 ? '#EF4444' : '#0284C7')};">
-              ${desvioVal != null ? `${desvioVal > 0 ? '+' : ''}${Number(desvioVal).toLocaleString('pt-BR')}°C ${desvioVal >= 0 ? 'Acima' : 'Abaixo'}` : 'Sem dados'}
+            <span class="kpi-big-num" style="color: ${desvioVal != null ? (desvioVal >= 0 ? '#EF4444' : '#0284C7') : (dentroDaFaixaAtual ? '#059669' : '#64748B')};">
+              ${desvioVal != null
+                ? `${desvioVal > 0 ? '+' : ''}${Number(desvioVal).toLocaleString('pt-BR')}°C ${desvioVal >= 0 ? 'Acima' : 'Abaixo'}`
+                : (dentroDaFaixaAtual ? 'Dentro da faixa' : 'Sem dados')}
             </span>
           </div>
           <div style="font-size: 11px; color: #64748B; margin-top: 2px;">
@@ -406,7 +410,7 @@ async function renderAnalistaAlertas() {
           </div>
           <div class="kpi-bottom-row">
             <span>Tmax ${tmaxVal != null ? Number(tmaxVal).toLocaleString('pt-BR') : '—'}°C</span>
-            <span style="color: ${tempAtualVal != null ? '#B91C1C' : '#64748B'}; font-weight: 700;">Atual: ${tempAtualVal != null ? `${Number(tempAtualVal).toLocaleString('pt-BR')}°C` : '—'}</span>
+            <span style="color: ${tempAtualVal != null ? (dentroDaFaixaAtual ? '#059669' : '#B91C1C') : '#64748B'}; font-weight: 700;">Atual: ${tempAtualVal != null ? `${Number(tempAtualVal).toLocaleString('pt-BR')}°C` : '—'}</span>
           </div>
         </div>
 
@@ -417,10 +421,12 @@ async function renderAnalistaAlertas() {
             <span class="kpi-badge ${riscoBadgeClass}">${riscoBadgeTexto}</span>
           </div>
           <div class="kpi-value-row">
-            <span class="kpi-big-num" style="color: ${totalAlertas > 0 ? '#B91C1C' : '#64748B'};">
+            <span class="kpi-big-num" style="color: ${totalAlertas > 0 ? '#B91C1C' : '#059669'};">
               ${prejuizoEstimado != null
                 ? `R$ ${Number(prejuizoEstimado).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                : (perdaPctMaisCritica != null ? `${perdaPctMaisCritica}% Perda Prevista` : 'Sem dados')}
+                : (totalAlertas === 0
+                  ? 'Sem risco ativo'
+                  : (perdaPctMaisCritica != null ? `${perdaPctMaisCritica}% Perda Prevista` : 'Sem dados'))}
             </span>
           </div>
           <div style="font-size: 11px; color: #64748B; margin-top: 2px;">
@@ -726,16 +732,21 @@ function renderCurvaTermicaBoxHtml(curva) {
   const desvioAtual = curva.atual?.desvio ?? null;
   const desvioSinal = desvioAtual != null ? (desvioAtual > 0 ? `+${desvioAtual.toLocaleString('pt-BR')}` : desvioAtual.toLocaleString('pt-BR')) : '—';
 
-  // Determina nível de corte preditivo
-  let nivelCorteNome = 'Crítico';
-  let faixaCorteStr = '0,80 — 1,00';
-  const valIndiceNum = probProjPct / 100;
-  if (valIndiceNum < 0.5) {
-    nivelCorteNome = 'Baixo';
-    faixaCorteStr = '0,30 — 0,49';
-  } else if (valIndiceNum < 0.8) {
-    nivelCorteNome = 'Médio';
-    faixaCorteStr = '0,50 — 0,79';
+  // Determina nível de corte preditivo apenas quando há probabilidade projetada real
+  let nivelCorteNome = null;
+  let faixaCorteStr = null;
+  if (probProjPct != null && !isNaN(Number(probProjPct))) {
+    const valIndiceNum = Number(probProjPct) / 100;
+    if (valIndiceNum < 0.5) {
+      nivelCorteNome = 'Baixo';
+      faixaCorteStr = '0,30 — 0,49';
+    } else if (valIndiceNum < 0.8) {
+      nivelCorteNome = 'Médio';
+      faixaCorteStr = '0,50 — 0,79';
+    } else {
+      nivelCorteNome = 'Crítico';
+      faixaCorteStr = '0,80 — 1,00';
+    }
   }
 
   // Montagem do SVG
@@ -757,11 +768,11 @@ function renderCurvaTermicaBoxHtml(curva) {
     const plotW = 800 - marginL - marginR;
     const plotH = 200 - marginT - marginB;
 
-    const temps = [tmin, tmax, tempProj, tempAtual, ...historico.map(p => p.temperatura).filter(v => v != null)];
+    const temps = [tmin, tmax, tempProj, tempAtual, ...historico.map(p => p.temperatura)].filter(v => v != null && !isNaN(Number(v)));
     const minY = Math.floor(Math.min(...temps) - 1.5);
     const maxY = Math.ceil(Math.max(...temps) + 1.5);
 
-    const getY = (t) => marginT + plotH - ((t - minY) / (maxY - minY)) * plotH;
+    const getY = (t) => marginT + plotH - ((t - minY) / Math.max(0.1, maxY - minY)) * plotH;
 
     const yTmax = getY(tmax);
     const yTmin = getY(tmin);
@@ -769,11 +780,11 @@ function renderCurvaTermicaBoxHtml(curva) {
 
     // Segmentos do histórico real
     const numPontos = historico.length;
-    const stepX = (plotW * 0.75) / Math.max(1, numPontos - 1);
+    const stepX = (plotW * (tempProj != null ? 0.75 : 0.95)) / Math.max(1, numPontos - 1);
 
     let pathD = '';
     let ultimoX = marginL;
-    let ultimoY = getY(tempAtual);
+    let ultimoY = tempAtual != null ? getY(tempAtual) : getY(tmin);
 
     historico.forEach((p, idx) => {
       const x = marginL + idx * stepX;
@@ -791,9 +802,10 @@ function renderCurvaTermicaBoxHtml(curva) {
       }
     });
 
-    // Ponto projetado
+    // Ponto projetado (apenas quando há projeção real)
+    const temProjecaoReal = tempProj != null && !isNaN(Number(tempProj));
     const projX = marginL + plotW;
-    const projY = getY(tempProj);
+    const projY = temProjecaoReal ? getY(tempProj) : ultimoY;
 
     svgContent = `
       <svg viewBox="0 0 800 200" style="width: 100%; height: 100%;" preserveAspectRatio="xMidYMid meet">
@@ -817,14 +829,16 @@ function renderCurvaTermicaBoxHtml(curva) {
         <!-- Curva Real Histórica (Linha Verde) -->
         <path d="${pathD}" fill="none" stroke="#10B981" stroke-width="2.8" stroke-linecap="round"/>
 
+        ${temProjecaoReal ? `
         <!-- Curva de Projeção ML (Vermelha Tracejada) -->
         <path d="M ${ultimoX.toFixed(1)},${ultimoY.toFixed(1)} L ${projX.toFixed(1)},${projY.toFixed(1)}" fill="none" stroke="#EF4444" stroke-width="2.5" stroke-dasharray="5,4"/>
 
         <!-- Ponto Projetado -->
         <circle cx="${projX.toFixed(1)}" cy="${projY.toFixed(1)}" r="4.5" fill="#EF4444" stroke="#FFFFFF" stroke-width="1.5"/>
+        ` : ''}
 
-        <!-- Ponto Atual com Alerta de Desvio -->
-        <circle cx="${ultimoX.toFixed(1)}" cy="${ultimoY.toFixed(1)}" r="6" fill="#EF4444" stroke="#FFFFFF" stroke-width="2"/>
+        <!-- Ponto Atual -->
+        <circle cx="${ultimoX.toFixed(1)}" cy="${ultimoY.toFixed(1)}" r="6" fill="${desvioAtual != null ? '#EF4444' : '#10B981'}" stroke="#FFFFFF" stroke-width="2"/>
         <rect x="${(ultimoX - 28).toFixed(1)}" y="${(ultimoY - 32).toFixed(1)}" width="56" height="20" rx="4" fill="#0F172A"/>
         <text x="${ultimoX.toFixed(1)}" y="${(ultimoY - 18).toFixed(1)}" fill="#FFFFFF" font-size="10" font-weight="800" text-anchor="middle">${desvioSinal}°C</text>
       </svg>
@@ -852,9 +866,9 @@ function renderCurvaTermicaBoxHtml(curva) {
           <span style="width: 10px; height: 10px; border-radius: 50%; background: #10B981;"></span>
           Histórico Real (${sensorTipo})
         </span>
-        <span style="display: flex; align-items: center; gap: 6px; color: #EF4444; font-weight: 600;">
-          <span style="width: 16px; height: 2px; border-top: 2px dashed #EF4444; display: inline-block;"></span>
-          Projeção (${tempProj.toLocaleString('pt-BR')}°C)
+        <span style="display: flex; align-items: center; gap: 6px; color: ${tempProj != null ? '#EF4444' : '#64748B'}; font-weight: 600;">
+          <span style="width: 16px; height: 2px; border-top: 2px dashed ${tempProj != null ? '#EF4444' : '#94A3B8'}; display: inline-block;"></span>
+          ${tempProj != null ? `Projeção (${tempProj.toLocaleString('pt-BR')}°C)` : 'Sem projeção ativa'}
         </span>
       </div>
     </div>
@@ -891,8 +905,8 @@ function renderCurvaTermicaBoxHtml(curva) {
 
       <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 10px 14px;">
         <div style="font-size: 10px; color: #64748B;">Índice Preditivo</div>
-        <div style="font-size: 13px; font-weight: 700; color: #B91C1C; margin-top: 2px;">
-          ${indicePreditivo} Nível ${nivelCorteNome} (${faixaCorteStr})
+        <div style="font-size: 13px; font-weight: 700; color: ${nivelCorteNome ? '#B91C1C' : '#64748B'}; margin-top: 2px;">
+          ${nivelCorteNome ? `${indicePreditivo} Nível ${nivelCorteNome} (${faixaCorteStr})` : 'Sem projeção ativa'}
         </div>
       </div>
     </div>
@@ -1063,13 +1077,7 @@ function setupAnalistaAlertasEvents() {
             const res = await api.reconhecerTodosCentralAlertas();
             const qtdReconhecidos = res?.reconhecidos ?? analistaAlertasState.resumo.total;
             toast.success('Incidentes Reconhecidos', `${qtdReconhecidos} alertas reconhecidos com sucesso.`);
-            // Recarrega a tela dinamicamente
-            const novoHtml = await renderAnalistaAlertas();
-            const appEl = document.getElementById('app');
-            if (appEl) {
-              appEl.innerHTML = novoHtml;
-              setupAnalistaAlertasEvents();
-            }
+            window.dispatchEvent(new HashChangeEvent('hashchange'));
           } catch (err) {
             toast.error('Erro ao Reconhecer', err.message || 'Falha na comunicação com o backend.');
           } finally {
@@ -1135,12 +1143,7 @@ function setupAnalistaAlertasEvents() {
       try {
         await api.reconhecerAlertaCentral(origem, id);
         toast.success('Incidente Reconhecido', 'Alerta marcado como atendido pelo Analista.');
-        const novoHtml = await renderAnalistaAlertas();
-        const appEl = document.getElementById('app');
-        if (appEl) {
-          appEl.innerHTML = novoHtml;
-          setupAnalistaAlertasEvents();
-        }
+        window.dispatchEvent(new HashChangeEvent('hashchange'));
       } catch (err) {
         toast.error('Erro ao Reconhecer', err.message || 'Falha ao atualizar status do alerta.');
         btn.disabled = false;
@@ -1157,7 +1160,12 @@ function setupAnalistaAlertasEvents() {
       const loteId = btn.dataset.lote;
 
       if (id) {
-        api.reconhecerAlertaCentral(origem, id).catch(() => {});
+        try {
+          await api.reconhecerAlertaCentral(origem, id);
+        } catch (err) {
+          toast.error('Erro ao Reconhecer', err?.message || 'Não foi possível reconhecer o alerta no servidor.');
+          return;
+        }
       }
 
       toast.info('Intervenção Iniciada', 'Direcionando para a rota portuária de escoamento prioritário.');
@@ -1187,7 +1195,7 @@ function setupAnalistaAlertasEvents() {
         </div>
       `).join('') : `
         <div style="font-size: 12px; color: #64748B;">
-          Parâmetros vigentes de ${frutaAlvo}: Tmax 13.0°C | UR 90% a 95%
+          Nenhum parâmetro cadastrado em <code>config_parametro</code> para ${frutaAlvo}.
         </div>
       `;
 

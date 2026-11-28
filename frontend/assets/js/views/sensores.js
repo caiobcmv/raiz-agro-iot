@@ -625,7 +625,8 @@ function renderCorrelacaoMiniCards() {
 
   const tempArAtual = sensorAr?.temperatura != null ? `${Number(sensorAr.temperatura).toFixed(1)}°C` : '—';
   const umidArAtual = sensorAr?.umidade != null ? `${Number(sensorAr.umidade).toFixed(1)}%` : '—';
-  const umidSoloAtual = sensorSolo?.umidade != null ? `${Number(sensorSolo.umidade).toFixed(1)}%` : '—';
+  const soloVal = sensorSolo?.umidade_solo ?? sensorSolo?.umidade;
+  const umidSoloAtual = soloVal != null ? `${Number(soloVal).toFixed(1)}%` : '—';
 
   const entryId = ultimaLeitura?.entry_id_thingspeak ?? ultimaLeitura?.entry_id ?? null;
   const entryLabel = entryId != null ? `entry_id #${entryId}` : 'Sem leitura';
@@ -708,7 +709,8 @@ function renderInventarioBoxHtml() {
           </span>`;
 
       const tempStr = s.temperatura != null ? `${Number(s.temperatura).toFixed(1)}°C` : '—';
-      const umidStr = s.umidade != null ? `${Number(s.umidade).toFixed(1)}%` : '—';
+      const umidRaw = amb === 'solo' ? (s.umidade_solo ?? s.umidade) : s.umidade;
+      const umidStr = umidRaw != null ? `${Number(umidRaw).toFixed(1)}%` : '—';
       const labelOrig = obterLabelOrigem(s.origem);
       const origemSelo = labelOrig === 'Real'
         ? `<span style="background: #ECFDF5; color: #065F46; padding: 1px 6px; border-radius: 4px; font-weight: 700; font-size: 9px; margin-left: 4px;">Real</span>`
@@ -742,7 +744,7 @@ function renderInventarioBoxHtml() {
             <div style="font-size: 11px; color: #64748B;">${s.localizacao || 'Setor padrão'}</div>
           </td>
           <td style="padding: 12px 14px;">
-            <div style="font-weight: 700; color: #0284C7; font-family: monospace;">${s.channel_id ? 'Ch ' + s.channel_id : '—'}</div>
+            <div style="font-weight: 700; color: #0284C7; font-family: monospace;">${(s.channel_id || sensoresState.resumo?.coleta?.canal) ? 'Ch ' + (s.channel_id || sensoresState.resumo?.coleta?.canal) : '—'}</div>
           </td>
           <td style="padding: 12px 14px;">
             <div style="font-weight: 700; color: #0F172A;">
@@ -1277,6 +1279,10 @@ export function setupSensoresEvents() {
           `;
 
           Modal.open('Log Completo de Ingestão e Descartes', conteudo, () => {
+            if (!lista || lista.length === 0) {
+              toast.info('Sem dados', 'Nenhuma leitura rejeitada disponível para exportar.');
+              return;
+            }
             const dataTag = new Date().toISOString().slice(0, 10);
             downloadCSV(
               `log_descartes_${dataTag}.csv`,
